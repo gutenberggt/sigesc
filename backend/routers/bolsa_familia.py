@@ -18,6 +18,11 @@ from services.attendance_utils import (
     fetch_medical_days_for_students,
 )
 from services.bf_reason_suggestion import suggest_reason_for_month
+from services.bf_network_stats import (
+    compute_network_stats,
+    list_followup_cases,
+    STATS_VERSION as NETWORK_STATS_VERSION,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -375,6 +380,231 @@ def setup_router(db, **kwargs):
             "frequency_percentage": frequency_percentage,
         }
         return result
+
+    # ------------------------------------------------------------------
+    # Fase 3A — Agregados institucionais (cache in-process TTL 5min).
+    # Owner spec: backend PRIMEIRO, dashboard depois. Pipeline `$facet`
+    # única — sem múltiplas queries dispersas.
+    # ------------------------------------------------------------------
+    _STATS_CACHE_TTL_SECONDS = 300
+    _stats_cache: dict = {}
+
+    def _cache_get(key: str):
+        entry = _stats_cache.get(key)
+        if not entry:
+            return None
+        if (datetime.now(timezone.utc) - entry["at"]).total_seconds() > _STATS_CACHE_TTL_SECONDS:
+            _stats_cache.pop(key, None)
+            return None
+        return entry["data"]
+
+    def _cache_set(key: str, data):
+        _stats_cache[key] = {"at": datetime.now(timezone.utc), "data": data}
+
+    @router.get("/bolsa-familia/stats/network")
+    async def network_stats(
+        request: Request,
+        academic_year: Optional[int] = None,
+        mec_version: str = "4.2",
+        force_refresh: bool = False,
+    ):
+        """Agregados institucionais da rede — pronto para Dashboard Busca Ativa.
+
+        Resposta tem `stats_version` para evolução segura. Cache in-process
+        com TTL de 5 min (evita explosão por polling de dashboard).
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+
+        cache_key = f"network|{academic_year}|{mec_version}"
+        if not force_refresh:
+            cached = _cache_get(cache_key)
+            if cached is not None:
+                return {**cached, "cached": True}
+
+        data = await compute_network_stats(
+            db, academic_year=academic_year, mec_version=mec_version
+        )
+        _cache_set(cache_key, data)
+        return {**data, "cached": False}
+
+    @router.get("/bolsa-familia/stats/network/followup")
+    async def network_followup(
+        request: Request,
+        academic_year: Optional[int] = None,
+        mec_version: str = "4.2",
+        severity_min: int = Query(5, ge=1, le=5),
+        limit: int = Query(200, ge=1, le=1000),
+    ):
+        """Casos prioritários para Busca Ativa: severity >= N ou
+        requires_followup=True. Lista limitada (`limit`), nunca dump completo.
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+        return await list_followup_cases(
+            db,
+            academic_year=academic_year,
+            mec_version=mec_version,
+            severity_min=severity_min,
+            limit=limit,
+        )
+
+    @router.get("/bolsa-familia/stats/network/followup/export")
+    async def network_followup_export(
+        request: Request,
+        academic_year: Optional[int] = None,
+        mec_version: str = "4.2",
+        severity_min: int = Query(1, ge=1, le=5),
+        limit: int = Query(1000, ge=1, le=5000),
+        format: str = Query("csv", pattern="^(csv|xlsx)$"),
+    ):
+        """Export operacional (CSV/XLSX) dos casos prioritários — Fase 3A.1.
+
+        Owner spec: secretarias vivem de planilha. Habilita imediatamente:
+        Busca Ativa manual, reuniões pedagógicas, CRAS, Conselho Tutelar.
+
+        Mesma engine `list_followup_cases` → consistência com endpoint JSON.
+        Streaming attachment com `Content-Disposition`.
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+
+        payload = await list_followup_cases(
+            db,
+            academic_year=academic_year,
+            mec_version=mec_version,
+            severity_min=severity_min,
+            limit=limit,
+        )
+        cases = payload.get("cases", [])
+        # Resolve frequência consolidada (mês atual do caso) com engine canônica.
+        # Owner exigiu coluna `frequência` na planilha.
+        year_to_attendance: dict = {}
+        async def _attendance_for(ay):
+            if ay not in year_to_attendance:
+                year_to_attendance[ay] = await db.attendance.find(
+                    {"academic_year": ay}, {"_id": 0, "date": 1, "records": 1}
+                ).to_list(50000)
+            return year_to_attendance[ay]
+
+        # Cache medical_days por (year, student) para reaproveitar
+        med_cache: dict = {}
+        async def _medical_for(ay, sid):
+            key = (ay, sid)
+            if key not in med_cache:
+                m = await fetch_medical_days_for_students(db, [sid], ay)
+                med_cache[key] = m.get(sid) or set()
+            return med_cache[key]
+
+        monthly_school_days_cache: dict = {}
+        async def _school_days(ay):
+            if ay not in monthly_school_days_cache:
+                monthly_school_days_cache[ay] = await _calc_monthly_school_days(ay)
+            return monthly_school_days_cache[ay]
+
+        # Anota cada caso com frequência
+        for c in cases:
+            ay = c.get("academic_year")
+            sid = c.get("student_id")
+            month_str = str(c.get("month") or "")
+            try:
+                month_int = int(month_str)
+            except (ValueError, TypeError):
+                month_int = 0
+            freq_str = ""
+            if ay and sid and 1 <= month_int <= 12:
+                att_docs = await _attendance_for(ay)
+                med_set = await _medical_for(ay, sid)
+                absences_map = compute_monthly_valid_absences(
+                    att_docs, {sid: med_set}, {sid}
+                )
+                school_days = (await _school_days(ay)).get(month_int, 0)
+                valid_abs = (absences_map.get(sid) or {}).get(month_int, 0)
+                if school_days > 0:
+                    freq_str = f"{round(((school_days - valid_abs) * 100) / school_days, 1)}%"
+            c["frequency"] = freq_str
+
+        # Render
+        columns = [
+            ("Aluno", "student_name"),
+            ("Escola", "school_name"),
+            ("Categoria MEC", "category"),
+            ("Grupo MEC", "group_name"),
+            ("Subcódigo", "reason_subcode"),
+            ("Motivo", "reason_name"),
+            ("Severidade", "severity_level"),
+            ("Requer acompanhamento", "requires_followup"),
+            ("Mês", "month"),
+            ("Ano letivo", "academic_year"),
+            ("Frequência", "frequency"),
+            ("Observações", "notes"),
+        ]
+        filename_stem = f"bolsa_familia_busca_ativa_{academic_year or 'all'}"
+
+        if format == "csv":
+            import csv as _csv
+            from io import StringIO
+            buf = StringIO()
+            writer = _csv.writer(buf, delimiter=";", quoting=_csv.QUOTE_MINIMAL)
+            writer.writerow([h for h, _ in columns])
+            for c in cases:
+                writer.writerow([
+                    "Sim" if c.get(k) is True else "Não" if c.get(k) is False else (c.get(k) or "")
+                    for _, k in columns
+                ])
+            data = buf.getvalue().encode("utf-8-sig")  # BOM para abrir certo no Excel
+            return StreamingResponse(
+                io.BytesIO(data),
+                media_type="text/csv; charset=utf-8",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename_stem}.csv"',
+                    "X-Total-Cases": str(len(cases)),
+                    "X-Stats-Version": NETWORK_STATS_VERSION,
+                },
+            )
+
+        # xlsx
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Busca Ativa"
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill("solid", fgColor="1E40AF")
+        for col_idx, (h, _) in enumerate(columns, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+        for r_idx, c in enumerate(cases, start=2):
+            for col_idx, (_, k) in enumerate(columns, start=1):
+                val = c.get(k)
+                if isinstance(val, bool):
+                    val = "Sim" if val else "Não"
+                ws.cell(row=r_idx, column=col_idx, value=val if val is not None else "")
+        # Auto-width básico (limita 50)
+        for col_idx, (h, _) in enumerate(columns, start=1):
+            max_len = max(
+                [len(str(c.get(columns[col_idx - 1][1]) or "")) for c in cases] + [len(h)]
+            )
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 2, 50)
+        ws.freeze_panes = "A2"
+
+        out = io.BytesIO()
+        wb.save(out)
+        out.seek(0)
+        return StreamingResponse(
+            out,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename_stem}.xlsx"',
+                "X-Total-Cases": str(len(cases)),
+                "X-Stats-Version": NETWORK_STATS_VERSION,
+            },
+        )
 
     @router.get("/bolsa-familia/students")
     async def list_bolsa_familia_students(

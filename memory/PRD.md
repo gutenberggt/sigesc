@@ -33,6 +33,118 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Bolsa Família — Fase 3A.1: Export CSV/XLSX para Busca Ativa **[Fev/2026]**
+
+Habilita IMEDIATAMENTE Busca Ativa manual, reuniões pedagógicas, CRAS e
+Conselho Tutelar — antes do dashboard visual. Owner spec: secretarias
+vivem de planilha; valor operacional alto, custo arquitetural mínimo.
+
+#### Endpoint
+- `GET /api/bolsa-familia/stats/network/followup/export?format=csv|xlsx&academic_year&severity_min&limit`
+  - **Reusa** `list_followup_cases()` → consistência total com endpoint JSON.
+  - Anota `frequency` por caso usando engine canônica (`compute_monthly_valid_absences`
+    + cache local para evitar N+1).
+  - Headers: `Content-Disposition: attachment`, `X-Total-Cases`, `X-Stats-Version`.
+
+#### CSV
+- BOM UTF-8 (Excel abre acentos corretamente).
+- Separador `;` (padrão Brasil).
+- Bool renderizado como "Sim/Não" (UX para secretaria).
+
+#### XLSX (openpyxl 3.1.5)
+- Aba "Busca Ativa".
+- Header em destaque (bold branco + fill azul `#1E40AF`).
+- `freeze_panes = "A2"` (header sempre visível).
+- Auto-width básico (limite 50ch).
+
+#### Colunas (owner spec)
+| Coluna | Origem |
+|---|---|
+| Aluno | `student_name` (lookup `students`) |
+| Escola | `school_name` (lookup `schools`) |
+| Categoria MEC | `_group.category` |
+| Grupo MEC | `_group.name` |
+| Subcódigo | `_reason.mec_subcode` |
+| Motivo | `_reason.name` |
+| Severidade | `_reason.severity_level` |
+| Requer acompanhamento | `_reason.requires_followup` → Sim/Não |
+| Mês | tracking |
+| Ano letivo | tracking |
+| Frequência | engine canônica |
+| Observações | `tracking.notes` |
+
+#### Tests
+- `tests/test_bf_export_followup.py` — 6 E2E HTTP (100% verde):
+  CSV headers+format (BOM UTF-8, separador `;`, header PT-BR),
+  CSV content (VIOLENCE, 11a, "Sim"), XLSX structure (12 cols, freeze,
+  bold), XLSX content, validação `format` (422 p/ valor inválido),
+  filtro severity_min=5 OR requires_followup=True.
+- Suite BF consolidada: **60/60 verde** (10 MEC + 9 canonical +
+  12 e2e_systemic + 13 suggestion + 10 network_stats + 6 export).
+
+
+
+### Bolsa Família — Fase 3A: Agregados Institucionais (Network Stats) **[Fev/2026]**
+
+Camada analítica institucional — pré-requisito para Dashboard Busca Ativa.
+Owner spec: backend PRIMEIRO, dashboard depois. Pipeline `$facet` única,
+versionada, cacheável. Núcleo de inteligência de permanência escolar.
+
+#### Arquitetura
+- `services/bf_network_stats.py` — pipeline `$facet` única + função
+  `list_followup_cases` (lookup encadeado com denormalizações).
+- `GET /api/bolsa-familia/stats/network?academic_year&mec_version` —
+  agregados gerais. Cache **in-process TTL 5min** (evita explosão de
+  polling do dashboard). Suporta `force_refresh=true`.
+- `GET /api/bolsa-familia/stats/network/followup?academic_year&severity_min&limit` —
+  casos prioritários para Busca Ativa (severity≥N OR requires_followup=True),
+  ordenados por severity desc + updated_at desc, com denormalizações
+  (`student_name`, `school_name`, `reason_name`, `category`, `group_name`).
+
+#### Versionamento
+- `STATS_VERSION = "v1.0"` — bump em qualquer mudança de shape.
+- Toda resposta inclui `stats_version`, `generated_at` (UTC ISO),
+  `scope` (academic_year + mec_version aplicados).
+
+#### Pipeline `$facet` — 7 dimensões em uma viagem ao banco
+```
+{
+  total: [{$count}],
+  by_category: [{$group _id=category}],
+  by_severity: [{$group _id=severity_level}],
+  requires_followup: [{$match requires_followup=true}, {$count}],
+  severity_5_plus: [{$match severity_level≥5}, {$count}],
+  top_schools: [{$group _id=school_id}, {$sort count:-1}, {$limit 10}],
+  top_subcodes: [{$group _id=(subcode,name)}, {$sort count:-1}, {$limit 15}]
+}
+```
+
+#### Princípios honrados
+- ✅ **Backend primeiro** — endpoint estável antes do dashboard
+- ✅ **Uma query agregada** — não múltiplas queries dispersas no frontend
+- ✅ **Apenas agregados** (network) — lista de alunos só em `/followup` com limit
+- ✅ **Documentos sem `reason_id` ignorados** — agregados refletem dados estruturados
+- ✅ **Cacheável** — TTL 5min in-process
+- ✅ **Versionado** — `stats_version: "v1.0"`
+- ❌ ZERO lógica no frontend — UI vai consumir pronto
+
+#### Tests
+- `tests/test_bf_network_stats.py` — **10 E2E HTTP** (100% verde):
+  shape+version, totals (14 docs ignorando o sem reason_id), severity_buckets,
+  requires_followup count, top_schools com nomes resolvidos, caching
+  funcional (cached=false → true), followup severity_5, sort desc,
+  limit enforced, exclusão de docs sem reason_id.
+- Suite BF consolidada total: **54/54 verde** (10 MEC + 9 canonical +
+  12 e2e_systemic + 13 suggestion + 10 network_stats).
+
+#### NÃO implementado (intencionalmente — owner spec)
+- ❌ Dashboard visual (Fase 3B — só após backend estabilizar)
+- ❌ Lista completa da rede sem limite
+- ❌ Filtros granulares por categoria (próxima evolução de contrato → v1.1)
+- ❌ Persistência de snapshots históricos dos agregados
+
+
+
 ### Bolsa Família — Fase 2: Suggestion Engine Determinística **[Fev/2026]**
 
 Camada de inteligência operacional EXPLÍCITA (sem IA, sem ML, sem scoring
