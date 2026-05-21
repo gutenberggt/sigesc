@@ -803,8 +803,9 @@ def setup_router(db, **kwargs):
         }
         if not all_schools_mode:
             query["school_id"] = school_id
-        if class_id:
-            query["class_id"] = class_id
+            # class_id só faz sentido com uma escola específica (turmas são por-escola).
+            if class_id:
+                query["class_id"] = class_id
 
         students = await db.students.find(
             query,
@@ -890,7 +891,7 @@ def setup_router(db, **kwargs):
                 "class_name": cls.get("name", ""),
                 "inep_code": s.get("inep_code", ""),
                 "school_id": s.get("school_id", ""),
-                "school_name": school_name_map.get(s.get("school_id"), "") if all_schools_mode else "",
+                "school_name": (school_name_map.get(s.get("school_id")) or "Escola não cadastrada") if all_schools_mode else "",
                 "months": {}
             }
 

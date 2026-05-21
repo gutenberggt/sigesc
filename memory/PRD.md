@@ -3225,3 +3225,31 @@ Suíte ampla 43/43 verde — Fase A + Fase B sem regressões.
 
 ### Status: ✅ COMPLETO
 
+
+
+---
+
+## [21/05/2026] Opção "Todas as Escolas" no filtro de Escola (BF)
+
+### Solicitação do usuário
+> "Na mesma página, no campo 'Escola', para visualização apenas para os papéis Super Administrador, Administrador, Gerente e Administração (antigo SEMED 3), acrescente como primeira opção, antes dos nomes das escolas, a opção 'Todas as Escolas'."
+
+### Implementação
+- **Backend** (`routers/bolsa_familia.py`):
+  - `ALL_SCHOOLS_ROLES = ['super_admin', 'admin', 'gerente', 'semed3']`.
+  - `GET /api/bolsa-familia/students` agora aceita `school_id` opcional. Quando omitido + role autorizada → agrega alunos BF de todas as escolas (READ-ONLY: `can_edit=false`, `all_schools_mode=true`). Role não-autorizada → 403.
+  - `class_id` é IGNORADO em modo all-schools (turmas são por-escola).
+  - Resposta inclui `school_id` e `school_name` por aluno; fallback `'Escola não cadastrada'` para FKs órfãos.
+- **Frontend** (`pages/BolsaFamilia.js`):
+  - `canSeeAllSchools = ALL_SCHOOLS_ROLES.includes(user?.role)` controla visibilidade.
+  - Quando habilitado, opção `Todas as Escolas` (data-testid `bf-school-all-option`) é a 2ª no select Escola.
+  - Em modo all-schools: dropdown Turma desabilitado com label "Não disponível em Todas as Escolas"; botão "Gerar PDF" disabled com tooltip; botão "Salvar" oculto (canEdit=false); badge "Visão consolidada (somente leitura)" exibido; cada card de aluno mostra o nome da escola acima do nome (data-testid `bf-student-school-{id}`).
+
+### Testes
+- 7 cenários pytest em `/app/backend/tests/test_bf_all_schools.py` — todos verdes.
+- Regressão completa (filtro Turma + Todas as Escolas): 15/15 verdes.
+- E2E Playwright (testing agent iter 78) — 100% frontend.
+- 2 bugs encontrados na primeira passada e corrigidos: (a) `class_id` aplicado em all-schools mode; (b) school_name vazio para FKs órfãos.
+- `/app/test_reports/iteration_78.json` — bugs corrigidos, retest aprovado.
+
+### Status: ✅ COMPLETO
