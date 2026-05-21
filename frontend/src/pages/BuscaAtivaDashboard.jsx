@@ -23,6 +23,7 @@ import {
   Loader2, ExternalLink, ListChecks, School as SchoolIcon,
 } from 'lucide-react';
 import axios from 'axios';
+import { LegacyMigrationDialog } from '@/components/LegacyMigrationDialog';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -79,6 +80,7 @@ export default function BuscaAtivaDashboard() {
   const [severityMin, setSeverityMin] = useState(1);
   const [page, setPage] = useState(0);
   const [exportingFormat, setExportingFormat] = useState(null);
+  const [legacyDialogOpen, setLegacyDialogOpen] = useState(false);
 
   const fetchStats = useCallback(async (force = false) => {
     setStatsLoading(true);
@@ -223,6 +225,29 @@ export default function BuscaAtivaDashboard() {
           </div>
         )}
 
+        {/* Alerta secundário: há legacy pendente, MAS dashboard já tem dados estruturados.
+            Mostrado como banner discreto acima dos cards. */}
+        {!statsLoading && (stats?.total_with_reason || 0) > 0 && (stats?.total_legacy || 0) > 0 && (
+          <div
+            className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5"
+            data-testid="ba-legacy-pending-banner"
+          >
+            <div className="flex items-center gap-2 text-sm text-amber-900">
+              <AlertTriangle size={16} className="text-amber-600" />
+              <span>
+                Ainda há <strong>{stats.total_legacy} registros legados</strong> aguardando reclassificação MEC v4.2.
+              </span>
+            </div>
+            <button
+              onClick={() => setLegacyDialogOpen(true)}
+              className="px-3 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700"
+              data-testid="ba-cta-migrate-legacy-secondary"
+            >
+              Reclassificar agora
+            </button>
+          </div>
+        )}
+
         {/* Empty state com call-to-action para migração legacy */}
         {!statsLoading && (stats?.total_with_reason || 0) === 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-5" data-testid="ba-empty-state">
@@ -239,13 +264,22 @@ export default function BuscaAtivaDashboard() {
                       antiga, texto livre) aguardando classificação no padrão oficial MEC v4.2.
                       Após reclassificá-los, o dashboard começará a operar.
                     </p>
-                    <button
-                      onClick={() => navigate('/admin/bolsa-familia')}
-                      className="mt-3 px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 inline-flex items-center gap-1.5"
-                      data-testid="ba-cta-classify-legacy"
-                    >
-                      Ir reclassificar agora <ExternalLink size={13} />
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setLegacyDialogOpen(true)}
+                        className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 inline-flex items-center gap-1.5"
+                        data-testid="ba-cta-migrate-legacy"
+                      >
+                        Reclassificar automaticamente ({stats.total_legacy})
+                      </button>
+                      <button
+                        onClick={() => navigate('/admin/bolsa-familia')}
+                        className="px-3 py-1.5 text-sm border border-amber-400 text-amber-900 rounded-lg hover:bg-amber-100 inline-flex items-center gap-1.5"
+                        data-testid="ba-cta-classify-legacy"
+                      >
+                        Ir reclassificar manualmente <ExternalLink size={13} />
+                      </button>
+                    </div>
                   </>
                 ) : (stats?.total_pending || 0) > 0 ? (
                   <>
@@ -547,6 +581,15 @@ export default function BuscaAtivaDashboard() {
           )}
         </div>
       </div>
+      <LegacyMigrationDialog
+        open={legacyDialogOpen}
+        onClose={() => setLegacyDialogOpen(false)}
+        onApplied={() => {
+          fetchStats(true);
+          fetchFollowup();
+        }}
+        academicYear={academicYear}
+      />
     </Layout>
   );
 }

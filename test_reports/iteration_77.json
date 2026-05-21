@@ -1,0 +1,30 @@
+{
+  "summary": "E2E validation of the new 'Turma' (class_id) filter on /admin/bolsa-familia (BolsaFamilia). Both backend (8 pytest cases) and frontend (Playwright) passed 100%. Filter correctly narrows the student list, resets when school changes, and is propagated to the PDF endpoint URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_bf_class_filter.py",
+    "/app/test_reports/pytest/iter77_bf_class_filter.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: in BolsaFamilia.js the <label> for Turma uses both 'block' and 'flex' utility classes simultaneously; works due to Tailwind precedence but is mildly redundant.",
+    "Backend bolsa_familia.py is ~1325 lines — exceeds the 700-line rule. Consider splitting (stats/snapshots/PDF/CRUD) into smaller modules in a follow-up refactor. Not a blocker."
+  ],
+  "updated_files": ["/app/backend/tests/test_bf_class_filter.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin gutenberg@sigesc.com / @Celta2007 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None — used existing seeded school 220d4022-... with 4 BF students across 3 classes (2 Ano, 6 ANO A, 9 ano) + AEE (0 BF).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "BF Turma filter feature is fully validated end-to-end. Backend regression test lives at /app/backend/tests/test_bf_class_filter.py and can be re-run anytime. School 220d4022-ec5e-4fb6-86fc-9233112b87b2 has 4 BF students distributed: CLASS_2ANO(1), CLASS_6ANO(2), CLASS_9ANO(1), CLASS_AEE(0). Note: frontend dropdown labels classes as 'name — grade_level', e.g. '6º ANO A — 6º ANO'.",
+  "verified_flows": [
+    "GET /api/bolsa-familia/students?class_id=... filters correctly",
+    "GET /api/bolsa-familia/pdf/{sid}?class_id=... returns filtered PDF (200) or 404 when 0 BF students in turma with detail 'Nenhum aluno com Bolsa Família encontrado nesta turma'",
+    "Dropdown bf-class-filter disabled until school chosen",
+    "classesAPI.list(school_id) populates dropdown with 'Todas as turmas (N)' placeholder",
+    "Switching schools resets selectedClass to ''",
+    "Selecting/clearing a class refetches student list (4→2→4→0)",
+    "Generate PDF button URL includes class_id query param when class is selected"
+  ]
+}

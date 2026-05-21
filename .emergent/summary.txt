@@ -4236,7 +4236,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4275,7 +4275,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4314,7 +4314,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4353,7 +4353,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4392,7 +4392,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4431,7 +4431,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4470,7 +4470,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4958,7 +4958,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -4996,7 +4996,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5034,7 +5034,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5072,7 +5072,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5110,7 +5110,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5148,7 +5148,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5186,7 +5186,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5224,7 +5224,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5262,7 +5262,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5300,7 +5300,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5338,7 +5338,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5376,7 +5376,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5414,7 +5414,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5452,7 +5452,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5490,7 +5490,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5528,7 +5528,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5566,7 +5566,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5604,7 +5604,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5642,7 +5642,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5680,7 +5680,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -5718,7 +5718,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -6814,7 +6814,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -6852,7 +6852,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -6890,7 +6890,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -7183,7 +7183,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -7221,7 +7221,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -7259,7 +7259,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -7297,7 +7297,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -7335,7 +7335,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8065,7 +8065,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8106,7 +8106,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8147,7 +8147,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8188,7 +8188,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8380,7 +8380,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8418,7 +8418,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8456,7 +8456,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8494,7 +8494,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8532,7 +8532,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8570,7 +8570,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8610,7 +8610,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8650,7 +8650,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8688,7 +8688,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8726,7 +8726,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8922,7 +8922,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -8961,7 +8961,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9000,7 +9000,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9039,7 +9039,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9078,7 +9078,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9117,7 +9117,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9156,7 +9156,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9195,7 +9195,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9234,7 +9234,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9273,7 +9273,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9312,7 +9312,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -9351,7 +9351,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -10323,7 +10323,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -10362,7 +10362,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -10401,7 +10401,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -10439,7 +10439,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -10477,7 +10477,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -10515,7 +10515,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11201,7 +11201,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11239,7 +11239,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11277,7 +11277,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11315,7 +11315,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11353,7 +11353,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11391,7 +11391,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11429,7 +11429,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11611,7 +11611,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11650,7 +11650,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -11689,7 +11689,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -18821,7 +18821,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -18860,7 +18860,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -18899,7 +18899,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -18938,7 +18938,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -18977,7 +18977,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19016,7 +19016,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19055,7 +19055,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19543,7 +19543,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19581,7 +19581,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19619,7 +19619,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19657,7 +19657,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19695,7 +19695,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19733,7 +19733,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19771,7 +19771,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19809,7 +19809,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19847,7 +19847,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19885,7 +19885,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19923,7 +19923,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19961,7 +19961,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -19999,7 +19999,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20037,7 +20037,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20075,7 +20075,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20113,7 +20113,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20151,7 +20151,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20189,7 +20189,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20227,7 +20227,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20265,7 +20265,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -20303,7 +20303,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21399,7 +21399,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21437,7 +21437,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21475,7 +21475,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21768,7 +21768,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21806,7 +21806,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21844,7 +21844,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21882,7 +21882,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -21920,7 +21920,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -22650,7 +22650,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -22691,7 +22691,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -22732,7 +22732,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -22773,7 +22773,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -22965,7 +22965,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23003,7 +23003,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23041,7 +23041,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23079,7 +23079,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23117,7 +23117,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23155,7 +23155,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23195,7 +23195,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23235,7 +23235,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23273,7 +23273,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23311,7 +23311,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23507,7 +23507,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23546,7 +23546,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23585,7 +23585,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23624,7 +23624,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23663,7 +23663,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23702,7 +23702,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23741,7 +23741,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23780,7 +23780,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23819,7 +23819,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23858,7 +23858,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23897,7 +23897,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -23936,7 +23936,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -24908,7 +24908,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -24947,7 +24947,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -24986,7 +24986,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25024,7 +25024,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25062,7 +25062,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25100,7 +25100,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25786,7 +25786,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25824,7 +25824,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25862,7 +25862,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25900,7 +25900,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25938,7 +25938,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -25976,7 +25976,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -26014,7 +26014,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -26196,7 +26196,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -26235,7 +26235,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError
@@ -26274,7 +26274,7 @@ self = <Response [500 Internal Server Error]>
         elif codes.is_server_error(self.status_code):
             message = message.format(self, error_type="Server Error")
 >           raise HTTPStatusError(message, request=request, response=self)
-E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://mec-reasons-refactor.preview.emergentagent.com/api/auth/login
+E           httpx.HTTPStatusError: 500 Server Error: Internal Server Error for url: https://class-filter-bf.preview.emergentagent.com/api/auth/login
 E           For more information check: https://httpstatuses.com/500
 
 /root/.venv/lib/python3.11/site-packages/httpx/_models.py:1426: HTTPStatusError

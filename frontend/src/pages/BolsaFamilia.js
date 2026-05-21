@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { schoolsAPI } from '@/services/api';
+import { schoolsAPI, classesAPI } from '@/services/api';
 import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2, AlertTriangle, Info, Stethoscope } from 'lucide-react';
 import axios from 'axios';
 import ReasonCombobox from '@/components/ReasonCombobox';
@@ -32,6 +32,9 @@ export default function BolsaFamilia() {
 
   const [schools, setSchools] = useState([]);
   const [selectedSchool, setSelectedSchool] = useState('');
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState('');
+  const [classesLoading, setClassesLoading] = useState(false);
   const [students, setStudents] = useState([]);
   const [municipioUf, setMunicipioUf] = useState('');
   const [canEdit, setCanEdit] = useState(false);
@@ -75,16 +78,44 @@ export default function BolsaFamilia() {
     if (!selectedSchool) { setStudents([]); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/bolsa-familia/students?school_id=${selectedSchool}&academic_year=${academicYear}`, { headers });
+      const params = new URLSearchParams({
+        school_id: selectedSchool,
+        academic_year: String(academicYear),
+      });
+      if (selectedClass) params.set('class_id', selectedClass);
+      const res = await axios.get(`${API}/bolsa-familia/students?${params.toString()}`, { headers });
       setStudents(res.data.students || []);
       setMunicipioUf(res.data.municipio_uf || '');
       setCanEdit(res.data.can_edit !== false);
       setDirty({});
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [selectedSchool, academicYear]);
+  }, [selectedSchool, selectedClass, academicYear]);
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
+
+  // Carrega turmas quando a escola muda. Limpa filtro de turma ao trocar escola.
+  useEffect(() => {
+    setSelectedClass('');
+    if (!selectedSchool) {
+      setClasses([]);
+      return;
+    }
+    setClassesLoading(true);
+    classesAPI.list(selectedSchool)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data?.classes || []);
+        const sorted = [...list].sort((a, b) =>
+          (a.name || '').localeCompare(b.name || '', 'pt', { sensitivity: 'base' })
+        );
+        setClasses(sorted);
+      })
+      .catch((err) => {
+        console.error('Erro ao carregar turmas:', err);
+        setClasses([]);
+      })
+      .finally(() => setClassesLoading(false));
+  }, [selectedSchool]);
 
   const setMonthField = (studentId, month, patch) => {
     setStudents(prev => prev.map(s => {
@@ -165,8 +196,14 @@ export default function BolsaFamilia() {
     if (!selectedSchool) return;
     setGeneratingPdf(true);
     try {
+      const params = new URLSearchParams({
+        academic_year: String(academicYear),
+        month_start: String(monthStart),
+        month_end: String(monthEnd),
+      });
+      if (selectedClass) params.set('class_id', selectedClass);
       const res = await axios.get(
-        `${API}/bolsa-familia/pdf/${selectedSchool}?academic_year=${academicYear}&month_start=${monthStart}&month_end=${monthEnd}`,
+        `${API}/bolsa-familia/pdf/${selectedSchool}?${params.toString()}`,
         { headers, responseType: 'blob' }
       );
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
@@ -233,7 +270,7 @@ export default function BolsaFamilia() {
         </div>
 
         <div className="bg-white rounded-xl border p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
               <select value={selectedSchool} onChange={e => setSelectedSchool(e.target.value)}
@@ -241,6 +278,28 @@ export default function BolsaFamilia() {
                 data-testid="bf-school-filter">
                 <option value="">Selecione uma escola</option>
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Turma
+                {classesLoading && <Loader2 size={12} className="animate-spin text-gray-400" />}
+              </label>
+              <select
+                value={selectedClass}
+                onChange={e => setSelectedClass(e.target.value)}
+                disabled={!selectedSchool || classesLoading}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                data-testid="bf-class-filter"
+              >
+                <option value="">
+                  {selectedSchool ? `Todas as turmas (${classes.length})` : 'Selecione uma escola primeiro'}
+                </option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.grade_level ? ` — ${c.grade_level}` : ''}
+                  </option>
+                ))}
               </select>
             </div>
             <div>

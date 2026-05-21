@@ -23,6 +23,10 @@ from services.bf_network_stats import (
     list_followup_cases,
     STATS_VERSION as NETWORK_STATS_VERSION,
 )
+from services.bf_legacy_migration import (
+    preview_legacy_migration,
+    apply_legacy_migration,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -546,6 +550,58 @@ def setup_router(db, **kwargs):
         return {"stats_version": NETWORK_STATS_VERSION, "total": len(series),
                 "series": series}
 
+    @router.get("/bolsa-familia/migrate-legacy/preview")
+    async def preview_legacy(
+        request: Request,
+        academic_year: Optional[int] = None,
+        confidence_min: float = Query(0.0, ge=0.0, le=1.0),
+        limit: int = Query(5000, ge=1, le=20000),
+    ):
+        """Preview da migração legacy → MEC (Fev/2026 Fase 3C).
+
+        Analisa todos os trackings com `motive_legacy` e propõe `reason_id`
+        baseado em regex/keyword. NÃO persiste nada. Owner spec: gestor
+        revisa antes de aplicar.
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+        return await preview_legacy_migration(
+            db,
+            academic_year=academic_year,
+            confidence_min=confidence_min,
+            limit=limit,
+        )
+
+    @router.post("/bolsa-familia/migrate-legacy/apply")
+    async def apply_legacy(
+        request: Request,
+        academic_year: Optional[int] = None,
+        confidence_min: float = Query(0.7, ge=0.0, le=1.0),
+        include_fallback: bool = Query(False),
+    ):
+        """Aplica migração legacy → MEC. Apenas EDIT_ROLES.
+
+        - `confidence_min`: só migra matches com confidence >= esse valor.
+        - `include_fallback=true`: força marcar não classificados como `24z`.
+        - Idempotente — documentos já com `reason_id` não são alterados.
+        - Cada documento migrado ganha `legacy_migration: {audit metadata}`.
+        """
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', EDIT_ROLES
+        )(request)
+        result = await apply_legacy_migration(
+            db,
+            academic_year=academic_year,
+            confidence_min=confidence_min,
+            include_fallback=include_fallback,
+            user_id=current_user.get("id"),
+        )
+        if result.get("migrated", 0) > 0:
+            _cache_invalidate_all()
+        return result
+
+
 
     @router.get("/bolsa-familia/stats/network/followup/export")
     async def network_followup_export(
@@ -712,9 +768,14 @@ def setup_router(db, **kwargs):
     async def list_bolsa_familia_students(
         request: Request,
         school_id: str = Query(...),
-        academic_year: Optional[int] = None
+        academic_year: Optional[int] = None,
+        class_id: Optional[str] = Query(None, description="Filtra alunos por turma específica"),
     ):
-        """Lista alunos com Bolsa Família de uma escola."""
+        """Lista alunos com Bolsa Família de uma escola.
+
+        Filtro opcional `class_id` (Fev/2026) — permite à secretaria
+        focar em alunos de uma turma específica em vez do total da escola.
+        """
         current_user = await AuthMiddleware.require_permission(
             db, 'nav-bolsa-familia-button', VIEW_ROLES
         )(request)
@@ -727,6 +788,8 @@ def setup_router(db, **kwargs):
             "status": {"$in": ["active", "Ativo"]},
             "benefits": {"$in": ["Bolsa Família", "bolsa_familia", "Bolsa Familia"]}
         }
+        if class_id:
+            query["class_id"] = class_id
 
         students = await db.students.find(
             query,
@@ -969,9 +1032,13 @@ def setup_router(db, **kwargs):
         request: Request,
         academic_year: Optional[int] = None,
         month_start: int = Query(2, description="Mês inicial"),
-        month_end: int = Query(3, description="Mês final")
+        month_end: int = Query(3, description="Mês final"),
+        class_id: Optional[str] = Query(None, description="Filtra PDF por turma específica"),
     ):
-        """Gera PDF de Acompanhamento de Frequência - Bolsa Família."""
+        """Gera PDF de Acompanhamento de Frequência - Bolsa Família.
+
+        Filtro opcional `class_id` (Fev/2026) — gera PDF segmentado por turma.
+        """
         await AuthMiddleware.require_permission(
             db, 'nav-bolsa-familia-button', VIEW_ROLES
         )(request)
@@ -995,6 +1062,8 @@ def setup_router(db, **kwargs):
             "status": {"$in": ["active", "Ativo"]},
             "benefits": {"$in": ["Bolsa Família", "bolsa_familia", "Bolsa Familia"]}
         }
+        if class_id:
+            query["class_id"] = class_id
         students = await db.students.find(
             query,
             {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "nis": 1,
@@ -1002,7 +1071,12 @@ def setup_router(db, **kwargs):
         ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(10000)
 
         if not students:
-            raise HTTPException(status_code=404, detail="Nenhum aluno com Bolsa Família encontrado nesta escola")
+            detail = (
+                "Nenhum aluno com Bolsa Família encontrado nesta turma"
+                if class_id
+                else "Nenhum aluno com Bolsa Família encontrado nesta escola"
+            )
+            raise HTTPException(status_code=404, detail=detail)
 
         class_ids = list(set(s.get("class_id") for s in students if s.get("class_id")))
         classes = await db.classes.find({"id": {"$in": class_ids}}, {"_id": 0, "id": 1, "name": 1, "grade_level": 1}).to_list(1000)
