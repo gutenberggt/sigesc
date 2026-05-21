@@ -1,0 +1,65 @@
+{
+  "summary": "Frontend-only test of new BolsaFamilia executive summary row (mini-dashboard with 3 clickable chips). Verified summary row presence + correct counts in both specific-school and all-schools modes; below/missing chips correctly disabled when count=0 (which matches current data — no <75% frequencies recorded for AY 2026). Toggle/filter/clear/empty-state branches could not be visually exercised because no student in DB has freq <75% in the tested ranges (Jan-Dec, AY 2026), but the code paths are straightforward and statically conform to spec.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/src/pages/BolsaFamilia.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BolsaFamilia.js is now 651 lines — still under 700-line threshold, but accumulating responsibilities (filters, summary, validation, save, PDF, render). Recommend extracting <BFSummaryRow/> and <BFStudentCard/> into dedicated components on the next iteration to keep cognitive load low.",
+    "studentFlags/summary/displayedStudents use useMemo correctly with proper deps — efficient and clean.",
+    "Summary filter is auto-reset on selectedSchool/selectedClass/monthStart/monthEnd change (line 203) ✓ as required by spec.",
+    "Disabled state on chips when count=0 correctly handled via `disabled={summary.below === 0}` with `disabled:opacity-40 disabled:cursor-not-allowed` classes ✓.",
+    "Empty-state (bf-summary-filter-empty) correctly gated on `summaryFilter !== null && displayedStudents.length === 0` ✓.",
+    "Total chip (bf-summary-total) clears any active filter by setting summaryFilter to null ✓.",
+    "Clear button (bf-summary-clear) only rendered when summaryFilter !== null ✓.",
+    "All chips and clear/empty have correct data-testids matching the spec exactly."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only)",
+    "frontend": "100% on testable behaviors (summary row presence, counts, disabled state, all-schools mode). Toggle/filter behavior could not be visually verified due to data — code path inspected and correct."
+  },
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007 (super_admin).",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Summary chips work but the dynamic toggle/filter/empty-state paths could not be exercised because no BF student in the current DB has a recorded frequency <75% for AY 2026 (all months show '-' frequency). To fully validate dynamic filter UI in the future, seed at least one BF student with a recorded monthly frequency below 75% OR have main agent manually verify after frequencies are imported. All static code paths match spec.",
+  "observations_during_test": {
+    "specific_school_220d4022": {
+      "students_loaded": 4,
+      "summary_total": 4,
+      "summary_below": 0,
+      "summary_missing": 0,
+      "below_chip_disabled": true,
+      "missing_chip_disabled": true
+    },
+    "all_schools_mode_admin": {
+      "students_loaded": 6,
+      "summary_total": 6,
+      "summary_below": 0,
+      "summary_missing": 0,
+      "summary_row_visible": true,
+      "all_schools_badge_visible": true,
+      "school_name_per_card": "rendered for cards where backend returns school_name (matches iteration_78 finding — 4/6 have school_name)"
+    },
+    "filter_reset_on_month_change": "Could not be exercised — below chip stayed disabled. Code inspection confirms useEffect resets summaryFilter on [selectedSchool, selectedClass, monthStart, monthEnd].",
+    "regression_features": {
+      "class_filter_dropdown": "OK",
+      "all_schools_dropdown_option": "OK (visible to admin)",
+      "consolidated_badge": "OK",
+      "pdf_disabled_in_all_schools": "OK (button disabled with tooltip)",
+      "save_hidden_in_all_schools": "OK (canEdit=false suppresses save button)",
+      "school_name_on_card": "OK (rendered when present)",
+      "reason_combobox": "OK (visible in cards)"
+    }
+  }
+}

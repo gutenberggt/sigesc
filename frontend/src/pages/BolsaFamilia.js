@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { schoolsAPI, classesAPI } from '@/services/api';
-import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2, AlertTriangle, Info, Stethoscope } from 'lucide-react';
+import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2, AlertTriangle, Info, Stethoscope, X } from 'lucide-react';
 import axios from 'axios';
 import ReasonCombobox from '@/components/ReasonCombobox';
 
@@ -172,6 +172,42 @@ export default function BolsaFamilia() {
     });
     return errors;
   }, [students, monthsRange]);
+
+  // Mini-dashboard: por aluno, dentro do intervalo selecionado.
+  const studentFlags = useMemo(() => {
+    return students.map((s) => {
+      let belowThreshold = false;
+      let missingReason = false;
+      monthsRange.forEach((m) => {
+        const data = s.months?.[String(m)] || {};
+        const freq = parseFrequencyPct(data.frequency);
+        if (freq !== null && freq < FREQUENCY_THRESHOLD_PCT) {
+          belowThreshold = true;
+          if (!data.reason_id) missingReason = true;
+        }
+      });
+      return { student: s, belowThreshold, missingReason };
+    });
+  }, [students, monthsRange]);
+
+  const summary = useMemo(() => ({
+    total: studentFlags.length,
+    below: studentFlags.filter((f) => f.belowThreshold).length,
+    missing: studentFlags.filter((f) => f.missingReason).length,
+  }), [studentFlags]);
+
+  // Filtro do mini-dashboard. null | 'below' | 'missing'
+  const [summaryFilter, setSummaryFilter] = useState(null);
+
+  // Limpa filtro de resumo ao trocar escola/turma/intervalo.
+  useEffect(() => { setSummaryFilter(null); }, [selectedSchool, selectedClass, monthStart, monthEnd]);
+
+  const displayedStudents = useMemo(() => {
+    if (!summaryFilter) return students;
+    return studentFlags
+      .filter((f) => (summaryFilter === 'below' ? f.belowThreshold : f.missingReason))
+      .map((f) => f.student);
+  }, [students, studentFlags, summaryFilter]);
 
   const handleSaveAll = async () => {
     if (dirtyCount === 0) {
@@ -404,7 +440,88 @@ export default function BolsaFamilia() {
               )}
             </div>
 
-            {students.map((student) => (
+            {/* Mini-dashboard executivo: chips clicáveis filtram a lista abaixo */}
+            <div
+              className="bg-white rounded-xl border p-3 flex flex-wrap items-center gap-2"
+              data-testid="bf-summary-row"
+            >
+              <button
+                type="button"
+                onClick={() => setSummaryFilter(null)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  summaryFilter === null
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+                data-testid="bf-summary-total"
+                title="Mostrar todos"
+              >
+                <Users size={14} />
+                <strong>{summary.total}</strong>
+                <span className="opacity-80">alunos</span>
+              </button>
+
+              <span className="text-gray-300">|</span>
+
+              <button
+                type="button"
+                onClick={() => setSummaryFilter(summaryFilter === 'below' ? null : 'below')}
+                disabled={summary.below === 0}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  summaryFilter === 'below'
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                }`}
+                data-testid="bf-summary-below"
+                title={`Alunos com ao menos 1 mês abaixo de ${FREQUENCY_THRESHOLD_PCT}%`}
+              >
+                <AlertTriangle size={14} />
+                <strong>{summary.below}</strong>
+                <span className="opacity-80">abaixo de {FREQUENCY_THRESHOLD_PCT}%</span>
+              </button>
+
+              <span className="text-gray-300">|</span>
+
+              <button
+                type="button"
+                onClick={() => setSummaryFilter(summaryFilter === 'missing' ? null : 'missing')}
+                disabled={summary.missing === 0}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  summaryFilter === 'missing'
+                    ? 'bg-red-600 text-white border-red-600'
+                    : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                }`}
+                data-testid="bf-summary-missing"
+                title="Alunos com ao menos 1 mês <75% sem motivo MEC informado"
+              >
+                <FileText size={14} />
+                <strong>{summary.missing}</strong>
+                <span className="opacity-80">sem motivo informado</span>
+              </button>
+
+              {summaryFilter !== null && (
+                <button
+                  type="button"
+                  onClick={() => setSummaryFilter(null)}
+                  className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+                  data-testid="bf-summary-clear"
+                  title="Limpar filtro"
+                >
+                  <X size={14} /> Limpar
+                </button>
+              )}
+            </div>
+
+            {summaryFilter !== null && displayedStudents.length === 0 && (
+              <div
+                className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500"
+                data-testid="bf-summary-filter-empty"
+              >
+                Nenhum aluno corresponde ao filtro selecionado.
+              </div>
+            )}
+
+            {displayedStudents.map((student) => (
               <div key={student.id} className="bg-white rounded-xl border overflow-hidden" data-testid={`bf-student-${student.id}`}>
                 <div className="bg-gray-50 px-4 py-3 border-b">
                   {allSchoolsMode && student.school_name && (
