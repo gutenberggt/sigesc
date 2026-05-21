@@ -1,0 +1,49 @@
+{
+  "summary": "Tested BolsaFamilia 'Todas as Escolas' consolidated view (2nd iteration). Backend: 5/7 pytest tests pass; 2 real bugs found (class_id NOT ignored in all-schools mode; school_name empty for orphan school_id). Frontend: admin sees option as 2nd item; ass_social_2 does NOT; class filter disabled, PDF disabled with tooltip, Save hidden, consolidated badge displayed, students render school_name (4/6 — matches backend gap); switching to specific school restores normal mode.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/bolsa-familia/students (all-schools mode)",
+        "issue": "class_id is NOT ignored when school_id is omitted. Spec mandates 'class_id é IGNORADO em modo all-schools' but routers/bolsa_familia.py lines 806-807 applies the class_id filter unconditionally. Test: same admin query without class_id returns 6 students, with class_id=2ANO returns 1. Frontend masks this (clears selectedClass + disables Turma) but the backend contract is wrong — any direct API caller passing class_id will get partial results.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/bolsa-familia/students (all-schools mode)",
+        "issue": "school_name is empty for students whose school_id has no matching row in db.schools (orphan). Example: student 62b43fd8-0040-460a-b3e7-ae0557a4112e → school_id 220d4022-ec5e-4773-8b8b-66cd9dc204ad (not in db.schools). Frontend shows nothing above the student card. Suggest fallback like 'Escola não cadastrada' OR data cleanup. 2/6 students affected in current DB."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bf_all_schools.py",
+    "/app/test_reports/pytest/bf_all_schools.xml"
+  ],
+  "action_items": [
+    "Fix backend: ignore class_id when all_schools_mode is true. Simple change in routers/bolsa_familia.py: move `if class_id: query['class_id'] = class_id` inside the `if not all_schools_mode:` block (or guard with `and not all_schools_mode`).",
+    "Decide policy for orphan school_id in consolidated view: either backfill school_name with a sentinel ('Escola não cadastrada') so the UI label always renders, or run a data hygiene script to fix orphan school_ids on students."
+  ],
+  "critical_code_review_comments": [
+    "routers/bolsa_familia.py lines 804-807: class_id filter is applied unconditionally, violating the spec for all-schools mode. The frontend mitigates by clearing selectedClass, but the backend contract should be self-protecting.",
+    "BolsaFamilia.js logic for hiding 'Todas as Escolas' uses user.role check on the client only — backend correctly enforces with 403, so this is defense-in-depth and OK.",
+    "school_name population (lines 820-830) silently falls back to '' for missing schools; consider a fallback string so the UI doesn't render an empty indigo label area inconsistently across cards."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bf_all_schools.py (new — 7 pytest tests covering authorized/unauthorized roles, all-schools mode, per-school mode, class_id ignore, school_name population)"
+  ],
+  "success_rate": {
+    "backend": "71% (5/7 pytest passing — 2 real backend bugs surfaced by tests)",
+    "frontend": "100% (all assertions on dropdown ordering, role gating, disabled states, badge, and school-name labels per backend data)"
+  },
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007 (super_admin). Unauthorized: assistencia2@sigesc.com / assistencia2123 (ass_social_2).",
+  "seed_data_creation": "None. Used existing BF students (6 across multiple schools).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes class_id-in-all-schools bug, re-run /app/backend/tests/test_bf_all_schools.py; test_admin_class_id_ignored_in_all_schools_mode should pass. For the orphan school_name issue, if main agent adopts a sentinel string, update test assertion accordingly (currently expects non-empty school_name).",
+  "rca_of_the_issue": "Bug 1 (class_id): In routers/bolsa_familia.py the conditional was structured as two separate `if` blocks — school_id is guarded by all_schools_mode, but class_id is not. When admin omits school_id but passes class_id (e.g., via URL manipulation), the query becomes status+benefits+class_id, returning only students of that single class across schools. Frontend never triggers this because selectedClass is cleared when allSchoolsMode is true. Bug 2 (school_name): db.students contains school_ids that no longer exist in db.schools (deleted schools or stale FKs). school_name_map.get(school_id, '') returns '' for these, leaving the UI label empty."
+}

@@ -184,6 +184,8 @@ def setup_router(db, **kwargs):
 
     EDIT_ROLES = ['super_admin', 'admin', 'admin_teste', 'secretario', 'gerente']
     VIEW_ROLES = ['super_admin', 'admin', 'admin_teste', 'secretario', 'semed3', 'diretor', 'ass_social_2', 'gerente']
+    # Roles autorizadas a consolidar TODAS AS ESCOLAS (visão de rede)
+    ALL_SCHOOLS_ROLES = ['super_admin', 'admin', 'gerente', 'semed3']
 
     @router.get("/bolsa-familia/reason-groups")
     async def list_reason_groups(request: Request, mec_version: Optional[str] = "4.2"):
@@ -767,7 +769,7 @@ def setup_router(db, **kwargs):
     @router.get("/bolsa-familia/students")
     async def list_bolsa_familia_students(
         request: Request,
-        school_id: str = Query(...),
+        school_id: Optional[str] = Query(None, description="ID da escola; omitir para listar TODAS (apenas super_admin/admin/gerente/semed3)"),
         academic_year: Optional[int] = None,
         class_id: Optional[str] = Query(None, description="Filtra alunos por turma específica"),
     ):
@@ -775,19 +777,32 @@ def setup_router(db, **kwargs):
 
         Filtro opcional `class_id` (Fev/2026) — permite à secretaria
         focar em alunos de uma turma específica em vez do total da escola.
+
+        Visão consolidada (Fev/2026): omitir `school_id` lista alunos BF
+        de TODAS as escolas (apenas super_admin/admin/gerente/semed3).
+        Esta visão é READ-ONLY — `can_edit=false` mesmo para EDIT_ROLES,
+        já que o save é por-escola.
         """
         current_user = await AuthMiddleware.require_permission(
             db, 'nav-bolsa-familia-button', VIEW_ROLES
         )(request)
 
+        all_schools_mode = not school_id
+        if all_schools_mode and current_user.get('role') not in ALL_SCHOOLS_ROLES:
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas super_admin, admin, gerente ou semed3 podem consolidar todas as escolas."
+            )
+
         if not academic_year:
             academic_year = datetime.now().year
 
         query = {
-            "school_id": school_id,
             "status": {"$in": ["active", "Ativo"]},
             "benefits": {"$in": ["Bolsa Família", "bolsa_familia", "Bolsa Familia"]}
         }
+        if not all_schools_mode:
+            query["school_id"] = school_id
         if class_id:
             query["class_id"] = class_id
 
@@ -802,6 +817,18 @@ def setup_router(db, **kwargs):
         classes = await db.classes.find({"id": {"$in": class_ids}}, {"_id": 0, "id": 1, "name": 1, "grade_level": 1}).to_list(1000)
         class_map = {c["id"]: c for c in classes}
 
+        # Mapa de school_id → school_name (somente em modo all-schools, evita query desnecessária)
+        school_name_map: dict = {}
+        if all_schools_mode:
+            school_ids_in_result = list({s.get("school_id") for s in students if s.get("school_id")})
+            if school_ids_in_result:
+                schools_cursor = db.schools.find(
+                    {"id": {"$in": school_ids_in_result}},
+                    {"_id": 0, "id": 1, "name": 1},
+                )
+                async for sch in schools_cursor:
+                    school_name_map[sch["id"]] = sch.get("name", "")
+
         # Buscar mantenedora
         mant = await get_mantenedora_cached(db)
         municipio_uf = ""
@@ -813,14 +840,17 @@ def setup_router(db, **kwargs):
         # Calcular dias letivos por mês
         monthly_school_days = await _calc_monthly_school_days(academic_year)
 
-        # Buscar tracking records
+        # Buscar tracking records (em modo all-schools, sem filtro por school_id)
+        tracking_query = {"academic_year": academic_year}
+        if not all_schools_mode:
+            tracking_query["school_id"] = school_id
         bf_records = await db.bolsa_familia_tracking.find(
-            {"school_id": school_id, "academic_year": academic_year},
-            {"_id": 0}
-        ).to_list(10000)
+            tracking_query, {"_id": 0}
+        ).to_list(50000)
         record_map = {}
         for r in bf_records:
-            key = f"{r['student_id']}_{r['month']}"
+            # Chave inclui school_id para evitar colisões em modo all-schools
+            key = f"{r.get('school_id')}_{r['student_id']}_{r['month']}"
             record_map[key] = r
 
         # Calcular frequência mensal para todos os alunos.
@@ -859,11 +889,13 @@ def setup_router(db, **kwargs):
                 "series": cls.get("grade_level") or cls.get("name", ""),
                 "class_name": cls.get("name", ""),
                 "inep_code": s.get("inep_code", ""),
+                "school_id": s.get("school_id", ""),
+                "school_name": school_name_map.get(s.get("school_id"), "") if all_schools_mode else "",
                 "months": {}
             }
 
             for m in range(1, 13):
-                key = f"{s['id']}_{m}"
+                key = f"{s.get('school_id')}_{s['id']}_{m}"
                 rec = record_map.get(key, {})
 
                 # Calcular frequência: ((dias_letivos - faltas) * 100) / dias_letivos
@@ -900,7 +932,8 @@ def setup_router(db, **kwargs):
             "total": len(result),
             "municipio_uf": municipio_uf,
             "monthly_school_days": monthly_school_days,
-            "can_edit": current_user['role'] in EDIT_ROLES
+            "can_edit": False if all_schools_mode else (current_user['role'] in EDIT_ROLES),
+            "all_schools_mode": all_schools_mode,
         }
 
     @router.put("/bolsa-familia/tracking")

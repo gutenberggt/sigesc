@@ -17,6 +17,10 @@ const MESES = {
 // Limiar oficial do MEC para Bolsa Família.
 const FREQUENCY_THRESHOLD_PCT = 75;
 
+// Roles autorizadas a consolidar TODAS as escolas (visão de rede).
+const ALL_SCHOOLS_ROLES = ['super_admin', 'admin', 'gerente', 'semed3'];
+const ALL_SCHOOLS_VALUE = '__all__';
+
 function parseFrequencyPct(freqStr) {
   if (!freqStr) return null;
   const m = String(freqStr).match(/([0-9]+(?:\.[0-9]+)?)/);
@@ -50,6 +54,9 @@ export default function BolsaFamilia() {
   const [reasonGroups, setReasonGroups] = useState([]);
   const [reasonsLoading, setReasonsLoading] = useState(false);
 
+  const canSeeAllSchools = ALL_SCHOOLS_ROLES.includes(user?.role);
+  const allSchoolsMode = selectedSchool === ALL_SCHOOLS_VALUE;
+
   useEffect(() => {
     schoolsAPI.getAll().then(data => {
       setSchools(data.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
@@ -79,10 +86,13 @@ export default function BolsaFamilia() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        school_id: selectedSchool,
         academic_year: String(academicYear),
       });
-      if (selectedClass) params.set('class_id', selectedClass);
+      // Modo "Todas as Escolas" → omite school_id; backend agrega.
+      if (selectedSchool !== ALL_SCHOOLS_VALUE) {
+        params.set('school_id', selectedSchool);
+        if (selectedClass) params.set('class_id', selectedClass);
+      }
       const res = await axios.get(`${API}/bolsa-familia/students?${params.toString()}`, { headers });
       setStudents(res.data.students || []);
       setMunicipioUf(res.data.municipio_uf || '');
@@ -95,9 +105,10 @@ export default function BolsaFamilia() {
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
   // Carrega turmas quando a escola muda. Limpa filtro de turma ao trocar escola.
+  // Modo "Todas as Escolas" não carrega turmas (turmas são por-escola).
   useEffect(() => {
     setSelectedClass('');
-    if (!selectedSchool) {
+    if (!selectedSchool || selectedSchool === ALL_SCHOOLS_VALUE) {
       setClasses([]);
       return;
     }
@@ -259,8 +270,9 @@ export default function BolsaFamilia() {
                       : (dirtyCount > 0 ? `Salvar (${dirtyCount})` : 'Salvar')}
                 </button>
               )}
-              <button onClick={handleGeneratePdf} disabled={generatingPdf}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+              <button onClick={handleGeneratePdf} disabled={generatingPdf || allSchoolsMode}
+                title={allSchoolsMode ? 'PDF disponível apenas para uma escola específica' : ''}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
                 data-testid="generate-pdf-btn">
                 {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Gerar PDF
@@ -277,6 +289,11 @@ export default function BolsaFamilia() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                 data-testid="bf-school-filter">
                 <option value="">Selecione uma escola</option>
+                {canSeeAllSchools && (
+                  <option value={ALL_SCHOOLS_VALUE} data-testid="bf-school-all-option">
+                    Todas as Escolas
+                  </option>
+                )}
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
@@ -288,14 +305,18 @@ export default function BolsaFamilia() {
               <select
                 value={selectedClass}
                 onChange={e => setSelectedClass(e.target.value)}
-                disabled={!selectedSchool || classesLoading}
+                disabled={!selectedSchool || allSchoolsMode || classesLoading}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
                 data-testid="bf-class-filter"
               >
                 <option value="">
-                  {selectedSchool ? `Todas as turmas (${classes.length})` : 'Selecione uma escola primeiro'}
+                  {allSchoolsMode
+                    ? 'Não disponível em "Todas as Escolas"'
+                    : selectedSchool
+                      ? `Todas as turmas (${classes.length})`
+                      : 'Selecione uma escola primeiro'}
                 </option>
-                {classes.map(c => (
+                {!allSchoolsMode && classes.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}{c.grade_level ? ` — ${c.grade_level}` : ''}
                   </option>
@@ -354,7 +375,17 @@ export default function BolsaFamilia() {
         {!loading && students.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <p className="text-sm text-gray-600"><strong>{students.length}</strong> aluno(s) com Bolsa Família</p>
+              <p className="text-sm text-gray-600">
+                <strong>{students.length}</strong> aluno(s) com Bolsa Família
+                {allSchoolsMode && (
+                  <span
+                    className="ml-2 inline-flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-0.5 font-medium"
+                    data-testid="bf-all-schools-badge"
+                  >
+                    Visão consolidada (somente leitura)
+                  </span>
+                )}
+              </p>
               {validationErrors.length > 0 && (
                 <div
                   className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5"
@@ -376,6 +407,14 @@ export default function BolsaFamilia() {
             {students.map((student) => (
               <div key={student.id} className="bg-white rounded-xl border overflow-hidden" data-testid={`bf-student-${student.id}`}>
                 <div className="bg-gray-50 px-4 py-3 border-b">
+                  {allSchoolsMode && student.school_name && (
+                    <div
+                      className="text-xs text-indigo-700 font-semibold uppercase tracking-wide mb-1"
+                      data-testid={`bf-student-school-${student.id}`}
+                    >
+                      {student.school_name}
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                     <div><span className="text-gray-500">Nome:</span> <strong>{student.full_name}</strong></div>
                     <div><span className="text-gray-500">Dt. Nasc.:</span> {formatDate(student.birth_date)}</div>
