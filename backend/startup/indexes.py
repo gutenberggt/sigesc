@@ -230,4 +230,10 @@ async def create_all_indexes(db):
         [("reason_id", 1)], sparse=True, background=True, name="ix_bf_tracking_reason"
     )
 
+    # BF Network Stats Snapshots (Fase 3B — Fev/2026)
+    await db.bf_network_stats_snapshots.create_index(
+        [("snapshot_date", -1), ("scope.academic_year", 1), ("scope.mec_version", 1)],
+        unique=True, background=True, name="uq_bf_snapshot",
+    )
+
     logger.info("Índices MongoDB criados/verificados com sucesso")

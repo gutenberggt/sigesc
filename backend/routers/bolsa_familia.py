@@ -436,9 +436,13 @@ def setup_router(db, **kwargs):
         mec_version: str = "4.2",
         severity_min: int = Query(5, ge=1, le=5),
         limit: int = Query(200, ge=1, le=1000),
+        category: Optional[str] = None,
+        school_id: Optional[str] = None,
     ):
         """Casos prioritários para Busca Ativa: severity >= N ou
         requires_followup=True. Lista limitada (`limit`), nunca dump completo.
+
+        Filtros Fase 3B: `category` (HEALTH, VIOLENCE, ACCESS, …) e `school_id`.
         """
         await AuthMiddleware.require_permission(
             db, 'nav-bolsa-familia-button', VIEW_ROLES
@@ -449,7 +453,95 @@ def setup_router(db, **kwargs):
             mec_version=mec_version,
             severity_min=severity_min,
             limit=limit,
+            category=category,
+            school_id=school_id,
         )
+
+    @router.post("/bolsa-familia/stats/network/snapshot")
+    async def take_network_snapshot(
+        request: Request,
+        academic_year: Optional[int] = None,
+        mec_version: str = "4.2",
+    ):
+        """Persiste snapshot diário dos agregados — histórico longitudinal.
+
+        Idempotente por (snapshot_date, academic_year, mec_version). Pensado
+        para ser invocado por job cron noturno externo:
+            POST /api/bolsa-familia/stats/network/snapshot?academic_year=2026
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', EDIT_ROLES
+        )(request)
+        if not academic_year:
+            academic_year = datetime.now().year
+        snap = await compute_network_stats(
+            db, academic_year=academic_year, mec_version=mec_version
+        )
+        snapshot_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        doc = {
+            "snapshot_date": snapshot_date,
+            "stats_version": snap["stats_version"],
+            "scope": snap["scope"],
+            "payload": snap,
+            "saved_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.bf_network_stats_snapshots.update_one(
+            {
+                "snapshot_date": snapshot_date,
+                "scope.academic_year": academic_year,
+                "scope.mec_version": mec_version,
+            },
+            {"$set": doc},
+            upsert=True,
+        )
+        return {"saved": True, "snapshot_date": snapshot_date,
+                "scope": snap["scope"]}
+
+    @router.get("/bolsa-familia/stats/snapshots")
+    async def list_snapshots(
+        request: Request,
+        academic_year: Optional[int] = None,
+        mec_version: str = "4.2",
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        limit: int = Query(180, ge=1, le=730),
+    ):
+        """Histórico de snapshots para gráficos de evolução temporal."""
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+        query: dict = {"scope.mec_version": mec_version}
+        if academic_year is not None:
+            query["scope.academic_year"] = academic_year
+        if from_date or to_date:
+            date_filter: dict = {}
+            if from_date:
+                date_filter["$gte"] = from_date
+            if to_date:
+                date_filter["$lte"] = to_date
+            query["snapshot_date"] = date_filter
+        snaps = await db.bf_network_stats_snapshots.find(
+            query,
+            {"_id": 0, "snapshot_date": 1, "stats_version": 1, "scope": 1,
+             "payload.total_with_reason": 1, "payload.by_category": 1,
+             "payload.by_severity": 1, "payload.requires_followup": 1,
+             "payload.severity_5_plus": 1},
+        ).sort("snapshot_date", -1).to_list(limit)
+        series = [
+            {
+                "snapshot_date": s["snapshot_date"],
+                "stats_version": s["stats_version"],
+                "total_with_reason": (s.get("payload") or {}).get("total_with_reason", 0),
+                "by_category": (s.get("payload") or {}).get("by_category", {}),
+                "by_severity": (s.get("payload") or {}).get("by_severity", {}),
+                "requires_followup": (s.get("payload") or {}).get("requires_followup", 0),
+                "severity_5_plus": (s.get("payload") or {}).get("severity_5_plus", 0),
+            }
+            for s in snaps
+        ]
+        return {"stats_version": NETWORK_STATS_VERSION, "total": len(series),
+                "series": series}
+
 
     @router.get("/bolsa-familia/stats/network/followup/export")
     async def network_followup_export(
@@ -459,6 +551,8 @@ def setup_router(db, **kwargs):
         severity_min: int = Query(1, ge=1, le=5),
         limit: int = Query(1000, ge=1, le=5000),
         format: str = Query("csv", pattern="^(csv|xlsx)$"),
+        category: Optional[str] = None,
+        school_id: Optional[str] = None,
     ):
         """Export operacional (CSV/XLSX) dos casos prioritários — Fase 3A.1.
 
@@ -478,6 +572,8 @@ def setup_router(db, **kwargs):
             mec_version=mec_version,
             severity_min=severity_min,
             limit=limit,
+            category=category,
+            school_id=school_id,
         )
         cases = payload.get("cases", [])
         # Resolve frequência consolidada (mês atual do caso) com engine canônica.
@@ -543,6 +639,8 @@ def setup_router(db, **kwargs):
             ("Observações", "notes"),
         ]
         filename_stem = f"bolsa_familia_busca_ativa_{academic_year or 'all'}"
+        if category:
+            filename_stem += f"_{category.lower()}"
 
         if format == "csv":
             import csv as _csv

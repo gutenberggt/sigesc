@@ -33,6 +33,70 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Bolsa Família — Fase 3B: Dashboard Operacional Busca Ativa **[Fev/2026]**
+
+Painel **operacional** (não decorativo) que responde "Onde agir primeiro?"
+Owner-driven com 4 linhas de informação progressiva: cards executivos →
+distribuição → escolas críticas → casos prioritários.
+
+#### Backend — extensões da Fase 3A
+- `list_followup_cases()` agora aceita `category` e `school_id` opcionais.
+- `GET /api/bolsa-familia/stats/network/followup?category=&school_id=` —
+  filtros propagados; consistência com export.
+- `GET /api/bolsa-familia/stats/network/followup/export?category=…` —
+  filename sufixado por categoria (`bolsa_familia_busca_ativa_2026_violence.xlsx`).
+- `POST /api/bolsa-familia/stats/network/snapshot` — persiste snapshot
+  diário em `bf_network_stats_snapshots` (idempotente por data + scope).
+- `GET /api/bolsa-familia/stats/snapshots?from_date&to_date&academic_year` —
+  série temporal para gráficos de evolução.
+- Índice único `(snapshot_date, scope.academic_year, scope.mec_version)` criado.
+
+#### Frontend — `/app/frontend/src/pages/BuscaAtivaDashboard.jsx`
+- Banner "Pergunta institucional — Onde devemos agir primeiro?".
+- **Linha 1**: 5 cards executivos (`total c/ motivo`, `severity ≥ 5` com ring
+  vermelho destacado, `req. acompanhamento`, `top categoria`, `top escola`).
+- **Linha 2**: grid de categorias MEC clicáveis. Hover revela botão de
+  export pré-filtrado por categoria (1 clique → XLSX da rede social) —
+  fluxo institucional Conselho Tutelar/CRAS.
+- **Linha 3**: tabela "Top escolas" com link "Abrir" → `/admin/bolsa-familia?school_id=X`.
+- **Linha 4**: casos prioritários paginados (25/página), filtro severity_min,
+  badge "CRÍTICO" para severity ≥ 5, botão "Baixar filtrados".
+- Severidade 5 com **fundo vermelho na linha + badge bold borda red-300**.
+- Categorias mapeadas em `CATEGORY_META` (17 categorias × ícone × cor).
+- `data-testid` em todos os elementos interativos.
+- Rota: `/admin/bolsa-familia/busca-ativa` (roles: admin, secretario,
+  diretor, semed3, ass_social_2, gerente).
+- Link de acesso adicionado no header da página de Bolsa Família.
+
+#### Tests
+- `tests/test_bf_phase_3b.py` — **8 E2E HTTP** (100% verde):
+  filter by category VIOLENCE, filter by school, combined filters, export
+  com category no filename, snapshot persiste, snapshot idempotente
+  (mesmo dia → upsert), snapshot list shape, snapshot payload contém
+  agregados reais.
+- Suite BF consolidada: **68/68 verde** (10 MEC + 9 canonical + 12 e2e_systemic +
+  13 suggestion + 10 network_stats + 6 export + 8 phase_3b). Zero regressões.
+- E2E manual: dashboard carregado, 5 cards renderizados, 5 categorias,
+  11 casos. Click em "Violência" → 3 casos filtrados + badge "Violência ×".
+
+#### Princípios honrados
+- ✅ **Operacional**, não decorativo
+- ✅ Severidade nunca escondida — severity 5 com destaque visual forte
+- ✅ Paginação obrigatória (PAGE_SIZE = 25)
+- ✅ "Baixar planilha" pré-filtrado por categoria (ação em 1 clique)
+- ✅ Engine única (`list_followup_cases` para JSON, export, snapshot)
+- ✅ Snapshot histórico pronto para evolução temporal (gráficos futuros)
+
+#### Cron externo recomendado (operacional)
+```bash
+# Roda diariamente às 00:30 (k8s CronJob ou crontab)
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "X-CSRF-Token: $CSRF" \
+  "$API/api/bolsa-familia/stats/network/snapshot?academic_year=2026"
+```
+
+
+
 ### Bolsa Família — Fase 3A.1: Export CSV/XLSX para Busca Ativa **[Fev/2026]**
 
 Habilita IMEDIATAMENTE Busca Ativa manual, reuniões pedagógicas, CRAS e

@@ -170,6 +170,8 @@ async def list_followup_cases(
     mec_version: str = "4.2",
     severity_min: int = 5,
     limit: int = 200,
+    category: Optional[str] = None,
+    school_id: Optional[str] = None,
 ) -> dict:
     """Lista casos prioritários para Busca Ativa.
 
@@ -178,10 +180,14 @@ async def list_followup_cases(
     (student_name, school_name, reason_name) — 1 query agregada.
 
     Owner spec: lista limitada (`limit`), nunca dump da rede inteira.
+    Filtros opcionais (Fase 3B): `category` (HEALTH, VIOLENCE, ...),
+    `school_id`.
     """
     match: dict = {"reason_id": {"$ne": None}}
     if academic_year is not None:
         match["academic_year"] = academic_year
+    if school_id:
+        match["school_id"] = school_id
 
     pipeline = [
         {"$match": match},
@@ -212,6 +218,10 @@ async def list_followup_cases(
             }
         },
         {"$unwind": "$_group"},
+    ]
+    if category:
+        pipeline.append({"$match": {"_group.category": category}})
+    pipeline.extend([
         {
             "$lookup": {
                 "from": "students",
@@ -252,7 +262,7 @@ async def list_followup_cases(
         },
         {"$sort": {"severity_level": -1, "updated_at": -1}},
         {"$limit": limit},
-    ]
+    ])
     cases = await db.bolsa_familia_tracking.aggregate(pipeline).to_list(limit)
     return {
         "stats_version": STATS_VERSION,
@@ -262,6 +272,8 @@ async def list_followup_cases(
             "mec_version": mec_version,
             "severity_min": severity_min,
             "limit": limit,
+            "category": category,
+            "school_id": school_id,
         },
         "total": len(cases),
         "cases": cases,

@@ -194,6 +194,14 @@ export default function BolsaFamilia() {
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <FileText size={24} /> Acompanhamento Bolsa Família
             </h1>
+            <button
+              onClick={() => navigate('/admin/bolsa-familia/busca-ativa')}
+              className="hidden md:flex px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 items-center gap-1.5 transition-colors"
+              data-testid="bf-busca-ativa-link"
+            >
+              <AlertTriangle size={14} />
+              Busca Ativa
+            </button>
           </div>
           {students.length > 0 && (
             <div className="flex items-center gap-2">

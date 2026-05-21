@@ -74,6 +74,7 @@ const OnlineUsers = lazy(() => import('@/pages/OnlineUsers'));
 const HRPayroll = lazy(() => import('@/pages/HRPayroll'));
 const MECIntegration = lazy(() => import('@/pages/MECIntegration'));
 const BolsaFamilia = lazy(() => import('@/pages/BolsaFamilia'));
+const BuscaAtivaDashboard = lazy(() => import('@/pages/BuscaAtivaDashboard'));
 
 // Loading fallback
 function PageLoader() {
@@ -703,6 +704,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'secretario', 'diretor', 'semed3', 'ass_social_2']}>
                 <BolsaFamilia />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/bolsa-familia/busca-ativa"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'secretario', 'diretor', 'semed3', 'ass_social_2', 'gerente']}>
+                <BuscaAtivaDashboard />
               </ProtectedRoute>
             }
           />
