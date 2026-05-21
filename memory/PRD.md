@@ -3200,3 +3200,28 @@ Suíte ampla 43/43 verde — Fase A + Fase B sem regressões.
 - `bulletin_verifications` (token_hash + dados-resumo do boletim)
 - `history_verifications` (token_hash + dados-resumo do histórico)
 
+
+---
+
+## [21/05/2026] Filtro "Turma" no Acompanhamento Bolsa Família
+
+### Solicitação do usuário
+> "Na página Acompanhamento Bolsa Família, acrescentar o filtro Turma."
+> Aplicar o filtro também à exportação PDF.
+
+### Implementação
+- **Backend** (`/app/backend/routers/bolsa_familia.py`):
+  - `GET /api/bolsa-familia/students` agora aceita query param opcional `class_id`.
+  - `GET /api/bolsa-familia/pdf/{school_id}` agora aceita query param opcional `class_id`; mensagem 404 contextualizada ("Nenhum aluno com Bolsa Família encontrado nesta turma" vs. "...nesta escola").
+- **Frontend** (`/app/frontend/src/pages/BolsaFamilia.js`):
+  - Novo dropdown `bf-class-filter` (4ª coluna do filtro). Carrega via `classesAPI.list(school_id)` quando a escola muda; reseta a seleção ao trocar de escola.
+  - `loadStudents()` e `handleGeneratePdf()` propagam `class_id` quando presente.
+  - Label "Todas as turmas (N)" mostra a contagem.
+
+### Testes
+- 8 cenários pytest novos em `/app/backend/tests/test_bf_class_filter.py` — todos verdes.
+- E2E Playwright validado: dropdown desabilitado até escola escolhida, troca de escola limpa turma, lista atualiza ao filtrar (4→2→4→1→0), PDF inclui `class_id` na URL.
+- `/app/test_reports/iteration_77.json` — 100% backend e frontend.
+
+### Status: ✅ COMPLETO
+
