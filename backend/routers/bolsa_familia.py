@@ -17,6 +17,7 @@ from services.attendance_utils import (
     compute_monthly_valid_absences,
     fetch_medical_days_for_students,
 )
+from services.bf_reason_suggestion import suggest_reason_for_month
 
 logger = logging.getLogger(__name__)
 
@@ -262,6 +263,118 @@ def setup_router(db, **kwargs):
                 "reasons": by_group.get(g["id"], []),
             })
         return {"groups": result, "mec_version": mec_version}
+
+    @router.get("/bolsa-familia/suggest-reason")
+    async def suggest_reason(
+        request: Request,
+        student_id: str = Query(...),
+        school_id: str = Query(...),
+        month: int = Query(..., ge=1, le=12),
+        academic_year: Optional[int] = None,
+    ):
+        """Suggestion Engine determinística (Fase 2 — Fev/2026).
+
+        Retorna sugestão de motivo MEC para um par (aluno, mês) baseada em
+        regras explícitas, auditáveis, sem IA. Frontend pode mostrar a
+        sugestão como hint visual; operador decide se aceita.
+
+        Resposta:
+        ```
+        {
+          "engine_version": "1.0",
+          "suggested_reason_id": str | None,
+          "suggested_reason_subcode": str | None,
+          "confidence": float (0..1),
+          "rules_triggered": [{code, value, threshold, ...}],
+          "requires_followup_flag": bool,
+          "human_explanation": str,
+          "should_show_suggestion": bool,
+          "metrics": {
+            "school_days": N, "valid_absences": N, "medical_days_count": N,
+            "frequency_percentage": float | None
+          }
+        }
+        ```
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+        if not academic_year:
+            academic_year = datetime.now().year
+
+        # 1) Calcular métricas do mês usando engine canônica
+        monthly_school_days = await _calc_monthly_school_days(academic_year)
+        school_days = monthly_school_days.get(month, 0)
+
+        # Busca registros de attendance do aluno no ano (escopado por escola).
+        # Filtro adicional client-side por month — pequeno volume.
+        all_attendance = await db.attendance.find(
+            {"academic_year": academic_year},
+            {"_id": 0, "date": 1, "records": 1},
+        ).to_list(50000)
+
+        medical_days_by_student = await fetch_medical_days_for_students(
+            db, [student_id], academic_year
+        )
+        absences_map = compute_monthly_valid_absences(
+            all_attendance, medical_days_by_student, {student_id}
+        )
+        valid_absences = (absences_map.get(student_id) or {}).get(month, 0)
+        medical_set = medical_days_by_student.get(student_id) or set()
+        medical_days_count = sum(
+            1 for d in medical_set if len(d) == 10 and d[5:7] == f"{month:02d}"
+        )
+
+        frequency_percentage: Optional[float] = None
+        if school_days > 0:
+            frequency_percentage = round(
+                ((school_days - valid_absences) * 100) / school_days, 1
+            )
+
+        # 2) Carrega reasons MEC para resolver subcode → id
+        reasons_cursor = db.attendance_frequency_reasons.find(
+            {"active": True, "mec_version": "4.2"},
+            {"_id": 0, "id": 1, "mec_subcode": 1, "group_id": 1, "severity_level": 1,
+             "requires_followup": 1, "name": 1},
+        )
+        reasons_by_subcode: dict = {}
+        async for r in reasons_cursor:
+            reasons_by_subcode[r["mec_subcode"]] = r
+
+        # 3) Resolve motivo atual (se houver) para R3 (severity flag)
+        tracking_doc = await db.bolsa_familia_tracking.find_one(
+            {
+                "student_id": student_id,
+                "school_id": school_id,
+                "month": str(month),
+                "academic_year": academic_year,
+            },
+            {"_id": 0, "reason_id": 1},
+        )
+        current_reason: Optional[dict] = None
+        if tracking_doc and tracking_doc.get("reason_id"):
+            current_reason = await db.attendance_frequency_reasons.find_one(
+                {"id": tracking_doc["reason_id"]},
+                {"_id": 0, "id": 1, "severity_level": 1, "requires_followup": 1,
+                 "name": 1, "mec_subcode": 1},
+            )
+
+        # 4) Roda engine pura (lógica isolada em services/bf_reason_suggestion.py)
+        result = suggest_reason_for_month(
+            medical_days_count=medical_days_count,
+            valid_absences=valid_absences,
+            school_days=school_days,
+            frequency_percentage=frequency_percentage,
+            reasons_by_subcode=reasons_by_subcode,
+            current_reason=current_reason,
+        )
+        result["metrics"] = {
+            "school_days": school_days,
+            "valid_absences": valid_absences,
+            "medical_days_count": medical_days_count,
+            "frequency_percentage": frequency_percentage,
+        }
+        return result
 
     @router.get("/bolsa-familia/students")
     async def list_bolsa_familia_students(

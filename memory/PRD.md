@@ -33,6 +33,75 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Bolsa Família — Fase 2: Suggestion Engine Determinística **[Fev/2026]**
+
+Camada de inteligência operacional EXPLÍCITA (sem IA, sem ML, sem scoring
+probabilístico). Owner-driven decision: rules engine v1.0 com 2 regras
+ativas + 1 hook reservado para Layer 2 futura.
+
+#### Arquitetura
+- `services/bf_reason_suggestion.py` — **lógica pura**, ZERO I/O. Recebe
+  métricas e índice de reasons; retorna sugestão auditável.
+- `GET /api/bolsa-familia/suggest-reason?student_id&school_id&month&academic_year`
+  — endpoint que calcula métricas via engine canônica (`compute_monthly_valid_absences`
+  + `fetch_medical_days_for_students`), resolve reasons MEC, busca tracking
+  atual e delega para a engine pura.
+
+#### Regras v1.0
+| Código | Quando dispara | Ação |
+|---|---|---|
+| `R1_MEDICAL_DAYS_GTE_50PCT` | `medical_days / total_absences_observed ≥ 0.50` | Sugere reason `1a` (Doença/problemas físicos), confidence = proporção observada |
+| `R2_TRANSPORT` | **RESERVADO** (depende de `absence_type` granular — Layer 2) | hook deixado pronto |
+| `R3_HIGH_SEVERITY` | reason atual selecionado tem `severity_level ≥ 5` | `requires_followup_flag = True` (encaminhar p/ Busca Ativa) |
+
+#### Constantes versionadas
+- `SUGGESTION_ENGINE_VERSION = "1.0"` (bump em qualquer mudança de regra)
+- `PROPORTION_THRESHOLD = 0.50`
+- `SEVERITY_FOLLOWUP_THRESHOLD = 5`
+
+#### Contrato de resposta
+```json
+{
+  "engine_version": "1.0",
+  "suggested_reason_id": "uuid-or-null",
+  "suggested_reason_subcode": "1a",
+  "confidence": 1.0,
+  "rules_triggered": [
+    {"code": "R1_MEDICAL_DAYS_GTE_50PCT", "value": 1.0, "threshold": 0.5,
+     "medical_days": 8, "total_absences_observed": 8}
+  ],
+  "requires_followup_flag": false,
+  "human_explanation": "8 de 8 ausências (100%) têm atestado médico — sugerido '1a — Doença/problemas físicos'.",
+  "should_show_suggestion": true,
+  "metrics": {"school_days": 20, "valid_absences": 0, "medical_days_count": 8,
+              "frequency_percentage": 100.0}
+}
+```
+
+#### Princípios honrados
+- ✅ Determinística (mesma entrada → mesma saída) — coberto por teste
+- ✅ Auditável (rules_triggered + human_explanation sempre preenchidos)
+- ✅ Conservadora (sem ausências observadas → sem sugestão)
+- ✅ `should_show_suggestion=false` quando reason atual já é o sugerido
+- ❌ ZERO IA, ZERO ML, ZERO LLM, ZERO scoring composto
+
+#### Tests
+- `tests/test_bf_reason_suggestion.py` — 13 unit (100% verde):
+  R1 em 100%, em 50% (inclusivo), abaixo de 50%, sem ausências, sem reason 1a;
+  R3 dispara em sev=5, não dispara em sev=2, não dispara sem reason atual;
+  R1+R3 combinados; should_show=false quando já selecionado;
+  determinismo; contract shape; constants lock.
+- Suite consolidada BF: **44/44 verde** (10 MEC + 9 canonical + 12 e2e_systemic + 13 suggestion).
+- E2E validado via curl: atestado de 8 dias → response com `suggested_reason_subcode: "1a"`, `confidence: 1.0`, rule e explanation corretos.
+
+#### NÃO implementado (intencionalmente — owner spec)
+- ❌ Score composto / ranking probabilístico
+- ❌ Múltiplas sugestões simultâneas
+- ❌ Frontend integration (próxima rodada — só após observar uso real)
+- ❌ Persistência de log de sugestões aceitas/rejeitadas
+
+
+
 ### Bolsa Família — Layer 1 P0 Fix: Frequência Válida Canônica **[Fev/2026]**
 
 Correção crítica isolada: o módulo Bolsa Família mantinha **engine paralela**
