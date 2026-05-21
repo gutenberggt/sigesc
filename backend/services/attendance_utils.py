@@ -103,3 +103,111 @@ def attendance_percentage(buckets: dict) -> float:
         return 0.0
     num = buckets.get('present', 0) + buckets.get('justified', 0) + buckets.get('medical', 0)
     return round(num / total * 100, 1)
+
+
+def compute_monthly_valid_absences(
+    attendance_docs: Iterable[dict],
+    medical_days_by_student: dict,
+    student_ids: Optional[Set[str]] = None,
+) -> dict:
+    """Conta faltas **válidas** por aluno por mês — fonte única de verdade
+    para módulos que precisam saber "quantos dias o aluno faltou e que
+    realmente contam contra a frequência" (ex.: Bolsa Família, Busca Ativa).
+
+    Regra Fev/2026 (alinhada a `classify_with_atestado` e ao PDF de frequência):
+      - Atestado médico vence o status original → NÃO conta como falta.
+      - Status `J` (justificado pelo professor) → NÃO conta como falta.
+      - `dependency_id` em registro → NÃO contamina cálculo regular (P0).
+      - Apenas `F`/`absent`/`ausente`/`falta` sem atestado contam.
+
+    Args:
+      attendance_docs: iterable de documentos da coleção `attendance`
+        `{date: 'YYYY-MM-DD', records: [{student_id, status, dependency_id?}, ...]}`
+      medical_days_by_student: `{student_id: Set[YYYY-MM-DD coberto por atestado]}`
+      student_ids: opcional. Se fornecido, ignora records de outros alunos.
+
+    Returns:
+      `{student_id: {month_int: valid_absence_count}}`
+    """
+    out: dict = {}
+    for doc in attendance_docs or []:
+        date_str = (doc.get("date") or "")[:10]
+        if not date_str or len(date_str) != 10:
+            continue
+        try:
+            month = int(date_str[5:7])
+        except (ValueError, TypeError):
+            continue
+
+        for rec in doc.get("records", []) or []:
+            sid = rec.get("student_id")
+            if not sid:
+                continue
+            if student_ids is not None and sid not in student_ids:
+                continue
+            # P0: dependência não contamina cálculo regular
+            if rec.get("dependency_id"):
+                continue
+
+            raw_status = (rec.get("status") or "").strip()
+            in_atestado = date_str in (medical_days_by_student.get(sid) or set())
+
+            # Atestado vence — nunca conta como falta
+            if in_atestado:
+                continue
+            # Justificado pelo professor — nunca conta como falta
+            if raw_status in ("J", "justified"):
+                continue
+            # Falta efetiva
+            if raw_status in ("F", "absent", "ausente", "falta", "A"):
+                # Nota: 'A' legado às vezes representava ausência;
+                # quando 'A' é atestado, já foi tratado em `in_atestado`.
+                if sid not in out:
+                    out[sid] = {}
+                out[sid][month] = out[sid].get(month, 0) + 1
+    return out
+
+
+async def fetch_medical_days_for_students(db, student_ids: Iterable[str], academic_year: int) -> dict:
+    """Wrapper assíncrono que busca em batch os medical_certificates do ano e
+    devolve `{student_id: Set[YYYY-MM-DD]}` — pronto para
+    `compute_monthly_valid_absences`. Mantém a engine de cálculo desacoplada
+    do I/O.
+    """
+    sids = [s for s in (student_ids or []) if s]
+    if not sids:
+        return {}
+    year_start = f"{academic_year}-01-01"
+    year_end = f"{academic_year}-12-31"
+    certs = await db.medical_certificates.find(
+        {
+            "student_id": {"$in": sids},
+            "start_date": {"$lte": year_end},
+            "end_date": {"$gte": year_start},
+        },
+        {"_id": 0, "student_id": 1, "start_date": 1, "end_date": 1},
+    ).to_list(None)
+    out: dict = {}
+    from datetime import datetime as _dt, timedelta as _td
+    for c in certs:
+        sid = c.get("student_id")
+        start = (c.get("start_date") or "")[:10]
+        end = (c.get("end_date") or "")[:10]
+        if not sid or not start or not end or start > end:
+            continue
+        # Clipa ao ano letivo
+        if start < year_start:
+            start = year_start
+        if end > year_end:
+            end = year_end
+        try:
+            cur = _dt.strptime(start, "%Y-%m-%d")
+            last = _dt.strptime(end, "%Y-%m-%d")
+        except ValueError:
+            continue
+        if sid not in out:
+            out[sid] = set()
+        while cur <= last:
+            out[sid].add(cur.strftime("%Y-%m-%d"))
+            cur += _td(days=1)
+    return out

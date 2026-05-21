@@ -13,6 +13,10 @@ import calendar
 from auth_middleware import AuthMiddleware
 from pdf_cache import get_mantenedora_cached
 from pdf.utils import format_date_pt
+from services.attendance_utils import (
+    compute_monthly_valid_absences,
+    fetch_medical_days_for_students,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -311,35 +315,28 @@ def setup_router(db, **kwargs):
             key = f"{r['student_id']}_{r['month']}"
             record_map[key] = r
 
-        # Calcular frequência mensal para todos os alunos
+        # Calcular frequência mensal para todos os alunos.
+        # FONTE ÚNICA DE VERDADE (Fev/2026 — Layer 1 LAYER do owner):
+        # delega a contagem de FALTAS VÁLIDAS para
+        # `services/attendance_utils.compute_monthly_valid_absences`, que
+        # aplica as regras canônicas (atestado vence status; J não conta;
+        # dependency_id ignorado). Substitui engine paralela que existia
+        # aqui antes e que NÃO descontava atestados (bug crítico do BF).
         student_ids = [s["id"] for s in students]
+        student_ids_set = set(student_ids)
         all_attendance = await db.attendance.find(
             {"academic_year": academic_year},
             {"_id": 0, "date": 1, "records": 1}
         ).to_list(50000)
 
-        # Mapear faltas por aluno/mês
-        student_absences = {}  # {student_id: {month: absence_count}}
-
-        for att in all_attendance:
-            att_date = att.get("date", "")
-            if not att_date:
-                continue
-            try:
-                dt = datetime.strptime(att_date[:10], "%Y-%m-%d")
-                m = dt.month
-            except:
-                continue
-
-            for rec in att.get("records", []):
-                sid = rec.get("student_id", "")
-                if sid not in student_ids:
-                    continue
-                status = rec.get("status", "")
-                if status in ("F", "absent", "ausente", "falta"):
-                    if sid not in student_absences:
-                        student_absences[sid] = {}
-                    student_absences[sid][m] = student_absences[sid].get(m, 0) + 1
+        medical_days_by_student = await fetch_medical_days_for_students(
+            db, student_ids, academic_year
+        )
+        student_absences = compute_monthly_valid_absences(
+            all_attendance,
+            medical_days_by_student,
+            student_ids_set,
+        )
 
         result = []
         for s in students:
@@ -576,31 +573,22 @@ def setup_router(db, **kwargs):
 
         monthly_school_days = await _calc_monthly_school_days(academic_year)
 
-        # Buscar frequência
+        # Buscar frequência — usa engine canônica (Fev/2026 Layer 1 fix).
+        # Atestado médico vence falta; J nunca conta; dependency_id ignorado.
         student_ids = [s["id"] for s in students]
         all_attendance = await db.attendance.find(
             {"academic_year": academic_year},
             {"_id": 0, "date": 1, "records": 1}
         ).to_list(50000)
 
-        student_absences = {}
-        for att in all_attendance:
-            att_date = att.get("date", "")
-            if not att_date:
-                continue
-            try:
-                dt = datetime.strptime(att_date[:10], "%Y-%m-%d")
-                m = dt.month
-            except:
-                continue
-            for rec in att.get("records", []):
-                sid = rec.get("student_id", "")
-                if sid not in student_ids:
-                    continue
-                if rec.get("status") in ("F", "absent", "ausente", "falta"):
-                    if sid not in student_absences:
-                        student_absences[sid] = {}
-                    student_absences[sid][m] = student_absences[sid].get(m, 0) + 1
+        medical_days_by_student = await fetch_medical_days_for_students(
+            db, student_ids, academic_year
+        )
+        student_absences = compute_monthly_valid_absences(
+            all_attendance,
+            medical_days_by_student,
+            set(student_ids),
+        )
 
         secretario = school.get("secretario_escolar") or ""
         months_range = list(range(month_start, month_end + 1))

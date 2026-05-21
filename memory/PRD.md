@@ -33,6 +33,64 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Bolsa Família — Layer 1 P0 Fix: Frequência Válida Canônica **[Fev/2026]**
+
+Correção crítica isolada: o módulo Bolsa Família mantinha **engine paralela**
+de contagem de faltas que NÃO descontava atestados médicos nem aplicava
+defesa em profundidade para `dependency_id`. Resultado: alunos com atestado
+podiam aparecer com baixa frequência indevidamente no relatório oficial.
+
+**Decisão arquitetural do owner:** apenas Layer 1 nesta rodada — fix isolado,
+centralização em fonte única, ZERO refatoração de schema/UX. Layers 2
+(`absence_type` granular) e 3 (suggestion engine MEC) ficam P1/P2 para
+rodada arquitetural dedicada.
+
+#### Fonte única de verdade
+- Nova função `services/attendance_utils.compute_monthly_valid_absences(
+  attendance_docs, medical_days_by_student, student_ids)` aplica as regras
+  canônicas Fev/2026 (alinhadas ao `compute_attendance_buckets` e ao PDF
+  de frequência da turma):
+  - Atestado médico **vence** o status original → NÃO conta como falta.
+  - Status `J` (justificado pelo professor) → NÃO conta como falta.
+  - `dependency_id` em registro → ignorado (defesa P0 em profundidade).
+  - Aceita aliases legados (`absent`, `ausente`, `falta`, `A`).
+- Wrapper assíncrono `fetch_medical_days_for_students(db, student_ids,
+  academic_year)` busca em batch os `medical_certificates` do ano e
+  retorna `{student_id: Set[YYYY-MM-DD]}`. Desacoplado do I/O.
+
+#### Refatoração `routers/bolsa_familia.py`
+- Engine paralela REMOVIDA (eliminada lógica duplicada nas linhas 339 e 600).
+- `list_bolsa_familia_students` e `generate_bolsa_familia_pdf` agora consomem
+  `compute_monthly_valid_absences` → consistência garantida com declaração
+  de frequência, relatório de turma e boletim.
+- Fórmula final do BF: `((dias_letivos - faltas_VÁLIDAS) / dias_letivos) * 100`
+  onde `faltas_válidas` exclui atestados, J e dependência.
+
+#### Tabela de aceite (4 casos obrigatórios validados)
+| Cenário                            | Antes (bug)  | Depois (canônico) |
+|------------------------------------|--------------|-------------------|
+| 20 dias, 5 faltas comuns           | 75% ✓        | **75%** ✓         |
+| 20 dias, 5 atestados               | 75% ❌       | **100%** ✓        |
+| 20 dias, 5 justificadas            | 100% ✓       | **100%** ✓        |
+| 20 dias, 3 faltas + 2 atestados    | 75% ❌       | **85%** ✓         |
+
+#### Tests
+- `tests/test_bolsa_familia_frequency_canonical.py` — 9 unit (100% verde):
+  4 casos obrigatórios do owner + 5 defesas (dependency ignorado, filtro
+  de student_ids, split por mês, records vazios/inválidos, aliases legados).
+- Suite consolidada relacionada: 45/45 verde (BF MEC + canonical +
+  attendance PDF + atestado + bimestre + filter course). Zero regressões.
+
+#### Backlog explícito (NÃO implementado nesta rodada)
+- ❌ `absence_type` granular (COMMON / SCHOOL_ACTIVITY / TRANSPORT / JUDICIAL / FAMILY / DISCIPLINARY)
+- ❌ Campo `counts_for_frequency` configurável por registro
+- ❌ `attachment_id` em registros de frequência
+- ❌ Suggestion engine BF ↔ Motivos MEC (sugerir reason_id automaticamente
+  baseado em padrão de absence_type)
+- ❌ UI nova de tipos de ausência no diário
+
+
+
 ### Bolsa Família — Integração Motivos Oficiais MEC v4.2 **[Fev/2026]**
 
 Refatoração arquitetural transformando o módulo Bolsa Família de "input text livre
