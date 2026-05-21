@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { schoolsAPI } from '@/services/api';
-import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2, AlertTriangle, Info, Stethoscope } from 'lucide-react';
 import axios from 'axios';
 import ReasonCombobox from '@/components/ReasonCombobox';
 
@@ -350,13 +350,25 @@ export default function BolsaFamilia() {
                           <tr key={m} className={`hover:bg-gray-50 ${belowThreshold ? 'bg-amber-50/40' : ''}`}>
                             <td className="px-4 py-2 font-medium text-gray-700">{MESES[m]}</td>
                             <td className="px-3 py-2 text-center font-medium">
-                              {data.frequency ? (
-                                <span className={belowThreshold ? 'text-amber-700 font-bold' : (aboveThreshold ? 'text-emerald-700' : 'text-gray-900')}>
-                                  {data.frequency}
-                                </span>
-                              ) : (
-                                <span className="text-gray-300">-</span>
-                              )}
+                              <div className="flex flex-col items-center gap-0.5">
+                                {data.frequency ? (
+                                  <span className={belowThreshold ? 'text-amber-700 font-bold' : (aboveThreshold ? 'text-emerald-700' : 'text-gray-900')}>
+                                    {data.frequency}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-300">-</span>
+                                )}
+                                {data.has_medical_certificate && (
+                                  <span
+                                    className="inline-flex items-center gap-1 text-[10px] text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-1.5 py-0.5 font-medium"
+                                    title={`${data.medical_days_count} dia(s) com atestado médico desconsiderado(s) do cálculo`}
+                                    data-testid={`bf-medical-badge-${student.id}-${m}`}
+                                  >
+                                    <Stethoscope size={10} />
+                                    Atestado: {data.medical_days_count}d
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-3 py-2">
                               {aboveThreshold ? (

@@ -365,6 +365,15 @@ def setup_router(db, **kwargs):
                 if school_days > 0:
                     freq_pct = f"{round(((school_days - absences) * 100) / school_days, 1)}%"
 
+                # Conta dias de atestado nesse mês (transparência operacional — Fev/2026).
+                # NÃO altera cálculo; apenas explica ao usuário por que freq pode
+                # estar 100% mesmo com faltas no diário.
+                medical_days_set = medical_days_by_student.get(s["id"]) or set()
+                medical_days_in_month = sum(
+                    1 for d in medical_days_set
+                    if len(d) == 10 and d[5:7] == f"{m:02d}"
+                )
+
                 student_data["months"][str(m)] = {
                     "frequency": freq_pct,
                     "reason_id": rec.get("reason_id") or None,
@@ -372,6 +381,8 @@ def setup_router(db, **kwargs):
                     "motive_legacy": rec.get("motive_legacy") or rec.get("motive") or "",
                     "school_days": school_days,
                     "absences": absences,
+                    "medical_days_count": medical_days_in_month,
+                    "has_medical_certificate": medical_days_in_month > 0,
                 }
 
             result.append(student_data)
