@@ -32,6 +32,77 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+
+### Bolsa Família — Integração Motivos Oficiais MEC v4.2 **[Fev/2026]**
+
+Refatoração arquitetural transformando o módulo Bolsa Família de "input text livre
+de motivo" para **dado institucional estruturado compatível com Sistema Presença MEC**.
+Pré-requisito para o futuro Núcleo de Busca Ativa Escolar.
+
+#### Schema (novas coleções)
+- `attendance_frequency_reason_groups`: 25 grupos oficiais MEC v4.2
+  `{id, mec_code, name, category, mec_version, source, active, sort_order, created_at, updated_at}`
+- `attendance_frequency_reasons`: 58 submotivos (57 ativos + 1 legacy "24z")
+  `{id, group_id, mec_group_code, mec_subcode, name, severity_level, requires_followup,
+  legacy, mec_version, source, active, created_at, updated_at}`
+- `bolsa_familia_tracking` refatorado:
+  - Adicionado: `reason_id` (FK) + `notes` (texto livre opcional)
+  - Mantido: `motive_legacy` (preserva dados pré-refatoração — auditoria/PDFs antigos)
+
+#### Seed institucional versionado
+- `/app/backend/seeds/mec/attendance_frequency_reasons.v4.2.json` — fonte da verdade
+  com `version: "4.2"`, `source: "Sistema Presença MEC"`, 25 grupos + 58 submotivos.
+- `/app/backend/seeds/seed_mec_frequency_reasons.py` — upsert idempotente
+  (chave natural: `mec_code` para grupos, `mec_subcode` para submotivos).
+- Plugado em `startup/seeds.run_all_seeds`.
+
+#### Índices Mongo (criados em `startup/indexes.py`)
+- `attendance_frequency_reason_groups`: `id` unique, `(mec_code, mec_version)` unique,
+  `(active, sort_order)`
+- `attendance_frequency_reasons`: `id` unique, `(mec_subcode, mec_version)` unique,
+  `(group_id, active)`, `(mec_group_code, mec_subcode)`
+- `bolsa_familia_tracking`: `(school_id, academic_year, month, student_id)` lookup,
+  `reason_id` sparse
+
+#### Endpoints (em `routers/bolsa_familia.py`)
+- `GET /api/bolsa-familia/reason-groups?mec_version=4.2`
+- `GET /api/bolsa-familia/reasons?group_id&mec_version&include_legacy=false`
+- `GET /api/bolsa-familia/reasons/grouped` — shape pronto para Combobox UI
+- `PUT /api/bolsa-familia/tracking` — aceita `{reason_id, notes, motive_legacy?}`.
+  Valida `reason_id` (422 se inválido). Mantém compatibilidade com payload legacy `motive`.
+- `PUT /api/bolsa-familia/tracking/bulk` — mesma validação, pré-carrega ids válidos
+  em 1 query para evitar N+1.
+- `GET /api/bolsa-familia/students/{...}` agora retorna `reason_id + notes + motive_legacy`
+  por mês.
+- `GET /api/bolsa-familia/pdf/{school_id}` — PDF resolve `reason_id` para texto
+  `{mec_subcode} - {name} — {notes}`; fallback para `motive_legacy` em registros antigos.
+
+#### Frontend
+- `/app/frontend/src/components/ReasonCombobox.jsx` — Combobox shadcn Command com
+  agrupamento visual + busca por nome / código MEC (3a, 11a) + navegação por teclado.
+- `/app/frontend/src/pages/BolsaFamilia.js` refatorado:
+  - Coluna "Motivo Oficial MEC" (Combobox) + coluna "Observações" (texto livre).
+  - **Política de visibilidade**: freq ≥ 75% → combobox desabilitado com mensagem
+    "Frequência ≥ 75% — motivo não obrigatório". Freq < 75% → combobox obrigatório
+    com borda âmbar. Freq null → opcional habilitado.
+  - Banner informativo do MEC, contador de "registros < 75% sem motivo" no header.
+
+#### Decisões arquiteturais (decisão owner)
+- ✅ Motivo PRINCIPAL único + observações complementares (NÃO múltiplos motivos).
+- ✅ `motive_legacy` preservado para auditoria/PDFs antigos (compatibilidade retroativa).
+- ✅ PDF reflete UI sem persistência (NÃO snapshot verificável agora — operacional).
+- ✅ `severity_level` / `requires_followup` são metadados de backend (reservados para
+  Busca Ativa Escolar futura — não exibidos na UI principal).
+- ✅ Reuso do submotivo `24z - Não classificado (legado)` para match futuro de
+  registros pré-refatoração via job assíncrono (não bloqueia P0).
+
+#### Tests
+- `/app/backend/tests/test_bolsa_familia_mec.py` — 10 E2E HTTP (100% verde):
+  groups=25, reasons=57 (sem legacy) / 58 (com legacy), filtro por group_id, shape
+  agrupado, save com reason_id, 422 para reason_id inválido, compat motive legacy,
+  bulk com mix válido/inválido, novo shape no list.
+
+
 ### Verifiable Documents MVP — Autoridade Verificável **[Fev/2026]**
 
 Transforma o SIGESC em **autoridade verificável de emissão documental**:

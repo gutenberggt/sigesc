@@ -1,0 +1,115 @@
+{
+  "version": "4.2",
+  "source": "Sistema Presença MEC",
+  "groups": [
+    {"mec_code": "1", "name": "Tratamento de doença e atenção à saúde do estudante", "category": "HEALTH", "sort_order": 1},
+    {"mec_code": "2", "name": "Doença ou óbito na família", "category": "FAMILY", "sort_order": 2},
+    {"mec_code": "3", "name": "Fatores que impedem deslocamento/acesso à escola", "category": "ACCESS", "sort_order": 3},
+    {"mec_code": "4", "name": "Suspensão escolar", "category": "DISCIPLINARY", "sort_order": 4},
+    {"mec_code": "5", "name": "Participação em atividade extraclasse", "category": "PEDAGOGICAL", "sort_order": 5},
+    {"mec_code": "6", "name": "Preconceito/discriminação/bullying", "category": "VIOLENCE", "sort_order": 6},
+    {"mec_code": "7", "name": "Questões sociais, culturais, étnicas ou religiosas", "category": "SOCIAL", "sort_order": 7},
+    {"mec_code": "8", "name": "Gravidez", "category": "HEALTH", "sort_order": 8},
+    {"mec_code": "9", "name": "Situação de rua", "category": "SOCIAL", "sort_order": 9},
+    {"mec_code": "10", "name": "Trabalho infantil", "category": "CHILD_LABOR", "sort_order": 10},
+    {"mec_code": "11", "name": "Violência no ambiente escolar", "category": "VIOLENCE", "sort_order": 11},
+    {"mec_code": "12", "name": "Trabalho do adolescente", "category": "WORK", "sort_order": 12},
+    {"mec_code": "13", "name": "Exploração ou abuso sexual", "category": "VIOLENCE", "sort_order": 13},
+    {"mec_code": "14", "name": "Desinteresse/desmotivação pelos estudos", "category": "PEDAGOGICAL", "sort_order": 14},
+    {"mec_code": "15", "name": "Abandono escolar/desistência", "category": "EVASION", "sort_order": 15},
+    {"mec_code": "16", "name": "Questões socioeconômicas, familiares ou educacionais", "category": "SOCIAL", "sort_order": 16},
+    {"mec_code": "17", "name": "Falta de documentação civil/escolar", "category": "DOCUMENTATION", "sort_order": 17},
+    {"mec_code": "18", "name": "Pessoa com deficiência/transtornos/neurodivergência", "category": "INCLUSION", "sort_order": 18},
+    {"mec_code": "19", "name": "Falta de oferta educacional adequada", "category": "MANAGEMENT", "sort_order": 19},
+    {"mec_code": "20", "name": "Situações coletivas", "category": "MANAGEMENT", "sort_order": 20},
+    {"mec_code": "21", "name": "Não localizado", "category": "ACTIVE_SEARCH", "sort_order": 21},
+    {"mec_code": "22", "name": "Calamidade/emergência", "category": "EMERGENCY", "sort_order": 22},
+    {"mec_code": "23", "name": "Privação de liberdade/EJA", "category": "SOCIAL", "sort_order": 23},
+    {"mec_code": "24", "name": "Outros motivos", "category": "OTHER", "sort_order": 24},
+    {"mec_code": "25", "name": "Sem vínculo escolar", "category": "NO_ENROLLMENT", "sort_order": 25}
+  ],
+  "reasons": [
+    {"mec_group_code": "1", "mec_subcode": "1a", "name": "Doença/problemas físicos", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "1", "mec_subcode": "1b", "name": "Problemas psicológicos/mentais", "severity_level": 3, "requires_followup": true},
+    {"mec_group_code": "1", "mec_subcode": "1c", "name": "Pré-natal/pós-parto", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "1", "mec_subcode": "1d", "name": "Consultas/tratamentos de rotina", "severity_level": 1, "requires_followup": false},
+
+    {"mec_group_code": "2", "mec_subcode": "2a", "name": "Doença de familiar", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "2", "mec_subcode": "2b", "name": "Óbito de familiar", "severity_level": 4, "requires_followup": true},
+
+    {"mec_group_code": "3", "mec_subcode": "3a", "name": "Enchente", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "3", "mec_subcode": "3b", "name": "Falta de transporte escolar", "severity_level": 3, "requires_followup": true},
+    {"mec_group_code": "3", "mec_subcode": "3c", "name": "Estrada intransitável", "severity_level": 3, "requires_followup": false},
+    {"mec_group_code": "3", "mec_subcode": "3d", "name": "Violência no trajeto", "severity_level": 4, "requires_followup": true},
+    {"mec_group_code": "3", "mec_subcode": "3e", "name": "Sem acompanhante para deslocamento", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "3", "mec_subcode": "3f", "name": "Longa distância escola-residência", "severity_level": 2, "requires_followup": false},
+
+    {"mec_group_code": "4", "mec_subcode": "4a", "name": "Suspensão com atividades", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "4", "mec_subcode": "4b", "name": "Suspensão sem atividades", "severity_level": 3, "requires_followup": true},
+
+    {"mec_group_code": "5", "mec_subcode": "5a", "name": "Atividade considerada escolar", "severity_level": 1, "requires_followup": false},
+    {"mec_group_code": "5", "mec_subcode": "5b", "name": "Atividade não considerada escolar", "severity_level": 2, "requires_followup": false},
+
+    {"mec_group_code": "6", "mec_subcode": "6a", "name": "Bullying/preconceito/discriminação", "severity_level": 4, "requires_followup": true},
+
+    {"mec_group_code": "7", "mec_subcode": "7a", "name": "Questões indígenas", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "7", "mec_subcode": "7b", "name": "Questões quilombolas", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "7", "mec_subcode": "7c", "name": "Questões circenses", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "7", "mec_subcode": "7d", "name": "Questões ciganas", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "7", "mec_subcode": "7e", "name": "Questões religiosas", "severity_level": 2, "requires_followup": false},
+
+    {"mec_group_code": "8", "mec_subcode": "8a", "name": "Gravidez de risco", "severity_level": 4, "requires_followup": true},
+    {"mec_group_code": "8", "mec_subcode": "8b", "name": "Gravidez sem risco", "severity_level": 2, "requires_followup": false},
+
+    {"mec_group_code": "9", "mec_subcode": "9a", "name": "Situação de rua", "severity_level": 5, "requires_followup": true},
+
+    {"mec_group_code": "10", "mec_subcode": "10a", "name": "Trabalho infantil com acompanhamento", "severity_level": 4, "requires_followup": true},
+    {"mec_group_code": "10", "mec_subcode": "10b", "name": "Trabalho infantil sem acompanhamento", "severity_level": 5, "requires_followup": true},
+
+    {"mec_group_code": "11", "mec_subcode": "11a", "name": "Violência no ambiente escolar", "severity_level": 5, "requires_followup": true},
+
+    {"mec_group_code": "12", "mec_subcode": "12a", "name": "Emprego formal", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "12", "mec_subcode": "12b", "name": "Estágio", "severity_level": 1, "requires_followup": false},
+    {"mec_group_code": "12", "mec_subcode": "12c", "name": "Trabalho informal", "severity_level": 3, "requires_followup": true},
+    {"mec_group_code": "12", "mec_subcode": "12d", "name": "Menor aprendiz", "severity_level": 1, "requires_followup": false},
+
+    {"mec_group_code": "13", "mec_subcode": "13a", "name": "Exploração/abuso sexual", "severity_level": 5, "requires_followup": true},
+
+    {"mec_group_code": "14", "mec_subcode": "14a", "name": "Desinteresse/desmotivação pelos estudos", "severity_level": 3, "requires_followup": true},
+
+    {"mec_group_code": "15", "mec_subcode": "15a", "name": "Abandono escolar", "severity_level": 5, "requires_followup": true},
+
+    {"mec_group_code": "16", "mec_subcode": "16a", "name": "Separação dos pais", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "16", "mec_subcode": "16b", "name": "Necessidade de cuidar da família", "severity_level": 3, "requires_followup": true},
+    {"mec_group_code": "16", "mec_subcode": "16c", "name": "Mudança frequente de moradia", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "16", "mec_subcode": "16d", "name": "Negligência familiar", "severity_level": 5, "requires_followup": true},
+    {"mec_group_code": "16", "mec_subcode": "16e", "name": "Falta de uniforme/calçado", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "16", "mec_subcode": "16f", "name": "Falta de material escolar", "severity_level": 2, "requires_followup": false},
+
+    {"mec_group_code": "17", "mec_subcode": "17a", "name": "Ausência de documentação", "severity_level": 2, "requires_followup": true},
+
+    {"mec_group_code": "18", "mec_subcode": "18a", "name": "Sem acessibilidade adequada", "severity_level": 4, "requires_followup": true},
+    {"mec_group_code": "18", "mec_subcode": "18b", "name": "Sem profissional de apoio", "severity_level": 4, "requires_followup": true},
+    {"mec_group_code": "18", "mec_subcode": "18c", "name": "Sem intérprete de Libras", "severity_level": 4, "requires_followup": true},
+
+    {"mec_group_code": "19", "mec_subcode": "19a", "name": "Sem vaga escolar", "severity_level": 5, "requires_followup": true},
+    {"mec_group_code": "19", "mec_subcode": "19b", "name": "Sem modalidade adequada", "severity_level": 4, "requires_followup": true},
+
+    {"mec_group_code": "20", "mec_subcode": "20a", "name": "Greve escolar", "severity_level": 2, "requires_followup": false},
+    {"mec_group_code": "20", "mec_subcode": "20b", "name": "Escola sem professor", "severity_level": 4, "requires_followup": true},
+    {"mec_group_code": "20", "mec_subcode": "20c", "name": "Escola fechada por reforma", "severity_level": 3, "requires_followup": false},
+    {"mec_group_code": "20", "mec_subcode": "20d", "name": "Falta de merenda escolar", "severity_level": 4, "requires_followup": true},
+
+    {"mec_group_code": "21", "mec_subcode": "21a", "name": "Aluno/família não localizada", "severity_level": 5, "requires_followup": true},
+
+    {"mec_group_code": "22", "mec_subcode": "22a", "name": "Calamidade pública", "severity_level": 3, "requires_followup": false},
+
+    {"mec_group_code": "23", "mec_subcode": "23a", "name": "Privação de liberdade", "severity_level": 5, "requires_followup": true},
+
+    {"mec_group_code": "24", "mec_subcode": "24a", "name": "Motivo não informado", "severity_level": 1, "requires_followup": false},
+    {"mec_group_code": "24", "mec_subcode": "24b", "name": "Outro motivo", "severity_level": 1, "requires_followup": false},
+    {"mec_group_code": "24", "mec_subcode": "24z", "name": "Não classificado (legado)", "severity_level": 1, "requires_followup": false, "legacy": true},
+
+    {"mec_group_code": "25", "mec_subcode": "25a", "name": "Sem vínculo escolar", "severity_level": 5, "requires_followup": true}
+  ]
+}

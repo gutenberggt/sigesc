@@ -197,4 +197,37 @@ async def create_all_indexes(db):
     await db.payroll_occurrences.create_index("id", unique=True)
     await db.payroll_occurrences.create_index("payroll_item_id")
 
+    # Bolsa Família - Motivos MEC (Fev/2026)
+    await db.attendance_frequency_reason_groups.create_index("id", unique=True, background=True)
+    await db.attendance_frequency_reason_groups.create_index(
+        [("mec_code", 1), ("mec_version", 1)], unique=True, background=True,
+        name="uq_group_mec_code_version",
+    )
+    await db.attendance_frequency_reason_groups.create_index(
+        [("active", 1), ("sort_order", 1)], background=True,
+        name="ix_group_active_sort",
+    )
+    await db.attendance_frequency_reasons.create_index("id", unique=True, background=True)
+    await db.attendance_frequency_reasons.create_index(
+        [("mec_subcode", 1), ("mec_version", 1)], unique=True, background=True,
+        name="uq_reason_subcode_version",
+    )
+    await db.attendance_frequency_reasons.create_index(
+        [("group_id", 1), ("active", 1)], background=True,
+        name="ix_reason_group_active",
+    )
+    await db.attendance_frequency_reasons.create_index(
+        [("mec_group_code", 1), ("mec_subcode", 1)], background=True,
+        name="ix_reason_group_sub",
+    )
+    # Tracking BF — índice composto (lookup principal)
+    await db.bolsa_familia_tracking.create_index(
+        [("school_id", 1), ("academic_year", 1), ("month", 1), ("student_id", 1)],
+        background=True,
+        name="ix_bf_tracking_lookup",
+    )
+    await db.bolsa_familia_tracking.create_index(
+        [("reason_id", 1)], sparse=True, background=True, name="ix_bf_tracking_reason"
+    )
+
     logger.info("Índices MongoDB criados/verificados com sucesso")

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { schoolsAPI } from '@/services/api';
-import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2 } from 'lucide-react';
+import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import axios from 'axios';
+import ReasonCombobox from '@/components/ReasonCombobox';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -12,6 +13,15 @@ const MESES = {
   1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
   7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
 };
+
+// Limiar oficial do MEC para Bolsa Família.
+const FREQUENCY_THRESHOLD_PCT = 75;
+
+function parseFrequencyPct(freqStr) {
+  if (!freqStr) return null;
+  const m = String(freqStr).match(/([0-9]+(?:\.[0-9]+)?)/);
+  return m ? parseFloat(m[1]) : null;
+}
 
 export default function BolsaFamilia() {
   const navigate = useNavigate();
@@ -33,11 +43,33 @@ export default function BolsaFamilia() {
   const [monthEnd, setMonthEnd] = useState(new Date().getMonth() + 1 || 12);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
+  // Motivos MEC carregados uma única vez (cache por sessão da página).
+  const [reasonGroups, setReasonGroups] = useState([]);
+  const [reasonsLoading, setReasonsLoading] = useState(false);
+
   useEffect(() => {
     schoolsAPI.getAll().then(data => {
       setSchools(data.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
     }).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    setReasonsLoading(true);
+    axios.get(`${API}/bolsa-familia/reasons/grouped`, { headers })
+      .then(res => setReasonGroups(res.data.groups || []))
+      .catch(err => console.error('Erro ao carregar motivos MEC:', err))
+      .finally(() => setReasonsLoading(false));
+  }, []);
+
+  const reasonIndex = useMemo(() => {
+    const idx = new Map();
+    reasonGroups.forEach((g) => {
+      (g.reasons || []).forEach((r) => {
+        idx.set(r.id, { ...r, group_name: g.name });
+      });
+    });
+    return idx;
+  }, [reasonGroups]);
 
   const loadStudents = useCallback(async () => {
     if (!selectedSchool) { setStudents([]); return; }
@@ -54,22 +86,50 @@ export default function BolsaFamilia() {
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
-  const handleMotiveChange = (studentId, month, value) => {
+  const setMonthField = (studentId, month, patch) => {
     setStudents(prev => prev.map(s => {
       if (s.id !== studentId) return s;
       return {
         ...s,
         months: {
           ...s.months,
-          [month]: { ...s.months[month], motive: value }
+          [month]: { ...s.months[month], ...patch }
         }
       };
     }));
-    // Marca esta combinação (aluno × mês) como modificada para envio em batch.
     setDirty(prev => ({ ...prev, [`${studentId}_${month}`]: true }));
   };
 
+  const handleReasonChange = (studentId, month, reasonId) => {
+    setMonthField(studentId, month, { reason_id: reasonId });
+  };
+
+  const handleNotesChange = (studentId, month, notes) => {
+    setMonthField(studentId, month, { notes });
+  };
+
   const dirtyCount = Object.keys(dirty).length;
+
+  const monthsRange = useMemo(() => {
+    const arr = [];
+    for (let m = monthStart; m <= monthEnd; m++) arr.push(m);
+    return arr;
+  }, [monthStart, monthEnd]);
+
+  // Bloqueia salvar se algum mês <75% estiver sem reason_id.
+  const validationErrors = useMemo(() => {
+    const errors = [];
+    students.forEach((s) => {
+      monthsRange.forEach((m) => {
+        const data = s.months?.[String(m)] || {};
+        const freq = parseFrequencyPct(data.frequency);
+        if (freq !== null && freq < FREQUENCY_THRESHOLD_PCT && !data.reason_id) {
+          errors.push({ student_id: s.id, student_name: s.full_name, month: m });
+        }
+      });
+    });
+    return errors;
+  }, [students, monthsRange]);
 
   const handleSaveAll = async () => {
     if (dirtyCount === 0) {
@@ -77,17 +137,17 @@ export default function BolsaFamilia() {
       return;
     }
     setSavingAll(true);
-    // Monta o payload em batch a partir das chaves dirty.
     const items = Object.keys(dirty).map(key => {
       const [studentId, monthStr] = key.split('_');
       const stu = students.find(s => s.id === studentId);
-      const motive = stu?.months?.[monthStr]?.motive || '';
+      const data = stu?.months?.[monthStr] || {};
       return {
         student_id: studentId,
         school_id: selectedSchool,
         month: parseInt(monthStr, 10),
         academic_year: academicYear,
-        motive,
+        reason_id: data.reason_id || null,
+        notes: data.notes || '',
       };
     });
     try {
@@ -114,9 +174,6 @@ export default function BolsaFamilia() {
     } catch (e) { console.error(e); }
     setGeneratingPdf(false);
   };
-
-  const monthsRange = [];
-  for (let m = monthStart; m <= monthEnd; m++) monthsRange.push(m);
 
   const formatDate = (d) => {
     if (!d) return '';
@@ -195,6 +252,14 @@ export default function BolsaFamilia() {
               </select>
             </div>
           </div>
+          <div className="mt-4 text-xs text-gray-600 flex items-start gap-2" data-testid="bf-policy-banner">
+            <Info size={14} className="mt-0.5 flex-shrink-0 text-blue-500" />
+            <span>
+              <strong>Política MEC:</strong> meses com frequência ≥ {FREQUENCY_THRESHOLD_PCT}% não exigem
+              motivo. Meses com frequência abaixo de {FREQUENCY_THRESHOLD_PCT}% exigem motivo oficial
+              do Sistema Presença (v4.2). Observações são opcionais e complementam o motivo.
+            </span>
+          </div>
         </div>
 
         {loading && (
@@ -221,7 +286,25 @@ export default function BolsaFamilia() {
 
         {!loading && students.length > 0 && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600"><strong>{students.length}</strong> aluno(s) com Bolsa Família</p>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-sm text-gray-600"><strong>{students.length}</strong> aluno(s) com Bolsa Família</p>
+              {validationErrors.length > 0 && (
+                <div
+                  className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5"
+                  data-testid="bf-validation-warning"
+                >
+                  <AlertTriangle size={14} />
+                  <span>
+                    <strong>{validationErrors.length}</strong> registro(s) abaixo de {FREQUENCY_THRESHOLD_PCT}% sem motivo informado.
+                  </span>
+                </div>
+              )}
+              {reasonsLoading && (
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <Loader2 size={12} className="animate-spin" /> Carregando motivos MEC...
+                </span>
+              )}
+            </div>
 
             {students.map((student) => (
               <div key={student.id} className="bg-white rounded-xl border overflow-hidden" data-testid={`bf-student-${student.id}`}>
@@ -244,24 +327,77 @@ export default function BolsaFamilia() {
                       <tr className="bg-gray-100">
                         <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase w-28">Mês</th>
                         <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">Frequência</th>
-                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Motivo</th>
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase w-[420px]">Motivo Oficial MEC</th>
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Observações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {monthsRange.map(m => {
                         const data = student.months[String(m)] || {};
+                        const freq = parseFrequencyPct(data.frequency);
+                        const aboveThreshold = freq !== null && freq >= FREQUENCY_THRESHOLD_PCT;
+                        const belowThreshold = freq !== null && freq < FREQUENCY_THRESHOLD_PCT;
+                        // Política: APENAS acima do limiar desabilita o combobox.
+                        // Sem frequência calculada → enabled como opcional.
+                        const reasonDisabled = !canEdit || aboveThreshold;
+                        const reasonRequired = canEdit && belowThreshold;
+                        const reasonInfo = data.reason_id ? reasonIndex.get(data.reason_id) : null;
+                        const resolvedLegacyLabel = !data.reason_id && data.motive_legacy
+                          ? `LEGADO: ${data.motive_legacy}`
+                          : undefined;
+
                         return (
-                          <tr key={m} className="hover:bg-gray-50">
+                          <tr key={m} className={`hover:bg-gray-50 ${belowThreshold ? 'bg-amber-50/40' : ''}`}>
                             <td className="px-4 py-2 font-medium text-gray-700">{MESES[m]}</td>
-                            <td className="px-3 py-2 text-center font-medium text-gray-900">
-                              {data.frequency || <span className="text-gray-300">-</span>}
+                            <td className="px-3 py-2 text-center font-medium">
+                              {data.frequency ? (
+                                <span className={belowThreshold ? 'text-amber-700 font-bold' : (aboveThreshold ? 'text-emerald-700' : 'text-gray-900')}>
+                                  {data.frequency}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
                             </td>
                             <td className="px-3 py-2">
-                              <input type="text" value={data.motive || ''} placeholder={canEdit ? "Informe o motivo..." : ""}
-                                onChange={e => handleMotiveChange(student.id, String(m), e.target.value)}
-                                disabled={!canEdit}
-                                className="w-full border rounded px-2 py-1 text-sm disabled:bg-gray-50 disabled:text-gray-500"
-                                data-testid={`bf-motive-${student.id}-${m}`} />
+                              {aboveThreshold ? (
+                                <div
+                                  className="w-full border border-dashed border-gray-200 rounded px-3 py-2 text-xs text-gray-400 bg-gray-50"
+                                  data-testid={`bf-reason-disabled-${student.id}-${m}`}
+                                >
+                                  Frequência ≥ {FREQUENCY_THRESHOLD_PCT}% — motivo não obrigatório
+                                </div>
+                              ) : (
+                                <ReasonCombobox
+                                  value={data.reason_id || null}
+                                  onChange={(rid) => handleReasonChange(student.id, String(m), rid)}
+                                  groups={reasonGroups}
+                                  disabled={reasonDisabled}
+                                  required={reasonRequired}
+                                  resolvedLabel={resolvedLegacyLabel}
+                                  testIdPrefix={`bf-reason-${student.id}-${m}`}
+                                  placeholder={
+                                    belowThreshold
+                                      ? 'Obrigatório: selecione o motivo MEC...'
+                                      : 'Selecione o motivo MEC (opcional)'
+                                  }
+                                />
+                              )}
+                              {reasonInfo && (
+                                <div className="mt-1 text-[10px] text-gray-400 font-mono">
+                                  {reasonInfo.group_name}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={data.notes || ''}
+                                placeholder={canEdit && !aboveThreshold ? 'Observações complementares...' : ''}
+                                onChange={(e) => handleNotesChange(student.id, String(m), e.target.value)}
+                                disabled={!canEdit || aboveThreshold}
+                                className="w-full border border-gray-300 rounded px-2 py-1 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+                                data-testid={`bf-notes-${student.id}-${m}`}
+                              />
                             </td>
                           </tr>
                         );

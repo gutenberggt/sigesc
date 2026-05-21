@@ -25,6 +25,14 @@ async def run_all_seeds(db):
     except Exception as exc:
         logger.warning(f"Seed Currículo Computação: ignorado por erro: {exc}")
 
+    # Fev/2026: Motivos oficiais MEC (Sistema Presença v4.2).
+    try:
+        from seeds.seed_mec_frequency_reasons import seed_attendance_frequency_reasons
+        stats = await seed_attendance_frequency_reasons(db)
+        logger.info(f"Seed Motivos MEC: {stats}")
+    except Exception as exc:
+        logger.warning(f"Seed Motivos MEC: ignorado por erro: {exc}")
+
 
 async def init_external_services(db, client):
     """Inicializa índices e serviços externos (snapshots, verifiable_docs, monthly_reports)."""

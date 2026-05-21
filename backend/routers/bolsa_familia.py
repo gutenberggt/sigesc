@@ -171,6 +171,94 @@ def setup_router(db, **kwargs):
     EDIT_ROLES = ['super_admin', 'admin', 'admin_teste', 'secretario', 'gerente']
     VIEW_ROLES = ['super_admin', 'admin', 'admin_teste', 'secretario', 'semed3', 'diretor', 'ass_social_2', 'gerente']
 
+    @router.get("/bolsa-familia/reason-groups")
+    async def list_reason_groups(request: Request, mec_version: Optional[str] = "4.2"):
+        """Lista grupos oficiais MEC de motivos de baixa frequência."""
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+        query = {"active": True}
+        if mec_version:
+            query["mec_version"] = mec_version
+        groups = await db.attendance_frequency_reason_groups.find(
+            query, {"_id": 0}
+        ).sort("sort_order", 1).to_list(1000)
+        return {"groups": groups, "mec_version": mec_version, "total": len(groups)}
+
+    @router.get("/bolsa-familia/reasons")
+    async def list_reasons(
+        request: Request,
+        group_id: Optional[str] = None,
+        mec_version: Optional[str] = "4.2",
+        include_legacy: bool = False,
+    ):
+        """Lista submotivos MEC. Opcionalmente filtra por grupo.
+
+        Resposta enxuta — sem agrupamento. Frontend faz `group by group_id`.
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+        query = {"active": True}
+        if mec_version:
+            query["mec_version"] = mec_version
+        if group_id:
+            query["group_id"] = group_id
+        if not include_legacy:
+            query["legacy"] = {"$ne": True}
+        reasons = await db.attendance_frequency_reasons.find(
+            query, {"_id": 0}
+        ).sort([("mec_group_code", 1), ("mec_subcode", 1)]).to_list(5000)
+        return {"reasons": reasons, "mec_version": mec_version, "total": len(reasons)}
+
+    @router.get("/bolsa-familia/reasons/grouped")
+    async def list_reasons_grouped(
+        request: Request,
+        mec_version: Optional[str] = "4.2",
+        include_legacy: bool = False,
+    ):
+        """Lista submotivos já agrupados (estrutura ideal para Combobox).
+
+        Shape: `{groups: [{group_id, mec_code, name, category, sort_order,
+        reasons: [{id, mec_subcode, name, severity_level, requires_followup}]}]}`
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
+
+        groups_q = {"active": True}
+        if mec_version:
+            groups_q["mec_version"] = mec_version
+        groups = await db.attendance_frequency_reason_groups.find(
+            groups_q, {"_id": 0}
+        ).sort("sort_order", 1).to_list(1000)
+
+        reasons_q = {"active": True}
+        if mec_version:
+            reasons_q["mec_version"] = mec_version
+        if not include_legacy:
+            reasons_q["legacy"] = {"$ne": True}
+        reasons = await db.attendance_frequency_reasons.find(
+            reasons_q, {"_id": 0}
+        ).sort([("mec_group_code", 1), ("mec_subcode", 1)]).to_list(5000)
+
+        # Agrupa por group_id
+        by_group: dict = {}
+        for r in reasons:
+            by_group.setdefault(r["group_id"], []).append(r)
+
+        result = []
+        for g in groups:
+            result.append({
+                "group_id": g["id"],
+                "mec_code": g["mec_code"],
+                "name": g["name"],
+                "category": g.get("category"),
+                "sort_order": g.get("sort_order"),
+                "reasons": by_group.get(g["id"], []),
+            })
+        return {"groups": result, "mec_version": mec_version}
+
     @router.get("/bolsa-familia/students")
     async def list_bolsa_familia_students(
         request: Request,
@@ -282,9 +370,11 @@ def setup_router(db, **kwargs):
 
                 student_data["months"][str(m)] = {
                     "frequency": freq_pct,
-                    "motive": rec.get("motive", ""),
+                    "reason_id": rec.get("reason_id") or None,
+                    "notes": rec.get("notes") or "",
+                    "motive_legacy": rec.get("motive_legacy") or rec.get("motive") or "",
                     "school_days": school_days,
-                    "absences": absences
+                    "absences": absences,
                 }
 
             result.append(student_data)
@@ -299,7 +389,12 @@ def setup_router(db, **kwargs):
 
     @router.put("/bolsa-familia/tracking")
     async def save_tracking(request: Request):
-        """Salva dados de acompanhamento (motivo). Apenas secretários, admins e gerente."""
+        """Salva dados de acompanhamento (reason_id/notes ou motivo legado).
+
+        Schema novo: `reason_id` (referência a `attendance_frequency_reasons`) +
+        `notes` (texto livre opcional).
+        Mantém `motive_legacy` para compatibilidade retroativa (NÃO apaga).
+        """
         current_user = await AuthMiddleware.require_permission(
             db, 'nav-bolsa-familia-button', EDIT_ROLES
         )(request)
@@ -309,21 +404,41 @@ def setup_router(db, **kwargs):
         school_id = body.get("school_id")
         month = body.get("month")
         academic_year = body.get("academic_year", datetime.now().year)
-        motive = body.get("motive", "")
+        reason_id = body.get("reason_id") or None
+        notes = body.get("notes", "") or ""
+        # Aceita motive legado APENAS se nenhum reason_id for fornecido (não criar novo legado).
+        motive_legacy = body.get("motive_legacy") or body.get("motive") or ""
 
         if not student_id or not school_id or not month:
             raise HTTPException(status_code=400, detail="student_id, school_id e month são obrigatórios")
 
+        # Validação: se reason_id, precisa existir
+        if reason_id:
+            exists = await db.attendance_frequency_reasons.find_one(
+                {"id": reason_id, "active": True}, {"_id": 0, "id": 1}
+            )
+            if not exists:
+                raise HTTPException(status_code=422, detail="reason_id inválido ou inativo")
+
         now = datetime.now(timezone.utc).isoformat()
+        set_doc = {
+            "student_id": student_id,
+            "school_id": school_id,
+            "month": str(month),
+            "academic_year": academic_year,
+            "reason_id": reason_id,
+            "notes": notes,
+            "updated_at": now,
+            "saved_by_role": current_user.get('role'),
+            "saved_by_user_id": current_user.get('id'),
+        }
+        # Só sobrescreve motive_legacy se foi explicitamente enviado.
+        if motive_legacy:
+            set_doc["motive_legacy"] = motive_legacy
+
         await db.bolsa_familia_tracking.update_one(
-            {"student_id": student_id, "school_id": school_id, "month": month, "academic_year": academic_year},
-            {"$set": {
-                "student_id": student_id, "school_id": school_id,
-                "month": month, "academic_year": academic_year,
-                "motive": motive, "updated_at": now,
-                "saved_by_role": current_user.get('role'),
-                "saved_by_user_id": current_user.get('id'),
-            }},
+            {"student_id": student_id, "school_id": school_id, "month": str(month), "academic_year": academic_year},
+            {"$set": set_doc},
             upsert=True
         )
         return {"message": "Salvo com sucesso"}
@@ -332,7 +447,8 @@ def setup_router(db, **kwargs):
     async def save_tracking_bulk(request: Request):
         """Salva em lote os motivos editados. Apenas EDIT_ROLES.
 
-        Body: {"items": [{"student_id":..., "school_id":..., "month":..., "academic_year":..., "motive":...}, ...]}
+        Body: {"items": [{"student_id":..., "school_id":..., "month":...,
+        "academic_year":..., "reason_id":..., "notes":...}, ...]}
         Retorna {ok, errors:[]}.
         """
         current_user = await AuthMiddleware.require_permission(
@@ -343,6 +459,17 @@ def setup_router(db, **kwargs):
         if not isinstance(items, list) or not items:
             raise HTTPException(status_code=400, detail="items é obrigatório (lista não vazia)")
 
+        # Pré-carrega ids válidos uma vez (evita N queries)
+        reason_ids = {it.get("reason_id") for it in items if it.get("reason_id")}
+        valid_ids: set = set()
+        if reason_ids:
+            cursor = db.attendance_frequency_reasons.find(
+                {"id": {"$in": list(reason_ids)}, "active": True},
+                {"_id": 0, "id": 1},
+            )
+            async for r in cursor:
+                valid_ids.add(r["id"])
+
         now = datetime.now(timezone.utc).isoformat()
         saved = 0
         errors: List[dict] = []
@@ -350,18 +477,28 @@ def setup_router(db, **kwargs):
             try:
                 sid = it.get("student_id"); sch = it.get("school_id"); mo = it.get("month")
                 ay = it.get("academic_year") or datetime.now().year
+                rid = it.get("reason_id") or None
                 if not (sid and sch and mo):
                     errors.append({"item": it, "error": "campos obrigatórios ausentes"}); continue
+                if rid and rid not in valid_ids:
+                    errors.append({"item": it, "error": "reason_id inválido ou inativo"}); continue
+                set_doc = {
+                    "student_id": sid,
+                    "school_id": sch,
+                    "month": str(mo),
+                    "academic_year": ay,
+                    "reason_id": rid,
+                    "notes": it.get("notes", "") or "",
+                    "updated_at": now,
+                    "saved_by_role": current_user.get('role'),
+                    "saved_by_user_id": current_user.get('id'),
+                }
+                motive_legacy = it.get("motive_legacy") or it.get("motive") or ""
+                if motive_legacy:
+                    set_doc["motive_legacy"] = motive_legacy
                 await db.bolsa_familia_tracking.update_one(
                     {"student_id": sid, "school_id": sch, "month": str(mo), "academic_year": ay},
-                    {"$set": {
-                        "student_id": sid, "school_id": sch,
-                        "month": str(mo), "academic_year": ay,
-                        "motive": it.get("motive", ""),
-                        "updated_at": now,
-                        "saved_by_role": current_user.get('role'),
-                        "saved_by_user_id": current_user.get('id'),
-                    }},
+                    {"$set": set_doc},
                     upsert=True,
                 )
                 saved += 1
@@ -420,9 +557,22 @@ def setup_router(db, **kwargs):
             {"_id": 0}
         ).to_list(10000)
         record_map = {}
+        reason_ids_used = set()
         for r in bf_records:
             key = f"{r['student_id']}_{r['month']}"
             record_map[key] = r
+            if r.get("reason_id"):
+                reason_ids_used.add(r["reason_id"])
+
+        # Resolve nomes dos reasons usados em uma única query
+        reason_name_map: dict = {}
+        if reason_ids_used:
+            cursor = db.attendance_frequency_reasons.find(
+                {"id": {"$in": list(reason_ids_used)}},
+                {"_id": 0, "id": 1, "name": 1, "mec_subcode": 1},
+            )
+            async for r in cursor:
+                reason_name_map[r["id"]] = f"{r.get('mec_subcode', '')} - {r.get('name', '')}".strip(" -")
 
         monthly_school_days = await _calc_monthly_school_days(academic_year)
 
@@ -501,6 +651,7 @@ def setup_router(db, **kwargs):
                 student_absences=student_absences,
                 digital_signer_name=digital_signer_name,
                 digital_signature_valid=digital_signature_valid,
+                reason_name_map=reason_name_map,
             )
         except Exception as e:
             logger.error(f"Erro ao gerar PDF Bolsa Família: {e}")
@@ -513,7 +664,7 @@ def setup_router(db, **kwargs):
             headers={"Content-Disposition": f"inline; filename={filename}"}
         )
 
-    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences, digital_signer_name="", digital_signature_valid=False):
+    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences, digital_signer_name="", digital_signature_valid=False, reason_name_map=None):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.units import mm, cm
@@ -596,7 +747,18 @@ def setup_router(db, **kwargs):
             for m in months_range:
                 key = f"{student['id']}_{m}"
                 rec = record_map.get(key, {})
-                motive_val = rec.get("motive", "")
+
+                # Novo schema: reason_id + notes; fallback motive_legacy
+                rid = rec.get("reason_id")
+                reason_name = (reason_name_map or {}).get(rid, "") if rid else ""
+                notes_val = rec.get("notes") or ""
+                legacy_val = rec.get("motive_legacy") or rec.get("motive") or ""
+                if reason_name:
+                    motive_val = reason_name + (f" — {notes_val}" if notes_val else "")
+                elif legacy_val:
+                    motive_val = legacy_val
+                else:
+                    motive_val = notes_val
 
                 school_days = monthly_school_days.get(m, 0)
                 absences = (student_absences.get(student["id"]) or {}).get(m, 0)
