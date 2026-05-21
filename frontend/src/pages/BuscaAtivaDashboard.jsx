@@ -223,6 +223,57 @@ export default function BuscaAtivaDashboard() {
           </div>
         )}
 
+        {/* Empty state com call-to-action para migração legacy */}
+        {!statsLoading && (stats?.total_with_reason || 0) === 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5" data-testid="ba-empty-state">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900">
+                  Ainda não há motivos MEC registrados para {academicYear}
+                </h3>
+                {(stats?.total_legacy || 0) > 0 ? (
+                  <>
+                    <p className="text-sm text-amber-800 mt-1">
+                      Existem <strong>{stats.total_legacy} registros legados</strong> (versão
+                      antiga, texto livre) aguardando classificação no padrão oficial MEC v4.2.
+                      Após reclassificá-los, o dashboard começará a operar.
+                    </p>
+                    <button
+                      onClick={() => navigate('/admin/bolsa-familia')}
+                      className="mt-3 px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 inline-flex items-center gap-1.5"
+                      data-testid="ba-cta-classify-legacy"
+                    >
+                      Ir reclassificar agora <ExternalLink size={13} />
+                    </button>
+                  </>
+                ) : (stats?.total_pending || 0) > 0 ? (
+                  <>
+                    <p className="text-sm text-amber-800 mt-1">
+                      Há <strong>{stats.total_pending} registros sem motivo informado</strong>.
+                      Os motivos MEC são obrigatórios para alunos com frequência abaixo de
+                      75%. Acesse a tela de Bolsa Família para preencher.
+                    </p>
+                    <button
+                      onClick={() => navigate('/admin/bolsa-familia')}
+                      className="mt-3 px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 inline-flex items-center gap-1.5"
+                      data-testid="ba-cta-fill-pending"
+                    >
+                      Ir preencher motivos <ExternalLink size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-amber-800 mt-1">
+                    Nenhum acompanhamento de Bolsa Família foi salvo no ano letivo de {academicYear}.
+                    Quando o secretário/admin classificar alunos com baixa frequência usando o
+                    Combobox de Motivos MEC, este painel passará a refletir a rede.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* LINHA 1 — Cards executivos */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3" data-testid="ba-cards-row">
           <ExecutiveCard

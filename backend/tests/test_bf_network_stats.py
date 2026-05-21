@@ -105,6 +105,51 @@ def seeded_data():
     asyncio.run(_teardown())
 
 
+def test_network_stats_legacy_and_pending_counters(auth, seeded_data):
+    """Conta registros legacy (com motive_legacy) e pending (sem nada).
+
+    Owner spec (Fev/2026): empty state do dashboard precisa explicar ao
+    gestor que há N registros legados aguardando reclassificação MEC.
+    """
+    # Cria 3 legacy + 2 pending no scope QA (academic_year=ACADEMIC_YEAR)
+    async def _setup_extra():
+        client = AsyncIOMotorClient(os.environ["MONGO_URL"])
+        db = client[os.environ["DB_NAME"]]
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        await db.bolsa_familia_tracking.insert_many([
+            {"student_id": f"{QA_PREFIX}leg1", "school_id": "qa-sc-A", "month": "5",
+             "academic_year": ACADEMIC_YEAR, "reason_id": None,
+             "motive_legacy": "Texto livre antigo", "updated_at": now},
+            {"student_id": f"{QA_PREFIX}leg2", "school_id": "qa-sc-A", "month": "5",
+             "academic_year": ACADEMIC_YEAR, "reason_id": None,
+             "motive_legacy": "Outro motivo legado", "updated_at": now},
+            {"student_id": f"{QA_PREFIX}leg3", "school_id": "qa-sc-B", "month": "5",
+             "academic_year": ACADEMIC_YEAR, "reason_id": None,
+             "motive_legacy": "Mais um legado", "updated_at": now},
+            {"student_id": f"{QA_PREFIX}pen1", "school_id": "qa-sc-A", "month": "6",
+             "academic_year": ACADEMIC_YEAR, "reason_id": None,
+             "motive_legacy": "", "updated_at": now},
+            {"student_id": f"{QA_PREFIX}pen2", "school_id": "qa-sc-B", "month": "6",
+             "academic_year": ACADEMIC_YEAR, "reason_id": None,
+             "updated_at": now},  # sem motive_legacy
+        ])
+    asyncio.run(_setup_extra())
+
+    r = requests.get(
+        f"{BASE_URL}/api/bolsa-familia/stats/network?academic_year={ACADEMIC_YEAR}&force_refresh=true",
+        headers=_h(auth), timeout=20,
+    )
+    body = r.json()
+    assert "total_legacy" in body
+    assert "total_pending" in body
+    assert body["total_legacy"] == 3
+    # qa-stats-noreason (do seeded original) + 2 novos = 3
+    assert body["total_pending"] == 3
+    # total_with_reason continua sendo só dos estruturados
+    assert body["total_with_reason"] == 14
+
+
 def test_network_stats_shape_and_version(auth, seeded_data):
     r = requests.get(
         f"{BASE_URL}/api/bolsa-familia/stats/network?academic_year={ACADEMIC_YEAR}&force_refresh=true",

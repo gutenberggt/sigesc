@@ -103,6 +103,26 @@ async def compute_network_stats(
     raw = await db.bolsa_familia_tracking.aggregate(pipeline).to_list(1)
     facet = (raw or [{}])[0] if raw else {}
 
+    # Métricas adicionais (Fev/2026): registros legacy e sem nenhum motivo.
+    # Permite ao dashboard mostrar empty state útil ("X registros legacy
+    # aguardam classificação MEC").
+    legacy_match: dict = {"reason_id": None, "motive_legacy": {"$exists": True, "$ne": ""}}
+    if academic_year is not None:
+        legacy_match["academic_year"] = academic_year
+    total_legacy = await db.bolsa_familia_tracking.count_documents(legacy_match)
+
+    pending_match: dict = {
+        "reason_id": None,
+        "$or": [
+            {"motive_legacy": {"$exists": False}},
+            {"motive_legacy": ""},
+            {"motive_legacy": None},
+        ],
+    }
+    if academic_year is not None:
+        pending_match["academic_year"] = academic_year
+    total_pending = await db.bolsa_familia_tracking.count_documents(pending_match)
+
     def _first_count(key: str) -> int:
         arr = facet.get(key) or []
         if not arr:
@@ -154,6 +174,8 @@ async def compute_network_stats(
             "mec_version": mec_version,
         },
         "total_with_reason": _first_count("total"),
+        "total_legacy": total_legacy,
+        "total_pending": total_pending,
         "by_category": by_category,
         "by_severity": by_severity,
         "requires_followup": _first_count("requires_followup"),
