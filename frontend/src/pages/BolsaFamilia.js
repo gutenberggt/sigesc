@@ -158,21 +158,6 @@ export default function BolsaFamilia() {
     return arr;
   }, [monthStart, monthEnd]);
 
-  // Bloqueia salvar se algum mês <75% estiver sem reason_id.
-  const validationErrors = useMemo(() => {
-    const errors = [];
-    students.forEach((s) => {
-      monthsRange.forEach((m) => {
-        const data = s.months?.[String(m)] || {};
-        const freq = parseFrequencyPct(data.frequency);
-        if (freq !== null && freq < FREQUENCY_THRESHOLD_PCT && !data.reason_id) {
-          errors.push({ student_id: s.id, student_name: s.full_name, month: m });
-        }
-      });
-    });
-    return errors;
-  }, [students, monthsRange]);
-
   // Mini-dashboard: por aluno, dentro do intervalo selecionado.
   const studentFlags = useMemo(() => {
     return students.map((s) => {
@@ -422,17 +407,6 @@ export default function BolsaFamilia() {
                   </span>
                 )}
               </p>
-              {validationErrors.length > 0 && (
-                <div
-                  className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5"
-                  data-testid="bf-validation-warning"
-                >
-                  <AlertTriangle size={14} />
-                  <span>
-                    <strong>{validationErrors.length}</strong> registro(s) abaixo de {FREQUENCY_THRESHOLD_PCT}% sem motivo informado.
-                  </span>
-                </div>
-              )}
               {reasonsLoading && (
                 <span className="text-xs text-gray-400 flex items-center gap-1">
                   <Loader2 size={12} className="animate-spin" /> Carregando motivos MEC...
