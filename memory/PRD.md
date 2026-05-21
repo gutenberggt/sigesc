@@ -3253,3 +3253,32 @@ Suíte ampla 43/43 verde — Fase A + Fase B sem regressões.
 - `/app/test_reports/iteration_78.json` — bugs corrigidos, retest aprovado.
 
 ### Status: ✅ COMPLETO
+
+
+---
+
+## [21/05/2026] Mini-dashboard executivo no Acompanhamento BF
+
+### Solicitação do usuário
+> "Adicionar uma linha resumo no topo ('X alunos | Y abaixo de 75% | Z sem motivo informado') agrupada por escola — transformaria a visão consolidada em um mini-dashboard executivo direto do Acompanhamento, sem precisar abrir o Dashboard de Busca Ativa."
+
+Refinamento (1 linha única sempre; em modo "Todas as Escolas" consolida tudo; chips clicáveis funcionam como filtros).
+
+### Implementação
+- **Frontend-puro** (`pages/BolsaFamilia.js`):
+  - `studentFlags`: por aluno, marca `belowThreshold` (ao menos 1 mês <75% no intervalo) e `missingReason` (ao menos 1 mês <75% sem `reason_id`).
+  - `summary = {total, below, missing}` computado via useMemo.
+  - 3 chips clicáveis (data-testids `bf-summary-total`, `bf-summary-below`, `bf-summary-missing`) com cores semânticas (slate / amber / red).
+  - Chip clicado vira filtro toggle; `displayedStudents` substitui `students` na renderização.
+  - Chips com contagem 0 ficam `disabled` (opacidade + cursor-not-allowed).
+  - Botão "Limpar" (`bf-summary-clear`) aparece quando há filtro ativo.
+  - Empty state (`bf-summary-filter-empty`) quando filtro resulta em 0.
+  - Filtro auto-reset quando escola/turma/intervalo de meses muda.
+
+### Testes
+- E2E Playwright (iter 79) — 100% nas features testáveis com dados atuais.
+- Toggle dinâmico não foi exercitado visualmente porque a base atual não tem alunos com frequência <75% registrada em 2026; código estático conforme à spec.
+- Regressão completa (Turma + Todas as Escolas + ReasonCombobox + Save bulk + PDF) — todas OK.
+- `/app/test_reports/iteration_79.json`.
+
+### Status: ✅ COMPLETO
