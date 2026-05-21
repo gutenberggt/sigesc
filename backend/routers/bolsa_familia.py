@@ -401,6 +401,10 @@ def setup_router(db, **kwargs):
     def _cache_set(key: str, data):
         _stats_cache[key] = {"at": datetime.now(timezone.utc), "data": data}
 
+    def _cache_invalidate_all():
+        """Invalida todo o cache de stats — chamado quando trackings mudam."""
+        _stats_cache.clear()
+
     @router.get("/bolsa-familia/stats/network")
     async def network_stats(
         request: Request,
@@ -890,6 +894,7 @@ def setup_router(db, **kwargs):
             {"$set": set_doc},
             upsert=True
         )
+        _cache_invalidate_all()
         return {"message": "Salvo com sucesso"}
 
     @router.put("/bolsa-familia/tracking/bulk")
@@ -954,6 +959,8 @@ def setup_router(db, **kwargs):
             except Exception as e:  # noqa: BLE001
                 errors.append({"item": it, "error": str(e)})
 
+        if saved > 0:
+            _cache_invalidate_all()
         return {"saved": saved, "errors": errors}
 
     @router.get("/bolsa-familia/pdf/{school_id}")

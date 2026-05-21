@@ -85,7 +85,20 @@ export default function BuscaAtivaDashboard() {
     setStatsError(null);
     try {
       const url = `${API}/bolsa-familia/stats/network?academic_year=${academicYear}${force ? '&force_refresh=true' : ''}`;
-      const res = await axios.get(url, { headers });
+      let res = await axios.get(url, { headers });
+      // Auto-recuperação: se response veio vazia E veio do cache, força refresh
+      // (cobre o cenário onde o cache foi popado vazio antes de novos trackings chegarem).
+      if (
+        !force &&
+        res.data?.cached &&
+        (res.data?.total_with_reason === 0)
+      ) {
+        const refreshed = await axios.get(
+          `${API}/bolsa-familia/stats/network?academic_year=${academicYear}&force_refresh=true`,
+          { headers },
+        );
+        res = refreshed;
+      }
       setStats(res.data);
     } catch (e) {
       console.error(e);
