@@ -3282,3 +3282,30 @@ Refinamento (1 linha única sempre; em modo "Todas as Escolas" consolida tudo; c
 - `/app/test_reports/iteration_79.json`.
 
 ### Status: ✅ COMPLETO
+
+
+---
+
+## [21/05/2026] Seed de Frequência <75% (validação dinâmica do mini-dashboard)
+
+### Implementação
+- Script idempotente: `/app/backend/scripts/seed_test_bf_attendance.py`
+  - Cria calendário letivo 2026 global se ausente (4 bimestres Fev → Dez).
+  - Seleciona ~30% dos alunos BF (deterministic por nome): hoje 2 alunos.
+  - Insere 8 attendance docs com status='F' em Março/2026 → freq cai para ~63%.
+  - Atribui `reason_id` MEC para METADE (1 aluno) — separa visualmente os chips "below" e "missing".
+  - Todos os docs marcados com `_seed_bf_test: 'frequency_below_75'`.
+  - Flag `--undo` remove tudo que foi seedado (não toca em dados reais).
+
+### Resultado Visual (Escola Teste Multisseriada, Fev-Mar)
+- 4 alunos | 2 abaixo de 75% | 1 sem motivo informado
+- Aluno Teste Duplicidade: 72.7% + reason MEC seedado ("1a • Doença/problemas físicos") → conta em "below" mas NÃO em "missing"
+- Ana Oliveira: 63.6% + sem reason → conta em ambos chips
+- Joao Santos 90.9% / Maria Silva 100% → não aparecem nos filtros
+
+### Validação dinâmica (E2E via Playwright direto)
+- Chip "below" clicado → lista renderiza 2 alunos ✅
+- Chip "missing" clicado → lista renderiza 1 aluno ✅
+- Botão "Limpar" aparece, clica e volta para 4 ✅
+
+### Status: ✅ COMPLETO
