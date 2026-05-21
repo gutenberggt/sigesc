@@ -1,0 +1,39 @@
+{
+  "summary": "Fase 1 — Validação sistêmica E2E pós-consolidação MEC v4.2 + engine canônica + badge atestado. 31/31 testes verdes (19 pre-existentes + 12 novos cobrindo seed/índices Mongo/PDF/badge/conflict). UI E2E confirmou badge atestado, combobox grouped+searchable, coexistência badge×reason e persistência de notes. Nenhum bug crítico encontrado. Coerência transversal preservada.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bolsa_familia_e2e_systemic.py",
+    "/app/backend/tests/test_bolsa_familia_mec.py",
+    "/app/backend/tests/test_bolsa_familia_frequency_canonical.py",
+    "/app/test_reports/pytest/iter76_mec_full.xml",
+    "/app/test_reports/pytest/iter76_systemic.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Seed idempotente OK: confirmado via Mongo direto — 25 groups + 58 reasons (com legacy 24z) sem duplicidades de mec_subcode. Restart anterior não duplicou.",
+    "Índices presentes nas 3 collections (attendance_frequency_reason_groups.uq_group_mec_code_version, attendance_frequency_reasons.uq_reason_subcode_version + ix_reason_group_active, bolsa_familia_tracking.ix_bf_tracking_lookup + ix_bf_tracking_reason). Sem leak de _id em nenhum endpoint testado.",
+    "Engine canônica em services/attendance_utils.compute_monthly_valid_absences passa nos 4 casos obrigatórios (75/100/100/85%) + 5 defesas (J não conta, dependency_id ignorado, alias 'absent'/'ausente'/'falta', mês isolado, payload vazio).",
+    "PDF generation: GET /api/bolsa-familia/pdf/{school_id} extraído via pypdf renderiza `{mec_subcode}` + texto livre de `notes` corretamente (caso 3b com nota única qa-pdf-note-iter76 verificada).",
+    "Coexistência badge×reason: aluno 097095b5 em março/2026 com atestado de 3 dias úteis (02-06/mar) E reason_id=3b ambos persistem e renderizam (badge informativo + reason decisão admin) — sem lógica que esconda um pelo outro. Owner-spec OK.",
+    "Combobox shadcn ReasonCombobox.jsx: agrupamento por grupo MEC + busca por nome ('transporte' → 1 hit 3b) funciona. Subtitle do grupo aparece no item selecionado ('Fatores que impedem deslocamento/acesso à escola').",
+    "Cenário 5 limitação de cobertura: dataset da escola alvo tem TODAS frequências null (sem attendance records seedados) — branches 'freq≥75→disabled+msg' e 'freq<75→borda âmbar+warning' não foram exercitados via UI. O comportamento 'null→habilitado opcional' está correto e foi confirmado (16/16 triggers enabled, sem bf-validation-warning). Recomendação para seed futuro: alimentar attendance pelo aluno alvo para forçar branches da Política MEC. NÃO É BUG."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bolsa_familia_e2e_systemic.py (NOVO — 12 testes E2E sistêmicos cobrindo Cenários 1/2/3/4/6/7/8 + PDF pypdf + Mongo index/seed direct check, com cleanup automático de medical_certificates qa-cert-)"
+  ],
+  "success_rate": {
+    "backend": "100% (19 pré-existentes + 12 novos = 31/31)",
+    "frontend": "100% nos branches exercitáveis (badge atestado, combobox grouped+search, coexistência badge×reason, mês null=habilitado opcional). Branches freq≥75 e freq<75 não exercitados por dataset (não bug)."
+  },
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin) — header X-CSRF-Token retornado no login para POST/PUT",
+  "seed_data_creation": "Criado atestado dinamicamente para aluno 097095b5-2153-4be4-bdc2-695b96164f0d (02-06/mar/2026, motivo 'qa-cert-iter76') via POST /api/medical-certificates — cleanup automático no teardown via mongo delete_many({id: in ids}). Tracking legacy doc com id 'qa-tracking-legacy-{uuid}' também é limpo no finally.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Para rodar suite Iter76: `cd /app && export $(grep -v '^#' backend/.env | xargs) && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL frontend/.env | cut -d= -f2) && python -m pytest backend/tests/test_bolsa_familia_mec.py backend/tests/test_bolsa_familia_frequency_canonical.py backend/tests/test_bolsa_familia_e2e_systemic.py -v` → 31/31 verdes em ~5s. UI smoke /admin/bolsa-familia: selecionar escola 220d4022 → 4 alunos BF, badge 'Atestado: 3d' visível no aluno 097095b5 mês 3, combobox abre com 25 grupos. Path correto do menu é /admin/bolsa-familia (NÃO /bolsa-familia — esse retorna 404). Para exercitar branches do limite 75% no frontend, é necessário seedar attendance records reais via POST /api/attendance para a turma do aluno alvo, em pelo menos 1 mês, gerando freq <75% (forçar warning âmbar) e freq ≥75% (forçar disabled + msg bf-reason-disabled-{sid}-{m}). O dataset atual mantém todos meses com freq null = opcional habilitado, o que é o comportamento correto da política, apenas não exercita os outros 2 ramos.",
+  "rca of the issue": "N/A — nenhum bug. Todos os 8 cenários do brief auditados e coerentes com a especificação (MEC v4.2 com 25 grupos×58 submotivos, engine canônica com 4 regras validadas, badge atestado coexistindo com reason_id, PDF extraível, índices Mongo presentes, seed idempotente). Cenário 5 parcialmente exercitado por falta de attendance seedado (limitação de dataset, não código)."
+}
