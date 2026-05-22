@@ -33,6 +33,75 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 9: Legacy Schedule Bridge **[Fev/2026]**
+
+> *Owner: "Esse bridge não é gambiarra. É camada de compatibilidade temporal
+> entre um domínio legado operacional e um domínio novo auditável."*
+
+Resolve a divergência arquitetural descoberta em produção: a grade horária
+estava armazenada em `class_schedules + teacher_assignments` (modelo legacy),
+mas o Diário consultava exclusivamente `teacher_class_assignments` (modelo
+novo, vazio para a maioria das escolas). Resultado: 100% dos lançamentos
+viravam "INCONSISTENTE" no calendário operacional.
+
+#### Solução: read-time bridge transparente
+- **Novo**: `/app/backend/services/legacy_schedule_bridge.py`
+  - Função `build_assignments_from_legacy(db, class_doc)` que lê
+    `class_schedules + teacher_assignments` e devolve assignments
+    sintéticos no MESMO shape esperado pelo Diário.
+  - Mapeia `day` ("segunda") → ISO weekday (1).
+  - Resolve professor via lookup determinístico em `teacher_assignments`
+    (course_id matching, status='ativo', desempate por created_at).
+  - Vigência sintética: `valid_from = {academic_year}-02-01`,
+    `valid_until = {academic_year}-12-31`.
+  - Marca saída com `source="legacy_bridge"` e `synthetic_validity=True`.
+
+#### Pontos de aplicação (obrigatório nos DOIS)
+- `routers/calendar_diary_state.py` — UI operacional do Diário
+- `services/diary_snapshot_service.py` — Snapshot imutável (congela bridge
+  no payload; mudanças posteriores no legacy NÃO afetam o snapshot)
+
+#### Ordem de resolução (sem merge, sem sincronização)
+```
+1. Lê teacher_class_assignments (modelo NOVO — prioridade absoluta)
+2. Se vazio → usa bridge legacy
+3. NUNCA mistura os dois
+```
+
+#### Observabilidade
+- Log estruturado `[legacy_bridge] legacy_bridge_used=True class_id=... school_id=... academic_year=...`
+- Permite medir adoção do modelo novo sem guesswork.
+
+#### Testing
+- 4 cenários pytest verdes (`test_legacy_schedule_bridge.py`):
+  1. Legacy puro → slots reconhecidos
+  2. Modelo novo presente → legacy ignorado
+  3. Slot sem professor → não explode (teacher_id=None + warning)
+  4. Snapshot congelado → hash imutável após mutação do legacy
+- Suíte completa Diário: 60/60 verdes, zero regressão.
+
+#### Bloqueios explícitos (proibido implementar agora)
+- Migração automática · Sincronização bidirecional · Escrita dupla ·
+  Backfill · Cache persistente · Repair jobs · Normalização em banco.
+
+---
+
+### Diário — Fase 8b: Endpoint de Diagnóstico da Grade **[Fev/2026]**
+
+`GET /api/admin/diary/grade-diagnose/{class_id}` — read-only, LGPD-safe,
+restrito a admin/diretor/super_admin/gerente/semed3.
+
+Retorna: inventário de assignments, distribuição de `valid_from`,
+cobertura mensal com flag `is_suspicious`, lista de datas órfãs,
+diagnóstico textual (`CADASTRAR_GRADE` | `GRADE_DELETADA` |
+`AJUSTAR_VALID_FROM` | `OK`). Foi a ferramenta usada em produção para
+identificar a causa raiz que motivou a Fase 9 (Legacy Schedule Bridge).
+
+#### Testing
+- 4 testes pytest verdes (`test_admin_diary_diagnose.py`).
+
+---
+
 ### Diário — Fase 8: UI de Snapshot Management **[Fev/2026]**
 
 > *Owner: "Construir somente a interface operacional mínima necessária.

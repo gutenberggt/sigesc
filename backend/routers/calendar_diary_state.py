@@ -162,7 +162,8 @@ def setup_calendar_diary_state_router(db):
                 )
 
             klass = await db.classes.find_one(
-                {"id": class_id}, {"_id": 0, "id": 1, "name": 1, "school_id": 1}
+                {"id": class_id}, {"_id": 0, "id": 1, "name": 1, "school_id": 1,
+                                    "academic_year": 1, "mantenedora_id": 1}
             )
             if not klass:
                 is_error = True
@@ -178,6 +179,19 @@ def setup_calendar_diary_state_router(db):
                 },
                 {"_id": 0},
             ).to_list(2000)
+
+            # ---------------- Etapa 1b: fallback legacy (sem mexer no banco) ----------------
+            # Quando a turma não tem assignments no modelo novo, lê do legacy
+            # (`class_schedules` + `teacher_assignments`) e constrói assignments
+            # sintéticos no mesmo shape. Tratamento aprovado: ordem de resolução
+            # — novo TEM PRIORIDADE absoluta; só usa bridge se novo for vazio.
+            if not assignments:
+                from services.legacy_schedule_bridge import (
+                    build_assignments_from_legacy,
+                )
+                assignments = await build_assignments_from_legacy(
+                    db, class_doc=klass,
+                )
 
             # ---------------- Etapa 2: expandir slots esperados em memória ----------------
             expected_by_date: dict = {}

@@ -177,6 +177,16 @@ async def consolidate_diary_payload(
         {"_id": 0},
     ).to_list(2000)
 
+    # Fallback legacy (mesmo bridge usado no calendar_diary_state).
+    # Snapshot precisa enxergar a grade legacy CONGELADA no momento da
+    # publicação — depois disso, mudanças em class_schedules NÃO afetam o
+    # snapshot (princípio do hash imutável preservado).
+    if not assignments:
+        from services.legacy_schedule_bridge import build_assignments_from_legacy
+        assignments = await build_assignments_from_legacy(
+            db, class_doc=klass,
+        )
+
     expected_by_date: dict = {}
     for a in assignments:
         for slot in a.get("weekly_slots", []) or []:
