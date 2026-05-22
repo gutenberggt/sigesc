@@ -68,6 +68,23 @@ async def create_all_indexes(db):
     await db.attendance.create_index("id", unique=True)
     await db.attendance.create_index([("class_id", 1), ("date", 1)])
     await db.attendance.create_index([("class_id", 1), ("academic_year", 1)])
+    # Fase 1 (Mai/2026) — UNIQUE composto que reflete a granularidade real
+    # do diário: por turma+data, e em anos finais também por componente+aula.
+    # Previne duplicidade silenciosa (mesma chave criada por professores
+    # diferentes em race condition).
+    await db.attendance.create_index(
+        [("class_id", 1), ("date", 1), ("course_id", 1), ("aula_numero", 1)],
+        unique=True,
+        name="ux_attendance_class_date_course_aula",
+        background=True,
+    )
+    # Índice de suporte para queries por professor (autor) — usado por
+    # relatórios "minhas frequências lançadas" e timeline de auditoria.
+    await db.attendance.create_index(
+        [("updated_by", 1), ("updated_at", -1)],
+        name="ix_attendance_updated_by_at",
+        background=True, sparse=True,
+    )
 
     # Enrollments (matrículas)
     await db.enrollments.create_index("id", unique=True)
@@ -177,6 +194,22 @@ async def create_all_indexes(db):
     await db.audit_logs.create_index("user_id")
     await db.audit_logs.create_index("collection")
     await db.audit_logs.create_index([("collection", 1), ("document_id", 1)])
+    # Fase 1 Diário (Mai/2026) — queries pedagógicas:
+    # "todas as alterações da turma X" / "todas as alterações em DD/MM"
+    await db.audit_logs.create_index(
+        [("collection", 1), ("extra_data.class_id", 1), ("extra_data.date", 1)],
+        name="ix_audit_diary_class_date", background=True, sparse=True,
+    )
+    # "todas as alterações no aluno X" (busca multi-tabela via extra_data)
+    await db.audit_logs.create_index(
+        [("extra_data.student_ids_changed", 1), ("timestamp", -1)],
+        name="ix_audit_diary_student_changed", background=True, sparse=True,
+    )
+    # "todas as sobrescritas pós-conflito" — auditoria institucional
+    await db.audit_logs.create_index(
+        [("extra_data.change_kind", 1), ("timestamp", -1)],
+        name="ix_audit_change_kind", background=True, sparse=True,
+    )
 
     await db.medical_certificates.create_index("id", unique=True)
     await db.medical_certificates.create_index("student_id")

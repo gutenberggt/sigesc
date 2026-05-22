@@ -3308,4 +3308,48 @@ Refinamento (1 linha única sempre; em modo "Todas as Escolas" consolida tudo; c
 - Chip "missing" clicado → lista renderiza 1 aluno ✅
 - Botão "Limpar" aparece, clica e volta para 4 ✅
 
+
+---
+
+## [21/05/2026] Rodada 1 — Fase 0 + Fase 1 (Diário: Audit Log + Optimistic Locking)
+
+### Fase 0 — Diagnóstico (read-only)
+Script `/app/backend/scripts/audit_attendance_collisions.py` mapeou estado real:
+- 51 attendance docs; `updated_by` em 4 (cobertura parcial); `version` em 0.
+- `audit_logs` já existe (4.479 docs) com shape genérico perfeito (`old_value/new_value/extra_data`).
+- **Decisão arquitetural**: reutilizar `audit_logs` em vez de criar `attendance_audit_log` (single source of truth).
+- `class_schedules` existe mas `schedule_slots=[]`; `teacher_assignments=0` docs → bloqueador conhecido para Fase 4a (futuro).
+- Relatório completo: `/app/test_reports/fase_0_diagnostico_diario.json`.
+
+### Fase 1 — Optimistic Locking + Auditoria Pedagógica
+- **Modelo `AttendanceCreate`** (`routers/attendance.py`): novos campos opcionais `expected_version`, `force_overwrite`, `change_note`.
+- **Endpoint POST `/api/attendance`**:
+  - Toda criação nasce com `version=1`.
+  - Update detecta mismatch `current_version != expected_version` → **409 `ATTENDANCE_VERSION_CONFLICT`** com `last_modified_by` + timestamp.
+  - `force_overwrite=True` sem `change_note` → **422 `OVERWRITE_REQUIRES_NOTE`**.
+  - `force_overwrite=True` + `change_note` → save permitido, audit marca `change_kind='overwrite_after_conflict'`.
+  - Toda alteração incrementa `version` e atualiza `updated_by/updated_at`.
+- **Serviço `services/attendance_audit_diary.py`**:
+  - `diff_records()` calcula mudanças aluno-a-aluno.
+  - `build_diary_audit_extra()` enriquece `extra_data` do audit_log com: `entity_scope='daily_frequency'`, `class_id`, `class_name`, `date`, `course_id`, `aula_numero`, `change_kind`, `expected_version/final_version`, `student_ids_changed`, `per_student_changes`, `change_note`.
+
+### Migração e Índices
+- Script idempotente `/app/backend/scripts/migrate_attendance_version_v1.py`: backfill `version=1` em 51 docs legados. Zero colisões no UNIQUE composto.
+- Novos índices em `startup/indexes.py`:
+  - `attendance`: UNIQUE `{class_id, date, course_id, aula_numero}` (`ux_attendance_class_date_course_aula`); `{updated_by, updated_at DESC}` (auditoria por professor).
+  - `audit_logs`: 3 novos para queries pedagógicas — por turma+data, por aluno alterado, por `change_kind`.
+
+### Testes (6/6 verdes)
+`/app/backend/tests/test_attendance_audit_v1.py`:
+- create → `version=1`
+- update sem expected_version → incrementa
+- update com expected_version correto → OK
+- update com expected_version stale → 409 com payload completo
+- force_overwrite sem nota → 422
+- force_overwrite com nota → 200 + audit `change_kind='overwrite_after_conflict'`
+
+### Status: ✅ COMPLETO — Rodada 1 concluída
+
+### Próxima: Rodada 2 (Fases 2+3) — split do domínio Conteúdo (`content_entries`) + auditoria de delete/sobrescrita de conteúdo
+
 ### Status: ✅ COMPLETO
