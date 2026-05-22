@@ -116,6 +116,33 @@ async def create_all_indexes(db):
         name="ix_content_status_updated", background=True,
     )
 
+    # =========================================================
+    # Teacher Class Assignments (Alocação Institucional Temporal)
+    # Rodada 4 / Fase 4a — Mai/2026
+    # =========================================================
+    await db.teacher_class_assignments.create_index("id", unique=True)
+    # Busca operacional: "alocações do professor X vigentes"
+    await db.teacher_class_assignments.create_index(
+        [("teacher_id", 1), ("valid_from", 1), ("valid_until", 1)],
+        name="ix_assignment_teacher_validity", background=True,
+    )
+    # Calendário / consultas por turma+componente
+    await db.teacher_class_assignments.create_index(
+        [("class_id", 1), ("component_id", 1), ("deleted", 1)],
+        name="ix_assignment_class_component", background=True,
+    )
+    # Detector de conflito de horário (professor + slot)
+    await db.teacher_class_assignments.create_index(
+        [("teacher_id", 1), ("weekly_slots.weekday", 1),
+         ("weekly_slots.aula_numero", 1), ("valid_until", 1)],
+        name="ix_assignment_conflict_detection", background=True, sparse=True,
+    )
+    # "Quem está alocado nesta escola hoje?"
+    await db.teacher_class_assignments.create_index(
+        [("school_id", 1), ("valid_from", 1), ("valid_until", 1), ("deleted", 1)],
+        name="ix_assignment_school_validity", background=True,
+    )
+
     # Enrollments (matrículas)
     await db.enrollments.create_index("id", unique=True)
     await db.enrollments.create_index([("student_id", 1), ("academic_year", 1)])

@@ -3458,3 +3458,80 @@ frequência (Fase 1) → conteúdo (Fase 2) → concorrência → publicação/v
 ### Próximo bloqueio absoluto: Fase 4a — popular grade horária
 - `teacher_assignments` = 0 docs / `class_schedules.schedule_slots` = []
 - Sem isso: calendário (Fase 4), PDF multi-autoria (Fase 5), painel de completude → indefinidos.
+
+
+---
+
+## [21/05/2026] Rodada 4 — Fase 4a (Motor Temporal Institucional)
+
+### Coleção `teacher_class_assignments`
+Modelagem RICA: separa "grade da turma" (`class_schedules`) de "responsabilidade institucional" (`teacher_class_assignments`):
+
+```json
+{
+  "id": "uuid", "teacher_id": "...", "teacher_name": "...",
+  "class_id": "...", "class_name": "...", "school_id": "...",
+  "component_id": "...", "shift": "morning|afternoon|evening|full|integral",
+  "weekly_slots": [
+    {"weekday": 1, "aula_numero": 1, "start_time": "07:00", "end_time": "07:50"}
+  ],
+  "valid_from": "YYYY-MM-DD", "valid_until": "YYYY-MM-DD|null",
+  "is_substitute": false, "source": "manual|import|seed",
+  "deleted": false, "created_at/by", "updated_at/by"
+}
+```
+
+### 6 endpoints (`routers/teacher_class_assignments.py`)
+- `POST /api/teacher-class-assignments` — cria com validações: weekly_slots>=1, end_time>start_time, valid_until>=valid_from, shift válido, source válido.
+- `GET /api/teacher-class-assignments` — filtros: class_id, teacher_id, component_id, school_id, **active_on** (YYYY-MM-DD para vigência temporal), is_substitute, include_deleted.
+- `GET /api/teacher-class-assignments/{id}` — detalhe.
+- `PUT /api/teacher-class-assignments/{id}` — patch parcial; valida valid_until>=valid_from.
+- `DELETE /api/teacher-class-assignments/{id}` — soft delete com change_note obrigatório.
+- **`GET /api/teacher-class-assignments/conflicts?teacher_id=&on_date=`** — detector de choque de horário (mesmo professor, slots sobrepostos em períodos vigentes simultaneamente). 2 tipos: `same_aula` e `time_overlap`.
+
+### Algoritmo de conflito
+- 2 períodos se sobrepõem se `max(start) <= min(end)` (com `null` = +∞).
+- 2 slots colidem se mesmo weekday + (mesma aula_numero OU janelas de horário se interceptam).
+- NÃO bloqueia criação — fornece visibilidade para a SEMED revisar.
+
+### Auditoria
+- `change_kind`: `assignment_created`, `assignment_updated`, `assignment_deleted`.
+- `extra_data` carrega teacher_id, class_id, component_id, weekly_slots_count, validade, source, change_note (delete).
+
+### 5 índices (`startup/indexes.py`)
+- UNIQUE `id`.
+- `{teacher_id, valid_from, valid_until}` — busca operacional.
+- `{class_id, component_id, deleted}` — calendário.
+- `{teacher_id, weekly_slots.weekday, weekly_slots.aula_numero, valid_until}` — conflito.
+- `{school_id, valid_from, valid_until, deleted}` — escola.
+
+### Seed sintético institucional
+`/app/backend/scripts/seed_teacher_class_assignments.py`:
+- 12 turmas × 3 alocações = **36 assignments criados** (regente cobre Seg-Qui 1ª/2ª aulas; Arte na Sex; Ed. Física Qua).
+- Imita realidade multi-professor de anos iniciais.
+- `source='seed'`, idempotente, `--undo` para limpeza.
+
+### Testes (11/11 verdes)
+`/app/backend/tests/test_teacher_class_assignments.py`:
+- CRUD básico + validações (end_time, valid_until, shift, slots vazios).
+- Filtro temporal `active_on` (inclui/exclui por vigência).
+- Update extends validity + is_substitute.
+- Soft delete (default list omite, include_deleted recupera).
+- Detector de conflito: `same_aula`, `time_overlap`, períodos disjuntos NÃO geram conflito.
+
+### Regressão completa do Diário (Rodadas 1+2+3+4a): **34/34 verdes** ✅
+
+### Status: ✅ COMPLETO — Núcleo + Motor Temporal fechados
+
+### Próximas (núcleo do Diário está pronto)
+- **Fase 4** — Calendário visual (engine de completude: cinza/verde para frequência; cinza/azul/verde/amarelo para conteúdo cruzando `weekly_slots` × `content_entries` × `attendance`).
+- **Fase 5** — PDF dinâmico multi-autoria por bloco, com snapshot_hash imutável.
+- **Fase 7** — Validation flow (`validated_by` em attendance — coordenação/secretaria).
+- **Fase 8** — QR de verificação institucional via `published_snapshot_hash`.
+- **Fase 9** — Relatórios consolidados (Por turma+data: agrupa frequência + conteúdo por componente/professor).
+- **Frontend** — UI completa do Diário multi-professor (próximo grande passo de UX após validação backend).
+
+### Camadas pendentes da estratégia "FAÇA OS DOIS"
+- ✅ Camada 1: Modelagem REAL primeiro — pronta.
+- ✅ Camada 2: Seed sintético operacional — pronto (36 docs).
+- ⏳ Camada 3: Cadastro administrativo gradual (UI admin) — vira Fase 4a-frontend, depois desta rodada.
