@@ -3535,3 +3535,68 @@ Modelagem RICA: separa "grade da turma" (`class_schedules`) de "responsabilidade
 - ✅ Camada 1: Modelagem REAL primeiro — pronta.
 - ✅ Camada 2: Seed sintético operacional — pronto (36 docs).
 - ⏳ Camada 3: Cadastro administrativo gradual (UI admin) — vira Fase 4a-frontend, depois desta rodada.
+
+
+---
+
+## [21/05/2026] Rodada 5 — Fase 4 (Calendário operacional)
+
+### Endpoint agregador
+**`GET /api/calendar/diary-state/{class_id}?from=YYYY-MM-DD&to=YYYY-MM-DD`** (`routers/calendar_diary_state.py`).
+
+Fonte única da verdade para calendário, futura UI, PDF e relatórios.
+
+### Pipeline híbrido (NÃO $facet puro)
+1. Busca `teacher_class_assignments` vigentes (overlapping the range).
+2. Em Python expande `weekly_slots[]` para cada (data, weekday) — apenas dias onde a validade temporal permite.
+3. Busca `attendance` + `content_entries` com `$in` em dates_in_range.
+4. Match: attendance por (date, aula_numero) com fallback para attendance única do dia (anos iniciais); content por (date, component_id, aula_numero, teacher_id).
+5. Consolida estado SEMÂNTICO por entry, por dia e summary global. **Nunca persiste cor** — UI decide paleta.
+
+### Status semânticos
+- **`attendance_status`**: `missing | draft | completed | validated`
+- **`content_status`**: `missing | draft | published | corrected`
+- **Agregado por dia**: `empty | partial | complete | corrected | inconsistent` (último captura evidência fora de slot esperado).
+
+### Limites e validações
+- Range máximo 92 dias (defesa contra varredura).
+- `from`/`to` em formato YYYY-MM-DD, `to >= from`.
+- 400 em formato inválido, range invertido ou range excessivo.
+
+### Response shape
+```json
+{
+  "class_id": "...", "class_name": "...", "school_id": "...",
+  "from": "...", "to": "...", "range_days": N,
+  "summary": {
+    "expected_slots": N,
+    "attendance_completed": N, "attendance_validated": N,
+    "content_published": N, "content_corrected": N, "content_drafts": N,
+    "orphan_attendance_dates": ["..."], "orphan_content_dates": ["..."]
+  },
+  "days": [{
+    "date": "YYYY-MM-DD", "weekday": 1-7, "status": "...",
+    "expected_slots": N, "has_orphan_evidence": bool,
+    "entries": [{ component_id, component_name, aula_numero,
+                  teacher_id, teacher_name, assignment_id,
+                  attendance_status, content_status,
+                  expected_by_schedule: true, slot_start, slot_end }]
+  }]
+}
+```
+
+### Testes (9/9 verdes)
+`/app/backend/tests/test_calendar_diary_state.py`:
+- Validações 400 (formato data, range invertido, range > 92 dias)
+- 5 status semânticos (empty / partial / complete / corrected / inconsistent)
+- Summary global cumulativo
+
+### Regressão Diário completa (Rodadas 1+2+3+4a+4): **43/43 verdes** ✅
+
+### Status: ✅ COMPLETO — Calendário operacional pronto para UI
+
+### Próximas
+- **Fase 5** — PDF dinâmico multi-autoria por bloco (consome o mesmo endpoint /diary-state; assinaturas reais via teacher_id; usa `published_snapshot_hash` para imutabilidade).
+- **academic_calendar** (campo derivado preparado: `expected_by_schedule:true` — futuro `expected_by_calendar` poderá subtrair feriados/recessos).
+- **Frontend** — UI calendário consumindo este endpoint.
+- **Fase 7/8/9** — Validation flow / QR de verificação / Relatórios consolidados.
