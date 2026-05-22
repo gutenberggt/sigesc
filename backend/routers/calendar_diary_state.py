@@ -83,11 +83,16 @@ def _range_bucket(days: int) -> str:
     return "3m"
 
 
-def _classify_day(entries: list, has_orphan_evidence: bool) -> str:
+def _classify_day(
+    entries: list,
+    has_orphan_evidence: bool,
+    is_non_school_day: bool = False,
+) -> str:
     """Aggregate status do dia baseado nos entries esperados.
 
-      - not_expected: nenhum slot esperado pela grade (feriado, fim de semana,
-        domingo) E sem evidência órfã. Visualmente quase invisível.
+      - non_school: feriado/recesso/fim de semana sem grade. Visualmente
+        cinza claro. Nunca dispara inconsistent (mesmo que haja órfão).
+      - not_expected: nenhum slot esperado pela grade. Visualmente quase invisível.
       - inconsistent: há evidência (attendance/content) fora de slot esperado.
         Pode ocorrer com OU sem entries esperados.
       - empty: havia slots esperados mas zero evidência (pendência real).
@@ -96,9 +101,12 @@ def _classify_day(entries: list, has_orphan_evidence: bool) -> str:
         (attendance in DONE + content in PUBLISHED_LIKE).
       - partial: caso contrário.
 
-    A separação `not_expected` vs `empty` é semanticamente crítica: distingue
-    "não deveria existir lançamento" de "deveria existir mas não veio".
+    A separação `non_school` / `not_expected` / `empty` é semanticamente
+    crítica: distingue "dia não-letivo institucional" / "não deveria existir
+    lançamento" / "deveria existir mas não veio".
     """
+    if is_non_school_day:
+        return "non_school"
     if has_orphan_evidence:
         return "inconsistent"
     if not entries:
@@ -196,6 +204,21 @@ def setup_calendar_diary_state_router(db):
                     db, class_doc=klass,
                 )
 
+            # ---------------- Etapa 1c: calendário letivo (Fase 11) ----------------
+            # Carrega feriados/recessos e sábados letivos do período. Dias em
+            # `non_school_days` não terão slots expandidos — frontend renderiza
+            # como "Sem aula" (não-letivo).
+            from services.school_calendar_helper import load_school_calendar
+            school_cal = await load_school_calendar(
+                db,
+                academic_year=klass.get("academic_year"),
+                period_from=from_,
+                period_to=to,
+                mantenedora_id=klass.get("mantenedora_id"),
+            )
+            non_school_days: dict = school_cal["non_school_days"]
+            explicit_school_days: dict = school_cal["explicit_school_days"]
+
             # ---------------- Etapa 2: expandir slots esperados em memória ----------------
             expected_by_date: dict = {}
             for a in assignments:
@@ -211,6 +234,10 @@ def setup_calendar_diary_state_router(db):
                         if py_wd != wd:
                             continue
                         iso = day.isoformat()
+                        # Pula dias não-letivos (feriados/recessos) — vencidos
+                        # APENAS por sábado letivo (que está em explicit).
+                        if iso in non_school_days and iso not in explicit_school_days:
+                            continue
                         expected_by_date.setdefault(iso, []).append({
                             "component_id": a.get("component_id"),
                             "component_name": a.get("component_name") or a.get("component_id"),
@@ -475,7 +502,7 @@ def setup_calendar_diary_state_router(db):
                 "day_status_counts": {
                     "not_expected": 0, "empty": 0, "partial": 0,
                     "complete": 0, "corrected": 0, "validated": 0,
-                    "inconsistent": 0,
+                    "inconsistent": 0, "non_school": 0,
                 },
                 "orphan_attendance_dates": sorted(orphan_attendance_dates),
                 "orphan_content_dates": sorted(orphan_content_dates),
@@ -485,15 +512,23 @@ def setup_calendar_diary_state_router(db):
                 entries = expected_by_date.get(iso, [])
                 entries.sort(key=lambda x: (x["aula_numero"] or 0, x.get("component_id") or ""))
                 has_orphan_today = iso in orphan_attendance_dates or iso in orphan_content_dates
-                day_status = _classify_day(entries, has_orphan_today)
-                days.append({
+                is_non_school = iso in non_school_days
+                day_status = _classify_day(entries, has_orphan_today, is_non_school)
+                day_obj = {
                     "date": iso,
                     "weekday": day.isoweekday(),
                     "status": day_status,
                     "expected_slots": len(entries),
                     "entries": entries,
                     "has_orphan_evidence": has_orphan_today,
-                })
+                }
+                # Anota metadado institucional (feriado/recesso/sábado letivo)
+                if is_non_school:
+                    day_obj["school_calendar_event"] = non_school_days[iso]
+                elif iso in explicit_school_days:
+                    day_obj["school_calendar_event"] = explicit_school_days[iso]
+                    day_obj["is_explicit_school_day"] = True
+                days.append(day_obj)
                 summary["day_status_counts"][day_status] = summary["day_status_counts"].get(day_status, 0) + 1
                 summary["expected_slots"] += len(entries)
                 for e in entries:

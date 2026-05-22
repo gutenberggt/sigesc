@@ -188,6 +188,19 @@ async def consolidate_diary_payload(
             db, class_doc=klass,
         )
 
+    # Calendário letivo: feriados, recessos, sábados letivos (Fase 11).
+    # Snapshot congela o calendário do momento da publicação.
+    from services.school_calendar_helper import load_school_calendar
+    school_cal = await load_school_calendar(
+        db,
+        academic_year=klass.get("academic_year"),
+        period_from=period_from,
+        period_to=period_to,
+        mantenedora_id=klass.get("mantenedora_id"),
+    )
+    non_school_days: dict = school_cal["non_school_days"]
+    explicit_school_days: dict = school_cal["explicit_school_days"]
+
     expected_by_date: dict = {}
     for a in assignments:
         for slot in a.get("weekly_slots", []) or []:
@@ -201,6 +214,9 @@ async def consolidate_diary_payload(
                 if day.isoweekday() != wd:
                     continue
                 iso = day.isoformat()
+                # Pula dias não-letivos (exceto sábado letivo)
+                if iso in non_school_days and iso not in explicit_school_days:
+                    continue
                 expected_by_date.setdefault(iso, []).append({
                     "component_id": a.get("component_id"),
                     "component_name": a.get("component_name") or a.get("component_id"),
@@ -440,7 +456,7 @@ async def consolidate_diary_payload(
         "day_status_counts": {
             "not_expected": 0, "empty": 0, "partial": 0,
             "complete": 0, "corrected": 0, "validated": 0,
-            "inconsistent": 0,
+            "inconsistent": 0, "non_school": 0,
         },
     }
     for day in _daterange(d_from, d_to):
@@ -452,15 +468,22 @@ async def consolidate_diary_payload(
             if tid and tid in user_map:
                 e["teacher_name"] = user_map[tid].get("full_name") or e.get("teacher_name")
         has_orphan_today = iso in orphan_attendance_dates or iso in orphan_content_dates
-        day_status = _classify_day(entries, has_orphan_today)
-        days.append({
+        is_non_school = iso in non_school_days
+        day_status = _classify_day(entries, has_orphan_today, is_non_school)
+        day_obj = {
             "date": iso,
             "weekday": day.isoweekday(),
             "status": day_status,
             "expected_slots": len(entries),
             "entries": entries,
             "has_orphan_evidence": has_orphan_today,
-        })
+        }
+        if is_non_school:
+            day_obj["school_calendar_event"] = non_school_days[iso]
+        elif iso in explicit_school_days:
+            day_obj["school_calendar_event"] = explicit_school_days[iso]
+            day_obj["is_explicit_school_day"] = True
+        days.append(day_obj)
         summary["day_status_counts"][day_status] = summary["day_status_counts"].get(day_status, 0) + 1
         summary["expected_slots"] += len(entries)
         for e in entries:

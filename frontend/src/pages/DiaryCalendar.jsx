@@ -138,7 +138,17 @@ const STATUS_META = {
     text: 'text-gray-400',
     indicator: '',
     icon: EyeOff,
-    description: 'Sem expectativa de aula (feriado / fim de semana / sem grade).',
+    description: 'Sem expectativa de aula (fim de semana ou sem grade).',
+  },
+  non_school: {
+    label: 'Não-letivo',
+    weight: 0,
+    bg: 'bg-gray-100',
+    border: 'border-gray-300',
+    text: 'text-gray-500',
+    indicator: '',
+    icon: EyeOff,
+    description: 'Feriado ou recesso (calendário institucional).',
   },
 };
 
@@ -164,6 +174,7 @@ const STATUS_ORDER_SEVERITY = [  'inconsistent',
   'partial',
   'complete',
   'not_expected',
+  'non_school',
 ];
 
 const WEEK_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
