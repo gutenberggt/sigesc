@@ -3600,3 +3600,34 @@ Fonte única da verdade para calendário, futura UI, PDF e relatórios.
 - **academic_calendar** (campo derivado preparado: `expected_by_schedule:true` — futuro `expected_by_calendar` poderá subtrair feriados/recessos).
 - **Frontend** — UI calendário consumindo este endpoint.
 - **Fase 7/8/9** — Validation flow / QR de verificação / Relatórios consolidados.
+
+---
+
+## [21/05/2026] Rodada 5.5 — Correção semântica `not_expected`
+
+### Mudança conceitual obrigatória
+O calendário diferencia **"não deveria existir lançamento"** de **"deveria existir mas não veio"**. Sem isso, dashboards futuros alertariam fins de semana como "atraso" — falso positivo institucional.
+
+### Implementação
+- `_classify_day()` em `calendar_diary_state.py`:
+  - **`not_expected`** — dia sem slots esperados (sem assignment vigente para o weekday) E sem evidência órfã.
+  - **`empty`** — havia slots esperados, zero evidência. Pendência real.
+  - Demais estados inalterados (`partial`, `complete`, `corrected`, `inconsistent`).
+- `summary.day_status_counts` — contagem por status agregado. Permite dashboards executivos sem recálculo client-side.
+- Invariante UX: `not_expected` deve ser visualmente quase invisível na futura UI (peso mínimo na hierarquia visual). Documentado para a UI calendário (próxima rodada).
+
+### Testes (10/10 verdes)
+- Novo `test_not_expected_for_weekend` — sábado/domingo confirmam `not_expected` e `day_status_counts.not_expected==2`.
+- `test_empty_when_no_evidence` ajustado: só assert `empty` quando havia slots esperados.
+
+### Regressão (Rodadas 1+2+3+4a+4+5.5): **44/44 verdes** ✅
+
+### Status: ✅ COMPLETO — Semântica corrigida antes da UI
+
+### Próxima — UI mínima operacional do Calendário
+Princípios já definidos:
+- **Frontend NÃO interpreta estados** — apenas representa.
+- **Hierarquia visual estrita**: validated > corrected > inconsistent > partial > empty >> not_expected (último quase invisível).
+- **UI responde 5 perguntas**: O que falta? Quem está pendente? O que está inconsistente? O que foi corrigido? O que está validado?
+- **Operacional, não bonita** — primeira UI sem polish/animação, foco em validação semântica em dados vivos.
+

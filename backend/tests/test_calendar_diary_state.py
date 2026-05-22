@@ -94,13 +94,15 @@ def test_range_too_long_returns_400(headers):
 # --- Status: empty ---------------------------------------------------------
 
 def test_empty_when_no_evidence(headers):
+    """Quando há slots esperados mas zero evidência → empty.
+    Quando NÃO há slots esperados (fim de semana / dia sem grade) → not_expected.
+    """
     r = _state(headers, **{"from": DATE_FROM, "to": DATE_TO})
     assert r.status_code == 200, r.text[:400]
     d = r.json()
     assert d["class_id"] == CLASS_ID
     assert d["range_days"] == 5
-    # 4 dias úteis (Seg-Qui) * 2 aulas regente + Sex 1 (Arte) + Qua 1 (EdFis) = 10
-    assert d["summary"]["expected_slots"] >= 8  # mínimo robusto
+    assert d["summary"]["expected_slots"] >= 8
     for day in d["days"]:
         if day["expected_slots"] > 0:
             assert day["status"] == "empty"
@@ -108,6 +110,26 @@ def test_empty_when_no_evidence(headers):
                 assert e["expected_by_schedule"] is True
                 assert e["attendance_status"] == "missing"
                 assert e["content_status"] == "missing"
+        else:
+            # Dia sem slots esperados (não havia aula) NÃO pode ser "empty".
+            assert day["status"] == "not_expected"
+
+
+def test_not_expected_for_weekend(headers):
+    """Sábado/Domingo sem assignments → status `not_expected`, expected_slots=0.
+
+    Crítico semanticamente: separa 'não deveria existir lançamento' de 'deveria
+    existir mas não veio'. UI usa para silenciar visualmente fins de semana.
+    """
+    # 2027-03-06 = Sábado, 2027-03-07 = Domingo. Seed só tem Seg-Sex.
+    r = _state(headers, **{"from": "2027-03-06", "to": "2027-03-07"})
+    d = r.json()
+    assert d["range_days"] == 2
+    for day in d["days"]:
+        assert day["expected_slots"] == 0
+        assert day["status"] == "not_expected"
+    assert d["summary"]["day_status_counts"]["not_expected"] == 2
+    assert d["summary"]["day_status_counts"]["empty"] == 0
 
 
 # --- Status: partial (cria 1 attendance num único dia) ----------------------

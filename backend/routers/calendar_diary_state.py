@@ -64,20 +64,23 @@ def _is_assignment_active_on(assignment: dict, day: date_cls) -> bool:
 def _classify_day(entries: list, has_orphan_evidence: bool) -> str:
     """Aggregate status do dia baseado nos entries esperados.
 
-      - empty: nenhum entry tem evidência (attendance OR content).
+      - not_expected: nenhum slot esperado pela grade (feriado, fim de semana,
+        domingo) E sem evidência órfã. Visualmente quase invisível.
+      - inconsistent: há evidência (attendance/content) fora de slot esperado.
+        Pode ocorrer com OU sem entries esperados.
+      - empty: havia slots esperados mas zero evidência (pendência real).
       - corrected: ao menos 1 content_status=='corrected'.
       - complete: TODOS entries esperados completos
         (attendance in DONE + content in PUBLISHED_LIKE).
-      - inconsistent: há evidência (attendance/content) fora de slot esperado.
       - partial: caso contrário.
+
+    A separação `not_expected` vs `empty` é semanticamente crítica: distingue
+    "não deveria existir lançamento" de "deveria existir mas não veio".
     """
-    if has_orphan_evidence and not entries:
-        return "inconsistent"
     if has_orphan_evidence:
-        # Tem slots esperados E também lançamento orfão → inconsistente
         return "inconsistent"
     if not entries:
-        return "empty"
+        return "not_expected"
     any_evidence = any(
         e["attendance_status"] != "missing" or e["content_status"] != "missing"
         for e in entries
@@ -262,6 +265,12 @@ def setup_calendar_diary_state_router(db):
             "content_published": 0,
             "content_corrected": 0,
             "content_drafts": 0,
+            # Distribuição de status agregados por dia — base para dashboards.
+            # `not_expected` separa "não havia aula" de "havia aula e ninguém lançou".
+            "day_status_counts": {
+                "not_expected": 0, "empty": 0, "partial": 0,
+                "complete": 0, "corrected": 0, "inconsistent": 0,
+            },
             "orphan_attendance_dates": sorted(orphan_attendance_dates),
             "orphan_content_dates": sorted(orphan_content_dates),
         }
@@ -279,6 +288,7 @@ def setup_calendar_diary_state_router(db):
                 "entries": entries,
                 "has_orphan_evidence": has_orphan_today,
             })
+            summary["day_status_counts"][day_status] = summary["day_status_counts"].get(day_status, 0) + 1
             summary["expected_slots"] += len(entries)
             for e in entries:
                 if e["attendance_status"] == "completed":

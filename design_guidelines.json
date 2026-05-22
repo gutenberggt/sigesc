@@ -1,0 +1,128 @@
+{
+  "project_name": "SIGESC Diary Calendar",
+  "theme": "Light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "core_principles": [
+    "Semantic renderer only: Do not calculate states, use API data as truth",
+    "Visual hierarchy is strict: Inconsistent > Empty > Validated > Corrected > Partial > Complete > Not Expected",
+    "Progressive disclosure: Hover -> Detail, Click -> Drill-down",
+    "No decorative elements: Functional, dense, auditable UI"
+  ],
+  "typography": {
+    "primary_family": "IBM Plex Sans",
+    "fallback_family": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    "heading_weights": [600, 700],
+    "body_weights": [400, 500],
+    "rules": {
+      "numbers": "Use tabular-nums for all calendar dates and summary metrics to ensure alignment",
+      "hierarchy": "Max H1 size text-2xl or text-3xl. Mostly text-sm to text-base for dense operational data"
+    }
+  },
+  "color_system": {
+    "background": {
+      "main": "#F9F9FB",
+      "card": "#FFFFFF",
+      "not_expected": "transparent"
+    },
+    "text": {
+      "primary": "#111827",
+      "secondary": "#4B5563",
+      "muted": "#9CA3AF"
+    },
+    "semantic_states": {
+      "inconsistent": {
+        "description": "Máximo peso (potencial problema institucional)",
+        "bg_class": "bg-red-50",
+        "border_class": "border border-red-600",
+        "text_class": "text-red-900",
+        "indicator_class": "bg-red-600",
+        "weight": 7
+      },
+      "empty": {
+        "description": "Muito alto (pendência real)",
+        "bg_class": "bg-amber-50",
+        "border_class": "border border-amber-600",
+        "text_class": "text-amber-900",
+        "indicator_class": "bg-amber-600",
+        "weight": 6
+      },
+      "validated": {
+        "description": "Alto positivo (confirmado confiável)",
+        "bg_class": "bg-emerald-50",
+        "border_class": "border border-emerald-700",
+        "text_class": "text-emerald-900",
+        "indicator_class": "bg-emerald-700",
+        "weight": 5
+      },
+      "corrected": {
+        "description": "Médio-alto (alteração auditada)",
+        "bg_class": "bg-blue-50",
+        "border_class": "border border-blue-500",
+        "text_class": "text-blue-900",
+        "indicator_class": "bg-blue-500",
+        "weight": 4
+      },
+      "partial": {
+        "description": "Médio (incompleto mas com progresso)",
+        "bg_class": "bg-gradient-to-br from-amber-100 to-gray-50",
+        "border_class": "border border-gray-400 border-dashed",
+        "text_class": "text-gray-800",
+        "indicator_class": "bg-gradient-to-r from-amber-400 to-gray-400",
+        "weight": 3
+      },
+      "complete": {
+        "description": "Neutro positivo (cumprido, sem atenção necessária)",
+        "bg_class": "bg-white",
+        "border_class": "border border-emerald-400",
+        "text_class": "text-emerald-800",
+        "indicator_class": "bg-emerald-400",
+        "weight": 2
+      },
+      "not_expected": {
+        "description": "Mínimo (quase invisível, fim de semana/feriado)",
+        "bg_class": "bg-transparent",
+        "border_class": "border border-gray-200",
+        "text_class": "text-gray-400",
+        "indicator_class": "hidden",
+        "opacity_class": "opacity-50",
+        "weight": 1
+      }
+    }
+  },
+  "layout_patterns": {
+    "desktop": {
+      "calendar": "grid grid-cols-7 gap-0 border-l border-t border-gray-200 (dense grid, table-like). Minimum height for cells (e.g., min-h-[120px]).",
+      "summary": "Bento 'Control Room' grid at the top. grid-cols-4 or flex-wrap, highly compact, dense data.",
+      "drill_down": "Slide-over (Sheet) or Modal (Dialog) appearing on day click. Do not expand the cell itself to avoid breaking grid."
+    },
+    "mobile": {
+      "calendar": "Vertical flex list. MUST BE SORTED BY SEVERITY (Inconsistent -> Empty -> Validated -> Corrected -> Partial -> Complete). 'Not expected' should be collapsed or hidden entirely.",
+      "summary": "Compact stacked cards pinned to top."
+    }
+  },
+  "components_strategy": {
+    "SummaryBar": "Persistent top bar. 'X slots esperados | Y completos | Z pendentes | W inconsistências'. Bold metrics.",
+    "Filters": "Select components for Escola, Turma, Range de datas (default: current month).",
+    "CalendarDayCell": "Contains date number (top right), max 2-3 indicators/badges (bottom/left). Must use group-hover for the mini-tooltip.",
+    "MiniTooltip": "Absolute or Popover showing 'status do dia, entries esperadas, quem está pendente'.",
+    "OrphanEvidenceList": "Separate list/table section outside the calendar grid for auditing launches outside expected slots.",
+    "Legend": "ALWAYS VISIBLE (flex flex-wrap gap-2 text-xs) near the top. Never hide behind an icon."
+  },
+  "data_testid_conventions": {
+    "calendar_cell": "calendar-day-{date}",
+    "summary_metric": "summary-metric-{type}",
+    "filter_dropdown": "filter-{type}",
+    "day_drilldown_modal": "day-modal-{date}",
+    "orphan_list": "orphan-evidence-list"
+  },
+  "instructions_to_main_agent": [
+    "Build strictly in React (.js files, no TSX) using Tailwind CSS and shadcn/ui components (if needed, but custom HTML/CSS is better for the dense calendar grid).",
+    "Use 'IBM Plex Sans' (or system tabular fonts) for rendering.",
+    "DO NOT implement real-time websockets or heavy charts. Focus on pure HTML/CSS layout.",
+    "MOCK the endpoint 'GET /api/calendar/diary-state/{class_id}?from=&to=' using the exact JSON shape provided in the problem statement.",
+    "The UI is a DUMB semantic renderer. Map the 'status' directly to the 'color_system.semantic_states' defined here.",
+    "Ensure 'not_expected' days are visually deprioritized (low opacity, no badges, no strong borders).",
+    "Implement the Desktop vs Mobile difference: Desktop = 30-day grid. Mobile = severity-ordered vertical list.",
+    "Ensure all interactive elements have data-testid attributes."
+  ]
+}
