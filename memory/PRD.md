@@ -3353,3 +3353,53 @@ Script `/app/backend/scripts/audit_attendance_collisions.py` mapeou estado real:
 ### Próxima: Rodada 2 (Fases 2+3) — split do domínio Conteúdo (`content_entries`) + auditoria de delete/sobrescrita de conteúdo
 
 ### Status: ✅ COMPLETO
+
+
+---
+
+## [21/05/2026] Rodada 2 — Fase 2 (Split do domínio Conteúdo)
+
+### Decisão arquitetural
+Conteúdo pedagógico DEIXOU de ser atributo de `attendance` (campo `observations`) e passou a ser **entidade independente** com o seguinte modelo:
+- 1 doc por (`class_id`, `component_id`, `teacher_id`, `date`, `aula_numero`).
+- Vínculo SEMÂNTICO — sem `attendance_id`. Frequência e conteúdo coexistem independentemente.
+- Multi-autoria desde o nascimento (`teacher_id` é parte da chave).
+- Optimistic locking idêntico ao da frequência (Fase 1).
+- Soft delete (`deleted=true` + nota obrigatória).
+- Audit log com `previous_content` preservado (texto NUNCA destruído).
+- Status nasce em `draft` (transições para `published`/`corrected` ficam para Rodada 3).
+
+### Implementação
+- **Router** `/app/backend/routers/content_entries.py`:
+  - `POST /api/content-entries` (cria; teacher_id default = usuário logado)
+  - `GET /api/content-entries?class_id=&date=&teacher_id=&component_id=&include_deleted=`
+  - `GET /api/content-entries/{id}`
+  - `PUT /api/content-entries/{id}` (com `expected_version`, `force_overwrite`, `change_note`)
+  - `DELETE /api/content-entries/{id}` (soft delete com `change_note` obrigatório)
+- **Serviço** `services/content_audit.py`: `build_content_audit_extra()` enriquece `extra_data` com `entity_scope='pedagogical_content'`, autoria, `change_kind`, `previous_content/new_content/diff_summary`, `change_note`.
+
+### Códigos HTTP institucionais
+- `409 CONTENT_ENTRY_DUPLICATE` (UNIQUE composto)
+- `409 CONTENT_VERSION_CONFLICT` (optimistic locking)
+- `422 OVERWRITE_REQUIRES_NOTE`
+
+### Índices (`startup/indexes.py`)
+- UNIQUE composto: `{class_id, component_id, teacher_id, date, aula_numero}` com `partialFilterExpression={deleted: false}` → permite soft-delete + recreate na mesma chave lógica.
+- Operacionais: `{class_id, date, deleted}`, `{teacher_id, date DESC}`, `{status, updated_at DESC}`.
+
+### Testes (7/7 verdes)
+`/app/backend/tests/test_content_entries_v1.py`:
+- CRUD happy path
+- Optimistic lock: 409 com stale version, 422 sem nota, 200 com nota
+- UNIQUE composto bloqueia duplicidade
+- Soft delete permite recreate na mesma chave lógica
+- Audit log preserva `previous_content` + `diff_summary` em sobrescritas e deletes
+
+**Regressão completa Rodadas 1+2**: 13/13 verdes (`test_attendance_audit_v1.py` + `test_content_entries_v1.py`).
+
+### Status: ✅ COMPLETO
+
+### Próxima — Rodada 3 (Fase 6): workflow `draft → published → corrected`
+- Endpoint `POST /content-entries/{id}/publish` (transita draft → published; trava conteúdo)
+- Endpoint `POST /content-entries/{id}/correct` (de published → corrected, requer change_note + cria nova versão preservando `corrected_from_version`)
+- Status no audit log (`change_kind='content_published'`, `'content_corrected'`)

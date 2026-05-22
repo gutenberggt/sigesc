@@ -86,6 +86,36 @@ async def create_all_indexes(db):
         background=True, sparse=True,
     )
 
+    # =========================================================
+    # Content Entries (Diário Pedagógico) — Rodada 2 / Mai/2026
+    # =========================================================
+    await db.content_entries.create_index("id", unique=True)
+    # UNIQUE composto: 1 entry por (turma, componente, professor, data, aula)
+    # Apenas para docs vivos (deleted=false). Permite soft-delete + recreate.
+    await db.content_entries.create_index(
+        [("class_id", 1), ("component_id", 1), ("teacher_id", 1),
+         ("date", 1), ("aula_numero", 1)],
+        unique=True,
+        partialFilterExpression={"deleted": False},
+        name="ux_content_entry_logical",
+        background=True,
+    )
+    # Calendário/listagem por turma+data
+    await db.content_entries.create_index(
+        [("class_id", 1), ("date", 1), ("deleted", 1)],
+        name="ix_content_class_date", background=True,
+    )
+    # "Meus lançamentos" do professor
+    await db.content_entries.create_index(
+        [("teacher_id", 1), ("date", -1)],
+        name="ix_content_teacher_date", background=True,
+    )
+    # Workflow / publicação
+    await db.content_entries.create_index(
+        [("status", 1), ("updated_at", -1)],
+        name="ix_content_status_updated", background=True,
+    )
+
     # Enrollments (matrículas)
     await db.enrollments.create_index("id", unique=True)
     await db.enrollments.create_index([("student_id", 1), ("academic_year", 1)])

@@ -40,6 +40,7 @@ from routers.student_dependencies import setup_student_dependencies_router
 from routers.class_schedule import setup_class_schedule_router
 from routers.diary_dashboard import create_diary_dashboard_router
 from routers.diary import setup_diary_router
+from routers.content_entries import setup_content_entries_router
 from routers.academic_events import setup_academic_events_router
 from routers.closure import setup_closure_router
 from routers.render_jobs import setup_render_jobs_router
@@ -394,6 +395,7 @@ student_dependencies_router = setup_student_dependencies_router(
 )
 diary_dashboard_router = create_diary_dashboard_router()
 diary_router = setup_diary_router(db)
+content_entries_router = setup_content_entries_router(db, audit_service, sandbox_db)
 completions_router = setup_dependency_completions_router(db, audit_service=audit_service)
 public_verify_router = setup_public_verification_router(db)
 admin_completions_router = setup_admin_completions_backfill_router(db)
@@ -463,6 +465,7 @@ app.include_router(student_dependencies_router, prefix="/api")
 app.include_router(class_schedule_router, prefix="/api")
 app.include_router(diary_dashboard_router, prefix="/api")
 app.include_router(diary_router, prefix="/api")
+app.include_router(content_entries_router, prefix="/api")
 app.include_router(completions_router, prefix="/api")
 app.include_router(public_verify_router, prefix="/api")
 app.include_router(admin_completions_router, prefix="/api")
