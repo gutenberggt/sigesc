@@ -403,6 +403,46 @@ def setup_calendar_diary_state_router(db):
                             reason, class_id, ce["date"], ce["id"],
                         )
 
+                # ---- Etapa 4c: FAN-OUT por dia (regra pedagógica integrada) ----
+                # Em modo flexible, a presença de QUALQUER registro de
+                # frequência/conteúdo no dia cobre todas as aulas esperadas
+                # daquele dia. Reflete a semântica de "aula como continuum"
+                # nas etapas integradas (Infantil, Anos Iniciais, EJA-AI).
+                attendance_by_date: dict = {}
+                for att in attendances:
+                    attendance_by_date.setdefault(att["date"], []).append(att)
+                content_by_date: dict = {}
+                for ce in content_entries:
+                    content_by_date.setdefault(ce["date"], []).append(ce)
+
+                for iso, entries in expected_by_date.items():
+                    # Fan-out de frequência
+                    day_atts = attendance_by_date.get(iso, [])
+                    if day_atts:
+                        ref_att = next(
+                            (a for a in day_atts if a.get("records")),
+                            day_atts[0],
+                        )
+                        for e in entries:
+                            if e.get("attendance_id"):
+                                continue
+                            used_attendance_ids.add(ref_att["id"])
+                            _apply_attendance_status(e, ref_att)
+                            e["matched_by"] = "flexible"
+                            e["flexible_match_reason"] = "day_fanout_attendance"
+                    # Fan-out de conteúdo (versão mais alta vence)
+                    day_ces = content_by_date.get(iso, [])
+                    if day_ces:
+                        ref_ce = max(day_ces, key=lambda c: c.get("version") or 0)
+                        for e in entries:
+                            if e.get("content_entry_id"):
+                                continue
+                            used_content_ids.add(ref_ce["id"])
+                            e["content_status"] = ref_ce.get("status", "draft")
+                            e["content_entry_id"] = ref_ce["id"]
+                            e["matched_by"] = "flexible"
+                            e["flexible_match_reason"] = "day_fanout_content"
+
             orphan_attendance_dates: set = set()
             for att in attendances:
                 if att["id"] in used_attendance_ids:

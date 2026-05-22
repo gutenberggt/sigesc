@@ -384,6 +384,36 @@ async def consolidate_diary_payload(
                 picked["flexible_match_reason"] = reason
                 entries_without_ce[ce["date"]] = [c for c in candidates if c is not picked]
 
+        # ---- Etapa 4c: FAN-OUT por dia (regra pedagógica integrada) ----
+        attendance_by_date_full: dict = {}
+        for att in attendances:
+            attendance_by_date_full.setdefault(att["date"], []).append(att)
+        content_by_date_full: dict = {}
+        for ce in content_entries:
+            content_by_date_full.setdefault(ce["date"], []).append(ce)
+
+        for iso, entries in expected_by_date.items():
+            day_atts = attendance_by_date_full.get(iso, [])
+            if day_atts:
+                ref_att = next((a for a in day_atts if a.get("records")), day_atts[0])
+                for e in entries:
+                    if e.get("attendance_id"):
+                        continue
+                    used_attendance_ids.add(ref_att["id"])
+                    _apply_attendance(e, ref_att)
+                    e["matched_by"] = "flexible"
+                    e["flexible_match_reason"] = "day_fanout_attendance"
+            day_ces = content_by_date_full.get(iso, [])
+            if day_ces:
+                ref_ce = max(day_ces, key=lambda c: c.get("version") or 0)
+                for e in entries:
+                    if e.get("content_entry_id"):
+                        continue
+                    used_content_ids.add(ref_ce["id"])
+                    _apply_content(e, ref_ce)
+                    e["matched_by"] = "flexible"
+                    e["flexible_match_reason"] = "day_fanout_content"
+
     # Evidência órfã
     orphan_attendance_dates = sorted({a["date"] for a in attendances if a["id"] not in used_attendance_ids})
     orphan_content_dates = sorted({c["date"] for c in content_entries if c["id"] not in used_content_ids})

@@ -211,8 +211,14 @@ def test_scenario_3_flexible_same_component(session):
 
 
 # ===========================================================================
-def test_scenario_4_flexible_rejects_unrelated(session):
-    """FLEXIBLE: outro professor + outro componente → ainda órfão."""
+def test_scenario_4_flexible_fanout_covers_unrelated_record(session):
+    """FLEXIBLE: registro no dia (mesmo com prof e componente diferentes)
+    é CONSIDERADO pelo fan-out diário. Pedagogicamente: 'tem registro = lançado'.
+
+    NOTA: este é o comportamento aprovado pelo owner em Fev/2026
+    especificamente para etapas pedagogicamente integradas (Infantil/AI/EJA-AI).
+    STRICT continua rejeitando — coberto pelo cenário 1.
+    """
     ctx = _setup_class_with_assignment("flexible")
     att_id = str(uuid.uuid4())
     other_teacher = str(uuid.uuid4())
@@ -234,13 +240,83 @@ def test_scenario_4_flexible_rejects_unrelated(session):
         assert r.status_code == 200, r.text
         data = r.json()
         day = data["days"][0]
-        # Entry esperado sem attendance
-        assert day["entries"][0].get("attendance_id") is None
-        # Attendance é órfão → dia inconsistent
-        assert day["has_orphan_evidence"] is True
-        assert day["status"] == "inconsistent"
+        entry = day["entries"][0]
+        # Fan-out: o entry esperado recebe o registro mesmo sem vínculo direto
+        assert entry["attendance_id"] == att_id
+        assert entry["matched_by"] == "flexible"
+        assert entry["flexible_match_reason"] == "day_fanout_attendance"
+        assert day["has_orphan_evidence"] is False
+        assert day["status"] != "inconsistent"
     finally:
         _cleanup(ctx)
+
+
+# ===========================================================================
+def test_scenario_6_flexible_fanout_multi_aulas(session):
+    """FLEXIBLE: TURMA com 3 slots no mesmo dia + 1 content_entry no dia.
+    Todos os 3 entries devem aparecer 'Lançado' por fan-out."""
+    class_id = str(uuid.uuid4())
+    tca_id = str(uuid.uuid4())
+    component_id = str(uuid.uuid4())
+    teacher_id = str(uuid.uuid4())
+    ce_id = str(uuid.uuid4())
+    _run(lambda d: d.classes.insert_one({
+        "id": class_id, "name": "Multi-Slot Test",
+        "school_id": "match-test-school",
+        "academic_year": 2026, "shift": "morning",
+        "education_level": "educacao_infantil",
+        # default infere flexible; deixa o campo ausente para também testar isso
+    }))
+    _run(lambda d: d.teacher_class_assignments.insert_one({
+        "id": tca_id, "class_id": class_id,
+        "component_id": component_id, "teacher_id": teacher_id,
+        "teacher_name": "Prof Multi",
+        "valid_from": "2026-02-01", "valid_until": None, "deleted": False,
+        "weekly_slots": [
+            {"weekday": 3, "aula_numero": 1, "start_time": "07:00", "end_time": "07:45"},
+            {"weekday": 3, "aula_numero": 2, "start_time": "07:45", "end_time": "08:30"},
+            {"weekday": 3, "aula_numero": 3, "start_time": "08:30", "end_time": "09:15"},
+        ],
+    }))
+    _run(lambda d: d.content_entries.insert_one({
+        "id": ce_id, "class_id": class_id,
+        "date": "2026-02-04",
+        "aula_numero": 1,
+        "component_id": component_id,
+        "teacher_id": teacher_id,
+        "status": "published",
+        "version": 1,
+        "deleted": False,
+        "content": "Rotina pedagógica do dia",
+    }))
+    try:
+        r = session.get(
+            f"{BASE_URL}/api/calendar/diary-state/{class_id}",
+            params={"from": "2026-02-04", "to": "2026-02-04"},
+            timeout=20,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        # Modo deve ser inferido como flexible (educacao_infantil)
+        assert data["matching_mode"] == "flexible"
+        day = data["days"][0]
+        # 3 entries esperados
+        assert len(day["entries"]) == 3
+        # TODOS devem ter content_entry_id (fan-out)
+        for e in day["entries"]:
+            assert e["content_entry_id"] == ce_id
+            assert e["content_status"] == "published"
+        # Pelo menos 2 devem ter sido marcados via fanout (o primeiro pode
+        # ter ido por strict porque aula_numero=1 bate)
+        fanout_count = sum(
+            1 for e in day["entries"]
+            if e.get("flexible_match_reason") == "day_fanout_content"
+        )
+        assert fanout_count >= 2
+    finally:
+        _run(lambda d: d.classes.delete_one({"id": class_id}))
+        _run(lambda d: d.teacher_class_assignments.delete_one({"id": tca_id}))
+        _run(lambda d: d.content_entries.delete_one({"id": ce_id}))
 
 
 # ===========================================================================
