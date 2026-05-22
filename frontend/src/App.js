@@ -67,6 +67,7 @@ const AlunoDashboard = lazy(() => import('@/pages/AlunoDashboard'));
 const Promotion = lazy(() => import('@/pages/Promotion'));
 const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
+const DiaryCalendar = lazy(() => import('@/pages/DiaryCalendar'));
 const DiarioAEE = lazy(() => import('@/pages/DiarioAEE'));
 const AssocialDashboard = lazy(() => import('@/pages/AssocialDashboard'));
 const VaccineDashboard = lazy(() => import('@/pages/VaccineDashboard'));
@@ -167,6 +168,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3']}>
                 <DiaryDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Calendário Operacional do Diário (Fase 5 — Mai/2026) */}
+          <Route
+            path="/admin/diary-calendar"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3']}>
+                <DiaryCalendar />
               </ProtectedRoute>
             }
           />

@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only test of /admin/diary-calendar (Calendário Operacional do Diário). Verified login as super_admin, navigation, filters (school/class/year/month), API integration (GET /api/calendar/diary-state/{class_id}), summary chips, legend, day cells with status/icon/label/indicators, severity filter toggle, mobile list view, and data-testid coverage. All 16 user directives met.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DiaryCalendar.jsx is a single 1083-line file. Consider splitting into sub-components (Legend, SummaryChips, DayCell, DayDrillDown, OrphanEvidenceList, MobileDayRow) in a /components/diary-calendar/ folder to improve maintainability (>700 line file guideline).",
+    "fetchState() uses bare axios.get instead of centralized api service used elsewhere in app — consider unifying through services/api.js for consistency and CSRF/interceptor reuse (currently relies on axios.defaults.withCredentials being set globally).",
+    "buildMonthGrid pads tail to fill last week with null cells but those nulls produce empty <div> cells — fine, but consider rendering as <div role='gridcell' aria-hidden> for a11y.",
+    "STATUS_META values duplicate design_guidelines.json by hand. Long-term: import or generate from that JSON to guarantee single source of truth."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "super_admin gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "System 'today' is Maio 2026; default month loads correctly to current. Initial school selection happens once (defaultedRef), then class auto-selects first of selected school. Mobile breakpoint at md (≥768px). All key elements have data-testid. Drill-down sheet uses data-testid=day-modal-{date} with day-entries-list and day-entry-{idx} inside.",
+  "rca of the issue": "n/a — no issues found"
+}
