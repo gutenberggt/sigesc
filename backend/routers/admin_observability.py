@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from auth_middleware import AuthMiddleware
 from utils.students_search import get_observability_snapshot
 from utils.observability import diary_metrics
+from routers.calendar_diary_state import diary_state_metrics
 from utils.academic_event_sla import compute_sla_days, compute_sla_status
 
 logger = logging.getLogger(__name__)
@@ -169,6 +170,47 @@ def setup_admin_observability_router(audit_service: object | None = None, db=Non
                 )
             except Exception as e:
                 logger.warning("[observability:diary] audit log falhou: %s", e)
+        return snap
+
+    @router.get("/diary-state")
+    async def diary_state_observability(request: Request, response: Response):
+        """Snapshot do canal `diary_state` (Fase 5 — Mai/2026).
+
+        Mede o ENDPOINT agregador `/api/calendar/diary-state/{class_id}`
+        que virou infraestrutura crítica. Por enquanto SEM cache (diretriz
+        do owner: medir antes de cachear). Métricas:
+        - p95/p99 latency
+        - distribuição de tamanho de range (1d, 1w, 1m, 2m, 3m)
+        - top classes mais consultadas (por hash) — sem PII
+        - errors / total
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        if current_user.get("role") != "super_admin":
+            raise HTTPException(status_code=403, detail="Apenas super_admin pode acessar dados de observabilidade.")
+        user_key = current_user.get("id") or current_user.get("email") or "unknown"
+        _check_admin_rate(user_key)
+        _no_cache_headers(response)
+        snap = diary_state_metrics.snapshot()
+        # Média do range solicitado (em dias) — útil para decidir cache.
+        counters = snap.get("counters") or {}
+        total_req = snap.get("requests_total", 0) or 1
+        snap["avg_range_days"] = round((counters.get("range_days_sum") or 0) / total_req, 2)
+        # Sinaliza arquitetura atual ao consumidor:
+        snap["cache_enabled"] = False
+        snap["cache_decision_note"] = (
+            "Cache desativado nesta fase: medir p95/p99/avg_range/dist_range_bucket "
+            "antes de cachear (evita mascarar correções recentes)."
+        )
+        if audit_service is not None:
+            try:
+                await audit_service.log(  # type: ignore[attr-defined]
+                    action="export", collection="observability_metrics",
+                    user=current_user, request=request,
+                    description=f"Acesso a /admin/observability/diary-state (requests={snap['requests_total']})",
+                    extra_data={"endpoint": "diary-state", "requests_total": snap["requests_total"]},
+                )
+            except Exception as e:
+                logger.warning("[observability:diary-state] audit log falhou: %s", e)
         return snap
 
     @router.get("/academic_events")

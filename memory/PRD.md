@@ -33,6 +33,108 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 5 Backend: Snapshot Imutável + PDF + Observabilidade **[Mai/2026]**
+
+Salto institucional do módulo. Transformou o diário escolar de "registro" em
+**evidência institucional verificável**. O frontend já não é a única "camada
+nova" — o documento congelado agora vive permanentemente no banco com hash
+SHA-256 imutável.
+
+#### Arquitetura (10 diretrizes do owner)
+1. ✅ **PDF lê snapshot**, NUNCA banco vivo.
+2. ✅ **Multi-autoria preservada**: `created_by`, `updated_by`, `published_by`,
+   `corrected_by`, `validated_by` por slot + `authors_registry` agregado.
+3. ✅ **Hash SHA-256 imutável** sobre payload canonicalizado
+   (`json.dumps(sort_keys=True, ensure_ascii=False, separators=(",",":"))`).
+4. ✅ **branding{}** reservado no schema desde já — `mantenedora_name`,
+   `school_name`, `logo_file_id`, `primary_color`, `secondary_color`,
+   `document_footer`, `signature_layout`.
+5. ✅ **renders[]** como array — snapshot é verdade, PDFs são derivações.
+   Cada render carrega `template_version`, `render_engine_version`,
+   `generated_file_id`, `checksum_sha256`, `generated_at`, `generated_by`.
+6. ✅ **semantic_rules_version="1"** — congela o significado institucional
+   dos estados (complete/empty/inconsistent/etc).
+7. ✅ **signatures[]** append-only. Campo `revoked_signature_at` em vez de
+   delete. Cada assinatura grava `signed_document_hash` (anti-substituição).
+8. ✅ **Idempotência**: enquanto `status ∈ {draft, published}`, retorna
+   existente. Só após `superseded`/`revoked` é possível novo snapshot.
+9. ✅ **supersede ≠ revoke** — separação semântica/jurídica preservada.
+10. ✅ **Canonicalização documentada explicitamente** no docstring do serviço.
+
+#### Schema novo: `diary_snapshots`
+```
+{id, code:SIGESC-DIARY-XXXX-XXXX, schema_version,
+ semantic_rules_version, template_version, render_engine_version,
+ document_type:"diary_period", class_id, school_id, mantenedora_id,
+ period:{type:month|bimester|custom, from, to, label, academic_year},
+ branding:{...}, payload:{class, summary, days[], authors_registry, orphan_evidence},
+ payload_hash_sha256, verification_token (sparse), renders:[],
+ status:draft|published|superseded|revoked,
+ superseded_by_snapshot_id, revoked_at, revoked_reason, revoked_by_user_id,
+ signatures:[], issued_at, issued_by_user_id, created_at, created_by_user_id,
+ audit_trail:[]}
+```
+Índices: `id` unique, `code` unique, `verification_token` unique+sparse,
+`(class_id, period.from, period.to, status)` composto, `(school_id, created_at desc)`,
+`mantenedora_id`.
+
+#### Endpoints
+- `POST /api/diary/snapshots` — cria draft (idempotente)
+- `POST /api/diary/snapshots/{id}/publish` — calcula hash, gera token + code,
+   enfileira `render_job` (handler `diary_period`)
+- `POST /api/diary/snapshots/{id}/supersede` `{new_snapshot_id, rationale≥30}`
+- `POST /api/diary/snapshots/{id}/revoke` `{rationale≥30}` (hash preservado)
+- `POST /api/diary/snapshots/{id}/sign` `{role, full_name}` — assinatura
+   institucional append-only
+- `GET /api/diary/snapshots/{id}` — payload completo
+- `GET /api/diary/snapshots?class_id&status&period_from&period_to` — listagem
+   paginada (sem `payload` para economizar payload)
+- `GET /api/admin/observability/diary-state` (super_admin) — métricas p95/p99
+   do endpoint agregador (sem cache nesta rodada — diretriz "medir antes")
+
+#### Integração com `render_jobs`
+Registrou handler `diary_period` em `register_render_handler`. Worker existente
+processa o job e gera PDF com ReportLab (template `diary-v1`). O PDF é
+armazenado em `document_files`, hash SHA-256 calculado, e uma entrada é
+appendada em `diary_snapshots.renders[]` (1:N snapshot↔renders).
+
+#### Testes (11 verdes — `tests/test_diary_snapshots.py`)
+1. Hash determinístico unitário.
+2. Idempotência draft (mesmo período → mesmo snapshot).
+3. Publish gera hash + token + render_job.
+4. Hash imutável após signature.
+5. Sign duplicado por (role, user) → 409.
+6. Revoke preserva hash original (diretriz 9).
+7. Rationale curto bloqueado (422).
+8. Schema reservado (branding/renders[]/semantic_rules_version).
+9. **Snapshot NÃO muda quando attendance é alterado após publicação**
+   (validação crítica da imutabilidade).
+10. Render job idempotente por `idempotency_key`.
+11. Worker popula `renders[]` (array, não singular).
+
+Regressão completa: **55 testes verdes** (44 anteriores + 11 novos).
+
+#### Observabilidade do `/diary-state`
+Canal dedicado `MetricChannel("diary_state")`:
+- p95/p99/p50 latency em buckets [10, 25, 50, 100, 250, 500, 1000, 2500, 5000] ms
+- Distribuição de `range_bucket` (1d/1w/1m/2m/3m)
+- `avg_range_days` derivado
+- Endpoint: `GET /api/admin/observability/diary-state` (super_admin only)
+- Cache: **desativado** explicitamente (`cache_enabled=false`,
+   `cache_decision_note` documenta o motivo arquitetural).
+
+#### Arquivos criados/modificados
+- ✨ `/app/backend/services/diary_snapshot_service.py` (novo, 540 linhas)
+- ✨ `/app/backend/services/diary_pdf_handler.py` (novo, 280 linhas)
+- ✨ `/app/backend/routers/diary_snapshots.py` (novo, 230 linhas)
+- ✨ `/app/backend/tests/test_diary_snapshots.py` (novo, 280 linhas, 11 testes)
+- 📝 `/app/backend/routers/calendar_diary_state.py` — observabilidade adicionada
+- 📝 `/app/backend/routers/admin_observability.py` — endpoint `/diary-state`
+- 📝 `/app/backend/utils/render_jobs.py` — `DOCUMENT_TYPES += ("diary_period",)`
+- 📝 `/app/backend/server.py` — wiring de router + handler + indexes
+
+
+
 ### Diário — Fase 5 Frontend: Calendário Operacional **[Mai/2026]**
 
 UI de governança visual do diário escolar — renderizador SEMÂNTICO PURO sobre

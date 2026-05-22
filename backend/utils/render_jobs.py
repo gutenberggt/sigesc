@@ -41,6 +41,7 @@ DOCUMENT_TYPES = (
     "bulletin",
     "history",
     "enrollment_certificate",
+    "diary_period",
 )
 
 # Backoff exponencial fixo (segundos): tentativa 1 falha → 30s; 2 → 2min; 3 → 10min
