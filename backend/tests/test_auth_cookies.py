@@ -22,7 +22,7 @@ load_dotenv("/app/backend/.env")
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://class-filter-bf.preview.emergentagent.com",
+    "https://operational-diary.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}

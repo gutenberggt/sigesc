@@ -25,7 +25,7 @@ import asyncio
 import re
 
 BASE_URL = (
-    os.environ.get("REACT_APP_BACKEND_URL", "https://class-filter-bf.preview.emergentagent.com")
+    os.environ.get("REACT_APP_BACKEND_URL", "https://operational-diary.preview.emergentagent.com")
     .rstrip("/")
 )
 EMAIL = "gutenberg@sigesc.com"
