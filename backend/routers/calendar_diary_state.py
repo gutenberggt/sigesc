@@ -242,6 +242,16 @@ def setup_calendar_diary_state_router(db):
                  "teacher_id": 1, "status": 1, "version": 1, "published_at": 1},
             ).to_list(5000)
 
+            # Fallback legacy: turmas migradas guardam o conteúdo em
+            # `learning_objects`. Mantém modelo novo como fonte canônica.
+            if not content_entries:
+                from services.legacy_content_bridge import (
+                    build_content_entries_from_legacy,
+                )
+                content_entries = await build_content_entries_from_legacy(
+                    db, class_id=class_id, dates_in_range=dates_in_range,
+                )
+
             # ---------------- Etapa 4: casamento ----------------
             att_by_date_aula: dict = {}
             att_by_date_only: dict = {}

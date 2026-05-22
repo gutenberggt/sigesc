@@ -239,6 +239,13 @@ async def consolidate_diary_payload(
         {"_id": 0},
     ).to_list(5000)
 
+    # Fallback legacy (mesmo bridge usado no calendar_diary_state).
+    if not content_entries:
+        from services.legacy_content_bridge import build_content_entries_from_legacy
+        content_entries = await build_content_entries_from_legacy(
+            db, class_id=class_id, dates_in_range=dates_in_range,
+        )
+
     # Index attendance (anos finais vs iniciais)
     att_by_date_aula: dict = {}
     att_by_date_only: dict = {}
