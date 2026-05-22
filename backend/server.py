@@ -208,6 +208,10 @@ async def create_indexes():
         from services import diary_snapshot_service as _diary_snap_svc
         await _diary_snap_svc.ensure_indexes(db)
 
+        # Fase 6b (Mai/2026) — índices da workflow state da integrity report
+        from services.grade_integrity_service import ensure_integrity_indexes
+        await ensure_integrity_indexes(db)
+
         # Verifiable Documents MVP — índices novos + backfill de verification_token
         from services import verifiable_docs_service as _vdsvc
         await _vdsvc.ensure_indexes(db)

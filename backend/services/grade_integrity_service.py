@@ -28,6 +28,7 @@ Severidades:
 """
 from __future__ import annotations
 
+import hashlib
 from collections import defaultdict
 from datetime import date as date_cls, datetime, timezone
 from typing import Optional
@@ -36,6 +37,9 @@ from typing import Optional
 SEVERITY_HIGH = "high"
 SEVERITY_MEDIUM = "medium"
 SEVERITY_LOW = "low"
+
+# Workflow states (Fase 6b — UI operacional do owner)
+VALID_ISSUE_STATUSES = ("open", "in_analysis", "resolved", "wont_fix")
 
 KIND_SEVERITY = {
     "TEMPORAL_GAP": SEVERITY_HIGH,
@@ -366,13 +370,45 @@ async def compute_integrity_report(
             })
 
     # =========================================================================
+    # FINGERPRINT + HUMAN COPY + WORKFLOW STATE MERGE
+    # =========================================================================
+    for it in issues:
+        it["fingerprint"] = _compute_fingerprint(it)
+        it["human_title"], it["human_summary"], it["impact"] = _humanize(it)
+
+    fingerprints = [it["fingerprint"] for it in issues]
+    states = await _load_states(db, fingerprints)
+    affected_schools = set()
+    affected_teachers = set()
+    affected_classes = set()
+    for it in issues:
+        st = states.get(it["fingerprint"]) or {}
+        it["state"] = {
+            "status": st.get("status", "open"),
+            "assigned_to_user_id": st.get("assigned_to_user_id"),
+            "assigned_to_name": st.get("assigned_to_name"),
+            "notes": st.get("notes", []),
+            "updated_at": st.get("updated_at"),
+            "resolved_at": st.get("resolved_at"),
+            "resolved_by_user_id": st.get("resolved_by_user_id"),
+        }
+        if it.get("school_id"):
+            affected_schools.add(it["school_id"])
+        if it.get("teacher_id"):
+            affected_teachers.add(it["teacher_id"])
+        if it.get("class_id"):
+            affected_classes.add(it["class_id"])
+
+    # =========================================================================
     # SUMÁRIO
     # =========================================================================
     by_severity = defaultdict(int)
     by_kind = defaultdict(int)
+    by_status = defaultdict(int)
     for it in issues:
         by_severity[it["severity"]] += 1
         by_kind[it["kind"]] += 1
+        by_status[it["state"]["status"]] += 1
     return {
         "reference_date": ref_date.isoformat(),
         "filters": {
@@ -383,6 +419,10 @@ async def compute_integrity_report(
             "total_issues": len(issues),
             "by_severity": dict(by_severity),
             "by_kind": dict(by_kind),
+            "by_status": dict(by_status),
+            "affected_schools": len(affected_schools),
+            "affected_teachers": len(affected_teachers),
+            "affected_classes": len(affected_classes),
             "classes_scanned": len({a.get("class_id") for a in assignments}) + len(
                 [c for c in classes_active if c["id"] not in classes_with_assignment]
             ),
@@ -390,3 +430,189 @@ async def compute_integrity_report(
         },
         "issues": issues,
     }
+
+
+# ============================================================================
+# FINGERPRINT — chave determinística por issue para persistir workflow state
+# ============================================================================
+def _compute_fingerprint(issue: dict) -> str:
+    """Constrói uma chave estável por conteúdo da issue.
+
+    Mesma issue detectada amanhã → mesmo fingerprint → estado workflow
+    persiste. Issue resolvida desaparece naturalmente.
+    """
+    kind = issue.get("kind", "")
+    parts: list = [kind]
+    if kind == "TEACHER_DOUBLE_BOOKING":
+        parts += [
+            issue.get("teacher_id", ""),
+            str(issue.get("weekday", "")),
+            str(issue.get("aula_numero", "")),
+            "|".join(sorted(issue.get("assignment_ids", []))),
+        ]
+    elif kind in ("OVERLAP", "TEMPORAL_GAP", "EXPIRED_NO_SUCCESSOR"):
+        parts += [
+            issue.get("class_id", ""),
+            issue.get("component_id", ""),
+            str(issue.get("weekday", "")),
+            str(issue.get("aula_numero", "")),
+            "|".join(sorted(issue.get("assignment_ids", []))),
+        ]
+    elif kind == "CLASS_WITHOUT_ASSIGNMENT":
+        parts += [issue.get("class_id", "")]
+    elif kind in ("ORPHAN_TEACHER", "DUPLICATE_SLOT", "INVERTED_VALIDITY"):
+        parts += ["|".join(sorted(issue.get("assignment_ids", [])))]
+    return hashlib.sha256("::".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def _humanize(issue: dict) -> tuple[str, str, str]:
+    """Devolve (título, sumário, impacto) em PT — diretriz do owner:
+    'O sistema NÃO deve parecer um log técnico'.
+    """
+    k = issue.get("kind")
+    if k == "TEACHER_DOUBLE_BOOKING":
+        return (
+            "Conflito de Professor",
+            f"{issue.get('teacher_name') or 'Professor(a)'} está vinculado(a) "
+            f"a {' e '.join(issue.get('class_names', []) or ['—'])} "
+            f"no mesmo horário (segunda a sábado é dia {issue.get('weekday')}, "
+            f"aula {issue.get('aula_numero')}).",
+            "O sistema não consegue determinar autoria válida do diário. "
+            "Validação institucional fica comprometida.",
+        )
+    if k == "OVERLAP":
+        return (
+            "Sobreposição na Grade",
+            f"Turma {issue.get('class_name') or '—'} tem dois (ou mais) "
+            f"professores ativos simultaneamente no slot "
+            f"(dia {issue.get('weekday')}, aula {issue.get('aula_numero')}) — "
+            "sem nenhum marcado como substituto.",
+            "Calendário operacional não consegue computar completude. "
+            "Há ambiguidade institucional.",
+        )
+    if k == "TEMPORAL_GAP":
+        return (
+            "Lacuna na Cobertura",
+            f"Entre {issue.get('gap_from')} e {issue.get('gap_to')}, a turma "
+            f"{issue.get('class_name')} fica sem responsável para o componente "
+            f"{issue.get('component_id')} (dia {issue.get('weekday')}, "
+            f"aula {issue.get('aula_numero')}).",
+            "Dias dentro da lacuna aparecerão como 'sem aula esperada' "
+            "indevidamente — alarmes silenciados.",
+        )
+    if k == "CLASS_WITHOUT_ASSIGNMENT":
+        return (
+            "Turma sem Grade Cadastrada",
+            f"Turma {issue.get('class_name')} do ano letivo "
+            f"{issue.get('academic_year')} não possui nenhum vínculo "
+            "professor↔componente↔horário cadastrado.",
+            "Todos os dias aparecem como 'sem aula esperada' — frequência "
+            "e conteúdo não são exigidos pela arquitetura.",
+        )
+    if k == "EXPIRED_NO_SUCCESSOR":
+        return (
+            "Vínculo Expirado sem Substituto",
+            f"O vínculo da turma {issue.get('class_name')} expirou em "
+            f"{issue.get('expired_at')} "
+            f"({issue.get('days_since_expiration')} dias atrás) e nenhum "
+            "sucessor foi cadastrado para o slot.",
+            "Aulas posteriores à expiração aparecem como 'sem aula esperada' "
+            "incorretamente.",
+        )
+    if k == "ORPHAN_TEACHER":
+        return (
+            "Professor Inexistente",
+            f"O vínculo da turma {issue.get('class_name')} aponta para um "
+            f"usuário ({issue.get('teacher_id')}) que não existe ou foi "
+            "desativado.",
+            "Atribuição de autoria fica órfã. Validação institucional "
+            "registra responsável vazio.",
+        )
+    if k == "DUPLICATE_SLOT":
+        return (
+            "Slots Duplicados",
+            f"O vínculo da turma {issue.get('class_name')} contém o mesmo "
+            f"(dia da semana, aula) duplicado em weekly_slots[].",
+            "Higiene de dados. Pode causar contagem dupla em relatórios.",
+        )
+    if k == "INVERTED_VALIDITY":
+        return (
+            "Período de Validade Invertido",
+            f"O vínculo da turma {issue.get('class_name')} tem "
+            f"valid_until ({issue.get('valid_until')}) menor que valid_from "
+            f"({issue.get('valid_from')}).",
+            "Vínculo logicamente impossível. Não cobre nenhum dia.",
+        )
+    return (k or "Inconsistência", "—", "—")
+
+
+# ============================================================================
+# WORKFLOW STATE — collection `grade_integrity_issue_states`
+# ============================================================================
+async def _load_states(db, fingerprints: list[str]) -> dict[str, dict]:
+    if not fingerprints:
+        return {}
+    cursor = db.grade_integrity_issue_states.find(
+        {"fingerprint": {"$in": fingerprints}}, {"_id": 0},
+    )
+    return {doc["fingerprint"]: doc async for doc in cursor}
+
+
+async def update_issue_state(
+    db, *,
+    fingerprint: str,
+    status: Optional[str] = None,
+    note_text: Optional[str] = None,
+    assigned_to_user_id: Optional[str] = None,
+    assigned_to_name: Optional[str] = None,
+    user: dict,
+) -> dict:
+    """Cria/atualiza estado workflow da issue. Notes são append-only."""
+    if status is not None and status not in VALID_ISSUE_STATUSES:
+        raise ValueError(f"INVALID_STATUS: {status} ∉ {VALID_ISSUE_STATUSES}")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    set_fields: dict = {"updated_at": now, "updated_by_user_id": user.get("id")}
+    push_fields: dict = {}
+    if status is not None:
+        set_fields["status"] = status
+        if status == "resolved":
+            set_fields["resolved_at"] = now
+            set_fields["resolved_by_user_id"] = user.get("id")
+        elif status == "open":
+            set_fields["resolved_at"] = None
+            set_fields["resolved_by_user_id"] = None
+    if assigned_to_user_id is not None:
+        set_fields["assigned_to_user_id"] = assigned_to_user_id
+        set_fields["assigned_to_name"] = assigned_to_name
+
+    if note_text:
+        push_fields["notes"] = {
+            "text": note_text[:2000],
+            "by_user_id": user.get("id"),
+            "by_user_name": user.get("full_name") or user.get("email"),
+            "at": now,
+        }
+
+    update_doc: dict = {"$set": set_fields, "$setOnInsert": {
+        "fingerprint": fingerprint,
+        "created_at": now,
+        "created_by_user_id": user.get("id"),
+    }}
+    if push_fields:
+        update_doc["$push"] = push_fields
+
+    await db.grade_integrity_issue_states.update_one(
+        {"fingerprint": fingerprint}, update_doc, upsert=True,
+    )
+    return await db.grade_integrity_issue_states.find_one(
+        {"fingerprint": fingerprint}, {"_id": 0},
+    )
+
+
+async def ensure_integrity_indexes(db) -> None:
+    await db.grade_integrity_issue_states.create_index(
+        "fingerprint", unique=True, background=True,
+    )
+    await db.grade_integrity_issue_states.create_index("status", background=True)
+    await db.grade_integrity_issue_states.create_index("updated_at", background=True)

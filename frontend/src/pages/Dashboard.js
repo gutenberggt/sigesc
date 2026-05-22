@@ -50,6 +50,7 @@ export const DASHBOARD_MENU_GROUPS = [
     items: [
       { label: 'Frequência', icon: ClipboardCheck, color: 'cyan', route: '/admin/attendance', testId: 'nav-attendance-button', visible: () => true },
       { label: 'Calendário do Diário', icon: Calendar, color: 'rose', route: '/admin/diary-calendar', testId: 'nav-diary-calendar-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isProfessor || c.isSemed },
+      { label: 'Integridade da Grade', icon: Wrench, color: 'amber', route: '/admin/grade-integrity', testId: 'nav-grade-integrity-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
       { label: 'Registro de Conteúdos', icon: BookOpen, color: 'purple', route: '/admin/learning-objects', testId: 'nav-learning-objects-button', visible: () => true },
       { label: 'Notas', icon: ClipboardList, color: 'teal', route: '/admin/grades', testId: 'nav-grades-button', visible: () => true },
       { label: 'Boletim Online', icon: GraduationCap, color: 'indigo', route: '/admin/bulletins', testId: 'nav-bulletins-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSchoolStaff || c.isProfessor || c.isSemed },

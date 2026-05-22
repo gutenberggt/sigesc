@@ -68,6 +68,7 @@ const Promotion = lazy(() => import('@/pages/Promotion'));
 const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
 const DiaryCalendar = lazy(() => import('@/pages/DiaryCalendar'));
+const GradeIntegrity = lazy(() => import('@/pages/GradeIntegrity'));
 const DiarioAEE = lazy(() => import('@/pages/DiarioAEE'));
 const AssocialDashboard = lazy(() => import('@/pages/AssocialDashboard'));
 const VaccineDashboard = lazy(() => import('@/pages/VaccineDashboard'));
@@ -178,6 +179,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3']}>
                 <DiaryCalendar />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Integridade da Grade Horária (Fase 6b — Mai/2026) */}
+          <Route
+            path="/admin/grade-integrity"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'semed3']}>
+                <GradeIntegrity />
               </ProtectedRoute>
             }
           />

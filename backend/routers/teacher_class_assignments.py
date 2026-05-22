@@ -319,6 +319,53 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
             academic_year=academic_year,
         )
 
+    # ---------------- INTEGRITY ISSUE STATE (Fase 6b — UI operacional) ----------------
+    class IssueStateUpdate(BaseModel):
+        status: Optional[str] = Field(default=None, pattern="^(open|in_analysis|resolved|wont_fix)$")
+        note_text: Optional[str] = Field(default=None, max_length=2000)
+        assigned_to_user_id: Optional[str] = Field(default=None, max_length=64)
+        assigned_to_name: Optional[str] = Field(default=None, max_length=200)
+
+    @router.post("/integrity-report/issues/{fingerprint}/state")
+    async def update_integrity_state(
+        fingerprint: str, payload: IssueStateUpdate, request: Request,
+    ):
+        """Atualiza workflow state de uma issue específica.
+
+        Workflow do owner: marcar como `in_analysis` → adicionar `notes` →
+        atribuir responsável → `resolved` (ou `wont_fix`). `open` reabre.
+        Notes são append-only.
+        """
+        current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
+        from services.grade_integrity_service import update_issue_state
+        try:
+            state = await update_issue_state(
+                db, fingerprint=fingerprint,
+                status=payload.status, note_text=payload.note_text,
+                assigned_to_user_id=payload.assigned_to_user_id,
+                assigned_to_name=payload.assigned_to_name,
+                user=current_user,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        await audit_service.log(
+            action='update_integrity_state',
+            collection='grade_integrity_issue_states',
+            user=current_user, request=request, document_id=fingerprint,
+            description=(
+                f"Atualizou estado da issue {fingerprint}: "
+                f"status={payload.status}, note={'sim' if payload.note_text else 'não'}"
+            ),
+            extra_data={
+                "entity_type": "grade_integrity_issue",
+                "fingerprint": fingerprint,
+                "status": payload.status,
+                "has_note": bool(payload.note_text),
+                "has_assignment": payload.assigned_to_user_id is not None,
+            },
+        )
+        return state
+
     # ---------------- GET BY ID ----------------
     @router.get("/{assignment_id}")
     async def get_assignment(assignment_id: str, request: Request):

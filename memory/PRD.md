@@ -33,6 +33,88 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 6b: UI Operacional do Integrity Report **[Mai/2026]**
+
+> *Owner: "O `integrity-report` NÃO é um relatório técnico. Ele é um painel
+> operacional de saneamento institucional. Transformar inconsistências em
+> fila de trabalho. Sem isso, a Fase 7 perde valor."*
+
+A UI deixou de ser "melhoria visual" e virou **infraestrutura operacional**.
+Os 807 issues detectados pelo backend agora viraram cards executáveis em
+linguagem humana, com workflow rastreável.
+
+#### Backend — Workflow State
+- Coleção nova: `grade_integrity_issue_states`
+- Fingerprint determinístico SHA-256 (16 chars) por issue — mesma issue
+  amanhã = mesmo fingerprint = estado workflow persiste.
+- 4 estados: `open | in_analysis | resolved | wont_fix`.
+- `notes[]` **append-only** com author + timestamp.
+- Campos: `assigned_to_user_id`, `assigned_to_name`, `resolved_at`,
+  `resolved_by_user_id`, `updated_at`.
+- Endpoint: `POST /api/teacher-class-assignments/integrity-report/issues/{fingerprint}/state`
+- Auditoria automática em `audit_logs` com `action=update_integrity_state`.
+
+#### Humanização (PT-BR)
+Cada issue agora retorna 3 campos novos do backend:
+- `human_title`: "Conflito de Professor" (em vez de "TEACHER_DOUBLE_BOOKING")
+- `human_summary`: descrição em PT clara e contextual
+- `impact`: o que acontece se NÃO corrigir
+
+Função `_humanize()` no service mapeia os 8 kinds.
+
+#### Summary enriquecido
+- `affected_schools` (count distinct)
+- `affected_teachers` (count distinct)
+- `affected_classes` (count distinct)
+- `by_status` distribution (open/in_analysis/resolved/wont_fix)
+
+#### Frontend — `/admin/grade-integrity` (`GradeIntegrity.jsx`)
+**4 chips executivos**: Inconsistências total · Críticas · Médias · Baixas
++ metadata pills (escolas/professores/turmas afetados).
+
+**5 filtros**: Escola · Tipo de problema · Severidade · Situação (default
+"Abertas") · Ano letivo.
+
+**Cards humanizados** (NÃO JSON técnico):
+- Chip de severidade colorido (vermelho/âmbar/azul)
+- Chip de status (Aberto/Em análise/Resolvido/Não corrigir)
+- Título humano + descrição em PT + impacto em itálico
+- Turma + Professor envolvidos visíveis sem clique
+- Severidade ordena automaticamente (high → medium → low)
+
+**Drill-down (Sheet lateral)**:
+- Resumo humanizado + bloco vermelho "Impacto:" + bloco verde "Ação sugerida:"
+- Workflow institucional com botões contextuais:
+  - `open` → "Marcar como em análise"
+  - `open|in_analysis` → "Marcar como resolvido" / "Não corrigir"
+  - `resolved|wont_fix` → "Reabrir"
+- Lista de vínculos envolvidos com **link direto** "Abrir vínculo"
+  para `/admin/teacher-assignments?focus={assignment_id}`
+- Slot conflitante + período da lacuna quando aplicável
+- Observações append-only (textarea + botão "Adicionar observação")
+
+**Atualização local otimista**: após mudança de state, lista e drill-down
+refletem instantaneamente. Filtro por situação default "Abertas" — issue
+resolvida desaparece da view.
+
+#### Validação E2E
+Smoke test completo: login → navegação → cards visíveis → drill-down →
+mark as `in_analysis` → adicionar observação → toast confirmação → state
+persistido no banco e renderizado.
+
+#### Arquivos
+- 📝 `/app/backend/services/grade_integrity_service.py` (+ fingerprint,
+  humanize, load_states, update_issue_state, ensure_integrity_indexes)
+- 📝 `/app/backend/routers/teacher_class_assignments.py` (+endpoint state)
+- 📝 `/app/backend/server.py` (+ensure_integrity_indexes no startup)
+- ✨ `/app/frontend/src/pages/GradeIntegrity.jsx` (novo, ~620 linhas)
+- 📝 `/app/frontend/src/App.js` (rota `/admin/grade-integrity`)
+- 📝 `/app/frontend/src/pages/Dashboard.js` (menu "Integridade da Grade")
+
+Regressão completa: **77 testes verdes** (mantidos integralmente).
+
+
+
 ### Diário — Fase 7: Fluxo Institucional de Validação + Multi-maturidade de Assinatura **[Mai/2026]**
 
 Salto institucional. O documento deixou de ser "do professor" e virou "da
