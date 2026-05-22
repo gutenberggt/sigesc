@@ -69,6 +69,7 @@ const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
 const DiaryCalendar = lazy(() => import('@/pages/DiaryCalendar'));
 const GradeIntegrity = lazy(() => import('@/pages/GradeIntegrity'));
+const VerifyDiarySnapshot = lazy(() => import('@/pages/VerifyDiarySnapshot'));
 const DiarioAEE = lazy(() => import('@/pages/DiarioAEE'));
 const AssocialDashboard = lazy(() => import('@/pages/AssocialDashboard'));
 const VaccineDashboard = lazy(() => import('@/pages/VaccineDashboard'));
@@ -136,6 +137,8 @@ function App() {
           {/* G1.6 — Portal público de verificação (sem auth) */}
           <Route path="/verificar" element={<VerifyPublic />} />
           <Route path="/verificar/:code" element={<VerifyPublic />} />
+          {/* Fase 5b (Mai/2026) — Verificação pública de snapshot do Diário (QR) */}
+          <Route path="/verify/diary/:token" element={<VerifyDiarySnapshot />} />
           {/* Verifiable Documents MVP: URL curta /v/{token} (carregada no QR) */}
           <Route path="/v/:token" element={<VerifyPublic />} />
           {/* Boletim Oficial — verificação pública (Fase A / Iter 76) */}

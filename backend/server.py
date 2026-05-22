@@ -44,6 +44,11 @@ from routers.content_entries import setup_content_entries_router
 from routers.teacher_class_assignments import setup_teacher_class_assignments_router
 from routers.calendar_diary_state import setup_calendar_diary_state_router
 from routers.diary_snapshots import setup_diary_snapshots_router
+from routers.public_verify import setup_public_verify_router
+from routers.user_signature import (
+    setup_user_signature_router,
+    setup_signature_image_render_router,
+)
 from routers.academic_events import setup_academic_events_router
 from routers.closure import setup_closure_router
 from routers.render_jobs import setup_render_jobs_router
@@ -418,6 +423,9 @@ content_entries_router = setup_content_entries_router(db, audit_service, sandbox
 teacher_class_assignments_router = setup_teacher_class_assignments_router(db, audit_service, sandbox_db)
 calendar_diary_state_router = setup_calendar_diary_state_router(db)
 diary_snapshots_router = setup_diary_snapshots_router(db, audit_service=audit_service)
+public_verify_diary_router = setup_public_verify_router(db)
+user_signature_router = setup_user_signature_router(db, audit_service=audit_service)
+signature_image_render_router = setup_signature_image_render_router(db)
 completions_router = setup_dependency_completions_router(db, audit_service=audit_service)
 public_verify_router = setup_public_verification_router(db)
 admin_completions_router = setup_admin_completions_backfill_router(db)
@@ -491,6 +499,11 @@ app.include_router(content_entries_router, prefix="/api")
 app.include_router(teacher_class_assignments_router, prefix="/api")
 app.include_router(calendar_diary_state_router, prefix="/api")
 app.include_router(diary_snapshots_router, prefix="/api")
+# Público SEM autenticação E SEM prefixo /api (cidadão escaneia QR e cai aqui).
+# Owner: '/verify/diary/{token}' é "verificação institucional pública".
+app.include_router(public_verify_diary_router, prefix="/api")
+app.include_router(user_signature_router, prefix="/api")
+app.include_router(signature_image_render_router, prefix="/api")
 app.include_router(completions_router, prefix="/api")
 app.include_router(public_verify_router, prefix="/api")
 app.include_router(admin_completions_router, prefix="/api")

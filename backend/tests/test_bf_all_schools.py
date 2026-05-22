@@ -11,7 +11,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://operational-diary.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://diary-governance.preview.emergentagent.com").rstrip("/")
 
 SCHOOL_ID = "220d4022-ec5e-4fb6-86fc-9233112b87b2"  # school with 4 BF students
 ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}

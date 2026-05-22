@@ -56,8 +56,10 @@ import {
   ArrowLeft,
   EyeOff,
   Loader2,
+  FileSignature,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import SnapshotsDrawer from '@/components/diary/SnapshotsDrawer';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${API_URL}/api`;
@@ -751,6 +753,7 @@ export default function DiaryCalendar() {
   const [severityFilter, setSeverityFilter] = useState('all');
   const [busyValidationIds, setBusyValidationIds] = useState(() => new Set());
   const [batchBusy, setBatchBusy] = useState(false);
+  const [snapshotsDrawerOpen, setSnapshotsDrawerOpen] = useState(false);
 
   const abortRef = useRef(null);
   const defaultedRef = useRef(false);
@@ -1039,24 +1042,38 @@ export default function DiaryCalendar() {
             </p>
           </div>
           {/* Fase 7 — Botão de validação em lote */}
-          {data?.summary?.day_status_counts?.complete > 0 && (
-            <Button
-              onClick={handleBatchValidate}
-              disabled={batchBusy || !selectedClass}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white"
-              data-testid="batch-validate-button"
-            >
-              {batchBusy ? (
-                <Loader2 size={16} className="animate-spin mr-2" />
-              ) : (
-                <ShieldCheck size={16} className="mr-2" />
-              )}
-              Validar período (
-              {(data.summary.day_status_counts.complete || 0) +
-                (data.summary.day_status_counts.corrected || 0)}
-              )
-            </Button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Fase 8 — Botão de Snapshot/Documento Institucional */}
+            {selectedClass && (perms.isAdmin || perms.isSecretario || perms.isDiretor || perms.isCoordenador || perms.isGerente || perms.isSuperAdmin) && (
+              <Button
+                variant="outline"
+                onClick={() => setSnapshotsDrawerOpen(true)}
+                className="border-emerald-700 text-emerald-800 hover:bg-emerald-50"
+                data-testid="open-snapshots-drawer-button"
+              >
+                <FileSignature size={16} className="mr-2" />
+                Documento do período
+              </Button>
+            )}
+            {data?.summary?.day_status_counts?.complete > 0 && (
+              <Button
+                onClick={handleBatchValidate}
+                disabled={batchBusy || !selectedClass}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                data-testid="batch-validate-button"
+              >
+                {batchBusy ? (
+                  <Loader2 size={16} className="animate-spin mr-2" />
+                ) : (
+                  <ShieldCheck size={16} className="mr-2" />
+                )}
+                Validar período (
+                {(data.summary.day_status_counts.complete || 0) +
+                  (data.summary.day_status_counts.corrected || 0)}
+                )
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Filtros */}
@@ -1297,6 +1314,19 @@ export default function DiaryCalendar() {
           onValidate={handleValidate}
           onUnvalidate={handleUnvalidate}
           busyIds={busyValidationIds}
+        />
+
+        {/* Fase 8 — Snapshots Drawer (UI Snapshot Management) */}
+        <SnapshotsDrawer
+          open={snapshotsDrawerOpen}
+          onOpenChange={setSnapshotsDrawerOpen}
+          classId={selectedClass}
+          className={
+            classes.find((c) => c.id === selectedClass)?.name || ''
+          }
+          periodFrom={monthFirstISO(year, month)}
+          periodTo={monthLastISO(year, month)}
+          periodLabel={monthLabel(year, month)}
         />
       </div>
     </Layout>

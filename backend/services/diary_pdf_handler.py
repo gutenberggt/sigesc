@@ -17,15 +17,19 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 from datetime import datetime
 from io import BytesIO
+from typing import Optional
 
+import qrcode
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,
+    Image as RLImage,
 )
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
@@ -33,6 +37,14 @@ from services.document_files import store_pdf
 from services.diary_snapshot_service import append_render, TEMPLATE_VERSION, RENDER_ENGINE_VERSION
 
 logger = logging.getLogger(__name__)
+
+# URL pública do verificador. Default = REACT_APP_BACKEND_URL.
+# O QR aponta para a PÁGINA frontend `/verify/diary/{token}`,
+# que internamente consulta `/api/verify/diary/{token}`.
+PUBLIC_VERIFY_BASE = (
+    os.environ.get("PUBLIC_VERIFY_BASE")
+    or os.environ.get("REACT_APP_BACKEND_URL", "")
+).rstrip("/")
 
 
 # Mapeamento human-readable dos status (diretriz 6 — semantic_rules_version=1)
@@ -90,6 +102,27 @@ def _fmt_date_br(iso: str) -> str:
         return d.strftime("%d/%m/%Y")
     except (ValueError, TypeError):
         return iso or "—"
+
+
+def _build_qr_image(token: str) -> Optional[bytes]:
+    """Gera PNG do QR apontando para a página pública de verificação.
+
+    Retorna None se o token não existir (snapshot ainda não publicado).
+    """
+    if not token:
+        return None
+    url = f"{PUBLIC_VERIFY_BASE}/verify/diary/{token}"
+    qr = qrcode.QRCode(
+        version=None,                          # auto
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=4, border=2,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def _build_pdf_from_snapshot(snap: dict) -> bytes:
@@ -328,6 +361,39 @@ def _build_pdf_from_snapshot(snap: dict) -> bytes:
             "Responsável institucional &nbsp;·&nbsp; Data: ___/___/______",
             styles["DiaryMeta"],
         ))
+
+    # -------- QR público de verificação (Fase 5b — Mai/2026) --------
+    # Apenas em snapshots published com token. Embute na ÚLTIMA página
+    # ao lado das assinaturas (decisão 5b do owner).
+    token = snap.get("verification_token")
+    qr_png = _build_qr_image(token)
+    if qr_png:
+        story.append(Spacer(1, 0.4 * cm))
+        qr_url = f"{PUBLIC_VERIFY_BASE}/verify/diary/{token}"
+        qr_table = Table(
+            [[
+                RLImage(BytesIO(qr_png), width=3.0 * cm, height=3.0 * cm),
+                Paragraph(
+                    "<b>Verificação institucional pública</b><br/>"
+                    "Escaneie o QR ao lado com a câmera do celular para "
+                    "validar a autenticidade deste documento. A verificação "
+                    "confirma: código, escola, turma, período, hash, "
+                    "estado e assinaturas — sem expor dados pessoais.<br/>"
+                    f"<font size='6' color='#6B7280'>{qr_url}</font>",
+                    styles["DiaryMeta"],
+                ),
+            ]],
+            colWidths=[3.5 * cm, 13 * cm],
+        )
+        qr_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(qr_table)
 
     # -------- Rodapé com hash institucional --------
     story.append(Spacer(1, 0.5 * cm))
