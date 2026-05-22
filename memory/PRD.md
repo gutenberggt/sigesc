@@ -33,6 +33,48 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 8: UI de Snapshot Management **[Fev/2026]**
+
+> *Owner: "Construir somente a interface operacional mínima necessária.
+> Comunicar 'documento institucional verificável' — não 'gerenciador técnico
+> de snapshots'. UI nunca recalcula; apenas representa o backend."*
+
+Fecha o ciclo operacional do Diário Institucional. Coordenação/Direção
+operam emissão, assinatura e revogação de documentos sem precisar tocar
+endpoints. Backend pré-existente (Fases 5, 5b, 6, 7) zero alteração.
+
+#### Componentes
+- Novo: `/app/frontend/src/components/diary/SnapshotsDrawer.jsx`
+- Integrado a: `/app/frontend/src/pages/DiaryCalendar.jsx` (botão
+  "Documento do período" no header — visível para
+  admin/diretor/secretario/coordenador/gerente)
+
+#### Fluxo (Sheet lateral)
+- **Período atual** com botão verde "Emitir documento do período" →
+  cria draft + auto-publica + dispara render_job. Polling a cada 4s.
+- **Documentos emitidos** (lista da turma toda, ativos primeiro):
+  - Badge de status (draft/published/superseded/revoked)
+  - Code SIGESC-DIARY-XXXX-XXXX + hash encurtado SHA-256
+  - "Baixar PDF" quando render_job=completed
+  - URL de verificação pública /verify/diary/{token} + copy + abrir
+  - Assinaturas: lista (Pen icon, role, tipo, data) + "Assinar"
+    (form com role/full_name/tipo manual ou imagem) + revogar
+    assinatura (rationale ≥30)
+  - "Revogar documento" — dialog em 2 etapas com rationale ≥30 chars
+
+#### Diretrizes obedecidas
+- Frontend NUNCA recalcula. Só renderiza estado do backend.
+- UI institucional, linguagem humana, sem JSON cru.
+- Revogar = ato grave → confirmação dupla obrigatória.
+- Idempotência respeitada: oculta "Emitir" quando já existe ativo.
+
+#### Testing
+- testing_agent_v3_fork iteration_81: 100% verde, zero bugs/issues.
+- Cobertura: emit+publish, render polling, download PDF, verify URL,
+  sign form open + role/type, revoke 2-step validation, idempotência.
+
+---
+
 ### Diário — Fase 6b: UI Operacional do Integrity Report **[Mai/2026]**
 
 > *Owner: "O `integrity-report` NÃO é um relatório técnico. Ele é um painel
