@@ -290,6 +290,35 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
                             })
         return {"teacher_id": teacher_id, "on_date": on_date, "conflicts": conflicts, "total": len(conflicts)}
 
+    # ---------------- INTEGRITY REPORT (Fase 6 — Mai/2026) ----------------
+    @router.get("/integrity-report")
+    async def integrity_report(
+        request: Request,
+        school_id: Optional[str] = Query(None),
+        class_id: Optional[str] = Query(None),
+        reference_date: Optional[str] = Query(None, description="YYYY-MM-DD; default: hoje"),
+        academic_year: Optional[int] = Query(None),
+    ):
+        """Relatório de integridade da grade horária.
+
+        Sem grade correta, completude/pendências/PDFs ficam falsos. Este
+        endpoint detecta 8 classes de problemas (gap temporal, overlap,
+        expired_no_successor, orphan_teacher, double_booking, classes
+        sem assignment, validade invertida, slots duplicados).
+
+        Roles autorizados: WRITE_ROLES (admins, coordenação, direção,
+        secretaria, SEMED).
+        """
+        await AuthMiddleware.require_roles(WRITE_ROLES)(request)
+        from services.grade_integrity_service import compute_integrity_report
+        return await compute_integrity_report(
+            db,
+            school_id=school_id,
+            class_id=class_id,
+            reference_date=reference_date,
+            academic_year=academic_year,
+        )
+
     # ---------------- GET BY ID ----------------
     @router.get("/{assignment_id}")
     async def get_assignment(assignment_id: str, request: Request):

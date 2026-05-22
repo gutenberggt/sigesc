@@ -33,6 +33,75 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 6: Integrity Report da Grade Horária **[Mai/2026]**
+
+Detector arquitetural. Pré-requisito **absoluto** para a Fase 7 (validação
+institucional): sem grade correta, completude é falsa, alertas mentem,
+PDFs mentem e validação vira teatro. Owner explícito:
+
+> *"O próximo gargalo operacional do SIGESC NÃO será código. Será qualidade
+> da grade horária cadastrada. O endpoint de integrity-report será
+> obrigatório, NÃO opcional."*
+
+#### Endpoint
+`GET /api/teacher-class-assignments/integrity-report?school_id=&class_id=&reference_date=&academic_year=`
+
+Roles autorizados: admin, super_admin, secretario, gerente, semed3, coordenador.
+
+#### 8 classes de inconsistência detectadas
+
+| Kind | Severidade | O que detecta |
+|------|-----------|---------------|
+| `TEMPORAL_GAP` | high | Mesmo (class, comp, weekday, aula) com lacuna entre `valid_until` de um e `valid_from` do próximo |
+| `OVERLAP` | high | 2+ assignments ativos no mesmo (class, weekday, aula) sem `is_substitute` |
+| `TEACHER_DOUBLE_BOOKING` | high | Mesmo professor em 2 turmas diferentes simultaneamente no mesmo slot |
+| `CLASS_WITHOUT_ASSIGNMENT` | high | Turma ativa do ano corrente sem nenhum assignment vigente |
+| `EXPIRED_NO_SUCCESSOR` | medium | Assignment expirado SEM nenhum sucessor cobrindo a data atual |
+| `ORPHAN_TEACHER` | medium | `teacher_id` não existe em `users` ou está apagado |
+| `DUPLICATE_SLOT` | low | Mesmo (weekday, aula) duplicado dentro de um `weekly_slots[]` |
+| `INVERTED_VALIDITY` | low | `valid_until < valid_from` |
+
+Cada issue retornada inclui: `kind`, `severity`, `class_id/name`, `school_id`,
+`component_id`, `weekday`, `aula_numero`, `assignment_ids[]`, `recommendation`
+(em português) com ação corretiva concreta.
+
+#### Resposta
+```
+{
+  "reference_date": "2026-05-22",
+  "filters": {school_id, class_id, academic_year},
+  "summary": {
+    "total_issues": N,
+    "by_severity": {high, medium, low},
+    "by_kind": {KIND: count},
+    "classes_scanned": N,
+    "assignments_scanned": N
+  },
+  "issues": [...]
+}
+```
+
+#### Resultado do primeiro scan em produção
+**807 issues encontradas** no dataset real (validou empiricamente a hipótese
+do owner):
+- 759 `TEACHER_DOUBLE_BOOKING` (seeds duplicando professor em várias turmas)
+- 43 `CLASS_WITHOUT_ASSIGNMENT` (turmas sem grade cadastrada)
+- 4 `OVERLAP` (cobertura duplicada sem `is_substitute`)
+- 1 `EXPIRED_NO_SUCCESSOR`
+
+A correção destes problemas pela coordenação é a próxima fase manual antes
+da Fase 7 (Validação Institucional).
+
+#### Arquivos
+- ✨ `/app/backend/services/grade_integrity_service.py` (novo, 320 linhas)
+- 📝 `/app/backend/routers/teacher_class_assignments.py` — endpoint inline
+- ✨ `/app/backend/tests/test_grade_integrity.py` (11 testes verdes,
+  com fixtures isoladas em `users`/`classes`/`teacher_class_assignments`)
+
+Regressão completa: **66 testes verdes** (55 anteriores + 11 novos).
+
+
+
 ### Diário — Fase 5 Backend: Snapshot Imutável + PDF + Observabilidade **[Mai/2026]**
 
 Salto institucional do módulo. Transformou o diário escolar de "registro" em
