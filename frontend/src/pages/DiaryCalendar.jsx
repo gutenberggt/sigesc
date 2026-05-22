@@ -78,7 +78,7 @@ const STATUS_META = {
     text: 'text-red-900',
     indicator: 'bg-red-600',
     icon: AlertTriangle,
-    description: 'Há lançamento fora de slot esperado. Investigar agora.',
+    description: 'Foram encontrados registros fora do horário esperado.',
   },
   empty: {
     label: 'Vazio (pendente)',
@@ -311,7 +311,7 @@ function SummaryChips({ summary, severityFilter, onSeverityChange }) {
       key: 'inconsistent',
       label: 'Inconsistências',
       value: inconsistencias,
-      sub: 'lançamento fora de slot',
+      sub: 'registro fora do horário esperado',
       cls: 'bg-red-50 text-red-900 border-red-500',
       icon: AlertTriangle,
     },
@@ -435,7 +435,7 @@ function DayCell({ day, onClick }) {
       {day.has_orphan_evidence && (
         <span
           className="absolute bottom-1 right-1 text-red-600"
-          title="Evidência fora de slot esperado"
+          title="Registros fora do horário esperado"
         >
           <AlertTriangle size={12} />
         </span>
@@ -701,7 +701,7 @@ function OrphanEvidenceList({ summary }) {
         <div className="flex items-center gap-2 mb-2">
           <AlertTriangle size={16} className="text-red-700" />
           <h3 className="text-sm font-semibold text-red-900">
-            Evidência fora de slot esperado
+            Registros fora do horário esperado
           </h3>
         </div>
         <p className="text-xs text-red-800 mb-3">

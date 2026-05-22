@@ -245,7 +245,7 @@ def _build_pdf_from_snapshot(snap: dict) -> bytes:
     orph_con = orphan.get("content_dates") or []
     if orph_att or orph_con:
         story.append(Spacer(1, 0.3 * cm))
-        story.append(Paragraph("Evidência fora de slot esperado", styles["DiaryH2"]))
+        story.append(Paragraph("Registros fora do horário esperado", styles["DiaryH2"]))
         story.append(Paragraph(
             "Lançamentos detectados em datas SEM expectativa pela grade letiva.",
             styles["DiaryBody"],
