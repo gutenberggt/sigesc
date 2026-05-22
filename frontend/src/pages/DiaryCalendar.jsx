@@ -142,8 +142,22 @@ const STATUS_META = {
   },
 };
 
-const STATUS_ORDER_SEVERITY = [
-  'inconsistent',
+// Tradução PT-BR dos valores brutos vindos do backend (frequência e conteúdo).
+// Frontend só mapeia — nunca decide o estado.
+const ATTENDANCE_STATUS_LABEL = {
+  missing: 'Pendente',
+  completed: 'Lançada',
+  validated: 'Validada',
+  corrected: 'Corrigida',
+};
+
+const CONTENT_STATUS_LABEL = {
+  missing: 'Pendente',
+  published: 'Publicado',
+  corrected: 'Corrigido',
+};
+
+const STATUS_ORDER_SEVERITY = [  'inconsistent',
   'empty',
   'validated',
   'corrected',
@@ -573,7 +587,7 @@ function DayDrillDown({ day, onClose, onValidate, onUnvalidate, busyIds }) {
                                 : 'text-emerald-700 border-emerald-300'
                             }
                           >
-                            {e.attendance_status}
+                            {ATTENDANCE_STATUS_LABEL[e.attendance_status] || e.attendance_status}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-1">
@@ -588,7 +602,7 @@ function DayDrillDown({ day, onClose, onValidate, onUnvalidate, busyIds }) {
                                 : 'text-emerald-700 border-emerald-300'
                             }
                           >
-                            {e.content_status}
+                            {CONTENT_STATUS_LABEL[e.content_status] || e.content_status}
                           </Badge>
                         </div>
                       </div>
