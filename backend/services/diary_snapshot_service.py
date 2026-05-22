@@ -161,7 +161,8 @@ async def consolidate_diary_payload(
     klass = await db.classes.find_one(
         {"id": class_id},
         {"_id": 0, "id": 1, "name": 1, "school_id": 1, "grade_level": 1,
-         "education_level": 1, "shift": 1, "academic_year": 1, "mantenedora_id": 1},
+         "education_level": 1, "shift": 1, "academic_year": 1,
+         "mantenedora_id": 1, "is_multi_grade": 1, "diary_matching_mode": 1},
     )
     if not klass:
         raise ValueError(f"Class not found: {class_id}")
@@ -260,6 +261,10 @@ async def consolidate_diary_payload(
     used_content_ids: set = set()
     all_user_ids: set = set()
 
+    # Resolve modo de matching da turma (strict | flexible). Congela no payload.
+    from services.diary_matching_mode import resolve_matching_mode
+    matching_mode = resolve_matching_mode(klass)
+
     def _apply_attendance(entry, att):
         if att.get("validated_by"):
             entry["attendance_status"] = "validated"
@@ -293,6 +298,7 @@ async def consolidate_diary_payload(
             if u:
                 all_user_ids.add(u)
 
+    # ---- Etapa 4a: matching ESTRITO ----
     for iso, entries in expected_by_date.items():
         for e in entries:
             specific = att_by_date_aula.get((iso, e["aula_numero"]), [])
@@ -300,19 +306,83 @@ async def consolidate_diary_payload(
                 att = next((a for a in specific if a["id"] not in used_attendance_ids), specific[0])
                 used_attendance_ids.add(att["id"])
                 _apply_attendance(e, att)
+                e["matched_by"] = "strict"
             else:
                 day_atts = att_by_date_only.get(iso, [])
                 if day_atts:
                     att = day_atts[0]
                     used_attendance_ids.add(att["id"])
                     _apply_attendance(e, att)
+                    e["matched_by"] = "strict"
             ck = (iso, e["component_id"], e["aula_numero"], e["teacher_id"])
             ce = ce_index.get(ck)
             if ce:
                 used_content_ids.add(ce["id"])
                 _apply_content(e, ce)
+                e.setdefault("matched_by", "strict")
             if e.get("teacher_id"):
                 all_user_ids.add(e["teacher_id"])
+
+    # ---- Etapa 4b: matching FLEXÍVEL (mesma semântica do calendar) ----
+    if matching_mode == "flexible":
+        entries_without_att: dict = {}
+        entries_without_ce: dict = {}
+        for iso, entries in expected_by_date.items():
+            for e in entries:
+                if not e.get("attendance_id"):
+                    entries_without_att.setdefault(iso, []).append(e)
+                if not e.get("content_entry_id"):
+                    entries_without_ce.setdefault(iso, []).append(e)
+
+        for att in attendances:
+            if att["id"] in used_attendance_ids:
+                continue
+            candidates = entries_without_att.get(att["date"], [])
+            if not candidates:
+                continue
+            att_teacher = att.get("created_by") or att.get("updated_by")
+            att_course = att.get("course_id")
+            picked = None
+            reason = None
+            if att_teacher:
+                picked = next((c for c in candidates if c.get("teacher_id") == att_teacher), None)
+                if picked:
+                    reason = "same_teacher_same_day"
+            if not picked and att_course:
+                picked = next((c for c in candidates if c.get("component_id") == att_course), None)
+                if picked:
+                    reason = "same_component_same_day"
+            if picked:
+                used_attendance_ids.add(att["id"])
+                _apply_attendance(picked, att)
+                picked["matched_by"] = "flexible"
+                picked["flexible_match_reason"] = reason
+                entries_without_att[att["date"]] = [c for c in candidates if c is not picked]
+
+        for ce in content_entries:
+            if ce["id"] in used_content_ids:
+                continue
+            candidates = entries_without_ce.get(ce["date"], [])
+            if not candidates:
+                continue
+            ce_teacher = ce.get("teacher_id")
+            ce_component = ce.get("component_id")
+            picked = None
+            reason = None
+            if ce_teacher:
+                picked = next((c for c in candidates if c.get("teacher_id") == ce_teacher), None)
+                if picked:
+                    reason = "same_teacher_same_day"
+            if not picked and ce_component:
+                picked = next((c for c in candidates if c.get("component_id") == ce_component), None)
+                if picked:
+                    reason = "same_component_same_day"
+            if picked:
+                used_content_ids.add(ce["id"])
+                _apply_content(picked, ce)
+                picked["matched_by"] = "flexible"
+                picked["flexible_match_reason"] = reason
+                entries_without_ce[ce["date"]] = [c for c in candidates if c is not picked]
 
     # Evidência órfã
     orphan_attendance_dates = sorted({a["date"] for a in attendances if a["id"] not in used_attendance_ids})
@@ -395,6 +465,8 @@ async def consolidate_diary_payload(
         })
     authors_registry.sort(key=lambda a: a["full_name"])
 
+    # Etapa 5b — orphans recomputados após matching flexível (mantém o cálculo
+    # já feito acima; este return apenas formaliza a saída.)
     return {
         "class": {
             "id": klass.get("id"),
@@ -404,6 +476,7 @@ async def consolidate_diary_payload(
             "shift": klass.get("shift"),
             "academic_year": klass.get("academic_year"),
         },
+        "matching_mode_used": matching_mode,
         "summary": summary,
         "days": days,
         "authors_registry": authors_registry,

@@ -33,6 +33,67 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 10: Matching Pedagógico Flexível **[Fev/2026]**
+
+> *Owner: "Não é afrouxar o Diário. É reconhecer que a semântica de slot só
+> vale quando a grade é disciplinar de fato. Ensino Médio exige rigidez por
+> aula. Educação Infantil exige coerência pedagógica integrada."*
+
+Resolve falsos positivos de `orphan/inconsistent` em etapas com grade
+pedagogicamente integrada (Educação Infantil, Anos Iniciais EF, EJA-Anos
+Iniciais, multisseriadas) sem perder auditabilidade nem rastreabilidade.
+
+#### Campo novo
+- `classes.diary_matching_mode`: `"strict"` | `"flexible"`
+- Quando ausente, **inferência determinística por etapa**:
+  - `is_multi_grade=true` → flexible
+  - `education_level` contém `infantil` / `anos_iniciais` / `creche` / `pré-escola` / `eja_anos_iniciais` → flexible
+  - Caso contrário → strict
+
+#### Algoritmo (Frontend NUNCA decide)
+- **STRICT** (Anos Finais / EM): `same_date + same_slot + same_component + same_teacher`
+- **FLEXIBLE**: depois do matching estrito, attendances/CEs órfãos são
+  reaproveitados quando `same_date + (same_teacher OR same_component)`
+  Reason marcado em `flexible_match_reason`:
+    - `same_teacher_same_day`
+    - `same_component_same_day`
+
+#### Garantias (regras de não-bypass)
+- `same_date` SEMPRE obrigatório — data diferente continua órfã.
+- Vínculo semântico (teacher OU component) SEMPRE exigido — nunca casa por data isolada.
+- Cada match marca `matched_by: "strict" | "flexible"` no entry.
+
+#### Componentes
+- Novo: `/app/backend/services/diary_matching_mode.py` (puro, sem I/O)
+- Modificado: `routers/calendar_diary_state.py` (Etapa 4b — matching flexível)
+- Modificado: `services/diary_snapshot_service.py` (mesma lógica + congela
+  `matching_mode_used` no payload imutável)
+- Modificado: `frontend/src/pages/DiaryCalendar.jsx` (badge discreto
+  "Correspondência flexível" + tooltip pedagógico)
+- Response do `/api/calendar/diary-state` agora inclui `matching_mode`.
+
+#### Observabilidade
+- Log estruturado `[diary_matching] matched_by=flexible reason=... class_id=...`
+- Permite medir adoção e detectar abuso futuro.
+
+#### Imutabilidade
+- Snapshots publicados congelam `matching_mode_used` no payload.
+- Mudar `diary_matching_mode` da turma DEPOIS NÃO altera snapshots
+  (hash SHA-256 preservado, validado em pytest).
+
+#### Bloqueios mantidos
+- NÃO transforma flexible em "só same_date"
+- NÃO infere dinamicamente em runtime quando o campo está set
+- NÃO faz repair / backfill / migração automática
+
+#### Testing
+- 6/6 pytest verdes (`test_diary_matching_mode.py`):
+  unit, strict_unchanged, flexible_same_teacher, flexible_same_component,
+  flexible_rejects_unrelated, snapshot_freezes_matching_mode.
+- Suíte completa Diário: 66/66 verdes, zero regressão.
+
+---
+
 ### Diário — Fase 9: Legacy Schedule Bridge **[Fev/2026]**
 
 > *Owner: "Esse bridge não é gambiarra. É camada de compatibilidade temporal

@@ -549,11 +549,29 @@ function DayDrillDown({ day, onClose, onValidate, onUnvalidate, busyIds }) {
                         <span className="font-semibold text-sm">
                           Aula {e.aula_numero}
                         </span>
-                        {e.is_substitute && (
-                          <Badge variant="outline" className="text-[10px]">
-                            Substituto
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {e.matched_by === 'flexible' && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-blue-400 text-blue-800 bg-blue-50/60"
+                              title={
+                                e.flexible_match_reason === 'same_teacher_same_day'
+                                  ? 'Registro validado semanticamente: mesmo professor, mesma data.'
+                                  : e.flexible_match_reason === 'same_component_same_day'
+                                  ? 'Registro validado semanticamente: mesmo componente, mesma data.'
+                                  : 'Registro validado semanticamente para a etapa pedagógica desta turma.'
+                              }
+                              data-testid="flexible-match-badge"
+                            >
+                              Correspondência flexível
+                            </Badge>
+                          )}
+                          {e.is_substitute && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Substituto
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="text-xs text-gray-700 mt-1">
                         Professor:{' '}

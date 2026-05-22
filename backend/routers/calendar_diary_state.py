@@ -162,8 +162,11 @@ def setup_calendar_diary_state_router(db):
                 )
 
             klass = await db.classes.find_one(
-                {"id": class_id}, {"_id": 0, "id": 1, "name": 1, "school_id": 1,
-                                    "academic_year": 1, "mantenedora_id": 1}
+                {"id": class_id},
+                {"_id": 0, "id": 1, "name": 1, "school_id": 1,
+                 "academic_year": 1, "mantenedora_id": 1,
+                 "education_level": 1, "is_multi_grade": 1,
+                 "diary_matching_mode": 1},
             )
             if not klass:
                 is_error = True
@@ -259,6 +262,12 @@ def setup_calendar_diary_state_router(db):
             used_attendance_ids: set = set()
             used_content_ids: set = set()
 
+            # Resolve modo de matching da turma (strict | flexible).
+            # Frontend NUNCA decide. Backend lê do campo persistido ou infere
+            # a partir da etapa pedagógica (infantil, anos iniciais, EJA, multi).
+            from services.diary_matching_mode import resolve_matching_mode
+            matching_mode = resolve_matching_mode(klass)
+
             def _apply_attendance_status(entry, att):
                 if att.get("validated_by"):
                     entry["attendance_status"] = "validated"
@@ -274,6 +283,7 @@ def setup_calendar_diary_state_router(db):
                     entry["validated_by_name"] = att.get("validated_by_name")
                     entry["validated_at"] = att.get("validated_at")
 
+            # ---- Etapa 4a: matching ESTRITO (sempre roda) ----
             for iso, entries in expected_by_date.items():
                 for e in entries:
                     specific = att_by_date_aula.get((iso, e["aula_numero"]), [])
@@ -281,18 +291,117 @@ def setup_calendar_diary_state_router(db):
                         att = next((a for a in specific if a["id"] not in used_attendance_ids), specific[0])
                         used_attendance_ids.add(att["id"])
                         _apply_attendance_status(e, att)
+                        e["matched_by"] = "strict"
                     else:
                         day_atts = att_by_date_only.get(iso, [])
                         if day_atts:
                             att = day_atts[0]
                             used_attendance_ids.add(att["id"])
                             _apply_attendance_status(e, att)
+                            e["matched_by"] = "strict"
                     ck = (iso, e["component_id"], e["aula_numero"], e["teacher_id"])
                     ce = ce_index.get(ck)
                     if ce:
                         used_content_ids.add(ce["id"])
                         e["content_status"] = ce.get("status", "draft")
                         e["content_entry_id"] = ce["id"]
+                        e.setdefault("matched_by", "strict")
+
+            # ---- Etapa 4b: matching FLEXÍVEL (Fase 10) ----
+            # Só roda quando a turma é pedagogicamente integrada. Reaproveita
+            # attendances/CEs que ficariam órfãos, casando-os com entries do
+            # MESMO DIA que tenham (mesmo_professor OU mesmo_componente).
+            # NÃO afrouxa: data e vínculo semântico continuam obrigatórios.
+            if matching_mode == "flexible":
+                # Index reverso: entries por data, ainda sem attendance.
+                entries_without_att: dict = {}
+                entries_without_ce: dict = {}
+                for iso, entries in expected_by_date.items():
+                    for e in entries:
+                        if not e.get("attendance_id"):
+                            entries_without_att.setdefault(iso, []).append(e)
+                        if not e.get("content_entry_id"):
+                            entries_without_ce.setdefault(iso, []).append(e)
+
+                # 4b.1 — attendance flexível
+                for att in attendances:
+                    if att["id"] in used_attendance_ids:
+                        continue
+                    candidates = entries_without_att.get(att["date"], [])
+                    if not candidates:
+                        continue
+                    att_teacher = att.get("created_by") or att.get("updated_by")
+                    att_course = att.get("course_id")
+                    picked = None
+                    reason = None
+                    if att_teacher:
+                        picked = next(
+                            (c for c in candidates if c.get("teacher_id") == att_teacher),
+                            None,
+                        )
+                        if picked:
+                            reason = "same_teacher_same_day"
+                    if not picked and att_course:
+                        picked = next(
+                            (c for c in candidates if c.get("component_id") == att_course),
+                            None,
+                        )
+                        if picked:
+                            reason = "same_component_same_day"
+                    if picked:
+                        used_attendance_ids.add(att["id"])
+                        _apply_attendance_status(picked, att)
+                        picked["matched_by"] = "flexible"
+                        picked["flexible_match_reason"] = reason
+                        # Remove do pool para não casar 2x
+                        entries_without_att[att["date"]] = [
+                            c for c in candidates if c is not picked
+                        ]
+                        logger.info(
+                            "[diary_matching] matched_by=flexible reason=%s "
+                            "class_id=%s date=%s attendance_id=%s",
+                            reason, class_id, att["date"], att["id"],
+                        )
+
+                # 4b.2 — content entries flexível
+                for ce in content_entries:
+                    if ce["id"] in used_content_ids:
+                        continue
+                    candidates = entries_without_ce.get(ce["date"], [])
+                    if not candidates:
+                        continue
+                    ce_teacher = ce.get("teacher_id")
+                    ce_component = ce.get("component_id")
+                    picked = None
+                    reason = None
+                    if ce_teacher:
+                        picked = next(
+                            (c for c in candidates if c.get("teacher_id") == ce_teacher),
+                            None,
+                        )
+                        if picked:
+                            reason = "same_teacher_same_day"
+                    if not picked and ce_component:
+                        picked = next(
+                            (c for c in candidates if c.get("component_id") == ce_component),
+                            None,
+                        )
+                        if picked:
+                            reason = "same_component_same_day"
+                    if picked:
+                        used_content_ids.add(ce["id"])
+                        picked["content_status"] = ce.get("status", "draft")
+                        picked["content_entry_id"] = ce["id"]
+                        picked["matched_by"] = "flexible"
+                        picked["flexible_match_reason"] = reason
+                        entries_without_ce[ce["date"]] = [
+                            c for c in candidates if c is not picked
+                        ]
+                        logger.info(
+                            "[diary_matching] matched_by=flexible reason=%s "
+                            "class_id=%s date=%s content_entry_id=%s",
+                            reason, class_id, ce["date"], ce["id"],
+                        )
 
             orphan_attendance_dates: set = set()
             for att in attendances:
@@ -356,6 +465,7 @@ def setup_calendar_diary_state_router(db):
                 "from": from_,
                 "to": to,
                 "range_days": range_days,
+                "matching_mode": matching_mode,
                 "summary": summary,
                 "days": days,
             }
