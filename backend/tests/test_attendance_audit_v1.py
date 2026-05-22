@@ -39,6 +39,20 @@ def _unique_date() -> str:
     return f"2026-12-{n:02d}"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _clean_test_data():
+    """Limpa attendance no range de teste (2026-12-XX) antes de rodar o módulo.
+    Garante idempotência entre execuções repetidas."""
+    import os
+    from dotenv import load_dotenv
+    from pymongo import MongoClient
+    load_dotenv()
+    cli = MongoClient(os.environ["MONGO_URL"])
+    db = cli[os.environ["DB_NAME"]]
+    db.attendance.delete_many({"date": {"$regex": "^2026-12-"}})
+    yield
+
+
 @pytest.fixture(scope="module")
 def headers():
     r = requests.post(f"{BASE_URL}/api/auth/login", json=ADMIN, timeout=20)

@@ -32,7 +32,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
-from services.content_audit import build_content_audit_extra
+from services.content_audit import build_content_audit_extra, compute_snapshot_hash
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,22 @@ class ContentEntryUpdate(BaseModel):
 class ContentEntryDeleteRequest(BaseModel):
     # Razão obrigatória para soft-delete — preserva governance.
     change_note: str = Field(..., min_length=1, max_length=500)
+
+
+class ContentEntryPublishRequest(BaseModel):
+    # Optimistic locking opcional: garante que estamos publicando a
+    # versão que o frontend viu.
+    expected_version: Optional[int] = None
+
+
+class ContentEntryCorrectRequest(BaseModel):
+    # change_note OBRIGATÓRIO — auditoria institucional.
+    change_note: str = Field(..., min_length=1, max_length=500)
+    expected_version: Optional[int] = None
+    # Campos a corrigir (qualquer combinação). Pelo menos um deve vir.
+    content: Optional[str] = Field(default=None, min_length=1, max_length=20000)
+    methodology: Optional[str] = Field(default=None, max_length=5000)
+    observations: Optional[str] = Field(default=None, max_length=5000)
 
 
 # ============================ HELPERS =======================================
@@ -217,6 +233,21 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         if not existing:
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
 
+        # Rodada 3: PUT só em draft. Para published/corrected, exige /correct.
+        if existing.get("status") != "draft":
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "REQUIRES_CORRECT_FLOW",
+                    "message": (
+                        "Conteúdo já publicado. Para alterá-lo use "
+                        "POST /content-entries/{id}/correct com change_note obrigatório."
+                    ),
+                    "current_status": existing.get("status"),
+                    "content_entry_id": entry_id,
+                },
+            )
+
         current_version = existing.get("version") or 1
         ev = patch.expected_version
         change_kind = "content_updated"
@@ -301,6 +332,178 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
             ),
             old_value={"content": previous_content, "version": current_version},
             new_value={"content": new_content, "version": new_version},
+            school_id=existing.get("school_id"),
+            extra_data=extra,
+        )
+        return updated
+
+    # ---------------- PUBLISH (Rodada 3) ----------------
+    @router.post("/{entry_id}/publish")
+    async def publish_content_entry(
+        entry_id: str, request: Request, payload: ContentEntryPublishRequest
+    ):
+        """Transita draft → published. Computa snapshot_hash imutável."""
+        current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
+        existing = await db.content_entries.find_one({"id": entry_id, "deleted": False}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+        if existing.get("status") != "draft":
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "PUBLISH_REQUIRES_DRAFT",
+                    "message": f"Só é possível publicar conteúdo em draft. Status atual: {existing.get('status')}",
+                    "current_status": existing.get("status"),
+                },
+            )
+        if not (existing.get("content") or "").strip():
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "EMPTY_CONTENT", "message": "Conteúdo vazio não pode ser publicado."},
+            )
+        current_version = existing.get("version") or 1
+        if payload.expected_version is not None and payload.expected_version != current_version:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "CONTENT_VERSION_CONFLICT",
+                    "message": "Versão diferente da esperada — recarregue.",
+                    "expected_version": payload.expected_version,
+                    "current_version": current_version,
+                },
+            )
+
+        snapshot_hash = compute_snapshot_hash(existing)
+        new_version = current_version + 1
+        now = datetime.now(timezone.utc).isoformat()
+        await db.content_entries.update_one(
+            {"id": entry_id},
+            {"$set": {
+                "status": "published",
+                "published_at": now,
+                "published_by": current_user["id"],
+                "published_snapshot_hash": snapshot_hash,
+                "published_version": new_version,
+                "version": new_version,
+                "updated_at": now,
+                "updated_by": current_user["id"],
+            }},
+        )
+        updated = await db.content_entries.find_one({"id": entry_id}, {"_id": 0})
+
+        class_info = await _resolve_class_info(db, existing["class_id"])
+        extra = build_content_audit_extra(
+            entry=updated, change_kind="content_published",
+            expected_version=payload.expected_version, final_version=new_version,
+            previous_content=None, new_content=None,  # Sem mudança de texto no publish
+            class_info=class_info,
+        )
+        extra["published_snapshot_hash"] = snapshot_hash
+        await audit_service.log(
+            action="update", collection="content_entries",
+            user=current_user, request=request, document_id=entry_id,
+            description=(
+                f"Publicou conteúdo da turma {class_info.get('name', 'N/A') if class_info else '-'} "
+                f"em {existing.get('date')} (hash {snapshot_hash[:8]}...)"
+            ),
+            old_value={"status": "draft", "version": current_version},
+            new_value={"status": "published", "version": new_version, "snapshot_hash": snapshot_hash},
+            school_id=existing.get("school_id"),
+            extra_data=extra,
+        )
+        return updated
+
+    # ---------------- CORRECT (Rodada 3) ----------------
+    @router.post("/{entry_id}/correct")
+    async def correct_content_entry(
+        entry_id: str, request: Request, payload: ContentEntryCorrectRequest
+    ):
+        """Correção institucional de conteúdo já publicado.
+
+        Permitida apenas em published ou corrected. Preserva
+        `corrected_from_version` apontando para a versão imediatamente
+        anterior — permite reconstruir a timeline completa.
+        """
+        current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
+        existing = await db.content_entries.find_one({"id": entry_id, "deleted": False}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+
+        if existing.get("status") not in ("published", "corrected"):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "CORRECT_REQUIRES_PUBLISHED",
+                    "message": (
+                        "Correção só é permitida em conteúdo publicado ou já corrigido. "
+                        "Em draft, use PUT normal."
+                    ),
+                    "current_status": existing.get("status"),
+                },
+            )
+
+        # Pelo menos um campo de conteúdo deve vir
+        if payload.content is None and payload.methodology is None and payload.observations is None:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "EMPTY_CORRECTION",
+                    "message": "Informe pelo menos um campo a corrigir (content, methodology ou observations).",
+                },
+            )
+
+        current_version = existing.get("version") or 1
+        if payload.expected_version is not None and payload.expected_version != current_version:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "CONTENT_VERSION_CONFLICT",
+                    "message": "Versão diferente — recarregue antes de corrigir.",
+                    "expected_version": payload.expected_version,
+                    "current_version": current_version,
+                },
+            )
+
+        new_version = current_version + 1
+        previous_content = existing.get("content")
+        new_content = previous_content
+        set_fields = {
+            "status": "corrected",
+            "corrected_from_version": current_version,
+            "version": new_version,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_by": current_user["id"],
+        }
+        if payload.content is not None:
+            set_fields["content"] = payload.content
+            new_content = payload.content
+        if payload.methodology is not None:
+            set_fields["methodology"] = payload.methodology
+        if payload.observations is not None:
+            set_fields["observations"] = payload.observations
+
+        await db.content_entries.update_one({"id": entry_id}, {"$set": set_fields})
+        updated = await db.content_entries.find_one({"id": entry_id}, {"_id": 0})
+
+        class_info = await _resolve_class_info(db, existing["class_id"])
+        extra = build_content_audit_extra(
+            entry=updated, change_kind="content_corrected",
+            expected_version=payload.expected_version, final_version=new_version,
+            previous_content=previous_content, new_content=new_content,
+            change_note=payload.change_note,
+            class_info=class_info,
+        )
+        extra["corrected_from_version"] = current_version
+        await audit_service.log(
+            action="update", collection="content_entries",
+            user=current_user, request=request, document_id=entry_id,
+            description=(
+                f"Corrigiu conteúdo (v{current_version} → v{new_version}) da turma "
+                f"{class_info.get('name', 'N/A') if class_info else '-'} em {existing.get('date')}: "
+                f"{payload.change_note[:80]}"
+            ),
+            old_value={"content": previous_content, "version": current_version, "status": existing.get("status")},
+            new_value={"content": new_content, "version": new_version, "status": "corrected"},
             school_id=existing.get("school_id"),
             extra_data=extra,
         )

@@ -3403,3 +3403,58 @@ Conteúdo pedagógico DEIXOU de ser atributo de `attendance` (campo `observation
 - Endpoint `POST /content-entries/{id}/publish` (transita draft → published; trava conteúdo)
 - Endpoint `POST /content-entries/{id}/correct` (de published → corrected, requer change_note + cria nova versão preservando `corrected_from_version`)
 - Status no audit log (`change_kind='content_published'`, `'content_corrected'`)
+
+
+---
+
+## [21/05/2026] Rodada 3 — Fase 6 (Workflow Institucional draft/published/corrected)
+
+### Estados implementados
+- **draft** — editável livremente via PUT.
+- **published** — congelado; PUT retorna **409 `REQUIRES_CORRECT_FLOW`**; só evolui via `/correct`. Snapshot SHA256 imutável em `published_snapshot_hash`.
+- **corrected** — registrado com `corrected_from_version` apontando para a versão anterior; pode receber novas correções (preservando linhagem).
+
+### Endpoints novos
+1. **`POST /api/content-entries/{id}/publish`**:
+   - Aceita `expected_version` (optimistic locking).
+   - Bloqueia status ≠ draft (`409 PUBLISH_REQUIRES_DRAFT`).
+   - Bloqueia content vazio (`422 EMPTY_CONTENT`).
+   - Computa `published_snapshot_hash` (SHA256 do payload pedagógico: class/course/component/teacher/date/aula/content/methodology/observations) — base para PDF imutável + verificação futura.
+   - Audit `change_kind='content_published'`.
+2. **`POST /api/content-entries/{id}/correct`**:
+   - Status atual deve ser `published` ou `corrected` (`409 CORRECT_REQUIRES_PUBLISHED`).
+   - `change_note` obrigatório.
+   - Pelo menos 1 campo a corrigir (`422 EMPTY_CORRECTION`).
+   - Sucesso → version+=1, status=corrected, `corrected_from_version`=versão anterior.
+   - Audit `change_kind='content_corrected'` com `previous_content`/`new_content`/`diff_summary`.
+
+### Refator PUT
+- PUT em status ≠ draft → 409 `REQUIRES_CORRECT_FLOW` (separação semântica: editar livre vs corrigir institucionalmente).
+
+### Helper novo
+- `services/content_audit.py::compute_snapshot_hash(entry)` — base para Fase 5 (PDF) e Fase 8 (assinatura/QR).
+
+### Testes (10/10 verdes)
+`/app/backend/tests/test_content_workflow_v1.py`:
+- publish happy path com hash
+- publish from already-published → 409
+- PUT on published → 409 REQUIRES_CORRECT_FLOW
+- correct from draft → 409
+- correct preserves corrected_from_version
+- re-correct atualiza corrected_from_version
+- correct sem campos → 422
+- correct sem change_note → 422
+- correct com version stale → 409
+
+### Regressão completa (Rodadas 1+2+3): 23/23 verdes ✅
+**Suíte idempotente**: roda 2x seguidas sem reset de DB. Fixtures autouse cleanup em `_RUN_TAG` (uuid por execução) + `_clean_test_data` (limpa range 2026-12-XX).
+
+### Status: ✅ COMPLETO — Núcleo do Diário fechado
+
+```
+frequência (Fase 1) → conteúdo (Fase 2) → concorrência → publicação/versionamento (Fase 6)
+```
+
+### Próximo bloqueio absoluto: Fase 4a — popular grade horária
+- `teacher_assignments` = 0 docs / `class_schedules.schedule_slots` = []
+- Sem isso: calendário (Fase 4), PDF multi-autoria (Fase 5), painel de completude → indefinidos.

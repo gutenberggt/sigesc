@@ -8,6 +8,7 @@ Regra absoluta: nunca destruir texto. Toda escrita preserva
 `previous_content` no log. Soft delete mantém o doc + registra
 `change_kind='content_deleted'` com o texto à época da exclusão.
 """
+import hashlib
 from typing import Optional
 
 
@@ -16,6 +17,30 @@ def _truncate(text: Optional[str], n: int = 2000) -> Optional[str]:
         return None
     s = str(text)
     return s if len(s) <= n else s[:n] + "...[truncado]"
+
+
+def compute_snapshot_hash(entry: dict) -> str:
+    """SHA256 do payload pedagógico publicado.
+
+    Usado no publish (Rodada 3) para que PDFs futuros possam verificar
+    integridade da versão publicada (anti-fraude, assinatura digital,
+    QR code de verificação institucional). Não inclui campos de
+    rastreabilidade (`updated_by`, `version`, timestamps) — apenas
+    o CONTEÚDO PEDAGÓGICO em si.
+    """
+    parts = [
+        entry.get("class_id") or "",
+        entry.get("course_id") or "",
+        entry.get("component_id") or "",
+        entry.get("teacher_id") or "",
+        entry.get("date") or "",
+        str(entry.get("aula_numero") or ""),
+        entry.get("content") or "",
+        entry.get("methodology") or "",
+        entry.get("observations") or "",
+    ]
+    payload = "|".join(parts).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def diff_summary(prev: Optional[str], new: Optional[str]) -> dict:

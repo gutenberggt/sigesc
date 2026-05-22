@@ -21,6 +21,9 @@ BASE_URL = os.environ.get(
 ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 CLASS_ID = "3da4e569-6522-432c-9b42-1e344a2f0c69"
 
+# Sufixo único por execução — evita colisão UNIQUE entre runs sequenciais.
+_RUN_TAG = uuid.uuid4().hex[:8]
+
 
 def _unique_date(n: int) -> str:
     return f"2026-12-{((n - 1) % 27) + 1:02d}"
@@ -42,7 +45,7 @@ def _create(headers, n, content="Aula sobre fotossíntese", **kw):
     payload = {
         "class_id": CLASS_ID,
         "date": _unique_date(n),
-        "component_id": kw.get("component_id", f"comp-test-{n}"),
+        "component_id": kw.get("component_id", f"comp-test-{_RUN_TAG}-{n}"),
         "aula_numero": kw.get("aula_numero", 1),
         "content": content,
     }
@@ -167,17 +170,18 @@ def test_force_overwrite_with_note_preserves_previous_content(headers):
 
 def test_unique_constraint_blocks_duplicate_within_same_key(headers):
     n = 5
-    r1 = _create(headers, n, component_id="comp-dup-test", aula_numero=1)
+    r1 = _create(headers, n, component_id=f"comp-dup-{_RUN_TAG}", aula_numero=1)
     assert r1.status_code == 200
     # MESMO {turma, componente, professor, data, aula} → deve falhar
-    r2 = _create(headers, n, component_id="comp-dup-test", aula_numero=1)
+    r2 = _create(headers, n, component_id=f"comp-dup-{_RUN_TAG}", aula_numero=1)
     assert r2.status_code == 409, r2.text[:300]
     assert r2.json()["detail"]["code"] == "CONTENT_ENTRY_DUPLICATE"
 
 
 def test_soft_delete_allows_recreate(headers):
     n = 6
-    r1 = _create(headers, n, component_id="comp-recreate", aula_numero=1)
+    cid = f"comp-recreate-{_RUN_TAG}"
+    r1 = _create(headers, n, component_id=cid, aula_numero=1)
     entry_id = r1.json()["id"]
     # delete
     requests.delete(
@@ -198,7 +202,7 @@ def test_soft_delete_allows_recreate(headers):
     visible_ids = [i["id"] for i in r.json()["items"]]
     assert entry_id not in visible_ids
     # Recreate na MESMA chave → deve aceitar (UNIQUE só conta deleted=false)
-    r3 = _create(headers, n, component_id="comp-recreate", aula_numero=1)
+    r3 = _create(headers, n, component_id=cid, aula_numero=1)
     assert r3.status_code == 200, r3.text[:400]
     assert r3.json()["id"] != entry_id
 
