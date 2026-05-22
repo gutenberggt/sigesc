@@ -76,11 +76,11 @@ export default function VaccineDashboard() {
       return;
     }
     setLoading(true);
-    const termLower = term.toLowerCase().trim();
+    const termNormalized = normalizeForSearch(term);
     const termClean = term.replace(/\D/g, '');
     let results = [];
     if (type === 'name') {
-      results = allStudents.filter(student => normalizeForSearch(student.full_name).includes(normalizeForSearch(searchTerm)));
+      results = allStudents.filter(student => normalizeForSearch(student.full_name).includes(termNormalized));
     } else {
       results = allStudents.filter(student => student.cpf?.replace(/\D/g, '').includes(termClean));
     }

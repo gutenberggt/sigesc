@@ -4236,3 +4236,32 @@ Princípios já definidos:
 - **UI responde 5 perguntas**: O que falta? Quem está pendente? O que está inconsistente? O que foi corrigido? O que está validado?
 - **Operacional, não bonita** — primeira UI sem polish/animação, foco em validação semântica em dados vivos.
 
+
+
+---
+
+## [Fev/2026] Bug Fix — Busca de alunos em "Controle de Vacinas"
+
+### Sintoma
+Usuário relatou: ao digitar "rebeca barroso" no campo de busca por nome em
+`/vacinas`, a lista mostrava alunos não relacionados (ex.: começando com "A"),
+em vez de filtrar pelo termo digitado.
+
+### Causa raiz
+`/app/frontend/src/pages/VaccineDashboard.js`, função `searchStudents`:
+o `useCallback` capturava `searchTerm` (state do componente) via closure e
+estava memoizado por `[allStudents]`. Como `searchTerm` valia `""` no momento
+em que `allStudents` carregou, o filtro chamava `normalizeForSearch("").includes("")`
+→ sempre `true` → retornava TODOS os alunos, e o `.slice(0, 10)` mostrava os
+10 primeiros (alfabeticamente, começando com "A").
+
+### Fix
+Substituído o uso de `searchTerm` (state) por `term` (parâmetro recebido),
+que carrega o valor atual do debounce. Variável `termLower` não usada removida.
+
+### Validação
+- Screenshot tool: busca "Maria" → 2 resultados corretos; "rebeca" → "Nenhum
+  aluno encontrado." (correto); "xyzabcnotfound" → nenhum resultado (não
+  retorna mais alunos errados).
+
+### Status: ✅ RESOLVIDO
