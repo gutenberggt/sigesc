@@ -1,0 +1,481 @@
+{
+  "generated_at": "2026-05-22T00:05:42.729565+00:00",
+  "db_name": "sigesc",
+  "phase": "0 - Diagnóstico Diário/Frequência",
+  "attendance": {
+    "total_docs": 51,
+    "fields_in_sample": [
+      "id",
+      "class_id",
+      "date",
+      "course_id",
+      "period",
+      "attendance_type",
+      "records",
+      "observations",
+      "number_of_classes",
+      "academic_year",
+      "created_by",
+      "created_at",
+      "aula_numero",
+      "mantenedora_id"
+    ],
+    "field_coverage": {
+      "created_by": 22,
+      "created_at": 48,
+      "updated_by": 4,
+      "updated_at": 4,
+      "version": 0,
+      "validated_by": 0,
+      "validated_at": 0,
+      "last_modified_by": 0,
+      "last_modified_at": 0
+    },
+    "duplicated_pairs_total": 7,
+    "top_duplicated_pairs_sample": [
+      {
+        "class_id": "3da4e569-6522-432c-9b42-1e344a2f0c69",
+        "date": "2026-04-09",
+        "count": 4,
+        "doc_ids": [
+          "0d1ede36-665f-4a8f-b51b-a9300ba5273f",
+          "f90b0745-5418-438f-95ef-2f9ed807d859",
+          "bcf11f34-2cea-48dc-bf82-adf2a237b280",
+          "d2034741-7fdc-48b7-aa6d-33acca8c3ea4"
+        ],
+        "distinct_authors": 1
+      },
+      {
+        "class_id": "3da4e569-6522-432c-9b42-1e344a2f0c69",
+        "date": "2026-04-10",
+        "count": 4,
+        "doc_ids": [
+          "794e8627-be5a-4709-99aa-0ae5b14f6d54",
+          "b390e6f9-c412-4cc5-8abc-e5940bc83cac",
+          "2677d2e0-d05e-4df0-b63b-3d6790084f64",
+          "9af6afb6-9417-49aa-b52e-22849f14d87a"
+        ],
+        "distinct_authors": 1
+      },
+      {
+        "class_id": "3da4e569-6522-432c-9b42-1e344a2f0c69",
+        "date": "2026-04-08",
+        "count": 4,
+        "doc_ids": [
+          "e57d31e4-1c51-4ecb-9fc4-c6d02139d0ec",
+          "6ec733f6-efb8-47f9-a44d-9de44a838274",
+          "cbc46982-a495-4ac2-9488-dddb4e88fcb8",
+          "aad0c60c-49de-4f9f-b34e-89a83f35124c"
+        ],
+        "distinct_authors": 1
+      },
+      {
+        "class_id": "3da4e569-6522-432c-9b42-1e344a2f0c69",
+        "date": "2026-04-03",
+        "count": 3,
+        "doc_ids": [
+          "34aff0bf-806b-4694-9df3-c5bdcfe38f00",
+          "9362c7f8-cb74-46bd-9145-080dcce0e183",
+          "cf3653e3-814e-4aac-869b-d4a47f0379a5"
+        ],
+        "distinct_authors": 1
+      },
+      {
+        "class_id": "3da4e569-6522-432c-9b42-1e344a2f0c69",
+        "date": "2026-04-01",
+        "count": 2,
+        "doc_ids": [
+          "9a241d2a-ff9c-49fb-a8d6-d7d02a21dcc1",
+          "414c87ae-169f-4029-86ad-1e996ed009e4"
+        ],
+        "distinct_authors": 1
+      },
+      {
+        "class_id": "3da4e569-6522-432c-9b42-1e344a2f0c69",
+        "date": "2026-02-10",
+        "count": 2,
+        "doc_ids": [
+          "fecd0ae6-ad31-49e5-968a-35028482fd44",
+          "14e640c5-0440-48a4-b87a-13641655d3ba"
+        ],
+        "distinct_authors": 1
+      },
+      {
+        "class_id": "3da4e569-6522-432c-9b42-1e344a2f0c69",
+        "date": "2026-04-07",
+        "count": 2,
+        "doc_ids": [
+          "b86a3431-a779-4788-9d2c-a3fa6b877b33",
+          "5d3df7ce-e194-4f5f-9168-8b6d7cec1ca2"
+        ],
+        "distinct_authors": 1
+      }
+    ],
+    "multi_author_same_day": 0,
+    "multi_author_examples": [],
+    "avg_records_per_doc": 1.9411764705882353,
+    "max_records_per_doc": 3,
+    "content_like_field_coverage": {
+      "observations": 16,
+      "content": 0,
+      "conteudo": 0,
+      "descricao": 0,
+      "anotacoes": 0,
+      "diario_texto": 0
+    },
+    "sample_with_observation": {
+      "id": "47f55a3c-b073-44e4-8238-0424d69c452c",
+      "date": "2026-03-02",
+      "class_id": "9f71ed93-c55f-44d2-87a9-c8567ccddd6a",
+      "observations": "[SEED] Frequência <75% para validação UX BF"
+    }
+  },
+  "schedule": {
+    "candidate_collections_found": {
+      "class_schedules": {
+        "count": 1,
+        "sample_fields": [
+          "school_id",
+          "class_id",
+          "academic_year",
+          "slots_per_day",
+          "shift",
+          "schedule_slots",
+          "slot_times",
+          "id",
+          "created_at",
+          "updated_at",
+          "mantenedora_id"
+        ],
+        "sample": {
+          "school_id": "220d4022-ec5e-4fb6-86fc-9233112b87b2",
+          "class_id": "c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd",
+          "academic_year": 2026,
+          "slots_per_day": 4,
+          "shift": "morning",
+          "schedule_slots": [],
+          "slot_times": {
+            "1": {
+              "start": "09:00",
+              "end": "09:45"
+            },
+            "2": {
+              "start": "07:50",
+              "end": "08:35"
+            }
+          },
+          "id": "cf2dbdc5-0213-4211-bd37-faec40b43e4c",
+          "created_at": "2026-02-15T20:44:47.182140+00:00",
+          "updated_at": "2026-02-15T20:50:03.144500+00:00",
+          "mantenedora_id": "a991c1ac-56b1-46a8-b122-effedbe19b21"
+        }
+      },
+      "grades": {
+        "count": 6,
+        "sample_fields": [
+          "id",
+          "student_id",
+          "class_id",
+          "course_id",
+          "academic_year",
+          "b1",
+          "b2",
+          "b3",
+          "b4",
+          "rec_s1",
+          "rec_s2",
+          "recovery",
+          "observations",
+          "final_average",
+          "status",
+          "created_at",
+          "updated_at",
+          "mantenedora_id"
+        ],
+        "sample": {
+          "id": "dc7a7e99-059c-4449-83e8-164d52b15c21",
+          "student_id": "097095b5-2153-4be4-bdc2-695b96164f0d",
+          "class_id": "9f71ed93-c55f-44d2-87a9-c8567ccddd6a",
+          "course_id": "bad85d02-a6b4-40ce-971c-8cac806ddaf1",
+          "academic_year": 2026,
+          "b1": 10,
+          "b2": 10,
+          "b3": 10,
+          "b4": 10,
+          "rec_s1": null,
+          "rec_s2": null,
+          "recovery": null,
+          "observations": null,
+          "final_average": 10.0,
+          "status": "aprovado",
+          "created_at": "2026-04-19T16:57:05.084405+00:00",
+          "updated_at": "2026-04-20T15:57:50.578374+00:00",
+          "mantenedora_id": "a991c1ac-56b1-46a8-b122-effedbe19b21"
+        }
+      }
+    },
+    "matched_by_pattern": [
+      "grades"
+    ]
+  },
+  "existing_audit_collections": {
+    "audit_logs": {
+      "count": 4479,
+      "sample_fields": [
+        "action",
+        "collection",
+        "document_id",
+        "user_id",
+        "user_email",
+        "user_role",
+        "user_name",
+        "school_id",
+        "school_name",
+        "academic_year",
+        "description",
+        "old_value",
+        "new_value",
+        "changes",
+        "ip_address",
+        "user_agent",
+        "timestamp",
+        "severity",
+        "category",
+        "mantenedora_id"
+      ]
+    }
+  },
+  "indexes": {
+    "attendance": {
+      "_id_": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "id_1": [
+        [
+          "id",
+          1
+        ]
+      ],
+      "class_id_1_date_1": [
+        [
+          "class_id",
+          1
+        ],
+        [
+          "date",
+          1
+        ]
+      ],
+      "class_id_1_academic_year_1": [
+        [
+          "class_id",
+          1
+        ],
+        [
+          "academic_year",
+          1
+        ]
+      ],
+      "class_id_1_course_id_1_academic_year_1": [
+        [
+          "class_id",
+          1
+        ],
+        [
+          "course_id",
+          1
+        ],
+        [
+          "academic_year",
+          1
+        ]
+      ]
+    },
+    "calendario_letivo": {
+      "_id_": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "cal_year_school": [
+        [
+          "ano_letivo",
+          1
+        ],
+        [
+          "school_id",
+          1
+        ]
+      ],
+      "calendario_leti_mid": [
+        [
+          "mantenedora_id",
+          1
+        ]
+      ]
+    },
+    "calendar_events": {
+      "_id_": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "calevents_year": [
+        [
+          "academic_year",
+          1
+        ]
+      ],
+      "calendar_events_mid": [
+        [
+          "mantenedora_id",
+          1
+        ]
+      ]
+    },
+    "classes": {
+      "_id_": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "id_1": [
+        [
+          "id",
+          1
+        ]
+      ],
+      "school_id_1": [
+        [
+          "school_id",
+          1
+        ]
+      ],
+      "school_id_1_academic_year_1": [
+        [
+          "school_id",
+          1
+        ],
+        [
+          "academic_year",
+          1
+        ]
+      ],
+      "classes_mid": [
+        [
+          "mantenedora_id",
+          1
+        ]
+      ],
+      "ix_tenant_nome_busca": [
+        [
+          "mantenedora_id",
+          1
+        ],
+        [
+          "nome_busca",
+          1
+        ]
+      ]
+    },
+    "students": {
+      "_id_": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "id_1": [
+        [
+          "id",
+          1
+        ]
+      ],
+      "cpf_1": [
+        [
+          "cpf",
+          1
+        ]
+      ],
+      "school_id_1": [
+        [
+          "school_id",
+          1
+        ]
+      ],
+      "class_id_1": [
+        [
+          "class_id",
+          1
+        ]
+      ],
+      "full_name_1": [
+        [
+          "full_name",
+          1
+        ]
+      ],
+      "full_name_pt_collation": [
+        [
+          "full_name",
+          1
+        ]
+      ],
+      "status_1_school_id_1": [
+        [
+          "status",
+          1
+        ],
+        [
+          "school_id",
+          1
+        ]
+      ],
+      "students_mid": [
+        [
+          "mantenedora_id",
+          1
+        ]
+      ],
+      "ix_tenant_nome_busca": [
+        [
+          "mantenedora_id",
+          1
+        ],
+        [
+          "nome_busca",
+          1
+        ]
+      ]
+    }
+  },
+  "calendar": {
+    "calendarios_letivos_total": 2,
+    "anos_cobertos": [
+      2025,
+      2026
+    ],
+    "calendar_events_total": 13,
+    "sample_calendario": {
+      "id": "cal-test-2025",
+      "ano_letivo": 2025,
+      "school_id": null,
+      "bimestre_1_inicio": "2025-02-03",
+      "bimestre_1_fim": "2025-04-25",
+      "bimestre_2_inicio": "2025-04-28",
+      "bimestre_2_fim": "2025-07-04",
+      "bimestre_3_inicio": "2025-07-21",
+      "bimestre_3_fim": "2025-09-26",
+      "bimestre_4_inicio": "2025-09-29",
+      "bimestre_4_fim": "2025-12-19",
+      "dias_letivos_previstos": 200,
+      "mantenedora_id": "a991c1ac-56b1-46a8-b122-effedbe19b21"
+    }
+  }
+}
