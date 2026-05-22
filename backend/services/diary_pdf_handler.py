@@ -258,30 +258,76 @@ def _build_pdf_from_snapshot(snap: dict) -> bytes:
     else:
         story.append(Paragraph("<i>Nenhum autor identificado neste período.</i>", styles["DiaryBody"]))
 
-    # -------- Assinaturas institucionais --------
-    sigs = snap.get("signatures") or []
+    # -------- Assinaturas institucionais (com tipo de maturidade) --------
+    sigs = [s for s in (snap.get("signatures") or []) if s.get("status", "active") == "active"]
     if sigs:
         story.append(Spacer(1, 0.5 * cm))
         story.append(Paragraph("Assinaturas Institucionais", styles["DiaryH2"]))
-        rows = [["Papel", "Nome", "Assinado em"]]
+        story.append(Paragraph(
+            "Cada assinatura abaixo está vinculada criptograficamente ao "
+            "hash do documento. Tipos: <b>manual</b> = assinatura física "
+            "esperada; <b>image</b> = imagem cadastrada no SIGESC; "
+            "<b>icp_brasil</b> = certificado qualificado ICP-Brasil.",
+            styles["DiaryMeta"],
+        ))
+        story.append(Spacer(1, 0.2 * cm))
         for s in sigs:
-            if s.get("revoked_signature_at"):
-                continue  # diretriz 7: assinatura revogada não aparece como ativa
-            rows.append([
-                s.get("role", "—"),
-                s.get("full_name", "—"),
-                s.get("signed_at", "—"),
-            ])
-        if len(rows) > 1:
-            t = Table(rows, colWidths=[4 * cm, 7 * cm, 6 * cm])
-            t.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E40AF")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("GRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#D1D5DB")),
-            ]))
-            story.append(t)
+            sig_type = s.get("signature_type", "manual")
+            block = []
+            if sig_type == "manual":
+                # Linha física para assinatura à caneta
+                block.append(Paragraph("_" * 60, styles["DiaryBody"]))
+                block.append(Paragraph(
+                    f"<b>{s.get('full_name', '—')}</b>", styles["DiaryBody"]))
+                block.append(Paragraph(
+                    f"{s.get('role', '—')} &nbsp;·&nbsp; "
+                    f"Data esperada: {(s.get('signed_at') or '')[:10]}",
+                    styles["DiaryMeta"]))
+                block.append(Paragraph(
+                    "<i>Assinatura física esperada.</i>", styles["DiaryMeta"]))
+            elif sig_type == "image":
+                block.append(Paragraph(
+                    f"<b>{s.get('full_name', '—')}</b> — {s.get('role', '—')}",
+                    styles["DiaryBody"]))
+                block.append(Paragraph(
+                    f"Assinado eletronicamente em {(s.get('signed_at') or '—')[:19]} "
+                    f"com imagem institucional (file: {s.get('image_file_id', '—')}).",
+                    styles["DiaryMeta"]))
+                block.append(Paragraph(
+                    "<i>Documento assinado eletronicamente com imagem "
+                    "institucional cadastrada no SIGESC. "
+                    "Não equivale à assinatura digital qualificada ICP-Brasil.</i>",
+                    styles["DiaryMeta"]))
+            elif sig_type == "icp_brasil":
+                ci = s.get("certificate_info") or {}
+                block.append(Paragraph(
+                    f"<b>{s.get('full_name', '—')}</b> — {s.get('role', '—')}",
+                    styles["DiaryBody"]))
+                block.append(Paragraph(
+                    f"Assinatura digital qualificada ICP-Brasil "
+                    f"em {(s.get('signed_at') or '—')[:19]}.",
+                    styles["DiaryMeta"]))
+                block.append(Paragraph(
+                    f"Cert: {ci.get('subject', '—')} · "
+                    f"Emissor: {ci.get('issuer', '—')} · "
+                    f"Válido até: {ci.get('valid_until', '—')}",
+                    styles["DiaryMeta"]))
+            # Hash vinculado (todas as maturidades)
+            block.append(Paragraph(
+                f"Vínculo ao hash documental: {(s.get('signed_document_hash') or '—')[:32]}…",
+                styles["DiaryHashFooter"]))
+            for b in block:
+                story.append(b)
+            story.append(Spacer(1, 0.3 * cm))
+    else:
+        # Mesmo sem assinaturas cadastradas: sai linha física como fallback.
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Assinatura Institucional", styles["DiaryH2"]))
+        story.append(Paragraph("_" * 60, styles["DiaryBody"]))
+        story.append(Paragraph(
+            "Responsável institucional &nbsp;·&nbsp; Data: ___/___/______",
+            styles["DiaryMeta"],
+        ))
 
     # -------- Rodapé com hash institucional --------
     story.append(Spacer(1, 0.5 * cm))

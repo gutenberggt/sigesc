@@ -321,7 +321,8 @@ async def consolidate_diary_payload(
         "content_drafts": 0,
         "day_status_counts": {
             "not_expected": 0, "empty": 0, "partial": 0,
-            "complete": 0, "corrected": 0, "inconsistent": 0,
+            "complete": 0, "corrected": 0, "validated": 0,
+            "inconsistent": 0,
         },
     }
     for day in _daterange(d_from, d_to):
@@ -598,16 +599,39 @@ async def revoke_snapshot(db, *, snapshot_id: str, rationale: str, user: dict) -
     return await db.diary_snapshots.find_one({"id": snapshot_id}, {"_id": 0})
 
 
-async def add_signature(db, *, snapshot_id: str, role: str, full_name: str, user: dict) -> dict:
-    """Append-only — diretriz 7. Nunca delete; usar revoked_signature_at se necessário no futuro."""
+async def add_signature(
+    db, *, snapshot_id: str, role: str, full_name: str, user: dict,
+    signature_type: str = "manual",
+    image_file_id: Optional[str] = None,
+    certificate_info: Optional[dict] = None,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> dict:
+    """Append-only — diretriz 7. Nunca delete; usar `status='revoked'` no futuro.
+
+    Suporta 3 maturidades (proposta 12 — Mai/2026):
+      - `manual`: PDF imprime linha física para assinar com caneta.
+      - `image`: imagem da assinatura embutida (`image_file_id`).
+      - `icp_brasil`: assinatura criptográfica qualificada (futuro).
+    """
+    VALID_SIG_TYPES = ("manual", "image", "icp_brasil")
+    if signature_type not in VALID_SIG_TYPES:
+        raise ValueError(f"INVALID_SIGNATURE_TYPE: {signature_type} ∉ {VALID_SIG_TYPES}")
+    if signature_type == "image" and not image_file_id:
+        raise ValueError("IMAGE_FILE_REQUIRED: signature_type=image exige image_file_id")
+    if signature_type == "icp_brasil" and not certificate_info:
+        raise ValueError("CERT_INFO_REQUIRED: signature_type=icp_brasil exige certificate_info")
+
     snap = await db.diary_snapshots.find_one({"id": snapshot_id}, {"_id": 0})
     if not snap:
         raise LookupError("SNAPSHOT_NOT_FOUND")
     if snap["status"] not in ("published",):
         raise ValueError("CANNOT_SIGN: snapshot precisa estar published")
-    # Anti-duplicidade por (role, user_id)
+    # Anti-duplicidade por (role, user_id) ativo.
     for s in snap.get("signatures", []):
-        if s.get("role") == role and s.get("signed_by_user_id") == user.get("id"):
+        if (s.get("role") == role
+                and s.get("signed_by_user_id") == user.get("id")
+                and s.get("status", "active") == "active"):
             raise ValueError("ROLE_ALREADY_SIGNED")
     now = _now_iso()
     signature = {
@@ -615,10 +639,17 @@ async def add_signature(db, *, snapshot_id: str, role: str, full_name: str, user
         "role": role,
         "full_name": full_name,
         "signed_by_user_id": user.get("id"),
+        "signature_type": signature_type,
         "signed_at": now,
         "signed_document_hash": snap.get("payload_hash_sha256"),
-        "revoked_signature_at": None,         # diretriz 7
-        "revoked_signature_reason": None,
+        "image_file_id": image_file_id,
+        "certificate_info": certificate_info,
+        "ip_address": ip_address,
+        "user_agent": (user_agent or "")[:512] or None,
+        "status": "active",
+        "revoked_at": None,
+        "revoked_reason": None,
+        "revoked_by_user_id": None,
     }
     await db.diary_snapshots.update_one(
         {"id": snapshot_id},
@@ -628,6 +659,50 @@ async def add_signature(db, *, snapshot_id: str, role: str, full_name: str, user
                 "audit_trail": {
                     "action": "signed", "at": now, "by": user.get("id"),
                     "role": role, "signature_id": signature["id"],
+                    "signature_type": signature_type,
+                },
+            },
+        },
+    )
+    return await db.diary_snapshots.find_one({"id": snapshot_id}, {"_id": 0})
+
+
+async def revoke_signature(
+    db, *, snapshot_id: str, signature_id: str, rationale: str, user: dict,
+) -> dict:
+    """Revoga uma assinatura preservando o histórico (append-only).
+
+    NÃO remove o objeto — apenas marca `status='revoked'` + metadados.
+    Mantém integridade da trilha institucional.
+    """
+    if not rationale or len(rationale.strip()) < 30:
+        raise ValueError("RATIONALE_TOO_SHORT: mínimo 30 chars")
+    snap = await db.diary_snapshots.find_one({"id": snapshot_id}, {"_id": 0})
+    if not snap:
+        raise LookupError("SNAPSHOT_NOT_FOUND")
+    sig_idx = next(
+        (i for i, s in enumerate(snap.get("signatures", [])) if s.get("id") == signature_id),
+        None,
+    )
+    if sig_idx is None:
+        raise LookupError("SIGNATURE_NOT_FOUND")
+    sig = snap["signatures"][sig_idx]
+    if sig.get("status") == "revoked":
+        return snap
+    now = _now_iso()
+    await db.diary_snapshots.update_one(
+        {"id": snapshot_id},
+        {
+            "$set": {
+                f"signatures.{sig_idx}.status": "revoked",
+                f"signatures.{sig_idx}.revoked_at": now,
+                f"signatures.{sig_idx}.revoked_reason": rationale[:512],
+                f"signatures.{sig_idx}.revoked_by_user_id": user.get("id"),
+            },
+            "$push": {
+                "audit_trail": {
+                    "action": "signature_revoked", "at": now, "by": user.get("id"),
+                    "signature_id": signature_id, "rationale": rationale[:512],
                 },
             },
         },

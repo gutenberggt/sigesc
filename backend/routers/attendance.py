@@ -87,6 +87,26 @@ class AttendanceCreate(BaseModel):
     change_note: Optional[str] = None
 
 
+# ========== Fase 7 (Mai/2026) — Validação Institucional ==========
+class ValidateBatchRequest(BaseModel):
+    """Validação em lote por turma+datas. Internamente roda N validações
+    individuais — UMA por attendance — gerando N audit_logs.
+
+    Justificativa arquitetural (owner): preserva auditoria, reversibilidade
+    e legitimidade institucional. Lote não cria 'uma validação única'.
+    """
+    class_id: str
+    dates: List[str]  # YYYY-MM-DD[]
+
+
+class UnvalidateRequest(BaseModel):
+    """Reverte uma validação institucional. Exige rationale ≥ 30 chars.
+
+    Owner: 'Validação NÃO pode virar ação banal'.
+    """
+    rationale: str
+
+
 def setup_attendance_router(db, audit_service, sandbox_db=None):
     """Configura o router de frequência com as dependências necessárias"""
     
@@ -690,6 +710,217 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             )
 
             return await current_db.attendance.find_one({"id": new_attendance['id']}, {"_id": 0})
+
+    # ============================================================
+    # Fase 7 (Mai/2026) — Validação Institucional Pedagógica
+    # ============================================================
+    # Princípios (owner):
+    #   - Validação é institucional, não opcional.
+    #   - Granularidade interna SEMPRE individual; lote = açúcar.
+    #   - Exige attendance.records.length > 0 (não dá pra validar nada).
+    #   - audit_log obrigatório em TODA transição.
+    #   - Validation NÃO recalcula nada — apenas marca.
+    VALIDATE_ROLES = ['coordenador', 'apoio_pedagogico', 'diretor',
+                      'secretario', 'admin', 'admin_teste', 'super_admin', 'gerente']
+
+    async def _validate_single(current_db, attendance_id: str, *, user, request, batch_marker: str = None):
+        """Executa UMA validação. Retorna o doc atualizado.
+
+        Raises:
+          ValueError(code) onde code ∈ {NOT_FOUND, ALREADY_VALIDATED, EMPTY_RECORDS}.
+        """
+        att = await current_db.attendance.find_one({"id": attendance_id}, {"_id": 0})
+        if not att:
+            raise ValueError("NOT_FOUND")
+        if att.get("validated_by"):
+            raise ValueError("ALREADY_VALIDATED")
+        if not (att.get("records") or []):
+            raise ValueError("EMPTY_RECORDS")
+
+        now = datetime.now(timezone.utc).isoformat()
+        new_version = (att.get("version") or 0) + 1
+        await current_db.attendance.update_one(
+            {"id": attendance_id, "version": att.get("version") or 0},
+            {"$set": {
+                "validated_by": user["id"],
+                "validated_by_name": user.get("full_name") or user.get("email"),
+                "validated_by_role": user.get("role"),
+                "validated_at": now,
+                "version": new_version,
+                "updated_at": now,
+                "updated_by": user["id"],
+            }},
+        )
+        klass = await current_db.classes.find_one(
+            {"id": att.get("class_id")}, {"_id": 0, "name": 1, "school_id": 1},
+        )
+        await audit_service.log(
+            action='validate_attendance',
+            collection='attendance',
+            user=user, request=request, document_id=attendance_id,
+            description=(
+                f"Validou frequência institucional da turma "
+                f"{(klass or {}).get('name', '—')} em {att.get('date')}"
+            ),
+            school_id=(klass or {}).get('school_id'),
+            academic_year=att.get('academic_year'),
+            extra_data={
+                "entity_type": "attendance",
+                "change_kind": "validation",
+                "class_id": att.get("class_id"),
+                "date": att.get("date"),
+                "previous_version": att.get("version") or 0,
+                "new_version": new_version,
+                "batch_marker": batch_marker,  # link de N validações no mesmo lote
+            },
+        )
+        return await current_db.attendance.find_one({"id": attendance_id}, {"_id": 0})
+
+    @router.post("/{attendance_id}/validate")
+    async def validate_attendance_endpoint(attendance_id: str, request: Request):
+        current_user = await AuthMiddleware.require_roles(VALIDATE_ROLES)(request)
+        current_db = get_db_for_user(current_user)
+        try:
+            return await _validate_single(current_db, attendance_id, user=current_user, request=request)
+        except ValueError as e:
+            code = str(e)
+            if code == "NOT_FOUND":
+                raise HTTPException(status_code=404, detail="Frequência não encontrada")
+            if code == "ALREADY_VALIDATED":
+                raise HTTPException(status_code=409, detail={"code": "ALREADY_VALIDATED",
+                                                              "message": "Frequência já validada institucionalmente."})
+            if code == "EMPTY_RECORDS":
+                raise HTTPException(status_code=422, detail={"code": "EMPTY_RECORDS",
+                                                              "message": "Não é possível validar frequência sem registros."})
+            raise
+
+    @router.post("/validate-batch")
+    async def validate_attendance_batch(payload: ValidateBatchRequest, request: Request):
+        """Validação em lote. Internamente: N validações individuais com N
+        audit_logs. Retorna `{validated, skipped: [{date, reason}], total}`.
+        """
+        current_user = await AuthMiddleware.require_roles(VALIDATE_ROLES)(request)
+        current_db = get_db_for_user(current_user)
+        if not payload.dates:
+            raise HTTPException(status_code=422, detail="Lista de datas obrigatória.")
+        batch_marker = str(uuid.uuid4())
+
+        validated, skipped = [], []
+        for d in payload.dates:
+            atts = await current_db.attendance.find(
+                {"class_id": payload.class_id, "date": d},
+                {"_id": 0, "id": 1},
+            ).to_list(50)
+            if not atts:
+                skipped.append({"date": d, "reason": "NO_ATTENDANCE"})
+                continue
+            for a in atts:
+                try:
+                    doc = await _validate_single(
+                        current_db, a["id"], user=current_user,
+                        request=request, batch_marker=batch_marker,
+                    )
+                    validated.append({"date": d, "attendance_id": a["id"],
+                                      "validated_at": doc.get("validated_at")})
+                except ValueError as e:
+                    skipped.append({"date": d, "attendance_id": a["id"], "reason": str(e)})
+        return {
+            "class_id": payload.class_id,
+            "batch_marker": batch_marker,
+            "total_requested": len(payload.dates),
+            "total_validated": len(validated),
+            "total_skipped": len(skipped),
+            "validated": validated,
+            "skipped": skipped,
+        }
+
+    @router.post("/{attendance_id}/unvalidate")
+    async def unvalidate_attendance(attendance_id: str, payload: UnvalidateRequest, request: Request):
+        """Reverte uma validação. Exige rationale ≥ 30 chars. Quem pode:
+        quem validou originalmente OR admin/super_admin.
+        """
+        rationale = (payload.rationale or "").strip()
+        if len(rationale) < 30:
+            raise HTTPException(status_code=422, detail={
+                "code": "RATIONALE_TOO_SHORT",
+                "message": "Justificativa deve ter ao menos 30 caracteres.",
+            })
+        current_user = await AuthMiddleware.require_roles(VALIDATE_ROLES)(request)
+        current_db = get_db_for_user(current_user)
+        att = await current_db.attendance.find_one({"id": attendance_id}, {"_id": 0})
+        if not att:
+            raise HTTPException(status_code=404, detail="Frequência não encontrada")
+        if not att.get("validated_by"):
+            raise HTTPException(status_code=409, detail={
+                "code": "NOT_VALIDATED",
+                "message": "Frequência não está validada — nada a reverter.",
+            })
+        # Quem pode: quem validou OR admin/super_admin
+        is_admin = current_user.get("role") in ("admin", "admin_teste", "super_admin")
+        if att["validated_by"] != current_user["id"] and not is_admin:
+            raise HTTPException(status_code=403, detail={
+                "code": "FORBIDDEN_UNVALIDATE",
+                "message": "Apenas o autor da validação ou admin/super_admin podem reverter.",
+            })
+
+        now = datetime.now(timezone.utc).isoformat()
+        new_version = (att.get("version") or 0) + 1
+        previous_validation = {
+            "validated_by": att.get("validated_by"),
+            "validated_by_name": att.get("validated_by_name"),
+            "validated_by_role": att.get("validated_by_role"),
+            "validated_at": att.get("validated_at"),
+        }
+        await current_db.attendance.update_one(
+            {"id": attendance_id, "version": att.get("version") or 0},
+            {
+                "$set": {
+                    "validated_by": None,
+                    "validated_by_name": None,
+                    "validated_by_role": None,
+                    "validated_at": None,
+                    "version": new_version,
+                    "updated_at": now,
+                    "updated_by": current_user["id"],
+                },
+                "$push": {
+                    # Histórico append-only de validações revertidas.
+                    "validation_history": {
+                        **previous_validation,
+                        "unvalidated_by": current_user["id"],
+                        "unvalidated_by_name": current_user.get("full_name"),
+                        "unvalidated_at": now,
+                        "rationale": rationale,
+                    },
+                },
+            },
+        )
+        klass = await current_db.classes.find_one(
+            {"id": att.get("class_id")}, {"_id": 0, "name": 1, "school_id": 1},
+        )
+        await audit_service.log(
+            action='unvalidate_attendance',
+            collection='attendance',
+            user=current_user, request=request, document_id=attendance_id,
+            description=(
+                f"REVERTEU validação institucional da turma "
+                f"{(klass or {}).get('name', '—')} em {att.get('date')}: "
+                f"{rationale[:80]}"
+            ),
+            school_id=(klass or {}).get('school_id'),
+            academic_year=att.get('academic_year'),
+            old_value=previous_validation,
+            extra_data={
+                "entity_type": "attendance",
+                "change_kind": "unvalidation",
+                "class_id": att.get("class_id"),
+                "date": att.get("date"),
+                "rationale": rationale,
+                "previous_version": att.get("version") or 0,
+                "new_version": new_version,
+            },
+        )
+        return await current_db.attendance.find_one({"id": attendance_id}, {"_id": 0})
 
     @router.delete("/{attendance_id}")
     async def delete_attendance(attendance_id: str, request: Request):

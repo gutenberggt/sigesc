@@ -48,6 +48,13 @@ class RevokeRequest(BaseModel):
 class SignRequest(BaseModel):
     role: str = Field(..., min_length=2, max_length=40)
     full_name: str = Field(..., min_length=3, max_length=200)
+    signature_type: str = Field(default="manual", pattern="^(manual|image|icp_brasil)$")
+    image_file_id: Optional[str] = Field(default=None, max_length=200)
+    certificate_info: Optional[dict] = None
+
+
+class RevokeSignatureRequest(BaseModel):
+    rationale: str = Field(..., min_length=30, max_length=2000)
 
 
 # ============================ HELPERS =======================================
@@ -155,13 +162,36 @@ def setup_diary_snapshots_router(db, audit_service: object | None = None):
         try:
             snap = await svc.add_signature(
                 db, snapshot_id=snapshot_id,
-                role=payload.role, full_name=payload.full_name, user=current_user,
+                role=payload.role, full_name=payload.full_name,
+                signature_type=payload.signature_type,
+                image_file_id=payload.image_file_id,
+                certificate_info=payload.certificate_info,
+                ip_address=(request.client.host if request.client else None),
+                user_agent=(request.headers.get("user-agent") or "")[:512],
+                user=current_user,
             )
         except LookupError as e:
             raise HTTPException(status_code=404, detail=str(e))
         except ValueError as e:
             raise HTTPException(status_code=409, detail=str(e))
         return snap
+
+    # ---------- POST /{id}/signatures/{sig_id}/revoke ----------
+    @router.post("/{snapshot_id}/signatures/{signature_id}/revoke")
+    async def revoke_sig(snapshot_id: str, signature_id: str,
+                          payload: RevokeSignatureRequest, request: Request):
+        await AuthMiddleware.require_roles(['admin', 'admin_teste', 'super_admin',
+                                             'secretario', 'diretor', 'gerente'])(request)
+        current_user = await AuthMiddleware.get_current_user(request)
+        try:
+            return await svc.revoke_signature(
+                db, snapshot_id=snapshot_id, signature_id=signature_id,
+                rationale=payload.rationale, user=current_user,
+            )
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
 
     # ---------- GET /{id} ----------
     @router.get("/{snapshot_id}")

@@ -33,6 +33,118 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 7: Fluxo Institucional de Validação + Multi-maturidade de Assinatura **[Mai/2026]**
+
+Salto institucional. O documento deixou de ser "do professor" e virou "da
+escola". A coordenação pedagógica agora tem ação executável dentro do
+calendário operacional.
+
+> *Owner: "Sem validação institucional, o documento continua sendo do
+> professor, não da escola."*
+
+#### Backend (3 endpoints novos em `/api/attendance`)
+1. **`POST /api/attendance/{id}/validate`** — valida UMA frequência.
+   Requer `attendance.records.length > 0`. Bumpa `version`. Grava
+   `validated_by`, `validated_by_name`, `validated_by_role`, `validated_at`.
+   Audit log obrigatório com `change_kind=validation`.
+
+2. **`POST /api/attendance/validate-batch`** `{class_id, dates[]}` —
+   internamente roda N validações individuais. Cada uma gera audit_log
+   próprio. Todas compartilham `batch_marker` (UUID) para correlação
+   posterior. **NÃO cria "uma validação única"** — princípio do owner.
+
+3. **`POST /api/attendance/{id}/unvalidate`** `{rationale ≥ 30}` —
+   reverte preservando histórico em `validation_history[]` (append-only).
+   Roles autorizados: quem validou OR admin/super_admin.
+
+Constraints:
+- `EMPTY_RECORDS` (422) se attendance vazia.
+- `ALREADY_VALIDATED` (409) idempotente.
+- `RATIONALE_TOO_SHORT` (422) se rationale < 30.
+- `FORBIDDEN_UNVALIDATE` (403) se não autor original nem admin.
+- `NOT_VALIDATED` (409) se tentar reverter sem validação.
+
+Roles de validação: `coordenador`, `apoio_pedagogico`, `diretor`,
+`secretario`, `admin*`, `super_admin`, `gerente`.
+
+#### Multi-maturidade de Assinatura (suporte aos 3 níveis simultâneos)
+`POST /api/diary/snapshots/{id}/sign` agora aceita `signature_type`:
+
+| signature_type | Validação | Cenário |
+|---------------|-----------|---------|
+| `manual` (default) | nenhuma | Município imprime e assina à caneta. PDF gera linha física. |
+| `image` | `image_file_id` obrigatório | Secretaria com imagem de assinatura cadastrada. PDF embute referência. |
+| `icp_brasil` | `certificate_info` obrigatório | Reservado (futuro). |
+
+Schema do signature:
+```
+{id, role, full_name, signed_by_user_id, signature_type,
+ signed_at, signed_document_hash,
+ image_file_id, certificate_info,
+ ip_address, user_agent,
+ status: "active|revoked",
+ revoked_at, revoked_reason, revoked_by_user_id}
+```
+
+**`POST /api/diary/snapshots/{id}/signatures/{sig_id}/revoke`** —
+revoga PRESERVANDO o objeto (status=revoked + metadados). Diretriz 7
+do owner: nunca delete, sempre marcar. Slot fica liberado para nova
+assinatura do mesmo (role, user).
+
+#### PDF atualizado (`diary_pdf_handler.py`)
+Renderiza assinaturas conforme tipo:
+- **manual**: linha física `________________________`, nome, cargo, data esperada
+- **image**: bloco textual + referência ao file_id + disclaimer "não equivale à assinatura ICP-Brasil"
+- **icp_brasil**: bloco com subject/issuer/valid_until
+- Fallback se nenhuma assinatura: linha física institucional padrão (NUNCA deixa "sem assinatura").
+- Hash vinculado mostrado em todas as maturidades.
+
+#### Endpoint agregador atualizado (`/diary-state`)
+- Inclui `validated_by_name`, `validated_at` em cada `entry` que tem validação.
+- Nova classificação `validated` em `day_status_counts` (peso > complete).
+- `_classify_day` retorna `"validated"` quando **TODOS** entries do dia
+  têm `attendance_status=="validated"`.
+
+#### Frontend (`DiaryCalendar.jsx`)
+- **5 chips** no SummaryBar: Todos / **Validados (verde forte)** / Completos
+  (aguardando validação) / Pendentes / Inconsistências.
+- **Botão "Validar período"** no header (verde) — só aparece se houver
+  dias complete/corrected. Lote com confirmação + audit_log por dia.
+- **Painel de Validação** em CADA slot do drill-down:
+  - Estado `completed` → botão "Validar institucionalmente" (verde).
+  - Estado `validated` → ícone shield + "Validado por X" + "em DD/MM/YYYY HH:MM"
+    + botão "Reverter validação" (cinza, abre prompt obrigatório de rationale).
+- Atualização otimista: após validar, refetch + drill-down se mantém aberto
+  com dados frescos.
+- Toasts (sonner) em todos os fluxos.
+
+#### Testes
+- `tests/test_validation_and_signatures.py` — **11 testes verdes**:
+  1. validate marca campos + audit_log
+  2. blocks empty records (422)
+  3. already_validated (409)
+  4. unvalidate rationale curto (422)
+  5. admin unvalidate preserva validation_history[]
+  6. validate-batch: N audit_logs com batch_marker correlacionado
+  7. validate-batch pula dias sem attendance
+  8. signature manual (default)
+  9. signature image exige file_id
+ 10. signature icp_brasil exige certificate_info
+ 11. revoke_signature preserva objeto + libera slot
+
+**Regressão completa: 77/77 verdes** (66 anteriores + 11 novos).
+
+#### Arquivos
+- 📝 `/app/backend/routers/attendance.py` (+3 endpoints, 2 models, helper `_validate_single`)
+- 📝 `/app/backend/services/diary_snapshot_service.py` (`add_signature` reescrito multi-maturidade + `revoke_signature` novo)
+- 📝 `/app/backend/services/diary_pdf_handler.py` (render 3-tier)
+- 📝 `/app/backend/routers/diary_snapshots.py` (sign request expandido + endpoint revoke)
+- 📝 `/app/backend/routers/calendar_diary_state.py` (validated_by_name nos entries; classify_day reconhece `validated`)
+- 📝 `/app/frontend/src/pages/DiaryCalendar.jsx` (chips, batch button, validation panel no drill-down)
+- ✨ `/app/backend/tests/test_validation_and_signatures.py` (novo, 11 testes)
+
+
+
 ### Diário — Fase 6: Integrity Report da Grade Horária **[Mai/2026]**
 
 Detector arquitetural. Pré-requisito **absoluto** para a Fase 7 (validação

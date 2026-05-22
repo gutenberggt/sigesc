@@ -116,6 +116,11 @@ def _classify_day(entries: list, has_orphan_evidence: bool) -> str:
         for e in entries
     )
     if all_complete:
+        all_validated = all(
+            e["attendance_status"] == "validated" for e in entries
+        )
+        if all_validated:
+            return "validated"
         return "corrected" if has_corrected else "complete"
     return "corrected" if has_corrected else "partial"
 
@@ -209,7 +214,8 @@ def setup_calendar_diary_state_router(db):
             attendances = await db.attendance.find(
                 {"class_id": class_id, "date": {"$in": dates_in_range}},
                 {"_id": 0, "id": 1, "date": 1, "course_id": 1, "aula_numero": 1,
-                 "records": 1, "validated_by": 1, "version": 1, "created_by": 1, "updated_by": 1},
+                 "records": 1, "validated_by": 1, "validated_by_name": 1,
+                 "validated_at": 1, "version": 1, "created_by": 1, "updated_by": 1},
             ).to_list(5000)
 
             content_entries = await db.content_entries.find(
@@ -246,6 +252,12 @@ def setup_calendar_diary_state_router(db):
                 else:
                     entry["attendance_status"] = "draft"
                 entry["attendance_id"] = att["id"]
+                # Fase 7 — exibir metadados da validação na UI sem que ela
+                # precise consultar outro endpoint.
+                if att.get("validated_by"):
+                    entry["validated_by"] = att.get("validated_by")
+                    entry["validated_by_name"] = att.get("validated_by_name")
+                    entry["validated_at"] = att.get("validated_at")
 
             for iso, entries in expected_by_date.items():
                 for e in entries:
@@ -288,7 +300,8 @@ def setup_calendar_diary_state_router(db):
                 "content_drafts": 0,
                 "day_status_counts": {
                     "not_expected": 0, "empty": 0, "partial": 0,
-                    "complete": 0, "corrected": 0, "inconsistent": 0,
+                    "complete": 0, "corrected": 0, "validated": 0,
+                    "inconsistent": 0,
                 },
                 "orphan_attendance_dates": sorted(orphan_attendance_dates),
                 "orphan_content_dates": sorted(orphan_content_dates),

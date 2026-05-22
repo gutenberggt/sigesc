@@ -163,7 +163,8 @@ def test_hash_immutable_after_signature(session):
     assert len(snap_after["signatures"]) == 1
     sig = snap_after["signatures"][0]
     assert sig["signed_document_hash"] == hash_before
-    assert sig["revoked_signature_at"] is None  # diretriz 7
+    assert sig["status"] == "active"  # nova arquitetura: status em vez de campo único
+    assert sig["signature_type"] == "manual"  # default
 
 
 # ============================================================================

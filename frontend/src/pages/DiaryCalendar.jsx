@@ -55,7 +55,9 @@ import {
   Filter,
   ArrowLeft,
   EyeOff,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${API_URL}/api`;
@@ -249,10 +251,12 @@ function SummaryChips({ summary, severityFilter, onSeverityChange }) {
     (dsc.empty || 0) +
     (dsc.corrected || 0) +
     (dsc.inconsistent || 0) +
+    (dsc.validated || 0) +
     (dsc.not_expected || 0);
   const pendentes = dsc.empty || 0;
   const inconsistencias = dsc.inconsistent || 0;
   const completos = (dsc.complete || 0) + (dsc.corrected || 0);
+  const validados = dsc.validated || 0;
 
   const chips = [
     {
@@ -264,10 +268,18 @@ function SummaryChips({ summary, severityFilter, onSeverityChange }) {
       icon: CalendarRange,
     },
     {
+      key: 'validated',
+      label: 'Validados',
+      value: validados,
+      sub: 'homologados pela coordenação',
+      cls: 'bg-emerald-100 text-emerald-900 border-emerald-700 font-semibold',
+      icon: ShieldCheck,
+    },
+    {
       key: 'complete',
       label: 'Completos',
       value: completos,
-      sub: 'slots cumpridos no dia',
+      sub: 'aguardando validação',
       cls: 'bg-emerald-50 text-emerald-900 border-emerald-300',
       icon: CheckCircle2,
     },
@@ -291,7 +303,7 @@ function SummaryChips({ summary, severityFilter, onSeverityChange }) {
 
   return (
     <div
-      className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+      className="grid grid-cols-2 sm:grid-cols-5 gap-3"
       data-testid="summary-bar"
     >
       {chips.map((chip) => {
@@ -451,7 +463,7 @@ function MobileDayRow({ day, onClick }) {
   );
 }
 
-function DayDrillDown({ day, onClose }) {
+function DayDrillDown({ day, onClose, onValidate, onUnvalidate, busyIds }) {
   if (!day) return null;
   const meta = STATUS_META[day.status];
   const Icon = meta.icon;
@@ -554,6 +566,8 @@ function DayDrillDown({ day, onClose }) {
                             className={
                               e.attendance_status === 'missing'
                                 ? 'text-amber-700 border-amber-300'
+                                : e.attendance_status === 'validated'
+                                ? 'text-emerald-800 border-emerald-500 font-semibold'
                                 : 'text-emerald-700 border-emerald-300'
                             }
                           >
@@ -576,6 +590,72 @@ function DayDrillDown({ day, onClose }) {
                           </Badge>
                         </div>
                       </div>
+
+                      {/* Fase 7 — Painel de Validação Institucional */}
+                      {e.attendance_id && (
+                        <div
+                          className="mt-3 pt-3 border-t border-gray-200"
+                          data-testid={`validation-panel-${e.attendance_id}`}
+                        >
+                          {e.attendance_status === 'validated' ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 text-[11px] text-emerald-800">
+                                <ShieldCheck size={12} />
+                                <span className="font-medium">
+                                  Validado por {e.validated_by_name || '—'}
+                                </span>
+                              </div>
+                              {e.validated_at && (
+                                <div className="text-[10px] text-gray-500 ml-4">
+                                  em{' '}
+                                  {new Date(e.validated_at).toLocaleString(
+                                    'pt-BR',
+                                    {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    },
+                                  )}
+                                </div>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-[10px] h-6 px-2 mt-1 text-gray-500 hover:text-red-700"
+                                disabled={busyIds.has(e.attendance_id)}
+                                onClick={() => onUnvalidate(e.attendance_id)}
+                                data-testid={`unvalidate-button-${e.attendance_id}`}
+                              >
+                                {busyIds.has(e.attendance_id) ? (
+                                  <Loader2 size={10} className="animate-spin" />
+                                ) : (
+                                  'Reverter validação'
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            e.attendance_status === 'completed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-[11px] h-7 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                                disabled={busyIds.has(e.attendance_id)}
+                                onClick={() => onValidate(e.attendance_id)}
+                                data-testid={`validate-button-${e.attendance_id}`}
+                              >
+                                {busyIds.has(e.attendance_id) ? (
+                                  <Loader2 size={12} className="animate-spin mr-1" />
+                                ) : (
+                                  <ShieldCheck size={12} className="mr-1" />
+                                )}
+                                Validar institucionalmente
+                              </Button>
+                            )
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -669,6 +749,8 @@ export default function DiaryCalendar() {
   const [error, setError] = useState(null);
   const [drillDown, setDrillDown] = useState(null);
   const [severityFilter, setSeverityFilter] = useState('all');
+  const [busyValidationIds, setBusyValidationIds] = useState(() => new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
 
   const abortRef = useRef(null);
   const defaultedRef = useRef(false);
@@ -773,6 +855,115 @@ export default function DiaryCalendar() {
     fetchState();
   }, [fetchState]);
 
+  // ---------- Fase 7 — Validação Institucional ----------
+  const markBusy = (id, busy) => {
+    setBusyValidationIds((prev) => {
+      const next = new Set(prev);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleValidate = useCallback(
+    async (attendanceId) => {
+      markBusy(attendanceId, true);
+      try {
+        await axios.post(`${API}/attendance/${attendanceId}/validate`);
+        toast.success('Frequência validada institucionalmente.');
+        await fetchState();
+        // Atualiza drilldown ativo, se houver
+        setDrillDown((cur) => {
+          if (!cur) return cur;
+          return { ...cur, _refresh: Date.now() };
+        });
+      } catch (e) {
+        const d = e.response?.data?.detail;
+        const msg =
+          typeof d === 'object'
+            ? d?.message || JSON.stringify(d)
+            : d || 'Falha ao validar.';
+        toast.error(msg);
+      } finally {
+        markBusy(attendanceId, false);
+      }
+    },
+    [fetchState],
+  );
+
+  const handleUnvalidate = useCallback(
+    async (attendanceId) => {
+      const rationale = window.prompt(
+        'Justifique a reversão (mínimo 30 caracteres):',
+      );
+      if (!rationale) return;
+      if (rationale.trim().length < 30) {
+        toast.error('Justificativa deve ter ao menos 30 caracteres.');
+        return;
+      }
+      markBusy(attendanceId, true);
+      try {
+        await axios.post(`${API}/attendance/${attendanceId}/unvalidate`, {
+          rationale,
+        });
+        toast.success('Validação revertida com auditoria registrada.');
+        await fetchState();
+      } catch (e) {
+        const d = e.response?.data?.detail;
+        const msg =
+          typeof d === 'object'
+            ? d?.message || JSON.stringify(d)
+            : d || 'Falha ao reverter validação.';
+        toast.error(msg);
+      } finally {
+        markBusy(attendanceId, false);
+      }
+    },
+    [fetchState],
+  );
+
+  const handleBatchValidate = useCallback(async () => {
+    if (!selectedClass || !data?.days) return;
+    // Coleta dias `complete` (não validados ainda)
+    const eligibleDates = data.days
+      .filter((d) => d.status === 'complete' || d.status === 'corrected')
+      .map((d) => d.date);
+    if (eligibleDates.length === 0) {
+      toast.info('Nenhum dia elegível para validação em lote.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Validar institucionalmente ${eligibleDates.length} dia(s)? ` +
+          'Cada validação será registrada individualmente em auditoria.',
+      )
+    ) {
+      return;
+    }
+    setBatchBusy(true);
+    try {
+      const res = await axios.post(`${API}/attendance/validate-batch`, {
+        class_id: selectedClass,
+        dates: eligibleDates,
+      });
+      const { total_validated, total_skipped } = res.data;
+      toast.success(
+        `${total_validated} validações institucionais registradas` +
+          (total_skipped > 0 ? ` (${total_skipped} ignoradas)` : ''),
+      );
+      await fetchState();
+    } catch (e) {
+      const d = e.response?.data?.detail;
+      const msg =
+        typeof d === 'object'
+          ? d?.message || JSON.stringify(d)
+          : d || 'Falha na validação em lote.';
+      toast.error(msg);
+    } finally {
+      setBatchBusy(false);
+    }
+  }, [selectedClass, data, fetchState]);
+
   // ---------- Navegação de mês ----------
   const goPrev = () => {
     if (month === 1) {
@@ -847,6 +1038,25 @@ export default function DiaryCalendar() {
               evidências de cumprimento institucional.
             </p>
           </div>
+          {/* Fase 7 — Botão de validação em lote */}
+          {data?.summary?.day_status_counts?.complete > 0 && (
+            <Button
+              onClick={handleBatchValidate}
+              disabled={batchBusy || !selectedClass}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white"
+              data-testid="batch-validate-button"
+            >
+              {batchBusy ? (
+                <Loader2 size={16} className="animate-spin mr-2" />
+              ) : (
+                <ShieldCheck size={16} className="mr-2" />
+              )}
+              Validar período (
+              {(data.summary.day_status_counts.complete || 0) +
+                (data.summary.day_status_counts.corrected || 0)}
+              )
+            </Button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -1076,7 +1286,18 @@ export default function DiaryCalendar() {
         {data && !loading && <OrphanEvidenceList summary={data.summary} />}
 
         {/* Drill-down */}
-        <DayDrillDown day={drillDown} onClose={() => setDrillDown(null)} />
+        {/* Drill-down — Sheet lateral com slots e ações de validação institucional */}
+        <DayDrillDown
+          day={
+            drillDown && data?.days
+              ? data.days.find((d) => d.date === drillDown.date) || drillDown
+              : drillDown
+          }
+          onClose={() => setDrillDown(null)}
+          onValidate={handleValidate}
+          onUnvalidate={handleUnvalidate}
+          busyIds={busyValidationIds}
+        />
       </div>
     </Layout>
   );
