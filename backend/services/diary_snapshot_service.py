@@ -197,6 +197,7 @@ async def consolidate_diary_payload(
         period_from=period_from,
         period_to=period_to,
         mantenedora_id=klass.get("mantenedora_id"),
+        school_id=klass.get("school_id"),
     )
     non_school_days: dict = school_cal["non_school_days"]
     explicit_school_days: dict = school_cal["explicit_school_days"]

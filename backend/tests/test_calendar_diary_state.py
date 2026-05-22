@@ -50,9 +50,28 @@ def _clean():
     db.teacher_class_assignments.delete_many({
         "class_id": CLASS_ID, "source": {"$ne": "seed"},
     })
+    # Fase 11: o helper de calendário letivo passou a filtrar dias fora dos
+    # bimestres. Como este test usa datas em 2027 com turma de academic_year
+    # 2026, inserimos um calendario_letivo school-specific cobrindo amplamente.
+    cal_id = f"cal-test-{_RUN_TAG}"
+    db.calendario_letivo.delete_many({"id": cal_id})
+    db.calendario_letivo.insert_one({
+        "id": cal_id,
+        "ano_letivo": 2026,
+        "school_id": "220d4022-ec5e-4fb6-86fc-9233112b87b2",
+        "bimestre_1_inicio": "2026-01-01",
+        "bimestre_1_fim": "2027-12-31",
+        "bimestre_2_inicio": "2026-01-01",
+        "bimestre_2_fim": "2027-12-31",
+        "bimestre_3_inicio": "2026-01-01",
+        "bimestre_3_fim": "2027-12-31",
+        "bimestre_4_inicio": "2026-01-01",
+        "bimestre_4_fim": "2027-12-31",
+    })
     yield
     db.attendance.delete_many({"class_id": CLASS_ID, "date": {"$regex": "^2027-03-"}})
     db.content_entries.delete_many({"class_id": CLASS_ID, "date": {"$regex": "^2027-03-"}})
+    db.calendario_letivo.delete_one({"id": cal_id})
 
 
 @pytest.fixture(scope="module")

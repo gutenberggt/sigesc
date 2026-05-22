@@ -99,6 +99,63 @@ def _create_event(events_created, event_type, start_date, end_date=None, title="
 
 
 # ===========================================================================
+def test_dia_fora_do_periodo_letivo_eh_non_school(session, setup):
+    """Cadastra calendario_letivo com bimestre1=2026-02-03..2026-04-25.
+    Janeiro/2026 deve ser non_school automático (fora do período letivo)."""
+    s = setup
+    cal_id = str(uuid.uuid4())
+    _run(lambda d: d.calendario_letivo.insert_one({
+        "id": cal_id,
+        "ano_letivo": 2026,
+        "school_id": "sch-cal-test",   # mesmo school_id da turma do fixture
+        "bimestre_1_inicio": "2026-02-03",
+        "bimestre_1_fim": "2026-04-25",
+        "bimestre_2_inicio": "2026-04-28",
+        "bimestre_2_fim": "2026-07-04",
+        "bimestre_3_inicio": "2026-07-21",
+        "bimestre_3_fim": "2026-09-26",
+        "bimestre_4_inicio": "2026-09-29",
+        "bimestre_4_fim": "2026-12-19",
+        "dias_letivos_previstos": 200,
+    }))
+    try:
+        # 2026-01-19 = segunda-feira (slot esperado da turma) — mas FORA do letivo
+        r = session.get(
+            f"{BASE_URL}/api/calendar/diary-state/{s['class_id']}",
+            params={"from": "2026-01-19", "to": "2026-01-19"},
+            timeout=20,
+        )
+        assert r.status_code == 200, r.text
+        day = r.json()["days"][0]
+        assert day["status"] == "non_school"
+        assert day["expected_slots"] == 0
+        assert day["school_calendar_event"]["event_type"] == "fora_periodo_letivo"
+
+        # 2026-04-26 (sábado) e 2026-04-27 (domingo) entre bimestres = non_school
+        # 2026-04-27 é segunda — entre bimestre 1 (fim 25/04) e bimestre 2 (início 28/04)
+        r2 = session.get(
+            f"{BASE_URL}/api/calendar/diary-state/{s['class_id']}",
+            params={"from": "2026-04-27", "to": "2026-04-27"},
+            timeout=20,
+        )
+        day2 = r2.json()["days"][0]
+        assert day2["status"] == "non_school"
+        assert day2["school_calendar_event"]["event_type"] == "fora_periodo_letivo"
+
+        # Já 2026-02-09 (segunda dentro do bimestre 1) deve ser dia letivo normal
+        r3 = session.get(
+            f"{BASE_URL}/api/calendar/diary-state/{s['class_id']}",
+            params={"from": "2026-02-09", "to": "2026-02-09"},
+            timeout=20,
+        )
+        day3 = r3.json()["days"][0]
+        assert day3["status"] != "non_school"
+        assert day3["expected_slots"] >= 1
+    finally:
+        _run(lambda d: d.calendario_letivo.delete_one({"id": cal_id}))
+
+
+# ===========================================================================
 def test_holiday_marks_day_as_non_school(session, setup):
     """2026-02-09 é segunda. Criar feriado nesse dia. Dia deve virar 'non_school'."""
     s = setup

@@ -215,6 +215,7 @@ def setup_calendar_diary_state_router(db):
                 period_from=from_,
                 period_to=to,
                 mantenedora_id=klass.get("mantenedora_id"),
+                school_id=klass.get("school_id"),
             )
             non_school_days: dict = school_cal["non_school_days"]
             explicit_school_days: dict = school_cal["explicit_school_days"]
