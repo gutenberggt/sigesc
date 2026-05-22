@@ -33,6 +33,74 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Diário — Fase 5 Frontend: Calendário Operacional **[Mai/2026]**
+
+UI de governança visual do diário escolar — renderizador SEMÂNTICO PURO sobre
+o endpoint agregador `GET /api/calendar/diary-state/{class_id}` criado nas
+rodadas anteriores. NÃO recalcula nada; apenas mapeia os 7 estados retornados
+pelo backend (`inconsistent | empty | validated | corrected | partial |
+complete | not_expected`) para a paleta definida em
+`/app/design_guidelines.json`.
+
+#### Arquivos
+- `/app/frontend/src/pages/DiaryCalendar.jsx` — página principal.
+- Rota: `/admin/diary-calendar` (App.js).
+- Menu: "Calendário do Diário" em **Gestão Pedagógica** (Dashboard.js).
+- Permissão: super_admin, gerente, admin/admin_teste, secretario, diretor,
+  coordenador, apoio_pedagogico, auxiliar_secretaria, professor, semed*.
+
+#### Diretrizes obeídas (16 do owner)
+1. ✅ Ferramenta operacional, não dashboard decorativo.
+2. ✅ Default = primeira escola visível ao usuário + ano corrente + mês corrente.
+3. ✅ Role-based: professor/SchoolStaff limitados a `user.school_ids`;
+     admin/SEMED veem todas.
+4. ✅ Lazy loading por mês (range 1 mês). Nunca carrega ano inteiro.
+5. ✅ Semântica triplicada — cor + ícone (lucide) + label + tooltip.
+6. ✅ `not_expected` quase invisível (`opacity-50`, sem badge forte).
+7. ✅ `inconsistent` com `ring-2 ring-red-600 ring-inset` (impossível ignorar).
+8. ✅ Drill-down via Sheet lateral — frequência, status, professores
+     esperados, conteúdos, horários, badges de status.
+9. ✅ Frontend NÃO infere estado. Mapeia 1:1 o que o backend devolveu.
+10. ✅ Modo gestão: filtro de severidade nas chips do SummaryBar
+      (clicar em "Pendentes" → highlight do chip ativo).
+11. ✅ Célula compacta: número, ícone, label, contagem de aulas,
+      micro-indicadores. Detalhe fica no drill-down.
+12. ✅ Performance: `Skeleton` durante load, `AbortController` em filtros,
+      seleção sob demanda (anti race-condition via `defaultedRef`).
+13. ✅ Menu visível em primeiro nível ("Calendário do Diário").
+14. ✅ URL: `/admin/diary-calendar`.
+15. ✅ Foco: descobrir inconsistências reais, não estética.
+16. ✅ Coordenação bate o olho e entende: SummaryBar bold + grid colorido +
+      legenda fixa.
+
+#### Componentes principais (todos no mesmo arquivo)
+- `Legend` — barra horizontal com 7 estados (sempre visível).
+- `SummaryChips` — bento de 4 chips clicáveis (severity filter).
+- `DayCell` (desktop) — grid 7 colunas, `min-h-[120px]`, com semântica visual,
+  ring vermelho destacado em `inconsistent`, `opacity-50` em `not_expected`.
+- `MobileDayRow` — lista vertical ordenada por severidade no `<md`, esconde
+  `not_expected` integralmente.
+- `DayDrillDown` — `Sheet` lateral com resumo + lista de slots
+  (`Aula N`, professor, componente, horário, badges de attendance/content).
+- `OrphanEvidenceList` — bloco vermelho separado quando `summary` traz
+  `orphan_attendance_dates` ou `orphan_content_dates`.
+
+#### Tests
+- `/app/test_reports/iteration_80.json` — Frontend E2E: **100% verde,
+  zero issues**. 16 diretrizes do owner validadas explicitamente. Validado
+  com `Escola Teste Multisseriada → Turma Multi 1-2-3 → Maio 2026`:
+  21 dias `empty` (Seg-Sex) + 10 `not_expected` (Sáb/Dom); drill-down do
+  dia 04/05 traz 2 slots (Aula 1 + Aula 2) da professora Ricleide.
+
+#### Refactoring sugerido para próximas rodadas (não-bloqueante)
+- Splitar `DiaryCalendar.jsx` (~1083 linhas) em sub-componentes em
+  `/components/diary-calendar/`.
+- Centralizar `axios.get` em `services/api.js` (`calendarAPI`).
+- Importar `STATUS_META` diretamente de `design_guidelines.json` em vez de
+  duplicar.
+
+
+
 ### Bolsa Família — Fase 3B: Dashboard Operacional Busca Ativa **[Fev/2026]**
 
 Painel **operacional** (não decorativo) que responde "Onde agir primeiro?"
