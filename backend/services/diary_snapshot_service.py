@@ -202,11 +202,12 @@ async def consolidate_diary_payload(
                 iso = day.isoformat()
                 expected_by_date.setdefault(iso, []).append({
                     "component_id": a.get("component_id"),
-                    "component_name": a.get("component_id"),  # fallback até mapping da Fase 9
+                    "component_name": a.get("component_name") or a.get("component_id"),
                     "aula_numero": aula,
                     "teacher_id": a.get("teacher_id"),
                     "teacher_name": a.get("teacher_name"),
                     "assignment_id": a["id"],
+                    "assignment_source": a.get("source") or "canonical",
                     "is_substitute": a.get("is_substitute", False),
                     "attendance_status": "missing",
                     "content_status": "missing",

@@ -97,27 +97,31 @@ async def build_assignments_from_legacy(
                 class_id, cid, len(lst),
             )
 
-    # Resolve nomes de professores em batch (1 query)
+    # Resolve nomes de professores em batch.
+    # `teacher_assignments.staff_id` aponta para a collection `staff` na maioria
+    # das instalações; algumas escolas têm o mesmo id também em `users`.
+    # Estratégia: tenta `staff` primeiro (fonte canônica de servidores),
+    # depois fallback em `users` para o que sobrar.
     staff_ids = {lst[0]["staff_id"] for lst in by_course.values() if lst}
     staff_names: dict[str, str] = {}
     if staff_ids:
-        users_cur = db.users.find(
+        staff_cur = db.staff.find(
             {"id": {"$in": list(staff_ids)}},
-            {"_id": 0, "id": 1, "full_name": 1},
+            {"_id": 0, "id": 1, "full_name": 1, "name": 1, "nome": 1},
         )
-        async for u in users_cur:
-            staff_names[u["id"]] = u.get("full_name") or ""
-        # Fallback: alguns sistemas guardam staff em outra collection
+        async for s in staff_cur:
+            nm = s.get("full_name") or s.get("name") or s.get("nome")
+            if nm:
+                staff_names[s["id"]] = nm
         missing = staff_ids - set(staff_names.keys())
         if missing:
-            staff_cur = db.staff.find(
+            users_cur = db.users.find(
                 {"id": {"$in": list(missing)}},
-                {"_id": 0, "id": 1, "full_name": 1, "name": 1},
+                {"_id": 0, "id": 1, "full_name": 1},
             )
-            async for s in staff_cur:
-                staff_names[s["id"]] = (
-                    s.get("full_name") or s.get("name") or ""
-                )
+            async for u in users_cur:
+                if u.get("full_name"):
+                    staff_names[u["id"]] = u["full_name"]
 
     slot_times = schedule.get("slot_times") or {}
 
@@ -132,17 +136,19 @@ async def build_assignments_from_legacy(
     # Agrupa slots por (course_id, teacher_id) → lista de (weekday, aula_numero)
     # Isso casa com o shape do modelo novo: 1 assignment com weekly_slots[].
     grouped: dict[tuple, list[dict]] = {}
+    course_names: dict[str, str] = {}
     for slot in schedule["schedule_slots"]:
         course_id = slot.get("course_id")
         aula_numero = slot.get("slot_number") or slot.get("aula_numero")
         weekday = _normalize_day(slot.get("day") or slot.get("weekday"))
         if not course_id or not aula_numero or not weekday:
             continue
+        # Preserva course_name do slot para resolver component_name depois
+        if slot.get("course_name") and course_id not in course_names:
+            course_names[course_id] = slot["course_name"]
         teachers = by_course.get(course_id) or []
         teacher_id = teachers[0]["staff_id"] if teachers else None
         if not teacher_id:
-            # Slot sem professor — preserva o slot mas com teacher_id=None.
-            # O snapshot pode flagar pra auditoria. Não explode.
             logger.warning(
                 "[legacy_bridge] schedule slot without teacher "
                 "class_id=%s course_id=%s aula=%d weekday=%d",
@@ -157,6 +163,20 @@ async def build_assignments_from_legacy(
             "end_time": end_t,
         })
 
+    # Fallback de course_name: se algum course não veio nomeado nos slots,
+    # busca em `courses` collection.
+    missing_course_ids = set(grouped.keys()) and {
+        cid for (cid, _) in grouped.keys() if cid not in course_names
+    }
+    if missing_course_ids:
+        courses_cur = db.courses.find(
+            {"id": {"$in": list(missing_course_ids)}},
+            {"_id": 0, "id": 1, "name": 1},
+        )
+        async for c in courses_cur:
+            if c.get("name"):
+                course_names[c["id"]] = c["name"]
+
     # Monta os assignments sintéticos
     bridged: list[dict] = []
     for (course_id, teacher_id), slots in grouped.items():
@@ -168,9 +188,11 @@ async def build_assignments_from_legacy(
             "school_id": class_doc.get("school_id"),
             "mantenedora_id": class_doc.get("mantenedora_id"),
             "component_id": course_id,    # legacy course_id → component_id
+            "component_name": course_names.get(course_id),
             "course_id": course_id,        # preserva também o nome legacy
+            "course_name": course_names.get(course_id),
             "teacher_id": teacher_id,
-            "teacher_name": staff_names.get(teacher_id or "", ""),
+            "teacher_name": staff_names.get(teacher_id or "") or None,
             "weekly_slots": slots,
             "valid_from": valid_from,
             "valid_until": valid_until,

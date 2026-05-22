@@ -84,9 +84,9 @@ def legacy_class_setup():
         "course_id": course_id, "academic_year": 2026,
         "carga_horaria_semanal": 2, "status": "ativo",
     }))
-    _run(lambda d: d.users.insert_one({
+    # staff é fonte canônica de servidores (teacher_assignments.staff_id → staff.id)
+    _run(lambda d: d.staff.insert_one({
         "id": teacher_id, "full_name": "Prof Bridge Test",
-        "role": "professor",
     }))
 
     yield {
@@ -98,7 +98,7 @@ def legacy_class_setup():
     _run(lambda d: d.classes.delete_one({"id": class_id}))
     _run(lambda d: d.class_schedules.delete_one({"id": schedule_id}))
     _run(lambda d: d.teacher_assignments.delete_one({"id": ta_id}))
-    _run(lambda d: d.users.delete_one({"id": teacher_id}))
+    _run(lambda d: d.staff.delete_one({"id": teacher_id}))
     _run(lambda d: d.attendance.delete_many({"class_id": class_id}))
     _run(lambda d: d.teacher_class_assignments.delete_many({"class_id": class_id}))
     _run(lambda d: d.diary_snapshots.delete_many({"class_id": class_id}))
@@ -123,9 +123,12 @@ def test_scenario_1_legacy_puro_reconhece_slots(session, legacy_class_setup):
     # Quarta-feira não está na grade
     assert by_date["2026-02-04"]["expected_slots"] == 0
     assert by_date["2026-02-04"]["status"] == "not_expected"
-    # Entry deve trazer o teacher resolvido
+    # Entry deve trazer o teacher resolvido + nome legível + componente legível
     entries = by_date["2026-02-02"]["entries"]
     assert entries[0]["teacher_id"] == s["teacher_id"]
+    assert entries[0]["teacher_name"] == "Prof Bridge Test"
+    assert entries[0]["component_name"] == "MAT"
+    assert entries[0]["assignment_source"] == "legacy_bridge"
 
 
 # ===========================================================================
