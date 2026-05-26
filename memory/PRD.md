@@ -68,6 +68,42 @@ padrão NÃO se repete em nenhum outro router.
 responde 401 sem auth (correto).
 
 
+### Dependência de estudos em turma multisseriada — seletor de série **[Fev/2026]** ✅ LOCAL
+
+**Problema:** modal "Vincular componente em dependência" lista componentes
+de turmas multisseriadas misturando séries (ex.: turma "6º E 7º ANO MULTI"
+mostra componentes do 6º e 7º junto). Coordenador/secretário não consegue
+definir qual SÉRIE específica o aluno cursará na dependência.
+
+**Solução (escopo cirúrgico, conservador):**
+- Backend (`/api/classes/{id}/curriculum`): expõe `is_multi_grade`, `series`,
+  e `grade_levels` em cada componente. Sem mudança de contrato — só campos
+  adicionais retro-compat.
+- Frontend (`StudentDependencySection.jsx::AddDependencyModal`): novo
+  dropdown **"Série da dependência"** que aparece APENAS quando turma destino
+  tem `is_multi_grade=true` E `series.length >= 2`. Multi com `series=[única]`
+  segue caminho normal (sem ambiguidade — coerente com Sprint 1.2).
+- Filtragem de componentes client-side por `grade_levels.includes(série)`.
+  Componentes sem `grade_levels` (vazio) interpretados como "aplica a todas
+  as séries" (defensivo, evita esconder componente legacy).
+- Botão "Vincular" + select de Componente desabilitados até série ser
+  selecionada (quando aplicável).
+- Validação no submit + mensagem amigável.
+
+**Modelo:** `StudentDependencyBase.target_series: Optional[str]`. Para turmas
+regulares fica `None` (série efetiva já vem de `classes.grade_level`).
+
+**Arquivos:**
+- `/app/backend/routers/classes.py` — payload de `/curriculum` enriquecido
+- `/app/backend/models.py` — campo novo `target_series`
+- `/app/frontend/src/components/StudentDependencySection.jsx` — dropdown
+  condicional + filtragem + estado `selectedSeries`
+
+**Validação local:** 52/52 testes verdes (sem regressão), lint JS+Py limpo,
+backend/frontend supervisord saudável.
+
+
+
 ### Sprint 1.2 — Backfill `student_series` **[Fev/2026]** ✅ LOCAL (pronto pra deploy)
 
 > *Owner: "validar 1.497 processados, 0 perda de aluno, 0 null inesperado,

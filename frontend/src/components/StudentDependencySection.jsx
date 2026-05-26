@@ -282,10 +282,11 @@ function isAnosFinaisClass(cls) {
 function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSaved }) {
   const [schools, setSchools] = useState([]);
   const [allClasses, setAllClasses] = useState([]);
-  const [classCurriculum, setClassCurriculum] = useState([]); // componentes da turma selecionada
+  const [classCurriculum, setClassCurriculum] = useState(null); // resposta crua do /curriculum (com is_multi_grade/series)
   const [loadingCurriculum, setLoadingCurriculum] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSeries, setSelectedSeries] = useState(''); // [Fev/2026] série da dependência (multisseriada)
   const [selectedCourse, setSelectedCourse] = useState('');
   const [originYear, setOriginYear] = useState(new Date().getFullYear() - 1);
   const [academicYear] = useState(new Date().getFullYear());
@@ -314,7 +315,7 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
   // (class.course_ids ∪ teacher_assignments) via endpoint dedicado.
   useEffect(() => {
     if (!selectedClass) {
-      setClassCurriculum([]);
+      setClassCurriculum(null);
       return;
     }
     let cancelled = false;
@@ -322,12 +323,12 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
     classesAPI.getCurriculum(selectedClass)
       .then((data) => {
         if (cancelled) return;
-        setClassCurriculum(data?.components || []);
+        setClassCurriculum(data || null);
       })
       .catch((e) => {
         if (cancelled) return;
         console.error('[AddDependencyModal] erro ao carregar currículo:', e);
-        setClassCurriculum([]);
+        setClassCurriculum(null);
       })
       .finally(() => { if (!cancelled) setLoadingCurriculum(false); });
     return () => { cancelled = true; };
@@ -339,25 +340,56 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
     ? allClasses.filter((c) => c.school_id === selectedSchool && isAnosFinaisClass(c))
     : [];
 
-  // Componentes: matriz curricular oficial da turma (endpoint /curriculum).
-  const filteredCourses = classCurriculum;
+  // [Fev/2026] Detecção de multisseriada para mostrar seletor de série.
+  // Considera multi APENAS quando is_multi_grade=true E series.length >= 2.
+  // Multi com series=[única] cai no caminho normal (sem ambiguidade).
+  const isMultiGradeWithChoice = !!(classCurriculum
+    && classCurriculum.is_multi_grade
+    && Array.isArray(classCurriculum.series)
+    && classCurriculum.series.length >= 2);
+
+  const allComponents = classCurriculum?.components || [];
+
+  // Filtragem por série quando multisseriada:
+  //   - componente com grade_levels vazio = aplica a todas → mantém
+  //   - componente com grade_levels = ["6º Ano",...] → mostra só se inclui a série escolhida
+  const filteredCourses = isMultiGradeWithChoice
+    ? (selectedSeries
+        ? allComponents.filter((c) =>
+            !c.grade_levels || c.grade_levels.length === 0
+            || c.grade_levels.includes(selectedSeries))
+        : [] // sem série escolhida → não mostra componentes ainda
+      )
+    : allComponents;
 
   // Ao trocar de escola, limpa a turma selecionada para evitar estado inválido.
   const handleSchoolChange = (e) => {
     setSelectedSchool(e.target.value);
     setSelectedClass('');
+    setSelectedSeries('');
     setSelectedCourse('');
   };
 
-  // Ao trocar de turma, limpa o componente selecionado (currículo é específico).
+  // Ao trocar de turma, limpa série + componente.
   const handleClassChange = (e) => {
     setSelectedClass(e.target.value);
+    setSelectedSeries('');
+    setSelectedCourse('');
+  };
+
+  // Ao trocar de série (multisseriada), limpa componente (filtragem muda).
+  const handleSeriesChange = (e) => {
+    setSelectedSeries(e.target.value);
     setSelectedCourse('');
   };
 
   const handleSave = async () => {
     if (!selectedSchool || !selectedClass || !selectedCourse) {
       setError('Selecione escola, turma e componente.');
+      return;
+    }
+    if (isMultiGradeWithChoice && !selectedSeries) {
+      setError('Selecione a série da dependência (turma multisseriada).');
       return;
     }
     setSaving(true);
@@ -370,6 +402,10 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
         course_id: selectedCourse,
         academic_year: academicYear,
         origin_academic_year: parseInt(originYear, 10),
+        // [Fev/2026] Série da dependência só quando turma destino é multisseriada
+        // com 2+ séries. Para turmas regulares fica null (backend infere por
+        // classes.grade_level).
+        target_series: isMultiGradeWithChoice ? selectedSeries : null,
       });
       await onSaved();
     } catch (e) {
@@ -443,21 +479,53 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
           </p>
         )}
 
+        {/* [Fev/2026] Seletor de Série da dependência — APENAS para turmas
+            multisseriadas com 2+ séries. Para turmas regulares ou multi
+            com series=[única] não aparece (sem ambiguidade). */}
+        {isMultiGradeWithChoice && (
+          <>
+            <label className="block text-xs font-medium mb-1" data-testid="dep-series-label">
+              Série da dependência
+              <span className="ml-1 inline-block bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wide">
+                turma multisseriada
+              </span>
+            </label>
+            <select
+              value={selectedSeries}
+              onChange={handleSeriesChange}
+              className="w-full border rounded p-2 text-sm mb-1"
+              data-testid="dep-series-select"
+            >
+              <option value="">— Selecione a série —</option>
+              {classCurriculum.series.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-amber-700 mb-3 italic" data-testid="dep-series-hint">
+              Esta turma atende {classCurriculum.series.length} séries. A escolha
+              filtra os componentes curriculares correspondentes àquela série.
+            </p>
+          </>
+        )}
+
         <label className="block text-xs font-medium mb-1">Componente curricular</label>
         <select
           value={selectedCourse}
           onChange={(e) => setSelectedCourse(e.target.value)}
           className="w-full border rounded p-2 text-sm mb-1 disabled:bg-gray-50 disabled:text-gray-400"
           data-testid="dep-course-select"
-          disabled={!selectedClass || loadingCurriculum}
+          disabled={!selectedClass || loadingCurriculum
+            || (isMultiGradeWithChoice && !selectedSeries)}
         >
           <option value="">
             {!selectedClass
               ? '— Selecione uma turma primeiro —'
-              : loadingCurriculum
-                ? 'Carregando matriz curricular…'
-                : filteredCourses.length === 0
-                  ? '— Turma sem matriz curricular cadastrada —'
+              : (isMultiGradeWithChoice && !selectedSeries)
+                ? '— Selecione a série primeiro —'
+                : loadingCurriculum
+                  ? 'Carregando matriz curricular…'
+                  : filteredCourses.length === 0
+                    ? '— Turma sem matriz curricular cadastrada —'
                   : '— Selecione —'}
           </option>
           {filteredCourses.map((c) => (
@@ -466,14 +534,15 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
         </select>
         {selectedClass && !loadingCurriculum && filteredCourses.length > 0 && (
           <p className="text-[10px] text-gray-500 mb-3" data-testid="dep-course-hint">
-            {filteredCourses.length} componente(s) vinculado(s) a esta turma.
+            {filteredCourses.length} componente(s) {isMultiGradeWithChoice ? `da série ${selectedSeries} ` : ''}vinculado(s) a esta turma.
           </p>
         )}
-        {selectedClass && !loadingCurriculum && filteredCourses.length === 0 && (
+        {selectedClass && !loadingCurriculum && filteredCourses.length === 0
+          && !(isMultiGradeWithChoice && !selectedSeries) && (
           <p className="text-[10px] text-amber-700 mb-3" data-testid="dep-course-empty">
-            A turma selecionada não tem componentes curriculares cadastrados
-            (nem em matriz própria, nem via vínculo de professores).
-            Cadastre a matriz curricular antes de vincular dependência.
+            {isMultiGradeWithChoice
+              ? `Nenhum componente da série ${selectedSeries} vinculado a esta turma. Cadastre a matriz curricular antes de vincular dependência.`
+              : 'A turma selecionada não tem componentes curriculares cadastrados (nem em matriz própria, nem via vínculo de professores). Cadastre a matriz curricular antes de vincular dependência.'}
           </p>
         )}
 
@@ -503,7 +572,8 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
           >Cancelar</button>
           <button
             onClick={handleSave}
-            disabled={saving || !selectedSchool || !selectedClass || !selectedCourse}
+            disabled={saving || !selectedSchool || !selectedClass || !selectedCourse
+              || (isMultiGradeWithChoice && !selectedSeries)}
             className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
             data-testid="dep-save-btn"
           >{saving ? 'Salvando…' : 'Vincular'}</button>

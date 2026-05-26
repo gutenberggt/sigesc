@@ -242,7 +242,8 @@ def setup_router(db, audit_service, sandbox_db=None):
         cls = await current_db.classes.find_one(
             {"id": class_id},
             {"_id": 0, "id": 1, "name": 1, "course_ids": 1, "school_id": 1,
-             "academic_year": 1, "atendimento_programa": 1},
+             "academic_year": 1, "atendimento_programa": 1,
+             "is_multi_grade": 1, "series": 1, "grade_level": 1},
         )
         if not cls:
             raise HTTPException(
@@ -272,7 +273,7 @@ def setup_router(db, audit_service, sandbox_db=None):
             docs = await current_db.courses.find(
                 {"id": {"$in": ordered_ids}},
                 {"_id": 0, "id": 1, "name": 1, "active": 1,
-                 "atendimento_programa": 1, "optativo": 1},
+                 "atendimento_programa": 1, "optativo": 1, "grade_levels": 1},
             ).to_list(500)
             by_id = {d["id"]: d for d in docs}
             for cid in ordered_ids:
@@ -285,6 +286,11 @@ def setup_router(db, audit_service, sandbox_db=None):
                     "active": bool(d.get("active", True)),
                     "atendimento_programa": d.get("atendimento_programa") or "regular",
                     "optativo": bool(d.get("optativo", False)),
+                    # [Fev/2026] Lista de séries para que o front filtre componentes
+                    # quando a turma é multisseriada (2+ séries). Vem do cadastro
+                    # do componente em `courses.grade_levels`. Pode ser vazio →
+                    # interpreta como "aplica a todas as séries da turma".
+                    "grade_levels": d.get("grade_levels") or [],
                 })
         # Ordena alfabeticamente para UI estável
         components.sort(key=lambda c: (c.get("name") or "").casefold())
@@ -295,6 +301,12 @@ def setup_router(db, audit_service, sandbox_db=None):
             "school_id": cls.get("school_id"),
             "academic_year": cls.get("academic_year"),
             "atendimento_programa": cls.get("atendimento_programa") or "regular",
+            # [Fev/2026] Necessário para o modal de Dependência de Estudos
+            # decidir se mostra o seletor "Série da dependência" antes do
+            # componente curricular (case multisseriada).
+            "is_multi_grade": bool(cls.get("is_multi_grade")),
+            "series": cls.get("series") or [],
+            "grade_level": cls.get("grade_level"),
             "sources": {
                 "class_course_ids_count": len(cls.get("course_ids") or []),
                 "teacher_assignments_count": len(ordered_ids) - len(cls.get("course_ids") or []),

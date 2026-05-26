@@ -1144,6 +1144,11 @@ class StudentDependencyBase(BaseModel):
     origin_academic_year: int  # Ano de origem da dependência (quando reprovou)
     origin_class_id: Optional[str] = None  # Turma original onde reprovou
     origin_series: Optional[str] = None  # Série original
+    # [Fev/2026] target_series — série em que o aluno cursará a dependência
+    # DENTRO da turma destino. Preenchido APENAS quando a turma destino é
+    # multisseriada com 2+ séries (campo escolhido na UI). Para turmas
+    # regulares fica None e a série efetiva é inferida via `classes.grade_level`.
+    target_series: Optional[str] = None
     
     status: Literal['active', 'completed', 'failed', 'cancelled'] = 'active'
     # [Fev/2026] status_reason — motivo da mudança de status. Crítico para casos de
