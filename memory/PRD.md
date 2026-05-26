@@ -33,6 +33,54 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Sprint 1.1.E — Padrão reutilizável `with_critical_mutation` **[Fev/2026]** ✅ LOCAL
+
+> *Owner: "se você NÃO fizer (e) agora, você está aceitando replicar manualmente
+> o Sprint 1.1 em cada operação futura — dívida operacional em 2–3 sprints."*
+
+Extração arquitetural do Sprint 1.1: as 3 camadas (idempotência + lock +
+audit) viraram um padrão reutilizável em `/app/backend/lib/critical_mutation.py`.
+
+**Arquivos novos/alterados:**
+- `/app/backend/lib/__init__.py` — pacote `lib` para utilitários internos
+- `/app/backend/lib/critical_mutation.py` — orquestrador + helpers genéricos
+- `/app/backend/routers/dedup_enrollments.py` — refatorado para usar a lib
+  (re-exports mantêm backward-compat com tests)
+- `/app/backend/tests/test_critical_mutation.py` — 7 testes da abstração
+
+**API do orquestrador:**
+```python
+from lib.critical_mutation import with_critical_mutation
+
+return await with_critical_mutation(
+    db, target="<seu_target>", actor=user,
+    request=request, response=response,
+    executor=lambda: my_work(),
+    runs_collection="<your>_runs",
+    locks_collection="<your>_locks",
+    idempotency_collection="<your>_idempotency",
+)
+```
+
+O `executor` retorna `{"mode": "...", "summary": {...}, "diff": {...}, "payload": {...}}`.
+O wrapper injeta `run_id`, `started_at`, `finished_at`, `duration_ms` no payload.
+
+**Decisões de design:**
+- Coleções são parâmetros **explícitos** (não defaults mágicos) → clareza e
+  preserva trilhas históricas separadas (Sprint 1.0 continua em `dedup_runs`).
+- `Idempotency-Key`/lock TTL configurável via env: `CRITICAL_MUTATION_IDEMPOTENCY_TTL_HOURS` (24h), `CRITICAL_MUTATION_LOCK_TTL_SECONDS` (600).
+- Re-exports em `dedup_enrollments.py` (`_normalize_created_at`, `_record_dedup_run`, `_acquire_lock`, etc.) preservam compat com 28 testes herdados.
+
+**Pronto para reutilização imediata em (sem reescrever lógica):**
+- `dedup_disabilities[]` (Sprint 1.2)
+- `migrate_student_series` (Sprint 1.3)
+- `delete_orphan_atendimento_aee` (Sprint 1.2)
+- qualquer endpoint destrutivo futuro
+
+**Validação:** 35/35 testes verdes · lint limpo · backend supervisord saudável
+após reload · endpoints respondem 401 (auth corretamente aplicada).
+
+
 ### Sprint 1.1 — Hardening (Idempotência + Lock + Fingerprint) **[Fev/2026]** ✅ LOCAL
 
 > *Owner: "o próximo risco real não é bug — é execução duplicada ou
