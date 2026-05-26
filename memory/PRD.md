@@ -33,6 +33,51 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Sprint 1.0 — Saneamento de Matrículas Duplicadas **[Fev/2026]** ✅ FECHADO
+
+> *Owner: "execute o apply agora, uma vez, manualmente, e valide imediatamente
+> o estado no banco — não apenas o retorno da API."*
+
+Resolveu 195 matrículas duplicadas (194 alunos afetados) com governança
+auditável, validação DB-direct pré/pós e zero regressão.
+
+**Métricas de execução em prod (26/Mai/2026):**
+- baseline: 5857 alunos · 4591 matrículas ativas · 194 grupos duplicados · 0 deduped
+- apply: `inactivated=195` em 599ms (run_id `6607e968-e1ad-4a47-b2d4-c4888a899e2d`)
+- pós: 5857 alunos (idêntico) · 4396 ativas (=4591-195) · 195 deduped · **0 duplicados restantes** · **0 regressões**
+
+**Regra de canonical aplicada (combo "i" aprovada pelo owner):**
+1. Preferência por matrícula cujo `school_id == students.school_id`
+2. Entre preferenciais, a mais recente (`created_at`)
+3. Fallback: mais recente de todas
+
+**Fix técnico que destravou o sprint:**
+- `TypeError: can't compare offset-naive and offset-aware datetimes` em
+  `_find_duplicate_enrollments` ao misturar `created_at` tz-naive e tz-aware
+- Solução: função `_normalize_created_at` que força UTC tz-aware (módulo `routers/dedup_enrollments.py`)
+- 13 testes em `tests/test_dedup_enrollments.py` (5 são regressão do bug)
+
+**Trilha de auditoria — coleção `dedup_runs` (Sprint 1.0):**
+- `run_id` (uuid único), `mode` (`dry_run|apply`), `target`, `summary`, `diff`
+  (`duplicates_removed[]`, `kept_records[]`), `actor`, `environment`, timestamps
+- Índices lazy: `run_id` unique + `created_at` desc + `mode` + `actor.user_id`
+- Endpoints novos:
+  - `GET /api/admin/students/dedup-runs?mode=&target=&limit=&skip=`
+  - `GET /api/admin/students/dedup-runs/{run_id}`
+- Diff completo (195 + 194 itens) ainda cabe folgado no limite de 16MB do Mongo
+  (~30KB por run). **TODO v2 (pós-estabilização):** sampling + CSV anexo quando
+  `would_inactivate > 500`.
+
+**Backlog gerado pela operação:**
+- 94 alunos órfãos legítimos (sem matrícula ativa): 86 `transferred`, 4 `cancelled`,
+  2 `relocated`, 2 mistos. Pré-existentes — não causados pelo apply. Limpeza
+  cadastral separada.
+- `ENVIRONMENT=prod` não setado no Coolify (registros gravam `environment="unknown"`).
+  Não-bloqueante; setar no painel de Env Vars do app backend.
+- Apostergado: `idempotency_key` + lock de execução para o endpoint dedup
+  (entram quando houver demanda real de execução repetida).
+
+
 ### Diário — Fase 10: Matching Pedagógico Flexível **[Fev/2026]**
 
 > *Owner: "Não é afrouxar o Diário. É reconhecer que a semântica de slot só
