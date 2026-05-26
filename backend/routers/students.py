@@ -433,9 +433,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 race_key = "nao_informada"
             race_counts[race_key] = doc["count"]
 
-        # Contagem por série (student_series). Fonte canônica:
-        # `enrollments.student_series` (matrícula ATIVA), com fallback para
-        # `students.student_series` quando não houver matrícula.
+        # Contagem por série (student_series).
+        # Fonte: `students.student_series` diretamente (mesmo critério usado
+        # pelas queries de auditoria do administrador).
         #
         # IMPORTANTE: a normalização (uppercase + canonicalização) é feita
         # em Python — NÃO em MongoDB. `$toUpper` do MongoDB só opera sobre
@@ -445,29 +445,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         # corretamente.
         series_pipeline = [
             {"$match": active_filter},
-            {"$lookup": {
-                "from": "enrollments",
-                "let": {"sid": "$id"},
-                "pipeline": [
-                    {"$match": {"$expr": {"$and": [
-                        {"$eq": ["$student_id", "$$sid"]},
-                        {"$eq": ["$status", "active"]},
-                    ]}}},
-                    {"$project": {"_id": 0, "student_series": 1, "class_id": 1}},
-                    {"$limit": 1},
-                ],
-                "as": "_enr",
-            }},
-            {"$addFields": {
-                "_series_effective": {
-                    "$ifNull": [
-                        {"$arrayElemAt": ["$_enr.student_series", 0]},
-                        "$student_series",
-                    ]
-                }
-            }},
             {"$group": {
-                "_id": "$_series_effective",  # raw (sem $toUpper) — normaliza em Python
+                "_id": "$student_series",  # raw — normaliza em Python
                 "count": {"$sum": 1},
             }},
         ]
@@ -484,36 +463,16 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 key_canon = key_canon[4:]
             series_counts_raw[key_canon] = series_counts_raw.get(key_canon, 0) + doc["count"]
 
-        # Contagem por modalidade. Usa `enrollments.class_id` como fonte
-        # canônica (matrícula ATIVA), com fallback para `students.class_id`.
-        # Junta com `classes` para extrair `atendimento_programa`.
+        # Contagem por modalidade da turma (classes.atendimento_programa).
+        # Fonte: `students.class_id` diretamente, juntado com `classes`.
         # Regular = atendimento_programa None/vazio.
+        # Integral, Recomp. = valores específicos.
+        # (AEE é calculado SEPARADAMENTE via coleção `planos_aee`.)
         modalidade_pipeline = [
             {"$match": active_filter},
             {"$lookup": {
-                "from": "enrollments",
-                "let": {"sid": "$id"},
-                "pipeline": [
-                    {"$match": {"$expr": {"$and": [
-                        {"$eq": ["$student_id", "$$sid"]},
-                        {"$eq": ["$status", "active"]},
-                    ]}}},
-                    {"$project": {"_id": 0, "class_id": 1}},
-                    {"$limit": 1},
-                ],
-                "as": "_enr",
-            }},
-            {"$addFields": {
-                "_class_id_effective": {
-                    "$ifNull": [
-                        {"$arrayElemAt": ["$_enr.class_id", 0]},
-                        "$class_id",
-                    ]
-                }
-            }},
-            {"$lookup": {
                 "from": "classes",
-                "localField": "_class_id_effective",
+                "localField": "class_id",
                 "foreignField": "id",
                 "as": "_class",
             }},
