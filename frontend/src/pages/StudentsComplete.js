@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap, UserX } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap, UserX, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { StudentDependencySection } from '@/components/StudentDependencySection';
@@ -298,6 +298,22 @@ export function StudentsComplete() {
   const [raceCounts, setRaceCounts] = useState({});
   const [seriesCounts, setSeriesCounts] = useState({});
   const [modalidadeCounts, setModalidadeCounts] = useState({});
+  // Accordion "Indicadores da Rede" — persistido em localStorage. Padrão: expandido.
+  const INDICATORS_STORAGE_KEY = 'sigesc.students.indicators.collapsed';
+  const [indicatorsCollapsed, setIndicatorsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(INDICATORS_STORAGE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleIndicators = () => {
+    setIndicatorsCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(INDICATORS_STORAGE_KEY, next ? '1' : '0'); } catch {}
+      return next;
+    });
+  };
   const PAGE_SIZE = 20;
   
   // Estado para modal de documentos
@@ -3554,68 +3570,129 @@ export function StudentsComplete() {
             </div>
           )}
 
-          {/* Contagem por Cor/Raça */}
+          {/* Painel "Indicadores da Rede" — accordion único agrupando
+              cor/raça, Ensino Fundamental, Educação Infantil, Etapas EJA + Modalidades.
+              Estado persistido em localStorage. */}
           {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="race-counts">
-              {[
-                { key: 'branca', label: 'Branca' },
-                { key: 'preta', label: 'Preta' },
-                { key: 'parda', label: 'Parda' },
-                { key: 'amarela', label: 'Amarela' },
-                { key: 'indigena', label: 'Indígena' },
-                { key: 'cigano', label: 'Cigano' },
-                { key: 'quilombola', label: 'Quilombola' },
-                { key: 'ribeirinho', label: 'Ribeirinho' },
-                { key: 'extrativista', label: 'Extrativista' },
-              ].map(({ key, label }) => (
-                <span key={key}>
-                  <span className="font-medium text-gray-700">{label}:</span> {raceCounts[key] || 0}
-                </span>
-              ))}
-            </div>
-          )}
+            <div
+              className="mt-3 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden"
+              data-testid="indicators-panel"
+            >
+              <button
+                type="button"
+                onClick={toggleIndicators}
+                aria-expanded={!indicatorsCollapsed}
+                data-testid="indicators-toggle"
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 rounded-lg">
+                    <BarChart3 size={18} className="text-indigo-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-900 text-sm">Indicadores da Rede</p>
+                    <p className="text-xs text-gray-500">
+                      {indicatorsCollapsed ? 'Clique para expandir' : 'Clique para recolher'}
+                    </p>
+                  </div>
+                </div>
+                {indicatorsCollapsed ? (
+                  <ChevronDown size={18} className="text-gray-400" />
+                ) : (
+                  <ChevronUp size={18} className="text-gray-400" />
+                )}
+              </button>
 
-          {/* Contagem por Ano (Ensino Fundamental) */}
-          {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="series-anos-counts">
-              {['1º Ano','2º Ano','3º Ano','4º Ano','5º Ano','6º Ano','7º Ano','8º Ano','9º Ano'].map((label) => (
-                <span key={label}>
-                  <span className="font-medium text-gray-700">{label}:</span>{' '}
-                  {seriesCounts[label.toUpperCase()] || 0}
-                </span>
-              ))}
-            </div>
-          )}
+              {!indicatorsCollapsed && (
+                <div className="border-t border-gray-100 px-5 py-4 space-y-5">
+                  {/* COR / RAÇA */}
+                  <div data-testid="race-counts">
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                      Cor / Raça
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { key: 'branca', label: 'Branca' },
+                        { key: 'preta', label: 'Preta' },
+                        { key: 'parda', label: 'Parda' },
+                        { key: 'amarela', label: 'Amarela' },
+                        { key: 'indigena', label: 'Indígena' },
+                        { key: 'cigano', label: 'Cigano' },
+                        { key: 'quilombola', label: 'Quilombola' },
+                        { key: 'ribeirinho', label: 'Ribeirinho' },
+                        { key: 'extrativista', label: 'Extrativista' },
+                      ].map(({ key, label }) => (
+                        <span
+                          key={key}
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 text-xs font-medium"
+                        >
+                          {label}: {raceCounts[key] || 0}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* Contagem por Etapa (Educação Infantil) */}
-          {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="series-infantil-counts">
-              {['Berçário I','Berçário II','Maternal I','Maternal II','Pré I','Pré II'].map((label) => (
-                <span key={label}>
-                  <span className="font-medium text-gray-700">{label}:</span>{' '}
-                  {seriesCounts[label.toUpperCase()] || 0}
-                </span>
-              ))}
-            </div>
-          )}
+                  {/* ENSINO FUNDAMENTAL */}
+                  <div data-testid="series-anos-counts">
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                      Ensino Fundamental
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {['1º Ano','2º Ano','3º Ano','4º Ano','5º Ano','6º Ano','7º Ano','8º Ano','9º Ano'].map((label) => (
+                        <span
+                          key={label}
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium"
+                        >
+                          {label}: {seriesCounts[label.toUpperCase()] || 0}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* Contagem por Modalidade (Etapas EJA + Programas) */}
-          {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="modalidade-counts">
-              {[
-                { label: '1ª Etapa', value: seriesCounts['1ª ETAPA'] || 0 },
-                { label: '2ª Etapa', value: seriesCounts['2ª ETAPA'] || 0 },
-                { label: '3ª Etapa', value: seriesCounts['3ª ETAPA'] || 0 },
-                { label: '4ª Etapa', value: seriesCounts['4ª ETAPA'] || 0 },
-                { label: 'Regular', value: modalidadeCounts.regular || 0 },
-                { label: 'Integral', value: modalidadeCounts.atendimento_integral || 0 },
-                { label: 'AEE', value: modalidadeCounts.aee || 0 },
-                { label: 'Recomp.', value: modalidadeCounts.recomposicao_aprendizagem || 0 },
-              ].map(({ label, value }) => (
-                <span key={label}>
-                  <span className="font-medium text-gray-700">{label}:</span> {value}
-                </span>
-              ))}
+                  {/* EDUCAÇÃO INFANTIL */}
+                  <div data-testid="series-infantil-counts">
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                      Educação Infantil
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {['Berçário I','Berçário II','Maternal I','Maternal II','Pré I','Pré II'].map((label) => (
+                        <span
+                          key={label}
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium"
+                        >
+                          {label}: {seriesCounts[label.toUpperCase()] || 0}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ETAPAS (EJA) E MODALIDADES */}
+                  <div data-testid="modalidade-counts">
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                      Etapas (EJA) e Modalidades
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: '1ª Etapa', value: seriesCounts['1ª ETAPA'] || 0 },
+                        { label: '2ª Etapa', value: seriesCounts['2ª ETAPA'] || 0 },
+                        { label: '3ª Etapa', value: seriesCounts['3ª ETAPA'] || 0 },
+                        { label: '4ª Etapa', value: seriesCounts['4ª ETAPA'] || 0 },
+                        { label: 'Regular', value: modalidadeCounts.regular || 0 },
+                        { label: 'Integral', value: modalidadeCounts.atendimento_integral || 0 },
+                        { label: 'AEE', value: modalidadeCounts.aee || 0 },
+                        { label: 'Recomp.', value: modalidadeCounts.recomposicao_aprendizagem || 0 },
+                      ].map(({ label, value }) => (
+                        <span
+                          key={label}
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium"
+                        >
+                          {label}: {value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
