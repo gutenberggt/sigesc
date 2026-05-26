@@ -46,6 +46,7 @@ from routers.calendar_diary_state import setup_calendar_diary_state_router
 from routers.diary_snapshots import setup_diary_snapshots_router
 from routers.public_verify import setup_public_verify_router
 from routers.admin_diary_diagnose import setup_admin_diary_diagnose_router
+from routers.integrity_audit import setup_integrity_audit_router
 from routers.user_signature import (
     setup_user_signature_router,
     setup_signature_image_render_router,
@@ -426,6 +427,7 @@ calendar_diary_state_router = setup_calendar_diary_state_router(db)
 diary_snapshots_router = setup_diary_snapshots_router(db, audit_service=audit_service)
 public_verify_diary_router = setup_public_verify_router(db)
 admin_diary_diagnose_router = setup_admin_diary_diagnose_router(db)
+integrity_audit_router = setup_integrity_audit_router(db)
 user_signature_router = setup_user_signature_router(db, audit_service=audit_service)
 signature_image_render_router = setup_signature_image_render_router(db)
 completions_router = setup_dependency_completions_router(db, audit_service=audit_service)
@@ -503,6 +505,8 @@ app.include_router(calendar_diary_state_router, prefix="/api")
 app.include_router(diary_snapshots_router, prefix="/api")
 # Diagnóstico admin da grade horária (read-only, restrito a admin/diretor/super)
 app.include_router(admin_diary_diagnose_router, prefix="/api")
+# [Fase 1] Auditoria global de integridade (super_admin only, read-only)
+app.include_router(integrity_audit_router, prefix="/api")
 # Público SEM autenticação E SEM prefixo /api (cidadão escaneia QR e cai aqui).
 # Owner: '/verify/diary/{token}' é "verificação institucional pública".
 app.include_router(public_verify_diary_router, prefix="/api")
