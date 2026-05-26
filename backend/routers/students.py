@@ -434,11 +434,17 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             race_counts[race_key] = doc["count"]
 
         # Contagem por série.
-        # Fonte: `classes.grade_level` da turma onde o aluno está matriculado
-        # (via `students.class_id`). Esse é o critério usado pelas queries
-        # de auditoria do administrador, pois `students.student_series`
-        # frequentemente está vazio. Fallback: `students.student_series`
-        # caso a turma não tenha `grade_level` definido.
+        # PRIORIDADE: `students.student_series` (campo do aluno) →
+        # `classes.grade_level` (fallback via lookup pela turma).
+        #
+        # Por quê essa ordem?
+        # - Escolas MULTISSERIADAS (ex.: Jean Piaget): uma única turma
+        #   "1º/6º ANO" pode ter alunos de séries diferentes. O
+        #   `classes.grade_level` mostra só uma série, mas cada aluno
+        #   tem sua série REAL em `students.student_series`.
+        # - Escolas NORMAIS (ex.: Paulette Camille): muitos alunos
+        #   têm `student_series` vazio. Para esses, usa
+        #   `classes.grade_level` da turma onde está matriculado.
         #
         # IMPORTANTE: a normalização (uppercase + canonicalização) é feita
         # em Python — NÃO em MongoDB. `$toUpper` do MongoDB só opera sobre
@@ -455,17 +461,15 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             {"$addFields": {
                 "_grade_effective": {
                     "$let": {
-                        "vars": {
-                            "g": {"$arrayElemAt": ["$_class.grade_level", 0]}
-                        },
+                        "vars": {"ss": "$student_series"},
                         "in": {
                             "$cond": [
                                 {"$and": [
-                                    {"$ne": ["$$g", None]},
-                                    {"$ne": ["$$g", ""]},
+                                    {"$ne": ["$$ss", None]},
+                                    {"$ne": ["$$ss", ""]},
                                 ]},
-                                "$$g",
-                                "$student_series",
+                                "$$ss",
+                                {"$arrayElemAt": ["$_class.grade_level", 0]},
                             ]
                         }
                     }
