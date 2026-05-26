@@ -528,9 +528,29 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
                     ? '— Turma sem matriz curricular cadastrada —'
                   : '— Selecione —'}
           </option>
-          {filteredCourses.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
+          {filteredCourses.map((c) => {
+            // [Fev/2026] Sufixa o nome com a(s) série(s) que o componente atende.
+            // Útil principalmente em turmas multi, mas também ajuda regular
+            // quando o componente cobre múltiplas séries (ex.: Optativa).
+            // Formato compacto pra caber no <option>:
+            //   ["6º Ano"]                → " · 6º Ano"
+            //   ["6º Ano", "7º Ano"]      → " · 6º/7º Ano"
+            //   ["6º Ano", "7º Ano", "8º"]→ " · 6º/7º/8º Ano"
+            //   []                        → sem sufixo
+            const gls = Array.isArray(c.grade_levels) ? c.grade_levels : [];
+            let suffix = '';
+            if (gls.length === 1) {
+              suffix = ` · ${gls[0]}`;
+            } else if (gls.length > 1) {
+              // Extrai prefixo numérico (ex.: "6º" de "6º Ano") e usa o último como sufixo "Ano"
+              const heads = gls.map((g) => String(g).replace(/\s?ano\s*$/i, '').trim());
+              const tailMatch = String(gls[0]).match(/\bano\b/i);
+              suffix = ` · ${heads.join('/')}${tailMatch ? ' Ano' : ''}`;
+            }
+            return (
+              <option key={c.id} value={c.id}>{c.name}{suffix}</option>
+            );
+          })}
         </select>
         {selectedClass && !loadingCurriculum && filteredCourses.length > 0 && (
           <p className="text-[10px] text-gray-500 mb-3" data-testid="dep-course-hint">
