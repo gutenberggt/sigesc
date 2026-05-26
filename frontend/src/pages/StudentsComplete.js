@@ -296,6 +296,8 @@ export function StudentsComplete() {
   const [serverTotalPages, setServerTotalPages] = useState(0);
   const [serverActiveCount, setServerActiveCount] = useState(0);
   const [raceCounts, setRaceCounts] = useState({});
+  const [seriesCounts, setSeriesCounts] = useState({});
+  const [modalidadeCounts, setModalidadeCounts] = useState({});
   const PAGE_SIZE = 20;
   
   // Estado para modal de documentos
@@ -521,6 +523,8 @@ export function StudentsComplete() {
         setServerTotalPages(result.total_pages || 0);
         setServerActiveCount(result.active_count ?? result.total ?? 0);
         setRaceCounts(result.race_counts || {});
+        setSeriesCounts(result.series_counts || {});
+        setModalidadeCounts(result.modalidade_counts || {});
       } catch (error) {
         console.error('Erro ao carregar alunos:', error);
         showAlert('error', 'Erro ao carregar dados');
@@ -3566,6 +3570,50 @@ export function StudentsComplete() {
               ].map(({ key, label }) => (
                 <span key={key}>
                   <span className="font-medium text-gray-700">{label}:</span> {raceCounts[key] || 0}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Contagem por Ano (Ensino Fundamental) */}
+          {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="series-anos-counts">
+              {['1º Ano','2º Ano','3º Ano','4º Ano','5º Ano','6º Ano','7º Ano','8º Ano','9º Ano'].map((label) => (
+                <span key={label}>
+                  <span className="font-medium text-gray-700">{label}:</span>{' '}
+                  {seriesCounts[label.toUpperCase()] || 0}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Contagem por Etapa (Educação Infantil) */}
+          {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="series-infantil-counts">
+              {['Berçário I','Berçário II','Maternal I','Maternal II','Pré I','Pré II'].map((label) => (
+                <span key={label}>
+                  <span className="font-medium text-gray-700">{label}:</span>{' '}
+                  {seriesCounts[label.toUpperCase()] || 0}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Contagem por Modalidade (Etapas EJA + Programas) */}
+          {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="modalidade-counts">
+              {[
+                { label: '1ª Etapa', value: seriesCounts['1ª ETAPA'] || 0 },
+                { label: '2ª Etapa', value: seriesCounts['2ª ETAPA'] || 0 },
+                { label: '3ª Etapa', value: seriesCounts['3ª ETAPA'] || 0 },
+                { label: '4ª Etapa', value: seriesCounts['4ª ETAPA'] || 0 },
+                { label: 'Regular', value: modalidadeCounts.regular || 0 },
+                { label: 'Integral', value: modalidadeCounts.atendimento_integral || 0 },
+                { label: 'AEE', value: modalidadeCounts.aee || 0 },
+                { label: 'Recomp.', value: modalidadeCounts.recomposicao_aprendizagem || 0 },
+              ].map(({ label, value }) => (
+                <span key={label}>
+                  <span className="font-medium text-gray-700">{label}:</span> {value}
                 </span>
               ))}
             </div>

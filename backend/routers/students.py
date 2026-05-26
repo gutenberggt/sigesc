@@ -432,7 +432,57 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if race_key == "":
                 race_key = "nao_informada"
             race_counts[race_key] = doc["count"]
-        
+
+        # Contagem por série (student_series). Normaliza para uppercase para
+        # tolerar variações ("1º Ano", "1º ANO", "1° Ano" etc.).
+        # Cobre Anos do Fund. (1º–9º), Educação Infantil (Berçário/Maternal/Pré)
+        # e Etapas EJA (1ª–4ª Etapa). Tudo numa única pipeline.
+        series_pipeline = [
+            {"$match": active_filter},
+            {"$group": {
+                "_id": {"$toUpper": {"$ifNull": ["$student_series", ""]}},
+                "count": {"$sum": 1}
+            }}
+        ]
+        series_counts_raw = {}
+        async for doc in current_db.students.aggregate(series_pipeline):
+            key = (doc["_id"] or "").strip()
+            if key:
+                # Normaliza variantes do "°"/"º" para a forma canônica "º".
+                key_canon = key.replace("°", "º")
+                series_counts_raw[key_canon] = series_counts_raw.get(key_canon, 0) + doc["count"]
+
+        # Contagem por modalidade da turma (classes.atendimento_programa).
+        # Faz lookup students→classes. Regular = atendimento_programa
+        # None/vazio. Integral, AEE, Recomp. = valores específicos.
+        modalidade_pipeline = [
+            {"$match": active_filter},
+            {"$lookup": {
+                "from": "classes",
+                "localField": "class_id",
+                "foreignField": "id",
+                "as": "_class"
+            }},
+            {"$addFields": {
+                "_atend": {
+                    "$toLower": {
+                        "$ifNull": [
+                            {"$arrayElemAt": ["$_class.atendimento_programa", 0]},
+                            ""
+                        ]
+                    }
+                }
+            }},
+            {"$group": {"_id": "$_atend", "count": {"$sum": 1}}}
+        ]
+        modalidade_counts = {"regular": 0, "atendimento_integral": 0, "aee": 0, "recomposicao_aprendizagem": 0}
+        async for doc in current_db.students.aggregate(modalidade_pipeline):
+            key = (doc["_id"] or "").strip()
+            if not key:
+                modalidade_counts["regular"] += doc["count"]
+            elif key in modalidade_counts:
+                modalidade_counts[key] += doc["count"]
+
         # Calcula skip com base na página
         effective_skip = (page - 1) * page_size if page > 0 else skip
         effective_limit = page_size if page > 0 else limit
@@ -470,6 +520,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "total": total,
             "active_count": active_count,
             "race_counts": race_counts,
+            "series_counts": series_counts_raw,
+            "modalidade_counts": modalidade_counts,
             "page": page,
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size
