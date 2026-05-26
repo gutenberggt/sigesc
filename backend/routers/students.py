@@ -433,47 +433,89 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 race_key = "nao_informada"
             race_counts[race_key] = doc["count"]
 
-        # Contagem por série (student_series). Normaliza para uppercase para
-        # tolerar variações ("1º Ano", "1º ANO", "1° Ano" etc.).
+        # Contagem por série (student_series). Fonte canônica:
+        # `enrollments.student_series` (matrícula ATIVA), com fallback para
+        # `students.student_series` quando não houver matrícula. Normaliza
+        # para uppercase para tolerar variações ("1º Ano", "1° Ano" etc.).
         # Cobre Anos do Fund. (1º–9º), Educação Infantil (Berçário/Maternal/Pré)
-        # e Etapas EJA (1ª–4ª Etapa). Tudo numa única pipeline.
+        # e Etapas EJA (1ª–4ª Etapa) numa única pipeline.
         series_pipeline = [
             {"$match": active_filter},
+            {"$lookup": {
+                "from": "enrollments",
+                "let": {"sid": "$id"},
+                "pipeline": [
+                    {"$match": {"$expr": {"$and": [
+                        {"$eq": ["$student_id", "$$sid"]},
+                        {"$eq": ["$status", "active"]},
+                    ]}}},
+                    {"$project": {"_id": 0, "student_series": 1, "class_id": 1}},
+                    {"$limit": 1},
+                ],
+                "as": "_enr",
+            }},
+            {"$addFields": {
+                "_series_effective": {
+                    "$ifNull": [
+                        {"$arrayElemAt": ["$_enr.student_series", 0]},
+                        "$student_series",
+                    ]
+                }
+            }},
             {"$group": {
-                "_id": {"$toUpper": {"$ifNull": ["$student_series", ""]}},
-                "count": {"$sum": 1}
-            }}
+                "_id": {"$toUpper": {"$ifNull": ["$_series_effective", ""]}},
+                "count": {"$sum": 1},
+            }},
         ]
         series_counts_raw = {}
         async for doc in current_db.students.aggregate(series_pipeline):
             key = (doc["_id"] or "").strip()
             if key:
-                # Normaliza variantes do "°"/"º" para a forma canônica "º".
                 key_canon = key.replace("°", "º")
                 series_counts_raw[key_canon] = series_counts_raw.get(key_canon, 0) + doc["count"]
 
-        # Contagem por modalidade da turma (classes.atendimento_programa).
-        # Faz lookup students→classes. Regular = atendimento_programa
-        # None/vazio. Integral, AEE, Recomp. = valores específicos.
+        # Contagem por modalidade. Usa `enrollments.class_id` como fonte
+        # canônica (matrícula ATIVA), com fallback para `students.class_id`.
+        # Junta com `classes` para extrair `atendimento_programa`.
+        # Regular = atendimento_programa None/vazio.
         modalidade_pipeline = [
             {"$match": active_filter},
             {"$lookup": {
+                "from": "enrollments",
+                "let": {"sid": "$id"},
+                "pipeline": [
+                    {"$match": {"$expr": {"$and": [
+                        {"$eq": ["$student_id", "$$sid"]},
+                        {"$eq": ["$status", "active"]},
+                    ]}}},
+                    {"$project": {"_id": 0, "class_id": 1}},
+                    {"$limit": 1},
+                ],
+                "as": "_enr",
+            }},
+            {"$addFields": {
+                "_class_id_effective": {
+                    "$ifNull": [
+                        {"$arrayElemAt": ["$_enr.class_id", 0]},
+                        "$class_id",
+                    ]
+                }
+            }},
+            {"$lookup": {
                 "from": "classes",
-                "localField": "class_id",
+                "localField": "_class_id_effective",
                 "foreignField": "id",
-                "as": "_class"
+                "as": "_class",
             }},
             {"$addFields": {
                 "_atend": {
-                    "$toLower": {
-                        "$ifNull": [
-                            {"$arrayElemAt": ["$_class.atendimento_programa", 0]},
-                            ""
-                        ]
-                    }
+                    "$toLower": {"$ifNull": [
+                        {"$arrayElemAt": ["$_class.atendimento_programa", 0]},
+                        "",
+                    ]}
                 }
             }},
-            {"$group": {"_id": "$_atend", "count": {"$sum": 1}}}
+            {"$group": {"_id": "$_atend", "count": {"$sum": 1}}},
         ]
         modalidade_counts = {"regular": 0, "atendimento_integral": 0, "aee": 0, "recomposicao_aprendizagem": 0}
         async for doc in current_db.students.aggregate(modalidade_pipeline):
