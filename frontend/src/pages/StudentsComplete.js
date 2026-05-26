@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap, UserX, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, AlertCircle, AlertTriangle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap, UserX, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { StudentDependencySection } from '@/components/StudentDependencySection';
@@ -303,6 +303,11 @@ export function StudentsComplete() {
   // O estado vive apenas na sessão da página (resetado ao recarregar).
   const [indicatorsCollapsed, setIndicatorsCollapsed] = useState(true);
   const toggleIndicators = () => setIndicatorsCollapsed((prev) => !prev);
+
+  // [Fase 0 — Contenção] Inconsistências de integridade (alunos ATIVOS
+  // sem turma / com turma órfã / etc.). Buscado uma vez ao montar.
+  const [inconsistencies, setInconsistencies] = useState(null);
+  const [showInconsistenciesList, setShowInconsistenciesList] = useState(false);
   const PAGE_SIZE = 20;
   
   // Estado para modal de documentos
@@ -452,6 +457,24 @@ export function StudentsComplete() {
       }
     };
     fetchBaseData();
+
+    // [Fase 0 — Contenção] Carrega diagnóstico de inconsistências.
+    // Best-effort: usuários sem permissão recebem 403 e o card simplesmente não aparece.
+    const fetchInconsistencies = async () => {
+      try {
+        const { default: axios } = await import('axios');
+        const API = process.env.REACT_APP_BACKEND_URL;
+        const token = localStorage.getItem('token');
+        const resp = await axios.get(`${API}/api/students/inconsistencies`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setInconsistencies(resp.data || null);
+      } catch (e) {
+        // Sem permissão (não-admin) ou erro de rede → ignora silenciosamente.
+        setInconsistencies(null);
+      }
+    };
+    fetchInconsistencies();
   }, []);
 
   // Processar query params para abrir edição/documentos vindos de outra página
@@ -3530,6 +3553,85 @@ export function StudentsComplete() {
               </button>
             )}
           </div>
+
+          {/* [Fase 0 — Contenção] Banner de inconsistências de integridade */}
+          {inconsistencies && inconsistencies.total > 0 && (
+            <div
+              className="mt-3 bg-red-50 border border-red-200 rounded-2xl p-4"
+              data-testid="inconsistencies-banner"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-100 rounded-lg shrink-0">
+                  <AlertTriangle size={20} className="text-red-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-red-900 text-sm">
+                    {inconsistencies.total} aluno(s) ativo(s) com inconsistência de cadastro
+                  </p>
+                  <p className="text-xs text-red-700 mt-1">
+                    Esses alunos contaminam relatórios, dashboards e censo. Resolva antes do fechamento do ano letivo.
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-red-800">
+                    {inconsistencies.counts_by_issue?.sem_turma > 0 && (
+                      <span><strong>{inconsistencies.counts_by_issue.sem_turma}</strong> sem turma</span>
+                    )}
+                    {inconsistencies.counts_by_issue?.turma_inexistente > 0 && (
+                      <span><strong>{inconsistencies.counts_by_issue.turma_inexistente}</strong> turma inexistente</span>
+                    )}
+                    {inconsistencies.counts_by_issue?.turma_outra_escola > 0 && (
+                      <span><strong>{inconsistencies.counts_by_issue.turma_outra_escola}</strong> turma de outra escola</span>
+                    )}
+                    {inconsistencies.counts_by_issue?.sem_escola > 0 && (
+                      <span><strong>{inconsistencies.counts_by_issue.sem_escola}</strong> sem escola</span>
+                    )}
+                    {inconsistencies.counts_by_issue?.escola_inexistente > 0 && (
+                      <span><strong>{inconsistencies.counts_by_issue.escola_inexistente}</strong> escola inexistente</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowInconsistenciesList((v) => !v)}
+                    data-testid="inconsistencies-toggle"
+                    className="mt-3 text-xs font-medium text-red-700 hover:text-red-900 underline"
+                  >
+                    {showInconsistenciesList ? 'Ocultar lista' : 'Ver lista de alunos afetados'}
+                  </button>
+                  {showInconsistenciesList && (
+                    <div
+                      className="mt-3 max-h-72 overflow-y-auto bg-white border border-red-100 rounded-lg divide-y divide-red-50"
+                      data-testid="inconsistencies-list"
+                    >
+                      {inconsistencies.items.map((it) => (
+                        <div key={it.id} className="px-3 py-2 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-gray-900 truncate">{it.full_name}</span>
+                            <div className="flex gap-1 shrink-0">
+                              {it.issues.map((iss) => (
+                                <span
+                                  key={iss}
+                                  className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-medium"
+                                >
+                                  {iss === 'sem_turma' ? 'sem turma'
+                                    : iss === 'turma_inexistente' ? 'turma inexistente'
+                                    : iss === 'turma_outra_escola' ? 'turma outra escola'
+                                    : iss === 'sem_escola' ? 'sem escola'
+                                    : iss === 'escola_inexistente' ? 'escola inexistente'
+                                    : iss}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-gray-500 mt-0.5">
+                            {it.school_name || <em>sem escola</em>} · {it.class_name || <em>sem turma</em>}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Indicador de filtro por escola/turma/status */}
           {(filterSchoolId || filterClassId || filterStatus || debouncedSearch) && (

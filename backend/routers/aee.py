@@ -719,6 +719,15 @@ def setup_aee_router(db, audit_service):
             raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
         if plano.get('status') not in ['ativo', 'rascunho']:
             raise HTTPException(status_code=400, detail="Plano AEE não está ativo")
+
+        # [Fase 0 — Contenção] Verificação defensiva de consistência:
+        # o student_id do atendimento DEVE ser o mesmo do plano. Evita
+        # registrar atendimento sob plano de outro aluno (orfão lógico).
+        if atendimento_data.student_id and atendimento_data.student_id != plano.get('student_id'):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Inconsistência: o aluno do atendimento não corresponde ao aluno do Plano AEE informado."
+            )
         
         # Calcula duração se não informada
         if not atendimento_data.duracao_minutos and atendimento_data.horario_inicio and atendimento_data.horario_fim:

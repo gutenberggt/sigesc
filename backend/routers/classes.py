@@ -198,6 +198,18 @@ def setup_router(db, audit_service, sandbox_db=None):
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Não é possível excluir esta turma: {active_deps} aluno(s) com dependência de estudos ativa vinculada(s). Cancele/conclua as dependências antes."
             )
+
+        # [Fase 0 — Contenção] Bloqueia exclusão se houver alunos ATIVOS
+        # vinculados à turma. Impede gerar matrículas órfãs (class_id
+        # apontando para turma deletada), que contaminam relatórios e censo.
+        active_students = await current_db.students.count_documents({
+            "class_id": class_id, "status": "active",
+        })
+        if active_students > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Não é possível excluir esta turma: {active_students} aluno(s) ativo(s) vinculado(s). Transfira/inative os alunos antes de excluir a turma."
+            )
         
         result = await current_db.classes.delete_one({"id": class_id})
         

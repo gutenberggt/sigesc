@@ -84,8 +84,33 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Não é possível criar aluno com status 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
                 )
+            # [Fase 0 — Contenção] Garante que a turma EXISTE e pertence à
+            # escola do aluno. Impede criação de matrículas órfãs (class_id
+            # apontando para turma inexistente ou de outra escola), que
+            # contaminavam relatórios, dashboards e censo.
+            class_check = await current_db.classes.find_one(
+                {"id": student_data.class_id},
+                {"_id": 0, "school_id": 1}
+            )
+            if not class_check:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Turma inexistente (class_id={student_data.class_id}). Selecione uma turma válida."
+                )
+            if class_check.get('school_id') != student_data.school_id:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="A turma selecionada pertence a outra escola. Selecione uma turma da mesma escola do aluno."
+                )
         
         student_dict = student_data.model_dump()
+        # [Fase 0 — Contenção] Deduplica `disabilities[]` preservando ordem.
+        if isinstance(student_dict.get('disabilities'), list):
+            seen = set()
+            student_dict['disabilities'] = [
+                d for d in student_dict['disabilities']
+                if not (d in seen or seen.add(d))
+            ]
         student_obj = Student(**student_dict)
         doc = student_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -149,6 +174,128 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         )
         
         return student_obj
+
+    @router.get("/inconsistencies")
+    async def get_student_inconsistencies(request: Request):
+        """
+        [Fase 0 — Contenção] Diagnóstico de inconsistências de integridade
+        em alunos ATIVOS. Lista alunos com:
+          - `class_id` ausente/nulo
+          - `class_id` apontando para turma inexistente
+          - `class_id` apontando para turma de outra escola
+          - `school_id` ausente
+          - `school_id` apontando para escola inexistente
+
+        Retorna estrutura agregada (totais + amostra) para uso em banner
+        administrativo de saúde de dados. Restrito a perfis administrativos.
+        """
+        current_user = await AuthMiddleware.require_roles(
+            ['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']
+        )(request)
+        current_db = get_db_for_user(current_user)
+
+        # Filtro tenant-aware: super_admin vê tudo; demais limitados ao próprio tenant.
+        base_filter = {"status": "active"}
+        if current_user.get('role') != 'super_admin':
+            tenant_id = current_user.get('mantenedora_id')
+            if tenant_id:
+                base_filter['mantenedora_id'] = tenant_id
+
+        pipeline = [
+            {"$match": base_filter},
+            {"$lookup": {
+                "from": "classes",
+                "localField": "class_id",
+                "foreignField": "id",
+                "as": "_class",
+            }},
+            {"$lookup": {
+                "from": "schools",
+                "localField": "school_id",
+                "foreignField": "id",
+                "as": "_school",
+            }},
+            {"$addFields": {
+                "_class_obj": {"$arrayElemAt": ["$_class", 0]},
+                "_school_obj": {"$arrayElemAt": ["$_school", 0]},
+            }},
+            {"$addFields": {
+                "_issues": {
+                    "$concatArrays": [
+                        {"$cond": [
+                            {"$or": [
+                                {"$eq": ["$class_id", None]},
+                                {"$eq": ["$class_id", ""]},
+                            ]},
+                            ["sem_turma"], []
+                        ]},
+                        {"$cond": [
+                            {"$and": [
+                                {"$ne": ["$class_id", None]},
+                                {"$ne": ["$class_id", ""]},
+                                {"$eq": ["$_class_obj", None]},
+                            ]},
+                            ["turma_inexistente"], []
+                        ]},
+                        {"$cond": [
+                            {"$and": [
+                                {"$ne": ["$_class_obj", None]},
+                                {"$ne": ["$_class_obj.school_id", "$school_id"]},
+                            ]},
+                            ["turma_outra_escola"], []
+                        ]},
+                        {"$cond": [
+                            {"$or": [
+                                {"$eq": ["$school_id", None]},
+                                {"$eq": ["$school_id", ""]},
+                            ]},
+                            ["sem_escola"], []
+                        ]},
+                        {"$cond": [
+                            {"$and": [
+                                {"$ne": ["$school_id", None]},
+                                {"$ne": ["$school_id", ""]},
+                                {"$eq": ["$_school_obj", None]},
+                            ]},
+                            ["escola_inexistente"], []
+                        ]},
+                    ]
+                }
+            }},
+            {"$match": {"_issues": {"$ne": []}}},
+            {"$project": {
+                "_id": 0,
+                "id": 1,
+                "full_name": 1,
+                "school_id": 1,
+                "school_name": "$_school_obj.name",
+                "class_id": 1,
+                "class_name": "$_class_obj.name",
+                "issues": "$_issues",
+            }},
+            {"$sort": {"school_name": 1, "full_name": 1}},
+        ]
+
+        items = []
+        counts_by_issue = {
+            "sem_turma": 0,
+            "turma_inexistente": 0,
+            "turma_outra_escola": 0,
+            "sem_escola": 0,
+            "escola_inexistente": 0,
+        }
+        async for doc in current_db.students.aggregate(pipeline):
+            for issue in doc.get("issues", []):
+                counts_by_issue[issue] = counts_by_issue.get(issue, 0) + 1
+            items.append(doc)
+
+        return {
+            "total": len(items),
+            "counts_by_issue": counts_by_issue,
+            "items": items,
+        }
+
+
 
     @router.get("/autocomplete")
     async def autocomplete_students(
@@ -939,6 +1086,30 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Não é possível definir o status como 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
                 )
+            # [Fase 0 — Contenção] Garante que a turma EXISTE e pertence à
+            # escola do aluno antes de manter/definir status 'Ativo'.
+            class_check = await current_db.classes.find_one(
+                {"id": final_class_id},
+                {"_id": 0, "school_id": 1}
+            )
+            if not class_check:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Turma inexistente (class_id={final_class_id}). Selecione uma turma válida."
+                )
+            if class_check.get('school_id') != final_school_id:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="A turma selecionada pertence a outra escola. Selecione uma turma da mesma escola do aluno."
+                )
+
+        # [Fase 0 — Contenção] Deduplica `disabilities[]` (se enviado).
+        if isinstance(update_data.get('disabilities'), list):
+            seen = set()
+            update_data['disabilities'] = [
+                d for d in update_data['disabilities']
+                if not (d in seen or seen.add(d))
+            ]
         
         action_type = 'edicao'
         history_obs = None
