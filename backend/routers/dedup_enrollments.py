@@ -121,10 +121,17 @@ async def _find_duplicate_enrollments(db) -> List[Dict[str, Any]]:
         def _ts(e):
             ts = e.get("created_at")
             if isinstance(ts, datetime):
+                # Normaliza para tz-aware: campos antigos em prod são naive (sem tz).
+                # Sem isso, max() quebra com TypeError ao misturar naive + aware.
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
                 return ts
             if isinstance(ts, str):
                 try:
-                    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    return parsed
                 except ValueError:
                     return datetime.min.replace(tzinfo=timezone.utc)
             return datetime.min.replace(tzinfo=timezone.utc)

@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://legacy-bridge-compat.preview.emergentagent.com/api"
+API_URL = "https://school-integrity-fix.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [

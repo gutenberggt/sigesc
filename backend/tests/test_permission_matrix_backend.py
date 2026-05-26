@@ -20,7 +20,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://legacy-bridge-compat.preview.emergentagent.com",
+    "https://school-integrity-fix.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {
