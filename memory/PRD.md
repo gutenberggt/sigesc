@@ -33,7 +33,7 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
-### Fix 500 em `/api/curriculum/adaptations/availability` **[Fev/2026]** ✅ LOCAL
+### Fix 500 em `/api/curriculum/adaptations/availability` **[Fev/2026]** ✅ EM PROD
 
 **Causa raiz:** `_require_any_auth` em `routers/curriculum_v2.py:38` chamava
 `AuthMiddleware.require_permission(db, 'nav-curriculum-button', None)`. Para
@@ -68,7 +68,7 @@ padrão NÃO se repete em nenhum outro router.
 responde 401 sem auth (correto).
 
 
-### Sprint 1.1.E — Padrão reutilizável `with_critical_mutation` **[Fev/2026]** ✅ LOCAL
+### Sprint 1.1.E — Padrão reutilizável `with_critical_mutation` **[Fev/2026]** ✅ EM PROD
 
 > *Owner: "se você NÃO fizer (e) agora, você está aceitando replicar manualmente
 > o Sprint 1.1 em cada operação futura — dívida operacional em 2–3 sprints."*
@@ -116,7 +116,7 @@ O wrapper injeta `run_id`, `started_at`, `finished_at`, `duration_ms` no payload
 após reload · endpoints respondem 401 (auth corretamente aplicada).
 
 
-### Sprint 1.1 — Hardening (Idempotência + Lock + Fingerprint) **[Fev/2026]** ✅ LOCAL
+### Sprint 1.1 — Hardening (Idempotência + Lock + Fingerprint) **[Fev/2026]** ✅ EM PROD
 
 > *Owner: "o próximo risco real não é bug — é execução duplicada ou
 > concorrente."*
