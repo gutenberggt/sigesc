@@ -298,22 +298,11 @@ export function StudentsComplete() {
   const [raceCounts, setRaceCounts] = useState({});
   const [seriesCounts, setSeriesCounts] = useState({});
   const [modalidadeCounts, setModalidadeCounts] = useState({});
-  // Accordion "Indicadores da Rede" — persistido em localStorage. Padrão: expandido.
-  const INDICATORS_STORAGE_KEY = 'sigesc.students.indicators.collapsed';
-  const [indicatorsCollapsed, setIndicatorsCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(INDICATORS_STORAGE_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-  const toggleIndicators = () => {
-    setIndicatorsCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem(INDICATORS_STORAGE_KEY, next ? '1' : '0'); } catch {}
-      return next;
-    });
-  };
+  // Accordion "Indicadores da Rede" — começa SEMPRE recolhido a cada
+  // carregamento da página. O usuário expande manualmente quando quiser ver.
+  // O estado vive apenas na sessão da página (resetado ao recarregar).
+  const [indicatorsCollapsed, setIndicatorsCollapsed] = useState(true);
+  const toggleIndicators = () => setIndicatorsCollapsed((prev) => !prev);
   const PAGE_SIZE = 20;
   
   // Estado para modal de documentos
