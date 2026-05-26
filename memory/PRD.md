@@ -33,6 +33,56 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Sprint 1.1 — Hardening (Idempotência + Lock + Fingerprint) **[Fev/2026]** ✅ LOCAL
+
+> *Owner: "o próximo risco real não é bug — é execução duplicada ou
+> concorrente."*
+
+Transforma `POST /api/admin/students/duplicate-enrollments/dedup` em operação
+**determinística e re-executável com segurança**. Elimina dependência de "boa
+vontade operacional" presente no Sprint 1.0.
+
+**3 camadas implementadas em `/app/backend/routers/dedup_enrollments.py`:**
+
+1. **Idempotency-Key (header opcional, backward-compatible)**
+   - Coleção `dedup_idempotency` com índice composto único `(key, target)` + TTL `created_at`
+   - TTL configurável via `DEDUP_IDEMPOTENCY_TTL_HOURS` (default: **24h**)
+   - Cache hit retorna a resposta original com header `X-Idempotent-Replay: true`
+   - Sem header → comportamento legacy preservado (zero breaking change)
+
+2. **Lock distribuído por `target`**
+   - Coleção `dedup_locks` (`_id = target`), TTL Mongo limpa stale (`expireAfterSeconds=0`)
+   - TTL configurável via `DEDUP_LOCK_TTL_SECONDS` (default: **600s = 10min**)
+   - Aquisição atômica: `replace_one` para stale ou `insert_one` para novo
+   - Concorrente recebe **409** com `{lock_holder, expires_at}` no body
+   - Release CAS por holder (não derruba lock de terceiros)
+   - **Granular por target**: futuras operações (`dedup_disabilities`, etc.) terão locks independentes
+
+3. **Execution fingerprint**
+   - Sugestão do owner: `sha256(target + mode + UTC_day)[:16]` gravado em todo `dedup_run`
+   - Telemetria de agrupamento (não substitui idempotency)
+   - Permite relatórios tipo "quantos applys em dedup_enrollments hoje"
+
+**Testes (28/28 verdes em `tests/test_dedup_enrollments.py`):**
+- 4× execution fingerprint (determinismo, variação por target/mode)
+- 6× lock (acquire, concurrent block, release-by-holder, takeover de expirado, granularidade)
+- 5× idempotency (lookup miss/hit, race silenciosa, isolamento por target)
+- + 13 testes herdados do Sprint 1.0 (canonical/datetime/envelope)
+
+**Comportamento de resposta:**
+| Cenário | HTTP | Header novo | Notas |
+|---|---|---|---|
+| Sem `Idempotency-Key` | 200 | — | Legacy |
+| `Idempotency-Key` 1ª vez | 200 | `X-Idempotent-Replay: false` | Executa + grava |
+| Mesma key, retry | 200 | `X-Idempotent-Replay: true` | Cache hit, sem reexecutar |
+| Execução concorrente | **409** | — | `{lock_holder, expires_at}` |
+
+**Não inclui (Sprint 1.2+):**
+- Job periódico de detecção contínua
+- Tela `/admin/audit/dedup-runs`
+- Sampling de diff (postergado até > 500 itens/run)
+
+
 ### Sprint 1.0 — Saneamento de Matrículas Duplicadas **[Fev/2026]** ✅ FECHADO
 
 > *Owner: "execute o apply agora, uma vez, manualmente, e valide imediatamente
