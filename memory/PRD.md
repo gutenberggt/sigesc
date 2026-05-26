@@ -68,6 +68,47 @@ padrão NÃO se repete em nenhum outro router.
 responde 401 sem auth (correto).
 
 
+### Sprint 1.2 — Backfill `student_series` **[Fev/2026]** ✅ LOCAL (pronto pra deploy)
+
+> *Owner: "validar 1.497 processados, 0 perda de aluno, 0 null inesperado,
+> distribuição coerente. Não é só rodar sem erro."*
+
+Primeira aplicação real do padrão `with_critical_mutation` em escala
+(esperado: 1.497 alunos com `student_series` vazio). 4 ajustes finos sobre
+a proposta inicial, todos aprovados pelo owner antes de codar.
+
+**Regras aprovadas:**
+- HARD INVARIANT: NUNCA sobrescreve `student_series` preenchido (guard
+  `$or [exists:False, None, ""]` no update — protege contra race).
+- Categoria A (regular): `fill = classes.grade_level` — determinístico.
+- Categoria B (multi `series=[única]`): só fill se outros alunos da turma
+  com `student_series` preenchido bate com `series[0]` OU estão todos vazios
+  (consistency check via aggregate join enrollments→students).
+- Categoria C/D/E: SKIP puro (sem regex em E, sem heurística em C).
+- Telemetria no aluno: APENAS `series_backfill_run_id` + `_source` +
+  `_at`. Fonte primária da auditoria é a runs collection.
+
+**Arquivos novos/alterados:**
+- `/app/backend/routers/student_series_backfill.py` — endpoints + lógica
+- `/app/backend/server.py` — registra o router
+- `/app/backend/lib/critical_mutation.py` — pré-gera `run_id` antes do
+  executor (`executor(run_id)`); detecção via `inspect` mantém
+  backward-compat com executors sem args
+- `/app/backend/tests/test_student_series_backfill.py` — 11 testes
+
+**Endpoints:**
+- `GET  /api/admin/students/series-backfill/preview` (read-only)
+- `POST /api/admin/students/series-backfill/apply` (dry_run + apply)
+- `GET  /api/admin/students/series-backfill/runs[/<id>]`
+
+**Coleções novas em prod (criadas on-demand):**
+`student_series_backfill_runs` / `_locks` / `_idempotency`
+
+**Validação local:** 52/52 testes verdes (11 backfill + 41 herdados),
+lint limpo, backend reload OK, endpoints respondem 401.
+
+
+
 ### Sprint 1.1.E — Padrão reutilizável `with_critical_mutation` **[Fev/2026]** ✅ EM PROD
 
 > *Owner: "se você NÃO fizer (e) agora, você está aceitando replicar manualmente

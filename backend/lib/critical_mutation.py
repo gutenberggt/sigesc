@@ -255,14 +255,20 @@ async def record_run(
     started_at: datetime,
     finished_at: datetime,
     duration_ms: int,
+    run_id: Optional[str] = None,
 ) -> str:
-    """Persiste o run e retorna o `run_id` gerado.
+    """Persiste o run e retorna o `run_id`.
+
+    Se `run_id` for fornecido, é reutilizado (caso do `with_critical_mutation`
+    que pré-gera o id antes do executor pra permitir telemetria no doc-alvo).
+    Caso contrário, gera um novo UUID.
 
     Falhas no insert são apenas logadas — auditoria nunca derruba a
     operação principal.
     """
     await ensure_runs_indexes(db, runs_collection)
-    run_id = str(uuid.uuid4())
+    if run_id is None:
+        run_id = str(uuid.uuid4())
     doc = {
         "run_id": run_id,
         "created_at": finished_at.isoformat(),
@@ -288,6 +294,7 @@ async def record_run(
     return run_id
 
 
+import inspect
 # ---------------------------------------------------------------------------
 # Orquestrador: with_critical_mutation
 # ---------------------------------------------------------------------------
@@ -301,7 +308,7 @@ async def with_critical_mutation(
     actor: Dict[str, Any],
     request: Request,
     response: Response,
-    executor: Callable[[], Awaitable[ExecutorResult]],
+    executor: Callable[..., Awaitable[ExecutorResult]],
     runs_collection: str,
     locks_collection: str,
     idempotency_collection: str,
@@ -309,8 +316,11 @@ async def with_critical_mutation(
     """Envelopa idempotency + lock + audit em torno do `executor`.
 
     Parâmetros:
-      - `executor`: corrotina sem args que retorna
-        `{"mode": "...", "summary": {...}, "diff": {...}, "payload": {...}}`
+      - `executor`: corrotina que pode receber 0 ou 1 argumento:
+          • `async def executor()` (legacy — compatível)
+          • `async def executor(run_id: str)` (novo — recebe o run_id pré-gerado
+            pra permitir telemetria no doc-alvo, como `series_backfill_run_id`)
+        Retorna sempre `{"mode": "...", "summary": {...}, "diff": {...}, "payload": {...}}`.
       - `runs_collection`, `locks_collection`, `idempotency_collection`:
         nomes explícitos das 3 coleções (sem defaults — clareza > magia).
 
@@ -358,10 +368,23 @@ async def with_critical_mutation(
             },
         )
 
+    # Pré-gera run_id pra permitir telemetria no executor
+    run_id = str(uuid.uuid4())
+
     # [3] Execução protegida — try/finally garante release
     started = datetime.now(timezone.utc)
     try:
-        result = await executor()
+        # Detecta assinatura do executor (0 ou 1 arg)
+        sig = inspect.signature(executor)
+        positional_params = [
+            p for p in sig.parameters.values()
+            if p.kind in (inspect.Parameter.POSITIONAL_ONLY,
+                          inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        if len(positional_params) >= 1:
+            result = await executor(run_id)
+        else:
+            result = await executor()
     finally:
         await release_lock(db, target, holder, locks_collection)
     finished = datetime.now(timezone.utc)
@@ -373,8 +396,8 @@ async def with_critical_mutation(
     diff = result.get("diff") or {}
     payload = dict(result.get("payload") or {})
 
-    # [4] Grava run em auditoria
-    run_id = await record_run(
+    # [4] Grava run em auditoria (reusa o run_id pré-gerado)
+    await record_run(
         db,
         runs_collection=runs_collection,
         mode=mode,
@@ -389,6 +412,7 @@ async def with_critical_mutation(
         started_at=started,
         finished_at=finished,
         duration_ms=duration_ms,
+        run_id=run_id,
     )
 
     # [5] Enriquece payload final
