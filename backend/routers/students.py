@@ -435,10 +435,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
 
         # Contagem por série (student_series). Fonte canônica:
         # `enrollments.student_series` (matrícula ATIVA), com fallback para
-        # `students.student_series` quando não houver matrícula. Normaliza
-        # para uppercase para tolerar variações ("1º Ano", "1° Ano" etc.).
-        # Cobre Anos do Fund. (1º–9º), Educação Infantil (Berçário/Maternal/Pré)
-        # e Etapas EJA (1ª–4ª Etapa) numa única pipeline.
+        # `students.student_series` quando não houver matrícula.
+        #
+        # IMPORTANTE: a normalização (uppercase + canonicalização) é feita
+        # em Python — NÃO em MongoDB. `$toUpper` do MongoDB só opera sobre
+        # ASCII básico (A-Z) e NÃO converte caracteres acentuados/cedilha
+        # (ex.: `ç`, `á`). Resultado: `Berçário II` e `BERÇÁRIO II` ficavam
+        # em buckets distintos. Em Python, `str.upper()` trata Unicode
+        # corretamente.
         series_pipeline = [
             {"$match": active_filter},
             {"$lookup": {
@@ -463,16 +467,22 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 }
             }},
             {"$group": {
-                "_id": {"$toUpper": {"$ifNull": ["$_series_effective", ""]}},
+                "_id": "$_series_effective",  # raw (sem $toUpper) — normaliza em Python
                 "count": {"$sum": 1},
             }},
         ]
         series_counts_raw = {}
         async for doc in current_db.students.aggregate(series_pipeline):
-            key = (doc["_id"] or "").strip()
-            if key:
-                key_canon = key.replace("°", "º")
-                series_counts_raw[key_canon] = series_counts_raw.get(key_canon, 0) + doc["count"]
+            raw = (doc["_id"] or "").strip()
+            if not raw:
+                continue
+            # Normalização Unicode-aware: upper + canonicaliza "°"→"º".
+            key_canon = raw.upper().replace("°", "º")
+            # Etapas EJA são armazenadas como "EJA 1ª ETAPA". O label do
+            # frontend é "1ª Etapa" → remove o prefixo "EJA " para casar.
+            if key_canon.startswith("EJA "):
+                key_canon = key_canon[4:]
+            series_counts_raw[key_canon] = series_counts_raw.get(key_canon, 0) + doc["count"]
 
         # Contagem por modalidade. Usa `enrollments.class_id` como fonte
         # canônica (matrícula ATIVA), com fallback para `students.class_id`.
@@ -524,6 +534,25 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 modalidade_counts["regular"] += doc["count"]
             elif key in modalidade_counts:
                 modalidade_counts[key] += doc["count"]
+
+        # AEE é tratado de forma SEPARADA: AEE não vem de
+        # `classes.atendimento_programa`. Alunos com AEE permanecem na
+        # turma regular/integral e ganham um PLANO AEE como apoio
+        # adicional (coleção `planos_aee`). Conta alunos ATIVOS que
+        # possuem pelo menos um registro nessa coleção.
+        aee_pipeline = [
+            {"$match": active_filter},
+            {"$lookup": {
+                "from": "planos_aee",
+                "localField": "id",
+                "foreignField": "student_id",
+                "as": "_planos_aee",
+            }},
+            {"$match": {"_planos_aee": {"$ne": []}}},
+            {"$count": "total"},
+        ]
+        aee_result = await current_db.students.aggregate(aee_pipeline).to_list(1)
+        modalidade_counts["aee"] = aee_result[0]["total"] if aee_result else 0
 
         # Calcula skip com base na página
         effective_skip = (page - 1) * page_size if page > 0 else skip
