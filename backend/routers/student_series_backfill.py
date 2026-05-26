@@ -381,7 +381,25 @@ async def _execute_backfill_work(db, payload: BackfillRequest, run_id_hint: Opti
                 {"student_id": c["student_id"], "to": c["fill_with"], "source": c["source"]}
                 for c in diag["_candidates_B"]
             ],
+            # `applied` é a fonte da verdade para o rollback: cada entry traz
+            # `from` (valor antes — sempre null/"" por HARD INVARIANT) e `to`
+            # (valor preenchido). Permite reversão determinística sem
+            # reconstruir a regra de migração.
             "applied": diff_applied,
+            # [Sprint 1.2 — Rollback contract explícito]
+            # Declara como esse run pode ser revertido. Field_restore =
+            # restaura o valor exato do snapshot por campo.
+            "rollback": {
+                "type": "field_restore",
+                "fields": ["student_series"],
+                "telemetry_fields_to_unset": [
+                    "series_backfill_run_id",
+                    "series_backfill_source",
+                    "series_backfill_at",
+                ],
+                "strategy": "restore_previous_value_from_snapshot",
+                "reversed_by_run_id": None,  # populado quando rollback ocorre
+            },
         },
         "payload": {
             "dry_run": payload.dry_run,
@@ -398,6 +416,98 @@ async def _execute_backfill_work(db, payload: BackfillRequest, run_id_hint: Opti
 
 # ---------------------------------------------------------------------------
 # Router
+
+
+async def _execute_rollback(
+    db, original_run: Dict[str, Any], rollback_run_id: str
+) -> Dict[str, Any]:
+    """Reverte um apply do backfill conforme o `rollback contract` gravado
+    no run original. Determinístico — não reprocessa regra de migração.
+
+    Para cada entry em `original_run.diff.applied`:
+      - restaura `students.student_series` para `entry.from` (geralmente null)
+      - remove campos de telemetria (`series_backfill_*`)
+      - guard CAS: só reverte se aluno ainda tem o valor `entry.to`
+        (proteção contra rollback destrutivo se outro processo mudou
+        o campo depois do apply original).
+    """
+    applied = (original_run.get("diff") or {}).get("applied") or []
+    rollback_contract = (original_run.get("diff") or {}).get("rollback") or {}
+    telemetry_fields = rollback_contract.get("telemetry_fields_to_unset") or [
+        "series_backfill_run_id",
+        "series_backfill_source",
+        "series_backfill_at",
+    ]
+
+    reverted = 0
+    skipped_no_match = 0
+    diff_reverted: List[Dict[str, Any]] = []
+
+    for entry in applied:
+        student_id = entry.get("student_id")
+        previous_value = entry.get("from")
+        expected_current = entry.get("to")
+        if not student_id:
+            continue
+
+        set_ops: Dict[str, Any] = {}
+        unset_ops: Dict[str, Any] = {f: "" for f in telemetry_fields}
+        if previous_value is None or previous_value == "":
+            unset_ops["student_series"] = ""
+        else:
+            set_ops["student_series"] = previous_value
+
+        update_doc: Dict[str, Any] = {}
+        if set_ops:
+            update_doc["$set"] = set_ops
+        if unset_ops:
+            update_doc["$unset"] = unset_ops
+
+        result = await db.students.update_one(
+            {"id": student_id, "student_series": expected_current},
+            update_doc,
+        )
+        if result.modified_count == 1:
+            reverted += 1
+            diff_reverted.append({
+                "student_id": student_id,
+                "from": expected_current,
+                "to": previous_value,
+            })
+        else:
+            skipped_no_match += 1
+
+    # Marca o run original como revertido (telemetria — fonte oficial é
+    # o NOVO run com mode=rollback gravado pelo wrapper)
+    try:
+        await db[RUNS_COLLECTION].update_one(
+            {"run_id": original_run["run_id"]},
+            {"$set": {"diff.rollback.reversed_by_run_id": rollback_run_id}},
+        )
+    except Exception as e:
+        logger.warning(f"[rollback] falha ao marcar run original: {e}")
+
+    return {
+        "mode": "rollback",
+        "summary": {
+            "reversed_run_id": original_run["run_id"],
+            "reverted": reverted,
+            "skipped_no_match": skipped_no_match,
+            "total_in_original": len(applied),
+        },
+        "diff": {
+            "reversed_run_id": original_run["run_id"],
+            "applied": diff_reverted,
+        },
+        "payload": {
+            "reversed_run_id": original_run["run_id"],
+            "reverted": reverted,
+            "skipped_no_match": skipped_no_match,
+            "total_in_original": len(applied),
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 def setup_student_series_backfill_router(db):
     router = APIRouter(prefix="/admin/students", tags=["StudentSeriesBackfill"])
@@ -478,5 +588,67 @@ def setup_student_series_backfill_router(db):
                 detail=f"run não encontrado: {run_id}"
             )
         return doc
+
+    @router.post("/series-backfill/runs/{run_id}/rollback")
+    async def rollback_run(
+        run_id: str, request: Request, response: Response
+    ):
+        """Reverte um apply específico via `rollback contract` do diff.
+
+        Pré-condições (HTTP 409 / 400 se violadas):
+          - run deve existir
+          - run.mode deve ser `apply` (não reverte dry_run)
+          - run não pode já ter sido revertido (diff.rollback.reversed_by_run_id)
+
+        A reversão é determinística: lê `diff.applied[]` e restaura cada
+        aluno ao estado anterior (geralmente `student_series = null`), com
+        CAS lógico que NÃO sobrescreve mudanças posteriores ao apply.
+
+        Cria um NOVO run com `mode='rollback'` apontando ao original via
+        `summary.reversed_run_id` e `diff.reversed_run_id`.
+
+        Envelopado por `with_critical_mutation` (lock + idempotency).
+        """
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
+
+        original = await db[RUNS_COLLECTION].find_one(
+            {"run_id": run_id}, {"_id": 0}
+        )
+        if not original:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"run não encontrado: {run_id}"
+            )
+        if original.get("mode") != "apply":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Só é possível reverter runs com mode='apply' (esse é '{original.get('mode')}')"
+            )
+        already_reversed = (
+            (original.get("diff") or {}).get("rollback", {}).get("reversed_by_run_id")
+        )
+        if already_reversed:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "Run já foi revertido anteriormente",
+                    "reversed_by_run_id": already_reversed,
+                }
+            )
+
+        async def executor(rollback_run_id: str):
+            return await _execute_rollback(db, original, rollback_run_id)
+
+        return await with_critical_mutation(
+            db,
+            target=TARGET,
+            actor=current_user,
+            request=request,
+            response=response,
+            executor=executor,
+            runs_collection=RUNS_COLLECTION,
+            locks_collection=LOCKS_COLLECTION,
+            idempotency_collection=IDEMPOTENCY_COLLECTION,
+        )
 
     return router

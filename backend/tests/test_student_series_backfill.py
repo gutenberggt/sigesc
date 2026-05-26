@@ -74,8 +74,24 @@ class _Collection:
     async def update_one(self, query, update):
         for i, d in enumerate(self.docs):
             if self._match(d, query):
+                new_doc = dict(d)
                 if "$set" in update:
-                    self.docs[i] = {**d, **update["$set"]}
+                    for key, value in update["$set"].items():
+                        if "." in key:
+                            # Suporte simples a dot-notation (ex.: "diff.rollback.reversed_by_run_id")
+                            parts = key.split(".")
+                            cursor = new_doc
+                            for p in parts[:-1]:
+                                if p not in cursor or not isinstance(cursor[p], dict):
+                                    cursor[p] = {}
+                                cursor = cursor[p]
+                            cursor[parts[-1]] = value
+                        else:
+                            new_doc[key] = value
+                if "$unset" in update:
+                    for k in update["$unset"]:
+                        new_doc.pop(k, None)
+                self.docs[i] = new_doc
                 return type("R", (), {"modified_count": 1, "matched_count": 1})()
         return type("R", (), {"modified_count": 0, "matched_count": 0})()
 
@@ -118,6 +134,9 @@ class _FakeDB:
         self.enrollments = _Collection(enrollments or [])
         self.classes = _Collection(classes or [])
         self.schools = _Collection(schools or [])
+        # Coleções extras (criadas on-demand via __getitem__) — usado pelo
+        # rollback que toca `db[RUNS_COLLECTION].update_one(...)`.
+        self._extra_colls: dict = {}
 
         # Override aggregate de enrollments para implementar o pipeline
         orig_agg = self.enrollments.aggregate
@@ -141,6 +160,19 @@ class _FakeDB:
             return orig_agg(pipeline)
 
         self.enrollments.aggregate = custom_agg
+
+    def __getitem__(self, name):
+        if name == "students":
+            return self.students
+        if name == "enrollments":
+            return self.enrollments
+        if name == "classes":
+            return self.classes
+        if name == "schools":
+            return self.schools
+        if name not in self._extra_colls:
+            self._extra_colls[name] = _Collection([])
+        return self._extra_colls[name]
 
 
 def _aio(coro):
@@ -319,3 +351,119 @@ def test_apply_respects_hard_invariant_with_guard_filter():
     assert result["summary"]["filled"] == 0
     # student_series original preservado
     assert db.students.docs[0]["student_series"] == "JA_PREENCHIDO_POR_OUTRO"
+
+
+# ---------------------------------------------------------------------------
+# Rollback contract (Sprint 1.2)
+# ---------------------------------------------------------------------------
+from routers.student_series_backfill import _execute_rollback, RUNS_COLLECTION  # noqa: E402
+
+
+def test_apply_diff_includes_rollback_contract():
+    """O envelope do executor deve embutir a cláusula de rollback."""
+    db = _FakeDB(
+        students=[{"id": "s1", "full_name": "A", "status": "active",
+                   "student_series": None, "school_id": "sch1"}],
+        enrollments=[{"id": "e1", "student_id": "s1", "class_id": "c1", "status": "active"}],
+        classes=[{"id": "c1", "name": "1A", "grade_level": "1º Ano",
+                  "is_multi_grade": False, "school_id": "sch1"}],
+    )
+    result = _aio(_execute_backfill_work(db, BackfillRequest(dry_run=False), run_id_hint="r1"))
+    rbk = result["diff"]["rollback"]
+    assert rbk["type"] == "field_restore"
+    assert "student_series" in rbk["fields"]
+    assert "series_backfill_run_id" in rbk["telemetry_fields_to_unset"]
+    assert rbk["strategy"] == "restore_previous_value_from_snapshot"
+    assert rbk["reversed_by_run_id"] is None  # nunca revertido ainda
+
+
+def test_rollback_restores_student_series_and_unsets_telemetry():
+    """Cenário típico: aplica → reverte → student volta ao estado original."""
+    db = _FakeDB(
+        students=[{"id": "s1", "full_name": "A", "status": "active",
+                   "student_series": None, "school_id": "sch1"}],
+        enrollments=[{"id": "e1", "student_id": "s1", "class_id": "c1", "status": "active"}],
+        classes=[{"id": "c1", "name": "1A", "grade_level": "1º Ano",
+                  "is_multi_grade": False, "school_id": "sch1"}],
+    )
+
+    # Apply
+    apply_result = _aio(_execute_backfill_work(db, BackfillRequest(dry_run=False), run_id_hint="apply-1"))
+    s1 = db.students.docs[0]
+    assert s1["student_series"] == "1º Ano"
+    assert "series_backfill_run_id" in s1
+
+    # Simula run original gravado (como o wrapper teria feito)
+    original_run = {
+        "run_id": "apply-1",
+        "mode": "apply",
+        "diff": apply_result["diff"],
+    }
+    # Insere também no runs collection do fake DB pro update marker funcionar
+    db[RUNS_COLLECTION].docs.append({**original_run, "_id_marker": "x"})
+
+    # Rollback
+    rb_result = _aio(_execute_rollback(db, original_run, rollback_run_id="rb-1"))
+    assert rb_result["mode"] == "rollback"
+    assert rb_result["summary"]["reverted"] == 1
+    assert rb_result["summary"]["skipped_no_match"] == 0
+
+    s1_after = db.students.docs[0]
+    assert s1_after.get("student_series") is None or "student_series" not in s1_after
+    assert "series_backfill_run_id" not in s1_after
+    assert "series_backfill_source" not in s1_after
+    assert "series_backfill_at" not in s1_after
+
+
+def test_rollback_cas_skips_when_student_changed_after_apply():
+    """Se aluno foi mudado por outro processo depois do apply, rollback NÃO sobrescreve."""
+    db = _FakeDB(
+        students=[{"id": "s1", "full_name": "A", "status": "active",
+                   "student_series": None, "school_id": "sch1"}],
+        enrollments=[{"id": "e1", "student_id": "s1", "class_id": "c1", "status": "active"}],
+        classes=[{"id": "c1", "name": "1A", "grade_level": "1º Ano",
+                  "is_multi_grade": False, "school_id": "sch1"}],
+    )
+
+    apply_result = _aio(_execute_backfill_work(db, BackfillRequest(dry_run=False), run_id_hint="apply-1"))
+
+    # Simula que alguém mudou student_series MANUALMENTE depois do apply
+    db.students.docs[0]["student_series"] = "MUDADO_MANUALMENTE_POR_HUMANO"
+
+    original_run = {"run_id": "apply-1", "mode": "apply", "diff": apply_result["diff"]}
+    db[RUNS_COLLECTION].docs.append(original_run)
+
+    rb_result = _aio(_execute_rollback(db, original_run, rollback_run_id="rb-1"))
+    # Não revertido — CAS detectou que estado não bate
+    assert rb_result["summary"]["reverted"] == 0
+    assert rb_result["summary"]["skipped_no_match"] == 1
+    # Valor manual preservado
+    assert db.students.docs[0]["student_series"] == "MUDADO_MANUALMENTE_POR_HUMANO"
+
+
+def test_rollback_marks_original_run_as_reversed():
+    """O run original deve ganhar `diff.rollback.reversed_by_run_id` apontando ao rollback."""
+    db = _FakeDB(
+        students=[{"id": "s1", "full_name": "A", "status": "active",
+                   "student_series": None, "school_id": "sch1"}],
+        enrollments=[{"id": "e1", "student_id": "s1", "class_id": "c1", "status": "active"}],
+        classes=[{"id": "c1", "name": "1A", "grade_level": "1º Ano",
+                  "is_multi_grade": False, "school_id": "sch1"}],
+    )
+
+    apply_result = _aio(_execute_backfill_work(db, BackfillRequest(dry_run=False), run_id_hint="apply-1"))
+
+    # Grava o run original na coleção pra `update_one` em `_execute_rollback` achar
+    db[RUNS_COLLECTION].docs.append({
+        "run_id": "apply-1",
+        "mode": "apply",
+        "diff": apply_result["diff"],
+    })
+
+    original_run = db[RUNS_COLLECTION].docs[0]
+    _aio(_execute_rollback(db, original_run, rollback_run_id="rb-99"))
+
+    # Re-lê o doc do runs collection
+    updated = db[RUNS_COLLECTION].docs[0]
+    assert updated["diff"]["rollback"]["reversed_by_run_id"] == "rb-99"
+

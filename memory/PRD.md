@@ -108,10 +108,13 @@ backend/frontend supervisord saudável.
 
 > *Owner: "validar 1.497 processados, 0 perda de aluno, 0 null inesperado,
 > distribuição coerente. Não é só rodar sem erro."*
+> *Owner (rollback): "capacidade de desfazer exatamente o apply sem
+> reconstrução de regra."*
 
 Primeira aplicação real do padrão `with_critical_mutation` em escala
 (esperado: 1.497 alunos com `student_series` vazio). 4 ajustes finos sobre
-a proposta inicial, todos aprovados pelo owner antes de codar.
+a proposta inicial + **rollback contract explícito**, todos aprovados pelo
+owner antes de codar.
 
 **Regras aprovadas:**
 - HARD INVARIANT: NUNCA sobrescreve `student_series` preenchido (guard
@@ -124,23 +127,43 @@ a proposta inicial, todos aprovados pelo owner antes de codar.
 - Telemetria no aluno: APENAS `series_backfill_run_id` + `_source` +
   `_at`. Fonte primária da auditoria é a runs collection.
 
+**Rollback contract (Sprint 1.2.R):**
+Cada apply grava em `diff.rollback`:
+```json
+{ "type": "field_restore",
+  "fields": ["student_series"],
+  "telemetry_fields_to_unset": ["series_backfill_run_id", "_source", "_at"],
+  "strategy": "restore_previous_value_from_snapshot",
+  "reversed_by_run_id": null }
+```
+- Endpoint `POST /series-backfill/runs/{run_id}/rollback`:
+  - 404 se run não existe; 400 se mode≠apply; 409 se já revertido
+  - Para cada `diff.applied[]`, restaura `student_series` ao `from`
+    + remove telemetria, com **CAS lógico** (`student_series == entry.to`)
+    pra NÃO sobrescrever mudanças manuais posteriores
+  - Cria novo run com `mode="rollback"` apontando ao original via
+    `summary.reversed_run_id`
+  - Marca run original com `diff.rollback.reversed_by_run_id`
+  - Envelopado por `with_critical_mutation` (lock + idempotency)
+
 **Arquivos novos/alterados:**
-- `/app/backend/routers/student_series_backfill.py` — endpoints + lógica
+- `/app/backend/routers/student_series_backfill.py` — endpoints + lógica + rollback
 - `/app/backend/server.py` — registra o router
 - `/app/backend/lib/critical_mutation.py` — pré-gera `run_id` antes do
   executor (`executor(run_id)`); detecção via `inspect` mantém
   backward-compat com executors sem args
-- `/app/backend/tests/test_student_series_backfill.py` — 11 testes
+- `/app/backend/tests/test_student_series_backfill.py` — 15 testes (4 rollback)
 
 **Endpoints:**
 - `GET  /api/admin/students/series-backfill/preview` (read-only)
 - `POST /api/admin/students/series-backfill/apply` (dry_run + apply)
 - `GET  /api/admin/students/series-backfill/runs[/<id>]`
+- `POST /api/admin/students/series-backfill/runs/{run_id}/rollback` ✨
 
 **Coleções novas em prod (criadas on-demand):**
 `student_series_backfill_runs` / `_locks` / `_idempotency`
 
-**Validação local:** 52/52 testes verdes (11 backfill + 41 herdados),
+**Validação local:** 56/56 testes verdes (15 backfill + 41 herdados),
 lint limpo, backend reload OK, endpoints respondem 401.
 
 
