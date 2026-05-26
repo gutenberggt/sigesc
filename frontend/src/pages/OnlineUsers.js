@@ -206,7 +206,7 @@ export default function OnlineUsers() {
         <div
           className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4"
           data-testid="total-connections-card"
-          title="Total acumulado de eventos de login registrados na auditoria (inclui tentativas)."
+          title="Total acumulado de logins bem-sucedidos registrados na auditoria."
         >
           <div className="p-3 bg-amber-50 rounded-lg">
             <History size={20} className="text-amber-600" />
@@ -215,17 +215,9 @@ export default function OnlineUsers() {
             <p className="text-2xl font-bold text-gray-900" data-testid="total-connections-value">
               {loginCount === null
                 ? '—'
-                : (loginCount.total ?? 0).toLocaleString('pt-BR')}
+                : (loginCount.successful ?? 0).toLocaleString('pt-BR')}
             </p>
             <p className="text-sm text-gray-500">Conexões Registradas</p>
-            {loginCount !== null && (
-              <p
-                className="text-[11px] text-gray-400 mt-0.5"
-                data-testid="total-connections-successful"
-              >
-                {(loginCount.successful ?? 0).toLocaleString('pt-BR')} bem-sucedidas
-              </p>
-            )}
           </div>
         </div>
       </div>
