@@ -433,20 +433,46 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 race_key = "nao_informada"
             race_counts[race_key] = doc["count"]
 
-        # Contagem por série (student_series).
-        # Fonte: `students.student_series` diretamente (mesmo critério usado
-        # pelas queries de auditoria do administrador).
+        # Contagem por série.
+        # Fonte: `classes.grade_level` da turma onde o aluno está matriculado
+        # (via `students.class_id`). Esse é o critério usado pelas queries
+        # de auditoria do administrador, pois `students.student_series`
+        # frequentemente está vazio. Fallback: `students.student_series`
+        # caso a turma não tenha `grade_level` definido.
         #
         # IMPORTANTE: a normalização (uppercase + canonicalização) é feita
         # em Python — NÃO em MongoDB. `$toUpper` do MongoDB só opera sobre
         # ASCII básico (A-Z) e NÃO converte caracteres acentuados/cedilha
-        # (ex.: `ç`, `á`). Resultado: `Berçário II` e `BERÇÁRIO II` ficavam
-        # em buckets distintos. Em Python, `str.upper()` trata Unicode
-        # corretamente.
+        # (ex.: `ç`, `á`). Em Python, `str.upper()` trata Unicode corretamente.
         series_pipeline = [
             {"$match": active_filter},
+            {"$lookup": {
+                "from": "classes",
+                "localField": "class_id",
+                "foreignField": "id",
+                "as": "_class",
+            }},
+            {"$addFields": {
+                "_grade_effective": {
+                    "$let": {
+                        "vars": {
+                            "g": {"$arrayElemAt": ["$_class.grade_level", 0]}
+                        },
+                        "in": {
+                            "$cond": [
+                                {"$and": [
+                                    {"$ne": ["$$g", None]},
+                                    {"$ne": ["$$g", ""]},
+                                ]},
+                                "$$g",
+                                "$student_series",
+                            ]
+                        }
+                    }
+                }
+            }},
             {"$group": {
-                "_id": "$student_series",  # raw — normaliza em Python
+                "_id": "$_grade_effective",  # raw — normaliza em Python
                 "count": {"$sum": 1},
             }},
         ]
