@@ -8,6 +8,14 @@
 - Email: coordenador@sigesc.com
 - Senha: coordenador123
 
+## Coordenador (PROD — usado em validação STEP 3 deploy Sprint 1.1, Fev/2026)
+- Email: kledbyaschenkel@sigesc.com
+- Senha: 856567
+- Role: coordenador
+- Uso: validar fix do bug 500 em `/api/curriculum/adaptations/availability`
+  (acesso como não super_admin sem override Matrix). Conta REAL de produção.
+
+
 ## Secretario
 - Email: secretario@sigesc.com
 - Senha: secretario123
