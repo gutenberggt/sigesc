@@ -33,6 +33,41 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Fix 500 em `/api/curriculum/adaptations/availability` **[Fev/2026]** ✅ LOCAL
+
+**Causa raiz:** `_require_any_auth` em `routers/curriculum_v2.py:38` chamava
+`AuthMiddleware.require_permission(db, 'nav-curriculum-button', None)`. Para
+usuários **não super_admin sem override na Matriz**, o middleware caía no
+fallback `require_roles(None)`, executando `effective_role not in None` →
+`TypeError: argument of type 'NoneType' is not iterable`. Bug existia desde
+a criação do router v2 e só disparava para roles não-admin (super_admin tem
+bypass na linha 142 do middleware).
+
+**Auditoria global:** verifiquei TODOS os 80+ call sites de `require_permission`
+no projeto — apenas `curriculum_v2.py:38-40` usava `None`. Confirmado que o
+padrão NÃO se repete em nenhum outro router.
+
+**Fix aplicado (Opção B — local, conservadora):**
+- `/app/backend/routers/curriculum_v2.py::_require_any_auth` reescrito para
+  replicar a lógica de Matriz LOCALMENTE, com semântica explícita de
+  "permissivo por default" (qualquer autenticado passa, override negativo
+  é honrado).
+- **Zero alteração** em `auth_middleware.py` — preservada a policy global
+  de segurança (decisão do owner: "middleware global não deve mudar
+  semântica de segurança por causa de bug local").
+
+**Testes (6 novos em `tests/test_curriculum_v2_auth_regression.py`):**
+- super_admin bypass (sem consulta DB)
+- non-admin sem override → passa (regressão principal do bug)
+- non-admin com override `visible=False` → 403
+- non-admin com override `visible=True` → passa
+- override de role diferente não afeta usuário atual
+- falha na consulta Mongo → fail-open (não bloqueia leitura)
+
+**Validação:** 41/41 testes verdes · lint limpo · backend reload OK · route
+responde 401 sem auth (correto).
+
+
 ### Sprint 1.1.E — Padrão reutilizável `with_critical_mutation` **[Fev/2026]** ✅ LOCAL
 
 > *Owner: "se você NÃO fizer (e) agora, você está aceitando replicar manualmente

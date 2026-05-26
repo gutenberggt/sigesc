@@ -17,7 +17,7 @@ Endpoints expostos sob /api/curriculum:
 from __future__ import annotations
 
 from typing import Optional, List
-from fastapi import APIRouter, Request, HTTPException, Query
+from fastapi import APIRouter, Request, HTTPException, Query, status
 from pydantic import BaseModel
 
 from auth_middleware import AuthMiddleware
@@ -35,9 +35,36 @@ router = APIRouter(prefix="/curriculum", tags=["Currículo v2"])
 def setup_router(db):
 
     async def _require_any_auth(request: Request):
-        return await AuthMiddleware.require_permission(
-            db, 'nav-curriculum-button', None
-        )(request)
+        """Currículo v2 LEITURA: qualquer usuário autenticado passa, com
+        override NEGATIVO da Matriz de Permissões honrado (revogação explícita).
+
+        [Fix Fev/2026] Antes este wrapper chamava `require_permission(...,
+        default_roles=None)`, que estourava `TypeError: argument of type
+        'NoneType' is not iterable` no fallback (`require_roles(None)`) para
+        usuários não super_admin sem override Matrix. Fix local — não toca
+        middleware global, replica a lógica de Matrix aqui com semântica
+        explícita de "permissivo por default".
+        """
+        user = await AuthMiddleware.get_current_user(request)
+        role = user.get('role')
+        # super_admin bypass — coerente com require_permission
+        if role == 'super_admin':
+            return user
+        # Honra apenas override NEGATIVO da Matriz (revogação). Override
+        # positivo é redundante aqui porque o default já é permissivo.
+        try:
+            override = await db.permission_overrides.find_one(
+                {"item_key": 'nav-curriculum-button', "role": role},
+                {"_id": 0, "visible": 1}
+            )
+        except Exception:
+            override = None
+        if override is not None and not override.get('visible'):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso negado pela Matriz de Permissões (nav-curriculum-button × {role})"
+            )
+        return user
 
     async def _require_super(request: Request):
         return await AuthMiddleware.require_permission(
