@@ -38,6 +38,29 @@ class DedupRequest(BaseModel):
     dry_run: bool = True
 
 
+def _normalize_created_at(value) -> datetime:
+    """Normaliza `created_at` (datetime ou string) para datetime tz-aware (UTC).
+
+    Datas tz-naive vindas de registros antigos em produção são convertidas para UTC.
+    Strings ISO são parseadas; valores ausentes/inválidos retornam datetime.min UTC.
+    Indispensável para evitar `TypeError: can't compare offset-naive and offset-aware datetimes`
+    ao usar `max(..., key=...)` sobre matrículas mistas.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed
+        except ValueError:
+            return datetime.min.replace(tzinfo=timezone.utc)
+    return datetime.min.replace(tzinfo=timezone.utc)
+
+
 async def _find_duplicate_enrollments(db) -> List[Dict[str, Any]]:
     """
     Identifica todos os casos de aluno com 2+ matrículas ATIVAS.
@@ -119,22 +142,7 @@ async def _find_duplicate_enrollments(db) -> List[Dict[str, Any]]:
         # → entre as preferenciais, escolhe a mais recente (created_at)
         # → fallback: mais recente de todas
         def _ts(e):
-            ts = e.get("created_at")
-            if isinstance(ts, datetime):
-                # Normaliza para tz-aware: campos antigos em prod são naive (sem tz).
-                # Sem isso, max() quebra com TypeError ao misturar naive + aware.
-                if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=timezone.utc)
-                return ts
-            if isinstance(ts, str):
-                try:
-                    parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                    if parsed.tzinfo is None:
-                        parsed = parsed.replace(tzinfo=timezone.utc)
-                    return parsed
-                except ValueError:
-                    return datetime.min.replace(tzinfo=timezone.utc)
-            return datetime.min.replace(tzinfo=timezone.utc)
+            return _normalize_created_at(e.get("created_at"))
 
         preferenciais = [e for e in enrolls if e.get("school_id") == student_school_id and student_school_id]
         if preferenciais:
