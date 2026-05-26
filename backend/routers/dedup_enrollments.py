@@ -22,9 +22,11 @@ Acesso: super_admin only. Apenas read na listagem, write apenas no dedup.
 """
 import csv
 import logging
+import os
+import uuid
 from io import StringIO
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Request, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -59,6 +61,79 @@ def _normalize_created_at(value) -> datetime:
         except ValueError:
             return datetime.min.replace(tzinfo=timezone.utc)
     return datetime.min.replace(tzinfo=timezone.utc)
+
+
+# ---------------------------------------------------------------------------
+# [Sprint 1.0 — governança] Trilha de auditoria de runs do dedup.
+# Coleção `dedup_runs` registra cada execução (dry_run ou apply) com:
+#   run_id, mode, target, summary, diff, actor, environment, timestamps.
+# Indispensável antes do apply oficial — log estruturado, consultável.
+# ---------------------------------------------------------------------------
+_DEDUP_RUNS_COLLECTION = "dedup_runs"
+_DEDUP_INDEXES_ENSURED = False
+
+
+async def _ensure_dedup_runs_indexes(db) -> None:
+    """Cria índices idempotentes em `dedup_runs` na primeira escrita.
+
+    Índices:
+      - created_at desc (consulta histórica recente)
+      - mode (filtrar dry_run vs apply)
+      - actor (filtrar por executor)
+      - run_id único (evita gravação dupla acidental)
+    """
+    global _DEDUP_INDEXES_ENSURED
+    if _DEDUP_INDEXES_ENSURED:
+        return
+    try:
+        coll = db[_DEDUP_RUNS_COLLECTION]
+        await coll.create_index("run_id", unique=True)
+        await coll.create_index([("created_at", -1)])
+        await coll.create_index("mode")
+        await coll.create_index("actor.user_id")
+        _DEDUP_INDEXES_ENSURED = True
+    except Exception as e:
+        logger.warning(f"[dedup_runs] falha ao criar índices (segue sem): {e}")
+
+
+async def _record_dedup_run(
+    db,
+    *,
+    mode: str,
+    target: str,
+    summary: Dict[str, Any],
+    diff: Dict[str, Any],
+    actor: Dict[str, Any],
+    started_at: datetime,
+    finished_at: datetime,
+    duration_ms: int,
+) -> str:
+    """Persiste um documento em `dedup_runs` e retorna o `run_id` gerado."""
+    await _ensure_dedup_runs_indexes(db)
+    run_id = str(uuid.uuid4())
+    doc = {
+        "run_id": run_id,
+        "created_at": finished_at.isoformat(),
+        "started_at": started_at.isoformat(),
+        "finished_at": finished_at.isoformat(),
+        "duration_ms": duration_ms,
+        "mode": mode,  # "dry_run" | "apply"
+        "target": target,  # "dedup_enrollments"
+        "summary": summary,
+        "diff": diff,
+        "actor": actor,
+        "environment": os.environ.get("ENVIRONMENT", "unknown"),
+    }
+    try:
+        await db[_DEDUP_RUNS_COLLECTION].insert_one(doc)
+        logger.info(
+            f"[dedup_runs] gravado run_id={run_id} mode={mode} "
+            f"actor={actor.get('email')} duration_ms={duration_ms}"
+        )
+    except Exception as e:
+        # Não derruba a operação principal — apenas loga.
+        logger.error(f"[dedup_runs] falha ao gravar run_id={run_id}: {e}")
+    return run_id
 
 
 async def _find_duplicate_enrollments(db) -> List[Dict[str, Any]]:
@@ -240,8 +315,11 @@ def setup_dedup_router(db):
           - dedup_reason: "auto-dedup-sprint1-matricula-duplicada"
           - dedup_at: ISO UTC
           - dedup_kept_id: id da matrícula mantida
+
+        Toda execução (dry_run ou apply) é gravada em `dedup_runs` para
+        trilha de auditoria (run_id, summary, diff, actor, environment).
         """
-        await AuthMiddleware.require_roles(['super_admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
 
         started = datetime.now(timezone.utc)
         logger.info(
@@ -255,11 +333,15 @@ def setup_dedup_router(db):
         inactivated = 0
         affected_students = 0
         details = []
+        duplicates_removed: List[Dict[str, Any]] = []
+        kept_records: List[Dict[str, Any]] = []
 
         for case in cases:
-            non_canonical_ids = [
-                e["id"] for e in case["enrollments"] if not e["is_canonical"]
-            ]
+            non_canonical = [e for e in case["enrollments"] if not e["is_canonical"]]
+            canonical = next(
+                (e for e in case["enrollments"] if e["is_canonical"]), None
+            )
+            non_canonical_ids = [e["id"] for e in non_canonical]
             if not non_canonical_ids:
                 continue
             would_inactivate += len(non_canonical_ids)
@@ -270,6 +352,23 @@ def setup_dedup_router(db):
                 "kept": case["canonical_enrollment_id"],
                 "inactivated": non_canonical_ids,
             })
+            # Trilha estruturada para `dedup_runs.diff`
+            if canonical:
+                kept_records.append({
+                    "enrollment_id": canonical.get("id"),
+                    "student_id": case["student_id"],
+                    "school_id": canonical.get("school_id"),
+                    "class_id": canonical.get("class_id"),
+                })
+            for e in non_canonical:
+                duplicates_removed.append({
+                    "enrollment_id": e.get("id"),
+                    "student_id": case["student_id"],
+                    "school_id": e.get("school_id"),
+                    "class_id": e.get("class_id"),
+                    "kept_id": case["canonical_enrollment_id"],
+                })
+
             if not payload.dry_run:
                 result = await db.enrollments.update_many(
                     {"id": {"$in": non_canonical_ids}},
@@ -290,7 +389,32 @@ def setup_dedup_router(db):
             f"inactivated={inactivated}"
         )
 
+        # Trilha de auditoria — grava SEMPRE (dry_run ou apply)
+        run_id = await _record_dedup_run(
+            db,
+            mode="dry_run" if payload.dry_run else "apply",
+            target="dedup_enrollments",
+            summary={
+                "affected_students": affected_students,
+                "would_inactivate": would_inactivate,
+                "inactivated": inactivated,
+            },
+            diff={
+                "duplicates_removed": duplicates_removed,
+                "kept_records": kept_records,
+            },
+            actor={
+                "user_id": current_user.get("id"),
+                "email": current_user.get("email"),
+                "role": current_user.get("role"),
+            },
+            started_at=started,
+            finished_at=finished,
+            duration_ms=duration_ms,
+        )
+
         return {
+            "run_id": run_id,
             "dry_run": payload.dry_run,
             "started_at": started.isoformat(),
             "finished_at": finished.isoformat(),
@@ -300,5 +424,52 @@ def setup_dedup_router(db):
             "inactivated": inactivated,
             "details": details,
         }
+
+    @router.get("/dedup-runs")
+    async def list_dedup_runs(
+        request: Request,
+        mode: Optional[str] = Query(None, pattern="^(dry_run|apply)$"),
+        target: Optional[str] = Query(None),
+        limit: int = Query(50, ge=1, le=500),
+        skip: int = Query(0, ge=0),
+    ):
+        """Histórico de execuções do dedup gravadas em `dedup_runs`.
+
+        Por default lista os 50 mais recentes (`created_at` desc). Filtros
+        opcionais: `mode` (dry_run|apply), `target` (ex: dedup_enrollments).
+        Acesso: super_admin only.
+        """
+        await AuthMiddleware.require_roles(['super_admin'])(request)
+
+        q: Dict[str, Any] = {}
+        if mode:
+            q["mode"] = mode
+        if target:
+            q["target"] = target
+
+        cursor = (
+            db[_DEDUP_RUNS_COLLECTION]
+            .find(q, {"_id": 0})
+            .sort("created_at", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+        items = await cursor.to_list(limit)
+        total = await db[_DEDUP_RUNS_COLLECTION].count_documents(q)
+        return {"total": total, "skip": skip, "limit": limit, "items": items}
+
+    @router.get("/dedup-runs/{run_id}")
+    async def get_dedup_run(run_id: str, request: Request):
+        """Retorna um run específico (com `diff` completo)."""
+        await AuthMiddleware.require_roles(['super_admin'])(request)
+        doc = await db[_DEDUP_RUNS_COLLECTION].find_one(
+            {"run_id": run_id}, {"_id": 0}
+        )
+        if not doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"dedup_run não encontrado: {run_id}",
+            )
+        return doc
 
     return router
