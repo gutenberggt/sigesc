@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Wifi, Monitor, Clock, RefreshCw, Home, LogOut, AlertTriangle } from 'lucide-react';
+import { Users, Wifi, Monitor, Clock, RefreshCw, Home, LogOut, AlertTriangle, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hasRole } from '@/utils/permissions';
 
@@ -45,6 +45,7 @@ export default function OnlineUsers() {
   const [confirmTarget, setConfirmTarget] = useState(null); // user a desconectar
   const [revoking, setRevoking] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type, message }
+  const [loginCount, setLoginCount] = useState(null); // { total, successful }
   
   const isSuperAdmin = hasRole(currentUser, ['super_admin']);
 
@@ -62,6 +63,20 @@ export default function OnlineUsers() {
       console.error('Erro ao buscar usuários online:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLoginCount = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/online-users/login-count`, {
+        headers: { 'Authorization': `Bearer ${tokenRef.current}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLoginCount(data);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar contagem de conexões:', error);
     }
   };
 
@@ -95,7 +110,11 @@ export default function OnlineUsers() {
 
   useEffect(() => {
     fetchOnlineUsers();
-    const interval = setInterval(fetchOnlineUsers, 10000);
+    fetchLoginCount();
+    const interval = setInterval(() => {
+      fetchOnlineUsers();
+      fetchLoginCount();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -141,7 +160,7 @@ export default function OnlineUsers() {
             {lastUpdate && `Atualizado: ${lastUpdate.toLocaleTimeString('pt-BR')}`}
           </div>
           <button
-            onClick={fetchOnlineUsers}
+            onClick={() => { fetchOnlineUsers(); fetchLoginCount(); }}
             data-testid="refresh-online-users"
             className="flex items-center gap-2 px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -152,7 +171,7 @@ export default function OnlineUsers() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
           <div className="p-3 bg-green-50 rounded-lg">
             <Users size={20} className="text-green-600" />
@@ -182,6 +201,31 @@ export default function OnlineUsers() {
               {[...new Set(users.map(u => u.role))].length}
             </p>
             <p className="text-sm text-gray-500">Perfis Diferentes</p>
+          </div>
+        </div>
+        <div
+          className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4"
+          data-testid="total-connections-card"
+          title="Total acumulado de eventos de login registrados na auditoria (inclui tentativas)."
+        >
+          <div className="p-3 bg-amber-50 rounded-lg">
+            <History size={20} className="text-amber-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900" data-testid="total-connections-value">
+              {loginCount === null
+                ? '—'
+                : (loginCount.total ?? 0).toLocaleString('pt-BR')}
+            </p>
+            <p className="text-sm text-gray-500">Conexões Registradas</p>
+            {loginCount !== null && (
+              <p
+                className="text-[11px] text-gray-400 mt-0.5"
+                data-testid="total-connections-successful"
+              >
+                {(loginCount.successful ?? 0).toLocaleString('pt-BR')} bem-sucedidas
+              </p>
+            )}
           </div>
         </div>
       </div>

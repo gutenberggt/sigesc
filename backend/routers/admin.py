@@ -142,6 +142,26 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         result.sort(key=lambda x: unicodedata.normalize('NFD', x['full_name']).encode('ascii', 'ignore').decode('ascii'))
         return result
 
+    @router.get("/admin/online-users/login-count")
+    async def get_login_count(request: Request):
+        """
+        Retorna o total acumulado (retroativo) de conexões registradas
+        no sistema — i.e. quantidade de logs de auditoria com action='login'.
+        Mesmo escopo de permissão de /admin/online-users.
+        """
+        await AuthMiddleware.require_permission(
+            db, 'nav-online-users-button', ['admin']
+        )(request)
+
+        total = await db.audit_logs.count_documents({'action': 'login'})
+        # Conta também apenas conexões bem-sucedidas (description começa com
+        # "Login realizado"), para diferenciar de tentativas falhas.
+        successful = await db.audit_logs.count_documents({
+            'action': 'login',
+            'description': {'$regex': '^Login realizado'}
+        })
+        return {'total': total, 'successful': successful}
+
     @router.post("/admin/sessions/revoke/{user_id}")
     async def force_logout_user(user_id: str, request: Request):
         """
