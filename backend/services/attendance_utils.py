@@ -110,33 +110,43 @@ def compute_monthly_valid_absences(
     medical_days_by_student: dict,
     student_ids: Optional[Set[str]] = None,
 ) -> dict:
-    """Conta faltas **válidas** por aluno por mês — fonte única de verdade
-    para módulos que precisam saber "quantos dias o aluno faltou e que
-    realmente contam contra a frequência" (ex.: Bolsa Família, Busca Ativa).
+    """Conta faltas **válidas** por aluno por mês via **consolidação diária**.
 
-    Regra Fev/2026 (alinhada a `classify_with_atestado` e ao PDF de frequência):
-      - Atestado médico vence o status original → NÃO conta como falta.
-      - Status `J` (justificado pelo professor) → NÃO conta como falta.
-      - `dependency_id` em registro → NÃO contamina cálculo regular (P0).
-      - Apenas `F`/`absent`/`ausente`/`falta` sem atestado contam.
+    [Fev/2026 — Spec owner Bolsa Família]
+    ANTES: cada registro `by_course` faltoso virava 1 falta válida →
+    inflava estatística (aluno com 1 ausência num componente perdia o dia).
+    AGORA: agrupa todos os registros do MESMO `(student_id, date)`, computa
+    `% presença = present / (present + absent)` e converte em status binário:
+        - ≥ 50% → PRESENTE (não conta falta)
+        - <  50% → FALTA (conta 1 falta no mês)
+
+    Exclusões aplicadas POR REGISTRO antes da consolidação (não contaminam
+    o denominador):
+      - `dependency_id` no registro → aula de dependência, ignorada
+      - data coberta por atestado médico → registro inteiro vence
+      - `status ∈ {J, justified}` → justificada pelo professor
+      - `invalidated`/`invalid` no registro → componente invalidado
+
+    Equivalência com `attendance_type='daily'`: docs daily têm 1 registro
+    por (sid, date), então a consolidação devolve o mesmo resultado
+    anterior (F isolado → 0% presença → falta válida).
 
     Args:
       attendance_docs: iterable de documentos da coleção `attendance`
-        `{date: 'YYYY-MM-DD', records: [{student_id, status, dependency_id?}, ...]}`
+        `{date: 'YYYY-MM-DD', records: [{student_id, status, dependency_id?,
+        invalidated?}, ...]}` — funciona para `attendance_type` 'daily' e 'by_course'.
       medical_days_by_student: `{student_id: Set[YYYY-MM-DD coberto por atestado]}`
       student_ids: opcional. Se fornecido, ignora records de outros alunos.
 
     Returns:
       `{student_id: {month_int: valid_absence_count}}`
     """
-    out: dict = {}
+    # Acumulador intermediário: {sid: {date: {"present": N, "absent": N}}}
+    daily_counts: dict = {}
+
     for doc in attendance_docs or []:
         date_str = (doc.get("date") or "")[:10]
         if not date_str or len(date_str) != 10:
-            continue
-        try:
-            month = int(date_str[5:7])
-        except (ValueError, TypeError):
             continue
 
         for rec in doc.get("records", []) or []:
@@ -145,23 +155,48 @@ def compute_monthly_valid_absences(
                 continue
             if student_ids is not None and sid not in student_ids:
                 continue
-            # P0: dependência não contamina cálculo regular
+            # Exclusão 1: dependência não contamina cálculo regular (P0)
             if rec.get("dependency_id"):
+                continue
+            # Exclusão 2: componente invalidado
+            if rec.get("invalidated") or rec.get("invalid"):
                 continue
 
             raw_status = (rec.get("status") or "").strip()
             in_atestado = date_str in (medical_days_by_student.get(sid) or set())
 
-            # Atestado vence — nunca conta como falta
+            # Exclusão 3: atestado médico vence — registro ignorado
             if in_atestado:
                 continue
-            # Justificado pelo professor — nunca conta como falta
+            # Exclusão 4: justificada pelo professor — registro ignorado
             if raw_status in ("J", "justified"):
                 continue
-            # Falta efetiva
-            if raw_status in ("F", "absent", "ausente", "falta", "A"):
-                # Nota: 'A' legado às vezes representava ausência;
-                # quando 'A' é atestado, já foi tratado em `in_atestado`.
+
+            # Agora o registro entra no denominador do dia
+            day = daily_counts.setdefault(sid, {}).setdefault(
+                date_str, {"present": 0, "absent": 0}
+            )
+            if raw_status in ("P", "present", "presente"):
+                day["present"] += 1
+            elif raw_status in ("F", "absent", "ausente", "falta", "A"):
+                # 'A' legado às vezes representava ausência;
+                # quando 'A' = atestado, já saiu via `in_atestado`.
+                day["absent"] += 1
+            # Status desconhecido / vazio → ignorado (não entra no denominador)
+
+    # Conversão final: aplica regra dos 50% por (sid, date) e agrega por mês
+    out: dict = {}
+    for sid, days in daily_counts.items():
+        for date_str, counts in days.items():
+            total = counts["present"] + counts["absent"]
+            if total == 0:
+                continue  # Dia sem registros válidos — não conta nem como presença nem falta
+            present_pct = (counts["present"] / total) * 100
+            if present_pct < 50.0:
+                try:
+                    month = int(date_str[5:7])
+                except (ValueError, TypeError):
+                    continue
                 if sid not in out:
                     out[sid] = {}
                 out[sid][month] = out[sid].get(month, 0) + 1

@@ -16,7 +16,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get(
-    "REACT_APP_BACKEND_URL", "https://school-integrity-fix.preview.emergentagent.com"
+    "REACT_APP_BACKEND_URL", "https://mutacoes-criticas.preview.emergentagent.com"
 ).rstrip("/")
 
 ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}

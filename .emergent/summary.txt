@@ -1,126 +1,130 @@
-<analysis>Here is the handoff summary based on the provided LLM message history:
+<analysis>**original_problem_statement**: Saneamento de dados críticos (deduplicação de matrículas, migração de ), implementação de integridade em operações destrutivas via idempotência e locks, além de refinamentos em lógicas de negócio (Frequência consolidada diária para o Bolsa Família e exibição de componentes em turmas multisseriadas). PRODUCT REQUIREMENTS: O Módulo AEE continua BLOQUEADO para alterações de negócio (apenas verificações defensivas/correções de bugs autorizadas). Garantir a governança técnica de scripts administrativos.
 
-**original_problem_statement**: Refatorar o módulo de Diário Escolar para resolver problemas graves de concorrência e sobrescrita silenciosa quando múltiplos professores acessam a mesma turma. PRODUCT REQUIREMENTS: Separar completamente Frequência (institucional por dia/turma) de Conteúdo (individual por professor/componente). Implementar optimistic locking, trilha de auditoria imutável, workflow de publicação (), modelagem temporal de professores () e um endpoint unificado para renderizar um Calendário Operacional Semântico.
+**User's preferred language**: Portuguese (INSTRUCT next agent: Responda SEMPRE em Português)
 
-**User's preferred language**: Portuguese (INSTRUCT next agent: **Responda SEMPRE em Português**)
+**what currently exists?**: SaaS educacional multi-tenant com módulo de Saneamento Avançado. O backend agora possui um framework de orquestração de mutações críticas () com persistência, idempotência e suporte a rollback. O cálculo de frequência do Bolsa Família recém passou por uma alteração onde faltas são consolidadas diariamente (>=50% de presença no dia = Dia Letivo Inteiro Presente). O painel de Integridade da Grade Horária foi adaptado para ler coleções mistas temporariamente, evitando falsos críticos.
 
-**what currently exists?**: SaaS educacional multi-tenant. O sistema acaba de passar por uma refatoração arquitetural massiva e bem-sucedida no backend do Diário Escolar (Rodadas 1 a 5.5 completas). Frequência e Conteúdo agora são domínios separados. O backend já possui optimistic locking (409 Conflict), logs de auditoria imutáveis, controle de status (), motor temporal () e um agregador consolidado () que calcula a expectativa vs. realidade. As diretrizes de design (UX/UI) para o calendário visual acabaram de ser geradas pelo agente de design.
-
-**Last working item**: 
-    - Last item agent was working: O agente acionou o  para gerar as especificações visuais rigorosas () para a UI do Calendário Operacional. O agente de design completou a tarefa definindo a hierarquia semântica das cores (, , , , , ).
-    - Status: IN PROGRESS (Fase de design concluída, implementação frontend pendente).
-    - Agent Testing Done: Y (Backend tem 44 testes automatizados passando 100%. Frontend UI ainda não construída).
-    - Which testing method agent to use? Frontend testing agent / screenshot tool.
+**Last working item**:
+    - Last item agent was working: Atualização do cálculo de faltas mensais do módulo Bolsa Família (). Implementada a consolidação diária das aulas (agrupando por dia: >= 50% de aulas presentes torna o dia todo como PRESENTE). Adição de testes automatizados ().
+    - Status: USER VERIFICATION PENDING
+    - Agent Testing Done: Y
+    - Which testing method agent to use? NA (Backend tests passed local validation. Aguardando validação do usuário em prod)
     - User Testing Done: N
 
-**All Pending/In progress Issue list**:  
-None. Todos os bugs reportados (como a divergência de contadores no Bolsa Família) foram sanados e testados.
+**All Pending/In progress Issue list**:
+  Issue 1: Erro 500 Erro ao salvar plano no Diário AEE - P0
+     - Attempted fixes: Investigação estática revelou que o erro se trata de uma falha de validação ou CSRF mascarada por um fallback na UI (). Nenhuma mutação foi feita pois o módulo é bloqueado.
+     - Next debug checklist: Aguardar o usuário fornecer Print da aba **Network** do Chrome (status code e response body da request PUT) ou logs do servidor (Coolify) no momento do erro.
+     - Why fix this issue and what will be achieved with the fix?: Para permitir à professora editar planos AEE sem impeditivos.
+     - Status: BLOCKED (Aguardando dados externos do usuário)
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? Both
 
-**In progress Task List**: 
-  Task 1: Implementar o Frontend do Calendário Operacional do Diário (P0)
-     - Where to resume: Criar a página React consumindo o endpoint . Aplicar estritamente o layout e as cores definidas no recém-criado .
-     - What will be achieved with this?: Transformar o backend recém-construído em uma ferramenta visual de governança para a coordenação (respondendo: O que falta? Quem está pendente? O que está inconsistente?).
-     - Status: NOT STARTED
-     - Should Test frontend/backend/both after fix?: Frontend.
-     - Blocked on something: N/A.
+**In progress Task List**:
+  Task 1: Sprint 1.2 — Saneamento/Migração de  - P1
+     - Where to resume: O backfill já foi implementado (), integrado ao  e possui endpoint de Preview, Apply e Rollback. Falta o usuário dar *deploy* e testar em ambiente real (Fase 1 de Preview primeiro).
+     - What will be achieved with this?: Preencher o campo  de 1.497 alunos valendo-se das informações de turma (), essencial para a consistência do Censo e Diários.
+     - Status: USER VERIFICATION PENDING
+     - Should Test frontend/backend/both after fix? Backend
+     - Blocked on something: Deploy e execução do comando cURL pelo usuário.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P1) Fase 5: Refazer o PDF dinâmico do Diário. Criar coleção  (imprimir snapshot no momento da publicação) com multi-autoria correta, para que o documento seja imutável juridicamente.
-    - (P1) Fase 5b: Implementar QR Code e endpoint público de verificação ().
-    - (P2) Fase 7: Fluxo de Validação ( e  no attendance) via UI da coordenação/secretaria.
-    - (P2) Endpoint  para detectar lacunas na grade horária.
-    
+    - (P1) Validação da Nova Frequência do Bolsa Família em prod (após usuário deployar a última modificação).
+    - (P2) Saneamento: Dedup do array  (5 casos pendentes) reaproveitando o novo decorator .
+    - (P2) Saneamento: Deletar 1 atendimento AEE órfão (aproveitando o mesmo framework seguro).
+    - (P3) Script one-shot de migração definitiva da Grade Horária: mover  (legacy) →  (nova estrutura) para eliminar a ambiguidade arquitetural e o workaround de dual-read do painel de integridade.
+
     Future Tasks:
-    - (P3) Refatoração de relatórios consolidados para respeitar o status .
-    - (P3) Helper genérico de repositório MongoDB.
+    - Fase 2 do Redesign da Página Alunos.
+    - ICP-Brasil Completo (Pausado estrategicamente).
 
 **Completed work in this session**
-- Bolsa Família: Filtro Turma (DONE)
-- Bolsa Família: Opção Todas as Escolas com bloqueios corretos de RBAC e UI (DONE)
-- Bolsa Família: Mini-dashboard executivo com chips dinâmicos clicáveis (DONE)
-- Bolsa Família: Correção da divergência do contador de registros vs. alunos (DONE)
-- Diário Fase 0/1: Auditoria imutável via  e Optimistic Locking em  (DONE)
-- Diário Fase 2: Split do domínio Conteúdo para coleção  independente (DONE)
-- Diário Fase 6: Workflow Institucional (, ) em  (DONE)
-- Diário Fase 4a: Motor Temporal  com seed sintético (DONE)
-- Diário Fase 4/5.5: Endpoint agregador do Calendário () com correção semântica de falsos positivos  (DONE)
-- Geração de UI/UX Specs: Criação do  via Subagente de Design (DONE)
+- Sprint 1.0 (Deduplicação) finalizado com sucesso no Prod (apply zerou o passivo e registrou log no banco). (DONE)
+- Criação do orquestrador reutilizável de scripts administrativos em  garantindo idempotência e locks via banco. (DONE)
+- Bugfix de permissão em  para coordenadores/professores, resolvendo  de fallback inseguro. (DONE)
+- Roteamento completo do Saneamento do  (Preview, Apply seguro e API de Rollback via snapshot de field original). (DONE)
+- Dependência em Turmas Multisseriadas (UI e Backend): Adição de Seletor de Série (Frontend) e indicativo textual concatenado com o nome do componente (). (DONE)
+- Workaround da Grade Horária: O Painel de Integridade de Grade agora consulta tanto a coleção nova quanto a legacy temporariamente para mitigar Falsos Positivos. Endpoint diagnóstico de leitura adicionado (). (DONE)
+- Regra de Consolidação Diária de Frequência (Bolsa Família) implementada. (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-None.
+  - Nenhum além do bug P0 listado (AEE).
 
 **Known issue recurrence from previous fork**
-None nesta sessão. A arquitetura foi radicalmente estabilizada.
+  - Recurrence count: 0
+  - Status: RESOLVED
 
 **Code Architecture**
-- **Frontend**: React (Create React App + Webpack). Componentes shadcn/ui.
-- **Backend**: FastAPI. 
-- **Database**: MongoDB (motor PyMongo assíncrono).
-- **Core Pattern Novo**: O frontend agora atua APENAS como renderizador semântico. Cálculos de estado (se um dia está completo, vazio ou inconsistente) são feitos 100% no backend Python e cacheados/consolidados para entrega.
+- Nova library global introduzida nesta sessão: . Deve ser empregada como *wrapper* wrapper de todas as operações administrativas/saneamento destrutivas (ela encarrega-se do dry-run handling, lock via TTL no Mongo, checagem de idempotência via cabeçalho HTTP e armazenamento em coleção de log).
 
 **Key Technical Concepts**
-- **Optimistic Locking**: Operações de atualização de diário exigem checagem de versão ( vs ) e retornam  para proteger contra sobrescritas em abas esquecidas/mobile.
-- **Split Frequência/Conteúdo**: Frequência pertence ao *dia/turma* (1 doc). Conteúdo pertence ao *professor/componente/dia/turma* (N docs).
-- **Trilha de Auditoria Imutável**: Deleções são . Sobrescritas salvam o diff/texto anterior integralmente em .
+- **Idempotência Operacional**: Scripts expostos com o  recebem um  (header). Se a chave repete, o banco devolve a resposta cacheada evitando regravação cega.
+- **Frequência Bolsa Família**: O sistema mudou de 1 componente faltoso = 1 falta para Aulas do dia consolidadas: Presente em 50% das aulas = Dia como PRESENTE.
 
 **key DB schema**
-  - : 
-  - : 
-  - : 
-  - : Trilha universal do sistema.
+  - , : Coleções de auditoria geradas pelo  armazenando , modo, payload de summary e snapshot de rollback ().
+  - , : Controle e concorrência transacional.
 
 **changes in tech stack**
-  - Nenhum pacote novo, mas ampla implementação de suite Pytest ( e testes com IDs mockados por UUID para idempotência).
+  - Nenhuma
 
 **All files of reference** 
-  -  (**LEIA PRIMEIRO**: contém a especificação semântica de cores e UX do calendário)
-  -  (Endpoint agregador do calendário)
-  -  e 
-  - 
-  - 
-  
+  -  (Novo - Framework para Saneamento)
+  -  (Refatorado para usar o wrapper global)
+  -  (Novo)
+  -  (Atualizado fix auth fallback)
+  -  (Atualizado diagnóstico grade horária)
+  -  (Atualizado Hotfix legacy)
+  -  (Atualizado)
+  -  (Atualizado - Regra Bolsa Família)
+  -  (Novo)
+  -  (Atualizado com perfil de Coordenador )
+  -  (Atualizado extensamente)
+
 **Areas that need refactoring**: 
-- A refatoração dos  antigos para  no frontend ainda pode ser continuada em background quando ocioso.
+- Endpoint de migração de  → . Uma vez migrados, o workaround aplicado no  (que agrupa leituras de duas coleções) deverá ser deletado para garantir única fonte de verdade.
 
 **key api endpoints**
-  -  (Core do Calendário Visual)
-  -  e 
-  -  (agora com controle de  e 409)
+  -  (Agora protegido com idempotência e lock)
+  - 
+  - 
+  - 
 
 **Critical Info for New Agent**
-- **REGRA DE OURO DA PRÓXIMA FASE**: O Frontend UI do Calendário que você vai construir NÃO DEVE RECALCULAR ESTADOS. O endpoint  já entrega classificações matemáticas precisas (, , , , , ). O frontend apenas lê e mapeia para o layout e as cores definidas no .
-- Dias  (feriados, domingos) não devem ter alarmes visuais. Devem ser quase invisíveis (baixa opacidade).
-- Siga as especificações visuais do  fielmente. A tela é um painel operacional de pendências, não um calendário decorativo.
+- Os testes rodam rapidamente via PyTest no ambiente e passaram sem quebras (). Use isso ativamente antes de submeter alterações de backend.
+- O padrão  deve receber um  e repassar dados formatados com contratos restritos (como ).
+- O usuário está realizando *Deploys manuais* na VPS. Qualquer feature finalizada via código deve culminar com uma orientação clara para ele aprovar, efetuar Save to Github, puxar no Coolify e validar as rotas via cURL com os tokens do .
 
-**documents and test reports created in this job**
-  -  a  (Testes UI Bolsa Família)
-  -  (Diagnóstico do banco real)
-  -  (Diretrizes de interface do calendário)
-  - Dezenas de novos scripts e testes de regressão no backend (44+ tests criados na suite do Diário).
+**documents and test reports created in this job** 
+  - Vários testes adicionados em  relacionados ao backfill, consolidação BF e currículo.
+  - 
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *User*: Orientou sobre o workflow de estados do diário (Rodada 3). Agent implementou  e .
- - *User*: Definiu modelagem temporal exigida para a grade de professores (Fase 4a). Agent criou a collection  e seed.
- - *User*: Solicitou a criação do agregador do Calendário Operacional. Agent criou a rota em  via processamento Python em vez de MongoDB puro.
- - *User*: Instruiu sobre os falsos positivos de feriados/domingos. Agent corrigiu a engine para distinguir  de .
- - *User (Última)*: Orientou chamar o agente de design para definir o esquema de cores e pesos da UI do calendário antes da programação real. Agent invocou o , que gerou as guidelines e encerrou.
- - *Pending*: Nenhuma ação pendente do usuário. O agente deve começar a codar o Frontend.
+ - *User*: Solicitou detalhamento da fórmula do acompanhamento do Bolsa Família.
+ - *Agent*: Explicou a fórmula vigente (baseada no dia do calendário X status X atestados médicos).
+ - *User*: Solicitou alterar a fórmula. Deve consolidar as aulas de forma diária em vez de isoladas (presença em >=50% das aulas no mesmo dia torna o dia presente).
+ - *Agent*: Implementou a regra de consolidação diária em  e executou a bateria de testes, resultando todos verdes. PENDENTE: Resposta sobre os próximos passos para o deploy da feature ou se ele pretende voltar à análise de logs do Diário AEE.
 
 **Project Health Check:**
-Extremamente saudável. Backend robusto, testes abrangentes, blindado contra concorrência. Nenhuma dependência broken ou mockada.
+Healthy.
 
-**3rd Party Integrations**
-  - Emergent LLM Key (via litellm)
-  - openpyxl
+**3rd Party Integrations** 
+ - Emergent LLM Key (Not recently modified)
 
 **Testing status**
-  - Testing agent used after significant changes: YES. (Foi utilizado para o frontend Bolsa Família. Para o núcleo do diário, o agente criou e usou uma suíte nativa massiva com Pytest).
-  - Test files created: , , , , .
-  - Known regressions: None.
+  - Testing agent used after significant changes: NO (Main agent realizou a testagem com pytest e cURL exaustivamente, garantindo qualidade alta do code entregue).
+  - Test files created: , , , 
+  - Known regressions: Nenhuma pendente.
 
 **Credentials to test flow:**
-Consulte . (Para acessar a nova UI do diário, logue preferencialmente com usuário  ou  para visão global).
+Consulte o . Login padrão do admin:  / . Novo Coordenador:  / .
 
 **What agent forgot to execute**
-O agente não esqueceu nada; a arquitetura do backend está 100% pronta. O ciclo pausou perfeitamente após o  gerar as guidelines. O próximo passo imediato é criar o Frontend ().</analysis>
+O agente parou exatamente após executar a refatoração do cálculo do Bolsa Família e rodar os testes. Faltou apenas informar ao usuário que as rotas estão prontas para deploy para ele validar os números via frontend de fato.
+
+**Debugging checklist for current issue**
+    Nenhum erro no backend pendente de debugging no momento. Caso vá atuar no issue reportado pela professora no Módulo AEE:
+    - Sugira novamente que o usuário lhe forneça os logs (Network tab na request PUT e response body).
+    - O frontend para revisar o erro genérico está em .</analysis>
