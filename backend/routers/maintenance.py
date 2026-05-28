@@ -387,4 +387,106 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         }
 
 
+    @router.get("/maintenance/schedules-write-read-diagnostic")
+    async def schedules_write_read_diagnostic(
+        request: Request,
+        academic_year: int = None,
+        examples_limit: int = 20,
+    ):
+        """[Fev/2026] Diagnóstico read-only do anti-pattern WRITE!=READ
+        entre `class_schedules` (legacy, onde a UI grava) e
+        `teacher_class_assignments` (novo, onde o painel de Integridade lê).
+
+        Sem mutações. Pré-condição para qualquer migração legacy→novo.
+
+        Buckets retornados:
+          - both:        em AMBAS as coleções (potencial duplicação)
+          - legacy_only: só em `class_schedules` (UI ainda no antigo)
+          - new_only:    só em `teacher_class_assignments` (raro hoje)
+          - without_any: SEM grade em lugar nenhum (problema real)
+        """
+        await AuthMiddleware.require_roles(['super_admin'])(request)
+
+        year = academic_year if academic_year is not None else datetime.now(timezone.utc).year
+
+        classes_active = await db.classes.find(
+            {"academic_year": year},
+            {"_id": 0, "id": 1, "name": 1, "school_id": 1, "status": 1},
+        ).to_list(5000)
+        classes_active = [
+            c for c in classes_active if (c.get("status") or "active") == "active"
+        ]
+        active_ids = {c["id"] for c in classes_active}
+
+        try:
+            legacy_ids_raw = await db.class_schedules.distinct("class_id", {})
+        except Exception:
+            legacy_ids_raw = []
+        legacy_ids = {cid for cid in legacy_ids_raw if cid in active_ids}
+
+        try:
+            new_ids_raw = await db.teacher_class_assignments.distinct(
+                "class_id", {"deleted": {"$ne": True}}
+            )
+        except Exception:
+            new_ids_raw = []
+        new_ids = {cid for cid in new_ids_raw if cid in active_ids}
+
+        both = legacy_ids & new_ids
+        legacy_only = legacy_ids - new_ids
+        new_only = new_ids - legacy_ids
+        without_any = active_ids - legacy_ids - new_ids
+
+        # Enriquece amostra com nome da escola
+        examples = []
+        school_ids_needed = {
+            c.get("school_id") for c in classes_active
+            if c["id"] in without_any and c.get("school_id")
+        }
+        school_name_by_id = {}
+        if school_ids_needed:
+            async for s in db.schools.find(
+                {"id": {"$in": list(school_ids_needed)}},
+                {"_id": 0, "id": 1, "name": 1},
+            ):
+                school_name_by_id[s["id"]] = s.get("name")
+
+        for c in classes_active:
+            if c["id"] in without_any:
+                examples.append({
+                    "class_id": c["id"],
+                    "class_name": c.get("name"),
+                    "school_id": c.get("school_id"),
+                    "school_name": school_name_by_id.get(c.get("school_id")),
+                })
+                if len(examples) >= examples_limit:
+                    break
+
+        return {
+            "academic_year": year,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "total_active_classes": len(active_ids),
+            "with_class_schedules": len(legacy_ids),
+            "with_teacher_assignments": len(new_ids),
+            "both": len(both),
+            "legacy_only": len(legacy_only),
+            "new_only": len(new_only),
+            "without_any_schedule": len(without_any),
+            "examples_without_any_schedule": examples,
+            "interpretation": {
+                "anti_pattern_detected": len(legacy_only) > 0 and len(new_ids) == 0,
+                "migration_safe": len(both) == 0,
+                "real_missing_schedule_count": len(without_any),
+                "notes": (
+                    "Se `both > 0`: investigar duplicação antes de migrar."
+                    " Se `legacy_only` é predominante e `new_ids` é vazio,"
+                    " confirma o anti-pattern WRITE!=READ; o painel de"
+                    " Integridade da Grade já considera ambas as coleções"
+                    " (hotfix B). Migração definitiva continua como sprint"
+                    " dedicado."
+                ),
+            },
+        }
+
+
     return router

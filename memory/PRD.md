@@ -68,6 +68,42 @@ padrão NÃO se repete em nenhum outro router.
 responde 401 sem auth (correto).
 
 
+### Fix Painel Integridade da Grade — `class_schedules` vs `teacher_class_assignments` **[Fev/2026]** ✅ LOCAL
+
+**Causa raiz (anti-pattern WRITE_PATH != READ_PATH):**
+A UI atual de cadastro de grade horária ("Horário de Aulas") grava na
+coleção legacy `class_schedules`. O painel "Integridade da Grade Horária"
+e o serviço `grade_integrity_service.py` liam APENAS a coleção nova
+`teacher_class_assignments`, que está ~vazia em prod. Consequência: ~todas
+as turmas ativas viravam falso positivo CLASS_WITHOUT_ASSIGNMENT severidade
+crítica → ruído operacional + risco da equipe "corrigir" turmas que já
+estavam corretas.
+
+**Caminho C aprovado pelo owner ("sem hesitar"):**
+1. ✅ **HOTFIX B** (hoje): painel passa a considerar AMBAS as coleções
+   como fontes de "tem grade?" (`legacy ∪ novo`). Modo híbrido temporário,
+   marcado como débito arquitetural explícito.
+2. ✅ **Diagnóstico read-only** (hoje): endpoint dedicado mapeia o gap.
+3. ⏳ **Migração definitiva** (sprint dedicado, NÃO agora): legacy → novo
+   via `with_critical_mutation` + dry-run + rollback contract.
+
+**Arquivos alterados:**
+- `/app/backend/services/grade_integrity_service.py:341-393`:
+  união de `class_schedules.distinct("class_id")` + assignments. Guarda
+  `try/except` se coleção legacy não existir (ambiente novo).
+- `/app/backend/routers/maintenance.py`: novo endpoint
+  `GET /api/admin/maintenance/schedules-write-read-diagnostic` retornando
+  5 buckets (both / legacy_only / new_only / without_any) + amostra de
+  turmas realmente sem grade + interpretação automática
+  (`anti_pattern_detected`, `migration_safe`, `real_missing_schedule_count`).
+- `/app/backend/tests/test_grade_integrity.py`: novo teste de regressão
+  `test_class_with_legacy_class_schedule_NOT_flagged` (12/12 verdes).
+
+**Validação local:** lint limpo, backend supervisord saudável, endpoint
+retorna 401 sem auth (correto), 12/12 testes do grade_integrity verdes.
+
+
+
 ### Dependência de estudos em turma multisseriada — seletor de série **[Fev/2026]** ✅ LOCAL
 
 **Problema:** modal "Vincular componente em dependência" lista componentes

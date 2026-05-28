@@ -29,9 +29,12 @@ Severidades:
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections import defaultdict
 from datetime import date as date_cls, datetime, timezone
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 SEVERITY_HIGH = "high"
@@ -338,7 +341,16 @@ async def compute_integrity_report(
                     })
 
     # =========================================================================
-    # 6. CLASS_WITHOUT_ASSIGNMENT — turma ativa do ano corrente sem assignments
+    # 6. CLASS_WITHOUT_ASSIGNMENT — turma ativa do ano corrente sem grade.
+    #
+    # [Fev/2026 — Hotfix B do owner]
+    # WRITE_PATH != READ_PATH: a UI atual de "Horário de Aulas" grava em
+    # `class_schedules` (legacy), mas este painel lia APENAS
+    # `teacher_class_assignments` (novo). Resultado: ~todas turmas viravam
+    # falso positivo de severidade crítica.
+    # Correção: união das duas coleções como fonte de "tem grade?".
+    # Migração definitiva legacy→novo é DÉBITO ARQUITETURAL EXPLÍCITO,
+    # tratado em sprint dedicado (NÃO desativar este caminho híbrido até lá).
     # =========================================================================
     class_filter: dict = {}
     if school_id:
@@ -355,9 +367,21 @@ async def compute_integrity_report(
     # Apenas turmas ativas (status==active ou sem status)
     classes_active = [c for c in classes_active if (c.get("status") or "active") == "active"]
 
-    classes_with_assignment = {a.get("class_id") for a in assignments if not a.get("deleted")}
+    classes_with_assignment_new = {a.get("class_id") for a in assignments if not a.get("deleted")}
+    # Fonte legacy: cada doc em class_schedules representa um bloco
+    # (turma × dia × horário) com professor + componente cadastrados.
+    # Para o painel, basta `distinct(class_id)` — não precisamos do conteúdo.
+    try:
+        legacy_class_ids = await db.class_schedules.distinct("class_id", {})
+        classes_with_schedule_legacy = {cid for cid in legacy_class_ids if cid}
+    except Exception as e:
+        # Se a coleção legacy não existir (ambiente novo), só não há cobertura adicional.
+        logger.warning(f"[grade_integrity] class_schedules.distinct falhou: {e}")
+        classes_with_schedule_legacy = set()
+    classes_with_any_schedule = classes_with_assignment_new | classes_with_schedule_legacy
+
     for c in classes_active:
-        if c["id"] not in classes_with_assignment:
+        if c["id"] not in classes_with_any_schedule:
             issues.append({
                 "kind": "CLASS_WITHOUT_ASSIGNMENT",
                 "severity": SEVERITY_HIGH,
@@ -424,7 +448,7 @@ async def compute_integrity_report(
             "affected_teachers": len(affected_teachers),
             "affected_classes": len(affected_classes),
             "classes_scanned": len({a.get("class_id") for a in assignments}) + len(
-                [c for c in classes_active if c["id"] not in classes_with_assignment]
+                [c for c in classes_active if c["id"] not in classes_with_any_schedule]
             ),
             "assignments_scanned": len(assignments),
         },

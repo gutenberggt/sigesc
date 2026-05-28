@@ -27,7 +27,7 @@ def db():
 def cleanup():
     """Marca docs criados com tag única e limpa ao final."""
     tag = f"test-integrity-{uuid.uuid4().hex[:8]}"
-    created = {"class_ids": [], "assignment_ids": [], "user_ids": [], "tag": tag}
+    created = {"class_ids": [], "assignment_ids": [], "user_ids": [], "schedule_ids": [], "tag": tag}
     yield created
     # cleanup síncrono via pymongo
     from pymongo import MongoClient
@@ -38,6 +38,8 @@ def cleanup():
         sync.teacher_class_assignments.delete_many({"id": {"$in": created["assignment_ids"]}})
     if created["user_ids"]:
         sync.users.delete_many({"id": {"$in": created["user_ids"]}})
+    if created["schedule_ids"]:
+        sync.class_schedules.delete_many({"id": {"$in": created["schedule_ids"]}})
 
 
 async def _make_class(db, cleanup, *, school_id, ay=2099, status="active"):
@@ -238,6 +240,36 @@ def test_class_without_assignment_detected(db, cleanup):
     cwa = [it for it in r["issues"] if it["kind"] == "CLASS_WITHOUT_ASSIGNMENT"]
     assert len(cwa) >= 1
     assert cwa[0]["severity"] == "high"
+
+
+def test_class_with_legacy_class_schedule_NOT_flagged(db, cleanup):
+    """[Hotfix B Fev/2026] Turma ativa com grade APENAS em `class_schedules`
+    (legacy) NÃO deve disparar CLASS_WITHOUT_ASSIGNMENT.
+
+    Regressão crítica: antes do hotfix, o painel só lia
+    `teacher_class_assignments` → ~todas as turmas viravam falso positivo
+    de severidade crítica, gerando ruído operacional e levando a equipe a
+    'corrigir' turmas que já estavam corretas.
+    """
+    async def scenario():
+        klass = await _make_class(db, cleanup, school_id=SCHOOL)
+        # Insere grade APENAS em class_schedules (legacy)
+        await db.class_schedules.insert_one({
+            "id": "sch-legacy-1",
+            "class_id": klass,
+            "school_id": SCHOOL,
+            "academic_year": 2099,
+        })
+        cleanup["schedule_ids"].append("sch-legacy-1")
+        return await compute_integrity_report(
+            db, school_id=SCHOOL, class_id=klass,
+            reference_date="2099-06-01", academic_year=2099,
+        )
+    r = _run(scenario())
+    cwa = [it for it in r["issues"] if it["kind"] == "CLASS_WITHOUT_ASSIGNMENT"]
+    assert len(cwa) == 0, (
+        f"Turma com grade legacy não deve ser flagged. Issues: {cwa}"
+    )
 
 
 # ============================================================================
