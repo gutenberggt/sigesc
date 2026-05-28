@@ -33,6 +33,43 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Bolsa Família — Análise de Impacto da Consolidação Diária **[Fev/2026]** ✅ PRONTO P/ VALIDAÇÃO EM PROD
+
+Regra nova (já em `attendance_utils.compute_monthly_valid_absences`):
+consolidação diária — presença em **≥ 50%** das aulas do dia torna o dia
+inteiro PRESENTE; < 50% conta 1 falta. Validado: 35/35 testes unitários
+verdes (consolidação + frequência canônica + suggestion). Zero regressão no
+domínio BF.
+
+**Achados estatísticos (analíticos):**
+- **Monotonicidade**: o método novo NUNCA reduz a frequência vs o antigo —
+  só aumenta ou mantém. (Dia mono-componente = idêntico; dia multi-componente
+  = no máx. 1 falta/dia vs N faltas/dia antes.) Qualquer delta negativo é
+  anomalia e é sinalizado pelo script.
+- **Correção de unidade**: o método ANTIGO somava faltas POR COMPONENTE
+  contra um denominador POR DIA (`school_days`) — descasamento de unidade que,
+  em turmas `by_course` (Anos Finais/EM), podia gerar frequência absurdamente
+  baixa/negativa. O novo método alinha numerador e denominador em DIAS.
+
+**Análise regulatória (PBF):**
+- Limiares de condicionalidade: **60%** (4–5 anos) e **75%** (6–17 anos),
+  apurados mensalmente via Sistema Presença MEC.
+- O corte de **≥50%/dia é regra de negócio LOCAL** (decisão do owner), NÃO
+  norma MEC — precisa ser defensável em auditoria.
+- Impacto: frequências reportadas SOBEM → alunos podem migrar de
+  "descumprimento" → "cumprimento". Benéfico onde o número antigo estava
+  errado (by_course); risco de SUPER-reporte se o MEC esperar apuração por
+  carga horária em grades fracionadas. Revisar `crossed_threshold` antes do
+  ciclo oficial.
+
+**Ferramenta de validação em prod (read-only):**
+`/app/backend/scripts/bf_consolidation_impact.py [ANO]` — compara método
+antigo vs novo sobre a base real e reporta: student-meses alterados, delta
+médio/máx, deltas negativos (anomalias) e nº de alunos que cruzam o limiar
+PBF, com ranking por escola. Saída JSON em
+`/app/test_reports/bf_consolidation_impact_<ANO>.json`. NÃO escreve nada.
+
+
 ### Fix 500 em `/api/curriculum/adaptations/availability` **[Fev/2026]** ✅ EM PROD
 
 **Causa raiz:** `_require_any_auth` em `routers/curriculum_v2.py:38` chamava

@@ -1,0 +1,20 @@
+{
+  "academic_year": 2026,
+  "generated_at": "2026-05-28T21:11:26.351730+00:00",
+  "bf_students": 6,
+  "attendance_docs": 57,
+  "thresholds": {
+    "age_4_5": 60.0,
+    "age_6_17": 75.0
+  },
+  "summary": {
+    "student_months_evaluated": 0,
+    "student_months_changed": 0,
+    "avg_delta_pp": 0.0,
+    "max_delta_pp": 0.0,
+    "negative_deltas": 0,
+    "crossed_threshold_count": 0
+  },
+  "crossed_threshold_samples": [],
+  "by_school": {}
+}
