@@ -49,6 +49,7 @@ from routers.admin_diary_diagnose import setup_admin_diary_diagnose_router
 from routers.integrity_audit import setup_integrity_audit_router
 from routers.dedup_enrollments import setup_dedup_router
 from routers.student_series_backfill import setup_student_series_backfill_router
+from routers.grade_legacy_migration import setup_grade_legacy_migration_router
 from routers.user_signature import (
     setup_user_signature_router,
     setup_signature_image_render_router,
@@ -432,6 +433,7 @@ admin_diary_diagnose_router = setup_admin_diary_diagnose_router(db)
 integrity_audit_router = setup_integrity_audit_router(db)
 dedup_router = setup_dedup_router(db)
 student_series_backfill_router = setup_student_series_backfill_router(db)
+grade_legacy_migration_router = setup_grade_legacy_migration_router(db)
 user_signature_router = setup_user_signature_router(db, audit_service=audit_service)
 signature_image_render_router = setup_signature_image_render_router(db)
 completions_router = setup_dependency_completions_router(db, audit_service=audit_service)
@@ -514,6 +516,7 @@ app.include_router(integrity_audit_router, prefix="/api")
 # [Sprint 1.0] Saneamento de matrículas duplicadas (super_admin only)
 app.include_router(dedup_router, prefix="/api")
 app.include_router(student_series_backfill_router, prefix="/api")
+app.include_router(grade_legacy_migration_router, prefix="/api")
 # Público SEM autenticação E SEM prefixo /api (cidadão escaneia QR e cai aqui).
 # Owner: '/verify/diary/{token}' é "verificação institucional pública".
 app.include_router(public_verify_diary_router, prefix="/api")

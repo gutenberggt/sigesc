@@ -33,6 +33,55 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 ## Implemented Features (histórico)
 
 
+### Grade Horária — Fase 2: Migração definitiva `class_schedules` → `teacher_class_assignments` **[Fev/2026]** ✅ LOCAL (pronto p/ deploy + piloto)
+
+Corrige a MODELAGEM do anti-pattern WRITE!=READ (a Fase 1/hotfix corrigiu só
+a leitura via dual-read). Persiste a grade legacy no modelo novo como fonte
+única da verdade. Estratégia aprovada pelo owner: curto prazo = compat;
+médio = fonte única; longo = remoção controlada do legado.
+
+**Transform:** reutiliza `services.legacy_schedule_bridge.build_assignments_from_legacy`
+(validado nas Fases 9/10 do Diário). ZERO regra nova de mapeamento.
+
+**HARD INVARIANTS:**
+1. NUNCA toca turma com assignment REAL no modelo novo (`source != legacy_migration`).
+2. Id determinístico `legacy::{class}::{course}::{teacher}` → re-rodar não duplica.
+3. Apply FALHA (422 `UNEXPECTED_DETERMINISTIC_DUPLICATE`) se id colidir com doc não-migração.
+4. Rollback apaga só docs criados pela migração com CAS rigoroso (`updated_at == created_at`).
+
+**Marcadores no doc criado:** `source="legacy_migration"`, `migrated_from_legacy=True`,
+`migration_run_id=<run_id>`, `synthetic_validity=True`, vigência sintética
+`{ano}-02-01`→`{ano}-12-31`.
+
+**Endpoints (super_admin, envelopados por `with_critical_mutation`):**
+- `GET  /api/admin/grade/legacy-migration/preview?academic_year&school_id&class_id`
+  → total turmas afetadas, total assignments a criar, breakdown por escola,
+    turmas ignoradas (já têm modelo novo) + amostra, 5 docs sintetizados.
+- `POST /api/admin/grade/legacy-migration/apply` (`dry_run=true` default; scope
+  `school_id`/`class_id`/`academic_year` p/ rollout faseado/piloto). Retorna
+  `diagnostic_before/after`, `legacy_only_dropped`, `without_any_delta`,
+  `diagnostic_ok`, `elapsed_seconds`, `throughput_docs_per_sec`.
+- `GET  /api/admin/grade/legacy-migration/runs[/{run_id}]`
+- `POST /api/admin/grade/legacy-migration/runs/{run_id}/rollback` (relatório final).
+
+**Coleções novas (on-demand):** `grade_legacy_migration_runs` / `_locks` / `_idempotency`.
+
+**NÃO removido (compat mantida):** dual-read do painel, bridge legacy, compat
+Diário e Attendance. Remoção controlada = sprint futuro pós-validação prod.
+
+**Arquivos:**
+- ✨ `/app/backend/services/grade_legacy_migration_service.py`
+- ✨ `/app/backend/routers/grade_legacy_migration.py`
+- 📝 `/app/backend/server.py` (registro do router)
+- ✨ `/app/backend/tests/test_grade_legacy_migration.py` (8 testes)
+
+**Validação:** 8/8 testes verdes (preview, apply idempotente, dry-run, invariante
+de não-sobrescrita, duplicidade determinística aborta, rollback c/ CAS, rollback
+preserva doc editado manualmente, filtro por escola). Lint limpo. E2E HTTP:
+login→CSRF→preview→dry-run apply OK (na base local 11 turmas já têm modelo novo
+→ corretamente ignoradas; nada migrado). Endpoints respondem 401 sem auth.
+
+
 ### Bolsa Família — Análise de Impacto da Consolidação Diária **[Fev/2026]** ✅ PRONTO P/ VALIDAÇÃO EM PROD
 
 Regra nova (já em `attendance_utils.compute_monthly_valid_absences`):
