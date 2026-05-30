@@ -1,130 +1,128 @@
-<analysis>**original_problem_statement**: Saneamento de dados críticos (deduplicação de matrículas, migração de ), implementação de integridade em operações destrutivas via idempotência e locks, além de refinamentos em lógicas de negócio (Frequência consolidada diária para o Bolsa Família e exibição de componentes em turmas multisseriadas). PRODUCT REQUIREMENTS: O Módulo AEE continua BLOQUEADO para alterações de negócio (apenas verificações defensivas/correções de bugs autorizadas). Garantir a governança técnica de scripts administrativos.
+<analysis>**original_problem_statement**: Adequação do Boletim Aluno online (estrutura de colunas, médias ponderadas, recuperação semestral e conceito) e migração definitiva da Grade Horária ( para ). PRODUCT REQUIREMENTS: O Boletim para o 3º ao 9º ano e EJA deve exibir Componente | 1º Bim | 2º Bim | Rec 1 | 3º Bim | 4º Bim | Rec 2 | Média | Situação. A média é ponderada . Recuperação é semestral e substitui a menor nota do semestre; em caso de empate entre as notas do semestre, substitui a de MAIOR peso. O Boletim para 1º e 2º ano exibe conceitos, sendo a média o MAIOR conceito. Não há coluna de Rec Final na UI nova.
 
 **User's preferred language**: Portuguese (INSTRUCT next agent: Responda SEMPRE em Português)
 
-**what currently exists?**: SaaS educacional multi-tenant com módulo de Saneamento Avançado. O backend agora possui um framework de orquestração de mutações críticas () com persistência, idempotência e suporte a rollback. O cálculo de frequência do Bolsa Família recém passou por uma alteração onde faltas são consolidadas diariamente (>=50% de presença no dia = Dia Letivo Inteiro Presente). O painel de Integridade da Grade Horária foi adaptado para ler coleções mistas temporariamente, evitando falsos críticos.
+**what currently exists?**: A migração definitiva da Grade Horária (Fase 2) foi 100% concluída em produção sem regressões. A tela de lançamento de notas (, ) já trabalha internamente com a regra de notas corretas (Rec Semestral e média ponderada). No entanto, o backend () e a visualização do Boletim () estão defasados: continuam puxando dados de recuperação bimestral inexistentes e usando cálculo de média aritmética. Além disso, existe um bug latente no mecanismo de movimentação de alunos (eventos acadêmicos) reportado pelo usuário onde o congelamento e migração de registros contradizem o contrato oficial, mas essa investigação foi temporariamente pausada para priorizar o Boletim.
 
 **Last working item**:
-    - Last item agent was working: Atualização do cálculo de faltas mensais do módulo Bolsa Família (). Implementada a consolidação diária das aulas (agrupando por dia: >= 50% de aulas presentes torna o dia todo como PRESENTE). Adição de testes automatizados ().
-    - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y
-    - Which testing method agent to use? NA (Backend tests passed local validation. Aguardando validação do usuário em prod)
+    - Last item agent was working: Atualização do endpoint do boletim ( em ) e do frontend () para implementar as regras validadas pelo usuário (Média ponderada, Rec Semestral, desempate por maior peso, maior conceito p/ 1º e 2º ano).
+    - Status: NOT STARTED (Apenas planejamento, investigação e confirmação das regras com o usuário foram concluídos).
+    - Agent Testing Done: N
+    - Which testing method agent to use? Both (Backend: curl ou testes unitários para a média; Frontend: screenshot tool para o layout do boletim).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  Issue 1: Erro 500 Erro ao salvar plano no Diário AEE - P0
-     - Attempted fixes: Investigação estática revelou que o erro se trata de uma falha de validação ou CSRF mascarada por um fallback na UI (). Nenhuma mutação foi feita pois o módulo é bloqueado.
-     - Next debug checklist: Aguardar o usuário fornecer Print da aba **Network** do Chrome (status code e response body da request PUT) ou logs do servidor (Coolify) no momento do erro.
-     - Why fix this issue and what will be achieved with the fix?: Para permitir à professora editar planos AEE sem impeditivos.
-     - Status: BLOCKED (Aguardando dados externos do usuário)
+  Issue 1: Defasagem do Boletim Online (Média Ponderada e Layout) - P0
+     - Attempted fixes: Investigação profunda revelou que o backend () e o frontend de visualização exibem colunas antigas (Rec bimestral, Rec Final) e média simples, divergindo do salvamento de notas atual (). O usuário confirmou todas as regras novas.
+     - Next debug checklist: 
+       1. Backend (): Ajustar o endpoint para retornar  e . Substituir o cálculo de média simples pela ponderada .
+       2. Backend: Implementar regra de que  substitui a menor nota do 1º Sem, e em caso de notas iguais, substitui a de MAIOR peso (mesmo para  no 2º Sem).
+       3. Backend: Ajustar para que 1º/2º ano calculem a média como Maior Conceito.
+       4. Frontend (): Refatorar a tabela para as colunas numéricas: . Remover ,  e  da tabela (mas manter os cartões resumo abaixo).
+     - Why fix this issue and what will be achieved with the fix?: Unificar a visualização do aluno/pais com a regra oficial da rede, que já está sendo seguida pelos professores no momento do lançamento das notas.
+     - Status: NOT STARTED
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix? Both
+     - Blocked on other issue: None
+
+  Issue 2: Divergência na Regra de Congelamento/Movimentação de Aluno - P1
+     - Attempted fixes: Investigado em . A lente temporal atual bloqueia administradores a partir da data de transferência, enquanto permite que o professor da origem edite histórico retroativo (inverso do esperado). Além disso, não há auto-sincronização origem→destino nas edições pós-movimentação.
+     - Next debug checklist: Retomar o entendimento do contrato  em conjunto com o usuário para corrigir a validação de acesso. (O usuário pediu para pausar isso no momento).
+     - Why fix this issue and what will be achieved with the fix?: Garantir a segurança institucional e legal do histórico do aluno, impedindo que professores alterem registros de alunos transferidos.
+     - Status: BLOCKED (Aguardando retomada pelo usuário)
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? Backend
 
 **In progress Task List**:
-  Task 1: Sprint 1.2 — Saneamento/Migração de  - P1
-     - Where to resume: O backfill já foi implementado (), integrado ao  e possui endpoint de Preview, Apply e Rollback. Falta o usuário dar *deploy* e testar em ambiente real (Fase 1 de Preview primeiro).
-     - What will be achieved with this?: Preencher o campo  de 1.497 alunos valendo-se das informações de turma (), essencial para a consistência do Censo e Diários.
-     - Status: USER VERIFICATION PENDING
-     - Should Test frontend/backend/both after fix? Backend
-     - Blocked on something: Deploy e execução do comando cURL pelo usuário.
+  - Nenhuma pendente no momento (Fase 2 de grade foi concluída e Fase 3 rejeitada pelo usuário).
 
-**Upcoming and Future Tasks**
-    Upcoming Tasks:
-    - (P1) Validação da Nova Frequência do Bolsa Família em prod (após usuário deployar a última modificação).
-    - (P2) Saneamento: Dedup do array  (5 casos pendentes) reaproveitando o novo decorator .
-    - (P2) Saneamento: Deletar 1 atendimento AEE órfão (aproveitando o mesmo framework seguro).
-    - (P3) Script one-shot de migração definitiva da Grade Horária: mover  (legacy) →  (nova estrutura) para eliminar a ambiguidade arquitetural e o workaround de dual-read do painel de integridade.
+**Upcoming and Future Tasks**:
+  - (P1) Atualizar o PDF oficial do boletim () para espelhar a mesma tabela do  (após a finalização e aprovação da interface online).
+  - (P2) Adequar a lente de eventos acadêmicos () às regras institucionais reportadas de congelamento e migração de turmas origens para destinos.
+  - (P3) Fase 3 do Saneamento de Grade: Travar a tela Horário de Aulas para gravar exclusivamente no modelo novo (). *Obs: O usuário instruiu a PAUSAR isso por tempo indeterminado e manter a compatibilidade/dual-read ativa.*
 
-    Future Tasks:
-    - Fase 2 do Redesign da Página Alunos.
-    - ICP-Brasil Completo (Pausado estrategicamente).
+**Completed work in this session**:
+- Diagnóstico Estatístico da Regra do Bolsa Família: Criação de script readonly . (DONE)
+- Fase 2 da Migração de Grade Horária: Implementação completa, testes e framework destrutivo. , . (DONE)
+- Bugfix Crítico (ObjectId leak no insert_many): Correção do erro de serialização do FastAPI que causava HTTP 500 no Apply da migração. (DONE)
+- Deploy e acompanhamento da Migração Completa de Grade Horária no ambiente Prod (1.182 turmas migradas). (DONE)
 
-**Completed work in this session**
-- Sprint 1.0 (Deduplicação) finalizado com sucesso no Prod (apply zerou o passivo e registrou log no banco). (DONE)
-- Criação do orquestrador reutilizável de scripts administrativos em  garantindo idempotência e locks via banco. (DONE)
-- Bugfix de permissão em  para coordenadores/professores, resolvendo  de fallback inseguro. (DONE)
-- Roteamento completo do Saneamento do  (Preview, Apply seguro e API de Rollback via snapshot de field original). (DONE)
-- Dependência em Turmas Multisseriadas (UI e Backend): Adição de Seletor de Série (Frontend) e indicativo textual concatenado com o nome do componente (). (DONE)
-- Workaround da Grade Horária: O Painel de Integridade de Grade agora consulta tanto a coleção nova quanto a legacy temporariamente para mitigar Falsos Positivos. Endpoint diagnóstico de leitura adicionado (). (DONE)
-- Regra de Consolidação Diária de Frequência (Bolsa Família) implementada. (DONE)
+**Earlier issues found/mentioned but not fixed**:
+  - A edição de grade no admin continua escrevendo em  (legacy). *Nota: Isso foi apontado para o usuário, que optou explicitamente por NÃO corrigir isso agora, pois a leitura do Diário está ocorrendo via bridge de forma satisfatória.*
+  - Erro 500 no Diário AEE (do primeiro handoff) foi ignorado nas interações, o usuário não retomou esse assunto.
 
-**Earlier issues found/mentioned but not fixed**
-  - Nenhum além do bug P0 listado (AEE).
-
-**Known issue recurrence from previous fork**
-  - Recurrence count: 0
+**Known issue recurrence from previous fork**:
+  - Issue recurrence in previous fork: 0
   - Status: RESOLVED
 
-**Code Architecture**
-- Nova library global introduzida nesta sessão: . Deve ser empregada como *wrapper* wrapper de todas as operações administrativas/saneamento destrutivas (ela encarrega-se do dry-run handling, lock via TTL no Mongo, checagem de idempotência via cabeçalho HTTP e armazenamento em coleção de log).
+**Code Architecture**:
+Sem mudanças estruturais significativas. O framework  continuou a ser empregado para operações de Saneamento Administrativo em massa.
 
-**Key Technical Concepts**
-- **Idempotência Operacional**: Scripts expostos com o  recebem um  (header). Se a chave repete, o banco devolve a resposta cacheada evitando regravação cega.
-- **Frequência Bolsa Família**: O sistema mudou de 1 componente faltoso = 1 falta para Aulas do dia consolidadas: Presente em 50% das aulas = Dia como PRESENTE.
+**Key Technical Concepts**:
+- **Média Ponderada Numérica:** .
+- **Recuperação Semestral:**  atua no 1º Semestre (B1 e B2).  atua no 2º Semestre (B3 e B4). Em caso de empate de notas no semestre, a recuperação descarta a de **maior peso**.
+- **Maior Conceito:** Utilizado em 1º/2º anos; a média resulta na maior nota conceitual (ex: OD, DP).
 
-**key DB schema**
-  - , : Coleções de auditoria geradas pelo  armazenando , modo, payload de summary e snapshot de rollback ().
-  - , : Controle e concorrência transacional.
+**key DB schema**:
+  - : Coleção de notas onde o lançamento já contempla as chaves atuais .
 
-**changes in tech stack**
-  - Nenhuma
+**changes in tech stack**:
+  - None
 
-**All files of reference** 
-  -  (Novo - Framework para Saneamento)
-  -  (Refatorado para usar o wrapper global)
-  -  (Novo)
-  -  (Atualizado fix auth fallback)
-  -  (Atualizado diagnóstico grade horária)
-  -  (Atualizado Hotfix legacy)
-  -  (Atualizado)
-  -  (Atualizado - Regra Bolsa Família)
-  -  (Novo)
-  -  (Atualizado com perfil de Coordenador )
-  -  (Atualizado extensamente)
+**All files of reference**:
+  -  (Endpoint a ser alterado no cálculo do boletim)
+  -  (UI do boletim a ser refatorada)
+  -  (Arquivo contendo a fórmula oficial atual do sistema de lançamento  que deve inspirar/ser copiada para o backend)
+  -  (Novo - Criado nesta sessão)
+  -  (Novo - Criado nesta sessão)
+  -  (Novo - Criado nesta sessão)
+  -  (Novo - Testes)
 
-**Areas that need refactoring**: 
-- Endpoint de migração de  → . Uma vez migrados, o workaround aplicado no  (que agrupa leituras de duas coleções) deverá ser deletado para garantir única fonte de verdade.
+**Areas that need refactoring**:
+- : Precisa receber o refactor da Média Ponderada alinhada ao que já está no .
 
-**key api endpoints**
-  -  (Agora protegido com idempotência e lock)
-  - 
-  - 
-  - 
+**key api endpoints**:
+- 
 
-**Critical Info for New Agent**
-- Os testes rodam rapidamente via PyTest no ambiente e passaram sem quebras (). Use isso ativamente antes de submeter alterações de backend.
-- O padrão  deve receber um  e repassar dados formatados com contratos restritos (como ).
-- O usuário está realizando *Deploys manuais* na VPS. Qualquer feature finalizada via código deve culminar com uma orientação clara para ele aprovar, efetuar Save to Github, puxar no Coolify e validar as rotas via cURL com os tokens do .
+**Critical Info for New Agent**:
+- **NÃO** perca tempo refatorando telas de lançamento de notas ou rotas de CRUD de notas. Elas **já suportam** as regras do usuário. O trabalho é exclusivamente de leitura () e visualização ().
+- O usuário instruiu a **NÃO alterar** o comportamento duplo de gravação da Grade Horária por agora. Focar apenas na tarefa do Boletim Online.
+- Você deve seguir a instrução do desempate para a Recuperação Semestral: se um aluno tira 5.0 no 1º Bim (peso 2) e 5.0 no 2º Bim (peso 3), e a Recuperação 1 for 7.0, o 7.0 substitui o 2º Bimestre, pois tem maior peso, beneficiando a média ponderada do aluno. Isso deve ser ajustado no backend.
 
-**documents and test reports created in this job** 
-  - Vários testes adicionados em  relacionados ao backfill, consolidação BF e currículo.
+**documents and test reports created in this job**:
   - 
   - 
 
-**Last 10 User Messages and any pending HUMAN messages** 
- - *User*: Solicitou detalhamento da fórmula do acompanhamento do Bolsa Família.
- - *Agent*: Explicou a fórmula vigente (baseada no dia do calendário X status X atestados médicos).
- - *User*: Solicitou alterar a fórmula. Deve consolidar as aulas de forma diária em vez de isoladas (presença em >=50% das aulas no mesmo dia torna o dia presente).
- - *Agent*: Implementou a regra de consolidação diária em  e executou a bateria de testes, resultando todos verdes. PENDENTE: Resposta sobre os próximos passos para o deploy da feature ou se ele pretende voltar à análise de logs do Diário AEE.
+**Last 10 User Messages and any pending HUMAN messages**:
+ - *User*: Confirmou que o boletim no Diário AEE/Horário de aulas está bom, e que a Fase 3 não é desejada agora. Passou para um novo escopo de Boletim Aluno.
+ - *Agent*: Investigou o frontend do boletim, backend e regras de notas. Confirmou que o lançamento já usa Rec Semestral, pediu confirmação de escopo.
+ - *User (Ask Human)*: Respondeu aprovando a tabela Componente | 1º Bim | 2º Bim | Rec 1 | 3º Bim | 4º Bim | Rec 2 | Média. Aprovou descarte do Rec Final. Aprovou o maior conceito para 1º/2º ano. Enfatizou que em empates a Rec substitui a de MAIOR peso.
+ - *Pending*: O Agente entendeu e confirmou o escopo, mas ainda não começou a codar. Você deve iniciar aplicando essa alteração.
 
 **Project Health Check:**
 Healthy.
 
-**3rd Party Integrations** 
- - Emergent LLM Key (Not recently modified)
+**3rd Party Integrations**
+- Emergent LLM Key (Not recently used, but available if needed).
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Main agent realizou a testagem com pytest e cURL exaustivamente, garantindo qualidade alta do code entregue).
-  - Test files created: , , , 
+  - Testing agent used after significant changes: NO (Main agent handled testing exhaustively through direct tests and curls).
+  - Test files created: 
   - Known regressions: Nenhuma pendente.
 
 **Credentials to test flow:**
-Consulte o . Login padrão do admin:  / . Novo Coordenador:  / .
+Admin account from handoff:  / .
 
-**What agent forgot to execute**
-O agente parou exatamente após executar a refatoração do cálculo do Bolsa Família e rodar os testes. Faltou apenas informar ao usuário que as rotas estão prontas para deploy para ele validar os números via frontend de fato.
+**What agent forgot to execute**:
+O agente não iniciou a alteração de código da issue do Boletim Online após validar o escopo. A próxima interação deve começar focada em atualizar  e .
 
 **Debugging checklist for current issue**
-    Nenhum erro no backend pendente de debugging no momento. Caso vá atuar no issue reportado pela professora no Módulo AEE:
-    - Sugira novamente que o usuário lhe forneça os logs (Network tab na request PUT e response body).
-    - O frontend para revisar o erro genérico está em .</analysis>
+    Issue: Atualização da exibição e cálculo do Boletim Online.
+    
+    Backend files to check: 
+    -  (Localizar função  e ajustar uso de .. para ,  e atualizar fórmula de média).
+
+    Frontend files to check:
+    -  (Remover colunas Faltas, Final e Rec Final da tabela. Adicionar Rec 1 e Rec 2. Modificar layout).
+
+    </analysis>
