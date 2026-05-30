@@ -100,6 +100,16 @@ login→CSRF→preview→dry-run apply OK (na base local 11 turmas já têm mode
 - **Pós-fix em prod (pré-deploy):** ~34 turmas já migradas com sucesso
   (legacy_only 120→86) apesar dos 500 cosméticos.
 
+#### ✅ CONCLUÍDA EM PRODUÇÃO [30/Mai/2026]
+Rollout faseado executado (piloto → lote pequenas/médias → 5 grandes individuais).
+Resultado final: **1182/1182 assignments migrados**, `legacy_only` 120→2,
+`faltam (turmas): 0`. Os 2 `legacy_only` remanescentes são turmas com
+`class_schedules` SEM slots úteis (grade vazia na origem — nada a migrar).
+Todos os applies retornaram 200 limpo pós-fix; idempotência confirmada
+(re-runs `created=0`). PENDENTE: validação operacional do usuário (painel
+"Ver Conflitos da Rede" + spot-check de Diários) e período de observação
+antes da Fase 3.
+
 
 ### Bolsa Família — Análise de Impacto da Consolidação Diária **[Fev/2026]** ✅ PRONTO P/ VALIDAÇÃO EM PROD
 
