@@ -63,6 +63,20 @@ def _is_conceito(grade_level: Optional[str], education_level: Optional[str]) -> 
     return False
 
 
+def _is_educacao_infantil(grade_level: Optional[str], education_level: Optional[str]) -> bool:
+    """Retorna True somente para Educação Infantil (Creche / Pré-Escola).
+    Usado para diferenciar o status final: Ed. Infantil 'Concluiu a etapa'
+    vs 1º/2º ano 'Promovido(a)'."""
+    edu = (education_level or "").lower()
+    g = (grade_level or "").lower()
+    if "infantil" in edu or "creche" in edu:
+        return True
+    if any(t in g for t in ("infantil", "creche", "berçário", "bercario",
+                            "maternal", "pré", "pre-escola", "pre escola", "pré-escola")):
+        return True
+    return False
+
+
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     def _get_db(user: dict):
