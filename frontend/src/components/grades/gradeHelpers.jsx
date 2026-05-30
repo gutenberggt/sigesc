@@ -124,14 +124,14 @@ export const calculateAverage = (b1, b2, b3, b4, rec_s1, rec_s2) => {
   let finalGrades = { ...grades };
 
   if (rec_s1 !== null && rec_s1 !== undefined) {
-    const keyS1 = grades.b1 <= grades.b2 ? 'b1' : 'b2';
+    const keyS1 = grades.b1 < grades.b2 ? 'b1' : 'b2';
     if (rec_s1 > finalGrades[keyS1]) {
       finalGrades[keyS1] = rec_s1;
     }
   }
 
   if (rec_s2 !== null && rec_s2 !== undefined) {
-    const keyS2 = grades.b3 <= grades.b4 ? 'b3' : 'b4';
+    const keyS2 = grades.b3 < grades.b4 ? 'b3' : 'b4';
     if (rec_s2 > finalGrades[keyS2]) {
       finalGrades[keyS2] = rec_s2;
     }

@@ -12,11 +12,17 @@ import { valorParaConceito, CONCEITOS_EDUCACAO_INFANTIL, CONCEITOS_ANOS_INICIAIS
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const SITUATION_LABEL = { aprovado: 'Aprovado', reprovado: 'Reprovado', cursando: 'Cursando' };
+const SITUATION_LABEL = {
+  aprovado: 'Aprovado', reprovado: 'Reprovado', cursando: 'Cursando',
+  em_andamento: 'Em andamento', concluido: 'Concluiu a etapa', promovido: 'Promovido(a)'
+};
 const SITUATION_COLOR = {
   aprovado: 'bg-green-100 text-green-800 border-green-300',
   reprovado: 'bg-red-100 text-red-800 border-red-300',
-  cursando: 'bg-blue-100 text-blue-800 border-blue-300'
+  cursando: 'bg-blue-100 text-blue-800 border-blue-300',
+  em_andamento: 'bg-blue-100 text-blue-800 border-blue-300',
+  concluido: 'bg-green-100 text-green-800 border-green-300',
+  promovido: 'bg-green-100 text-green-800 border-green-300'
 };
 
 const SHIFT_LABEL = {
@@ -115,7 +121,6 @@ export default function BoletimAluno() {
   }
   if (!data) return null;
 
-  const higher = data.higher_grade;
   const conceito = data.usa_conceito;
   const freq = data.frequencia || {};
   const freqPct = freq.percentual_presenca_dias_letivos ?? freq.percentual_presenca_attendance;
@@ -240,8 +245,8 @@ export default function BoletimAluno() {
                       <th className="px-2 py-2 text-left" rowSpan={2}>Componente Curricular</th>
                       <th className="px-2 py-2 text-center bg-blue-50" colSpan={2}>1º Semestre</th>
                       <th className="px-2 py-2 text-center bg-indigo-50" colSpan={2}>2º Semestre</th>
-                      {higher && <th className="px-2 py-2 text-center w-16" rowSpan={2}>Faltas</th>}
-                      <th className="px-2 py-2 text-center w-24" rowSpan={2}>Situação</th>
+                      <th className="px-2 py-2 text-center w-20 bg-green-50" rowSpan={2}>Média</th>
+                      <th className="px-2 py-2 text-center w-28" rowSpan={2}>Situação</th>
                     </tr>
                     <tr>
                       <th className="px-2 py-1 text-center w-20 bg-blue-50">1º Bim</th>
@@ -256,6 +261,7 @@ export default function BoletimAluno() {
                       const c2 = fmtConceito(row.b2, gradeLevel);
                       const c3 = fmtConceito(row.b3, gradeLevel);
                       const c4 = fmtConceito(row.b4, gradeLevel);
+                      const cMedia = fmtConceito(row.media, gradeLevel);
                       return (
                         <tr key={row.course_id} className={i % 2 ? 'bg-gray-50' : ''}>
                           <td className="px-2 py-1.5 font-medium">{row.course_name}</td>
@@ -263,7 +269,7 @@ export default function BoletimAluno() {
                           <td className={`px-2 py-1.5 text-center font-bold ${corConceito(c2, ehAnosIniciais)}`} title={descricaoConceito(c2, ehAnosIniciais)}>{c2}</td>
                           <td className={`px-2 py-1.5 text-center font-bold ${corConceito(c3, ehAnosIniciais)}`} title={descricaoConceito(c3, ehAnosIniciais)}>{c3}</td>
                           <td className={`px-2 py-1.5 text-center font-bold ${corConceito(c4, ehAnosIniciais)}`} title={descricaoConceito(c4, ehAnosIniciais)}>{c4}</td>
-                          {higher && <td className="px-2 py-1.5 text-center">{row.faltas_componente ?? '—'}</td>}
+                          <td className={`px-2 py-1.5 text-center font-bold bg-green-50 ${corConceito(cMedia, ehAnosIniciais)}`} title={descricaoConceito(cMedia, ehAnosIniciais)}>{cMedia}</td>
                           <td className="px-2 py-1.5 text-center">
                             {row.situacao && (
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${SITUATION_COLOR[row.situacao]}`}>
@@ -274,15 +280,15 @@ export default function BoletimAluno() {
                         </tr>
                       );
                     }) : (
-                      <tr><td colSpan={higher ? 7 : 6} className="py-8 text-center text-gray-500">
+                      <tr><td colSpan={7} className="py-8 text-center text-gray-500">
                         Nenhum componente curricular encontrado para sua turma.
                       </td></tr>
                     )}
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan={higher ? 7 : 6} className="px-3 py-2 text-[10px] italic text-gray-500 bg-yellow-50">
-                        Esta turma é avaliada por <strong>conceito</strong> ({ehAnosIniciais ? '1º / 2º Ano' : 'Educação Infantil'}). Não há recuperação nem média numérica.
+                      <td colSpan={7} className="px-3 py-2 text-[10px] italic text-gray-500 bg-yellow-50">
+                        Esta turma é avaliada por <strong>conceito</strong> ({ehAnosIniciais ? '1º / 2º Ano' : 'Educação Infantil'}). A média é o <strong>maior conceito</strong> do ano. Não há recuperação nem média numérica.
                       </td>
                     </tr>
                   </tfoot>
@@ -304,23 +310,18 @@ export default function BoletimAluno() {
               <thead className="bg-gray-100">
                 <tr>
                   <th className="px-2 py-2 text-left" rowSpan={2}>Componente Curricular</th>
-                  <th className="px-2 py-2 text-center bg-blue-50" colSpan={4}>1º Semestre</th>
-                  <th className="px-2 py-2 text-center bg-indigo-50" colSpan={4}>2º Semestre</th>
-                  <th className="px-2 py-2 text-center w-16 bg-blue-50" rowSpan={2}>Média</th>
-                  <th className="px-2 py-2 text-center w-14" rowSpan={2}>Rec Final</th>
-                  <th className="px-2 py-2 text-center w-16 bg-blue-50" rowSpan={2}>Final</th>
-                  {higher && <th className="px-2 py-2 text-center w-14" rowSpan={2}>Faltas</th>}
-                  <th className="px-2 py-2 text-center w-24" rowSpan={2}>Situação</th>
+                  <th className="px-2 py-2 text-center bg-blue-50" colSpan={3}>1º Semestre</th>
+                  <th className="px-2 py-2 text-center bg-indigo-50" colSpan={3}>2º Semestre</th>
+                  <th className="px-2 py-2 text-center w-16 bg-green-50" rowSpan={2}>Média</th>
+                  <th className="px-2 py-2 text-center w-28" rowSpan={2}>Situação</th>
                 </tr>
                 <tr>
                   <th className="px-2 py-1 text-center w-14 bg-blue-50">1º Bim</th>
-                  <th className="px-2 py-1 text-center w-14 bg-blue-50">Rec 1</th>
                   <th className="px-2 py-1 text-center w-14 bg-blue-50">2º Bim</th>
-                  <th className="px-2 py-1 text-center w-14 bg-blue-50">Rec 2</th>
+                  <th className="px-2 py-1 text-center w-14 bg-blue-50">Rec 1</th>
                   <th className="px-2 py-1 text-center w-14 bg-indigo-50">3º Bim</th>
-                  <th className="px-2 py-1 text-center w-14 bg-indigo-50">Rec 3</th>
                   <th className="px-2 py-1 text-center w-14 bg-indigo-50">4º Bim</th>
-                  <th className="px-2 py-1 text-center w-14 bg-indigo-50">Rec 4</th>
+                  <th className="px-2 py-1 text-center w-14 bg-indigo-50">Rec 2</th>
                 </tr>
               </thead>
               <tbody>
@@ -328,17 +329,12 @@ export default function BoletimAluno() {
                   <tr key={row.course_id} className={i % 2 ? 'bg-gray-50' : ''}>
                     <td className="px-2 py-1.5 font-medium">{row.course_name}</td>
                     <td className="px-2 py-1.5 text-center">{fmt(row.b1)}</td>
-                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b1)}</td>
                     <td className="px-2 py-1.5 text-center">{fmt(row.b2)}</td>
-                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b2)}</td>
+                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_s1)}</td>
                     <td className="px-2 py-1.5 text-center">{fmt(row.b3)}</td>
-                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b3)}</td>
                     <td className="px-2 py-1.5 text-center">{fmt(row.b4)}</td>
-                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b4)}</td>
-                    <td className="px-2 py-1.5 text-center font-semibold bg-blue-50">{fmt(row.media)}</td>
-                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_final)}</td>
-                    <td className="px-2 py-1.5 text-center font-bold bg-blue-50">{fmt(row.media_final)}</td>
-                    {higher && <td className="px-2 py-1.5 text-center">{row.faltas_componente ?? '—'}</td>}
+                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_s2)}</td>
+                    <td className="px-2 py-1.5 text-center font-bold bg-green-50">{fmt(row.media)}</td>
                     <td className="px-2 py-1.5 text-center">
                       {row.situacao && (
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${SITUATION_COLOR[row.situacao]}`}>
@@ -348,7 +344,7 @@ export default function BoletimAluno() {
                     </td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={higher ? 14 : 13} className="py-8 text-center text-gray-500">
+                  <tr><td colSpan={9} className="py-8 text-center text-gray-500">
                     Nenhum componente curricular encontrado para sua turma.
                   </td></tr>
                 )}
@@ -356,9 +352,9 @@ export default function BoletimAluno() {
               {data.media_geral !== null && data.media_geral !== undefined && (
                 <tfoot className="bg-gray-100 font-bold">
                   <tr>
-                    <td colSpan={9} className="px-2 py-2 text-right">Média geral:</td>
-                    <td className="px-2 py-2 text-center text-base" data-testid="media-geral">{data.media_geral.toFixed(2)}</td>
-                    <td colSpan={higher ? 4 : 3}></td>
+                    <td colSpan={7} className="px-2 py-2 text-right">Média geral:</td>
+                    <td className="px-2 py-2 text-center text-base bg-green-50" data-testid="media-geral">{data.media_geral.toFixed(2)}</td>
+                    <td></td>
                   </tr>
                 </tfoot>
               )}
@@ -393,13 +389,13 @@ export default function BoletimAluno() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            {data.situacao_final === 'aprovado' ? <CheckCircle2 className="w-8 h-8 text-green-500" /> :
+            {data.situacao_final === 'aprovado' || data.situacao_final === 'concluido' || data.situacao_final === 'promovido' ? <CheckCircle2 className="w-8 h-8 text-green-500" /> :
              data.situacao_final === 'reprovado' ? <XCircle className="w-8 h-8 text-red-500" /> :
              <GraduationCap className="w-8 h-8 text-blue-500" />}
             <div>
               <div className="text-[10px] uppercase text-gray-500">Situação Final</div>
               <div className={`text-xl font-bold ${
-                data.situacao_final === 'aprovado' ? 'text-green-700' :
+                data.situacao_final === 'aprovado' || data.situacao_final === 'concluido' || data.situacao_final === 'promovido' ? 'text-green-700' :
                 data.situacao_final === 'reprovado' ? 'text-red-700' : 'text-blue-700'
               }`} data-testid="situacao-final">
                 {SITUATION_LABEL[data.situacao_final]}

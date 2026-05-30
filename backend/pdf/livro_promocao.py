@@ -325,12 +325,12 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
                     mg = sum(medias) / len(medias) if medias else 0
                     row.append(fmt(mg) if medias else '-')
                 result_raw = str(st.get('result', 'CURSANDO') or 'CURSANDO')
-                row.append(result_raw[:14])
+                row.append(result_raw[:18])
             rows.append(row)
 
         # ── Larguras (ajustadas dinamicamente para nunca passar da margem) ──
         media_w = 1.1 * cm
-        result_w = 1.9 * cm
+        result_w = 2.6 * cm
         total_note_cols = comps_per_bloco * n_blocos
         if include_result:
             fixed_extra = result_w if usa_conceito else (media_w + result_w)
@@ -392,7 +392,7 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             result_col = 3 + total_note_cols + (0 if usa_conceito else 1)
             for ri, st in enumerate(students_data, 2):  # row 2 é o primeiro aluno (0=h1, 1=h2)
                 r = str(st.get('result', '') or '').upper()
-                if 'APROVADO' in r and 'DEPEND' not in r:
+                if ('APROVADO' in r and 'DEPEND' not in r) or 'CONCLUIU' in r or 'PROMOVIDO' in r:
                     style.append(('BACKGROUND', (result_col, ri), (result_col, ri), colors.HexColor('#c8e6c9')))
                     style.append(('TEXTCOLOR', (result_col, ri), (result_col, ri), colors.HexColor('#1b5e20')))
                     style.append(('FONTNAME', (result_col, ri), (result_col, ri), 'Helvetica-Bold'))

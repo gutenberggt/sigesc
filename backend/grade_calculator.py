@@ -31,6 +31,18 @@ WEIGHTS = {
 MIN_AVERAGE = 5.0
 MIN_ATTENDANCE = 75.0
 
+# ===== Rótulos de SITUAÇÃO para turmas CONCEITUAIS (Ed. Infantil + 1º/2º ano) =====
+# Padronizados em TODO o sistema (boletim online/PDF, ficha, livro de promoção, promoção).
+# Durante o ano (nem todas as notas B1-B4 lançadas): "Em andamento".
+# Ao encerrar (todas as B1-B4 lançadas):
+#   - Educação Infantil -> "Concluiu a etapa"
+#   - 1º e 2º ano       -> "Promovido(a)"
+STATUS_EM_ANDAMENTO = 'Em andamento'
+STATUS_CONCLUIU_ETAPA = 'Concluiu a etapa'
+STATUS_PROMOVIDO = 'Promovido(a)'
+COR_EM_ANDAMENTO = '#2563eb'   # azul
+COR_CONCLUSAO = '#16a34a'      # verde
+
 # Séries/Anos da Educação Infantil
 SERIES_EDUCACAO_INFANTIL = [
     'Berçário', 'Berçário I', 'Berçário II',
@@ -693,7 +705,46 @@ def determinar_resultado_documento(
     
     # Normalizar status
     status_lower = (enrollment_status or 'active').lower()
-    
+
+    # Status especiais (desistente, transferido, falecido, remanejado) SEMPRE prevalecem,
+    # inclusive em turmas conceituais.
+    _STATUS_ESPECIAIS = {
+        'desistencia': ('DESISTENTE', '#dc2626'),
+        'desistente': ('DESISTENTE', '#dc2626'),
+        'dropout': ('DESISTENTE', '#dc2626'),
+        'falecimento': ('FALECIDO', '#6b7280'),
+        'falecido': ('FALECIDO', '#6b7280'),
+        'deceased': ('FALECIDO', '#6b7280'),
+        'transferencia': ('TRANSFERIDO(A)', '#f59e0b'),
+        'transferido': ('TRANSFERIDO(A)', '#f59e0b'),
+        'transferred': ('TRANSFERIDO(A)', '#f59e0b'),
+        'remanejado': ('REMANEJADO', '#2563eb'),
+        'relocated': ('REMANEJADO', '#2563eb'),
+    }
+    if status_lower in _STATUS_ESPECIAIS:
+        resultado, cor = _STATUS_ESPECIAIS[status_lower]
+        return {'resultado': resultado, 'cor': cor, 'detalhes': f'Status: {resultado}'}
+
+    # ========== TURMAS CONCEITUAIS (Ed. Infantil / 1º / 2º ano) ==========
+    # Gatilho = lançamento das 4 notas/conceitos (B1-B4) em todos os componentes
+    # regulares (não depende da data do 4º bimestre).
+    if is_educacao_infantil(grade_level, nivel_ensino) or is_promocao_automatica(grade_level):
+        regulares = [
+            c for c in medias_por_componente
+            if (c.get('atendimento_programa') or '').lower().strip() in ('', 'regular')
+        ]
+        ano_encerrado = bool(regulares) and all(
+            c.get('has_all_bims', c.get('has_b4', False)) for c in regulares
+        )
+        if not ano_encerrado:
+            return {'resultado': STATUS_EM_ANDAMENTO, 'cor': COR_EM_ANDAMENTO,
+                    'detalhes': 'Ano letivo em andamento'}
+        if is_educacao_infantil(grade_level, nivel_ensino):
+            return {'resultado': STATUS_CONCLUIU_ETAPA, 'cor': COR_CONCLUSAO,
+                    'detalhes': 'Educação Infantil - etapa concluída'}
+        return {'resultado': STATUS_PROMOVIDO, 'cor': COR_CONCLUSAO,
+                'detalhes': 'Promoção automática - 1º/2º Ano'}
+
     # ========== ANTES DO FIM DO 4º BIMESTRE ==========
     if not apos_fim_4bim:
         # Verificar status especiais

@@ -1,0 +1,37 @@
+{
+  "summary": "Tested SIGESC Boletim/Promoção status conceitual + numerical rule changes. Backend report-card endpoint and 3 PDF endpoints (Boletim, Ficha Individual, Livro de Promoção) all return HTTP 200; pytest suite tests/test_status_conceitual.py = 7/7 passed. Frontend Boletim Online (aluno) renders correctly for turma conceitual (2º Ano) with the new headers (1º/2º/3º/4º Bim · Média · Situação) and status label 'Promovido(a)'. Frontend Promoção (admin) for the 2 Ano conceitual class renders without crash showing 'Promovido(a)' in Resultado column. However, an inconsistency was detected between the Promoção UI and the Livro de Promoção PDF (same class id 9f71ed93): UI shows 'Promovido(a)' while PDF shows 'Em andamento' for the same student/class.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/student/me/report-card vs ficha/livro PDFs", "issue": "Inconsistent status computation for conceitual class with empty/partial components. report-card returns situacao_final='promovido' (based on the single component that has all 4 bims) while Ficha Individual PDF and Livro de Promoção PDF show 'Em andamento' (because they walk all class components and many lack any conceito). User-expected single source of truth in grade_calculator.determinar_resultado_documento; the student_portal helper appears to apply a different has_all_bims rule."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Livro de Promoção UI vs PDF", "issue": "For class 9f71ed93-c55f-44d2-87a9-c8567ccddd6a (2 Ano - conceitual), UI cards (Aprovados=1, Cursando=0) and table show 'Promovido(a)'. Generating PDF via the same screen 'Gerar PDF' button hits /api/documents/promotion/{class_id} which returns 'Em andamento' for the same row. Both surfaces must agree per the System-Wide standardization requirement.", "affected_selectors": ["table tbody tr td:last-child", "PDF text 'Em andamento'/'Promovido(a)'"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_status_conceitual.py",
+    "/app/backend/tests/test_student_portal.py"
+  ],
+  "action_items": [
+    "Reconcile status logic for conceitual classes between /api/student/me/report-card (per-component basis) and PDF builders (ficha-individual, livro-promocao) which iterate full curriculum. The mantenedora wants 'Em andamento' until ALL bims of ALL regular components are filled — student_portal.py should likely defer to grade_calculator.determinar_resultado_documento with the same has_all_bims semantics.",
+    "Alternatively, if the report-card semantics are correct (single-component filled means concluded), update the PDF builders to use the same rule. Either way, UI Promoção screen (currently 'Promovido(a)') and PDF Livro de Promoção (currently 'Em andamento') for the same class must produce the same label."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routers/documents.py:1909 (promotion endpoint) and /app/backend/routers/student_portal.py likely diverge on what counts as ano_encerrado for turmas conceituais. Centralize in grade_calculator.determinar_resultado_documento and call it from both surfaces.",
+    "Verified user-required exact labels render correctly: 'Em andamento', 'Promovido(a)', 'Concluiu a etapa' are present in templates (BoletimAluno.jsx SITUATION_LABEL, Promotion.jsx RESULT_COLORS, grade_calculator constants). Field names in report-card payload: b1,b2,b3,b4,rec_s1,rec_s2,media,situacao,usa_conceito — no forbidden rec_b1/rec_final/media_final present.",
+    "Numeric rule (média ponderada B1×2+B2×3+B3×2+B4×3)/10 + recuperação semestral substituindo menor nota com desempate pelo maior peso — only conceitual seed available; logic exercised solely via tests/test_status_conceitual.py (7 passed). Recommend the main agent seed an avaliada-class student (3º-9º/EJA) for full validation of weighted average and Rec swap."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (7/7 pytest + 4/4 endpoints HTTP 200)", "frontend": "85% (Boletim Online and Promoção UI render correctly; UI<->PDF consistency issue for Livro)"},
+  "test_credentials": "admin: gutenberg@sigesc.com/@Celta2007 ; aluno: aluno@sigesc.com/aluno123 (seed via scripts/seed_test_student.py)",
+  "seed_data_creation": "None created; reused existing seed (Aluno Teste Duplicidade, turma 2 Ano conceitual id=9f71ed93-c55f-44d2-87a9-c8567ccddd6a, escola Escola Teste Multisseriada).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest passes. Three PDFs OK (200). Frontend Boletim/Promoção render the right new layout and labels. Main open issue: status divergence between report-card endpoint (situacao_final='promovido') and ficha/livro PDFs ('Em andamento') and between Promoção UI table ('Promovido(a)') and Livro de Promoção PDF ('Em andamento') for the SAME conceitual class. Verify after main agent unifies the logic via grade_calculator.determinar_resultado_documento. Also re-test once an avaliada-class (3º-9º/EJA) student exists to exercise weighted average and semester Rec rules.",
+  "rca of the issue": "Two different code paths compute the status for conceitual classes: (1) student_portal.my_report_card computes situacao_final by aggregating per-component (uses helper that returns 'promovido' if the only component-with-grades has all 4 bims filled), and (2) the PDF builders (boletim/ficha/livro_promocao) and the admin Promoção PDF endpoint use grade_calculator.determinar_resultado_documento which requires that ALL regular components of the curriculum have has_all_bims=True. With the current seed (only Arte has C in B1-B4; remaining components have no conceitos), path (1) returns promovido while path (2) returns 'Em andamento'. Mitigation: have student_portal also delegate to determinar_resultado_documento (or accept that conceitual classes only conclude when all regular components are filled). The Promoção UI table currently uses the same code as report-card per-component (hence shows Promovido(a)) while the PDF uses determinar_resultado_documento, so consolidating into a single source removes both inconsistencies."
+}

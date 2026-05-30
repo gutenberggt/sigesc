@@ -2114,10 +2114,33 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 result = "CURSANDO"
                 status = (enrollment.get("status") or "").lower()
 
+                from grade_calculator import (
+                    is_educacao_infantil, is_promocao_automatica,
+                    STATUS_EM_ANDAMENTO, STATUS_CONCLUIU_ETAPA, STATUS_PROMOVIDO,
+                )
+
                 if status in ["desistencia", "desistente", "dropout"]:
                     result = "DESISTENTE"
                 elif status in ["transferencia", "transferido", "transferred"]:
                     result = "TRANSFERIDO"
+                elif is_educacao_infantil(grade_level, nivel_ensino) or is_promocao_automatica(grade_level):
+                    # Turmas conceituais: gatilho = 4 conceitos (B1-B4) lançados em todos os regulares
+                    any_reg = False
+                    all_bims = True
+                    for cid, g in grades_by_component.items():
+                        course = courses_map.get(cid, {})
+                        ap = (course.get('atendimento_programa') or '').lower()
+                        if 'integral' in ap or 'aee' in ap:
+                            continue  # formativo, não conta
+                        any_reg = True
+                        if any(g.get(b) is None for b in ["b1", "b2", "b3", "b4"]):
+                            all_bims = False
+                    if not (any_reg and all_bims):
+                        result = STATUS_EM_ANDAMENTO
+                    elif is_educacao_infantil(grade_level, nivel_ensino):
+                        result = STATUS_CONCLUIU_ETAPA
+                    else:
+                        result = STATUS_PROMOVIDO
                 else:
                     # Só componentes REGULARES contam para aprovação/reprovação
                     # (componentes formativos: integral, AEE são excluídos)

@@ -282,61 +282,71 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # ----- Monta linhas do boletim por componente -----
         higher_grade = _is_higher_grade(class_doc.get("grade_level"), class_doc.get("education_level"))
         usa_conceito = _is_conceito(class_doc.get("grade_level"), class_doc.get("education_level"))
+        eh_infantil = _is_educacao_infantil(class_doc.get("grade_level"), class_doc.get("education_level"))
         linhas = []
         soma_medias = 0.0
         n_com_nota = 0
+
+        WEIGHTS = {"b1": 2, "b2": 3, "b3": 2, "b4": 3}
+
+        def _media_ponderada(b1, b2, b3, b4, rec_s1, rec_s2):
+            """Média ponderada oficial: (B1×2 + B2×3 + B3×2 + B4×3) / 10.
+            Rec semestral substitui a MENOR nota do semestre; em caso de EMPATE,
+            substitui a de MAIOR peso (b2 no 1º sem, b4 no 2º sem) e só se a rec
+            for maior. Campos vazios contam como 0 (espelha a tela de lançamento)."""
+            if all(x is None for x in (b1, b2, b3, b4)):
+                return None
+            gz = {"b1": float(b1 or 0), "b2": float(b2 or 0),
+                  "b3": float(b3 or 0), "b4": float(b4 or 0)}
+            final = dict(gz)
+            if rec_s1 is not None:
+                key = "b1" if gz["b1"] < gz["b2"] else "b2"  # empate -> b2 (peso 3)
+                if float(rec_s1) > final[key]:
+                    final[key] = float(rec_s1)
+            if rec_s2 is not None:
+                key = "b3" if gz["b3"] < gz["b4"] else "b4"  # empate -> b4 (peso 3)
+                if float(rec_s2) > final[key]:
+                    final[key] = float(rec_s2)
+            total = sum(final[k] * WEIGHTS[k] for k in final)
+            return round(total / 10, 1)
+
         for course in courses:
             g = grades_by_course.get(course.get("id"), {})
-            b1 = g.get("b1")
-            b2 = g.get("b2")
-            b3 = g.get("b3")
-            b4 = g.get("b4")
-            rec_b1 = g.get("rec_b1") or g.get("rec1")
-            rec_b2 = g.get("rec_b2") or g.get("rec2")
-            rec_b3 = g.get("rec_b3") or g.get("rec3")
-            rec_b4 = g.get("rec_b4") or g.get("rec4")
-            rec_final = g.get("rec_final") or g.get("recuperacao_final")
+            b1, b2, b3, b4 = g.get("b1"), g.get("b2"), g.get("b3"), g.get("b4")
+            rec_s1 = g.get("rec_s1")
+            rec_s2 = g.get("rec_s2")
+            bims_preenchidos = [x for x in (b1, b2, b3, b4) if x is not None and x != ""]
+            ano_encerrado = len(bims_preenchidos) == 4
 
             if usa_conceito:
-                # Educação Infantil / 1º ano / 2º ano: conceito, sem recuperação, sem média numérica
-                bims_preenchidos = [x for x in (b1, b2, b3, b4) if x is not None and x != ""]
-                situacao_comp = "cursando" if len(bims_preenchidos) < 4 else "aprovado"
+                # Educação Infantil / 1º / 2º ano: avaliação por CONCEITO.
+                # Média = MAIOR conceito do ano. Sem recuperação numérica.
+                vals = [float(x) for x in (b1, b2, b3, b4) if x is not None and x != ""]
+                maior_conceito = max(vals) if vals else None
+                if not ano_encerrado:
+                    situacao_comp = "em_andamento"
+                elif eh_infantil:
+                    situacao_comp = "concluido"
+                else:
+                    situacao_comp = "promovido"
                 linhas.append({
                     "course_id": course.get("id"),
                     "course_name": course.get("name"),
                     "workload": course.get("workload"),
                     "b1": b1, "b2": b2, "b3": b3, "b4": b4,
-                    "rec_b1": None, "rec_b2": None, "rec_b3": None, "rec_b4": None,
-                    "rec_final": None,
-                    "media": None,
-                    "media_final": None,
+                    "rec_s1": None, "rec_s2": None,
+                    "media": maior_conceito,
                     "situacao": situacao_comp,
                     "usa_conceito": True,
                     "faltas_componente": faltas_por_componente.get(course.get("id"), 0) if higher_grade else None,
                 })
                 continue
 
-            # Aplica recuperação (maior entre bim e rec_bim)
-            def _eff(bim, rec):
-                vals = [x for x in (bim, rec) if x is not None]
-                return max(vals) if vals else None
-            e1, e2, e3, e4 = _eff(b1, rec_b1), _eff(b2, rec_b2), _eff(b3, rec_b3), _eff(b4, rec_b4)
-            bims_validos = [x for x in (e1, e2, e3, e4) if x is not None]
-            media = round(sum(bims_validos) / len(bims_validos), 2) if bims_validos else None
-            # Aplica recuperação final: se média < aprovação, tenta rec_final
-            situacao_comp = None
-            media_final = media
-            if media is not None and len(bims_validos) == 4:
-                if media >= media_aprovacao:
-                    situacao_comp = "aprovado"
-                elif rec_final is not None:
-                    # Regra clássica: nova média = (média + rec_final)/2
-                    media_final = round((media + rec_final) / 2, 2)
-                    situacao_comp = "aprovado" if media_final >= media_aprovacao else "reprovado"
-                else:
-                    situacao_comp = "cursando"
-            elif media is not None:
-                situacao_comp = "cursando"
+            media = _media_ponderada(b1, b2, b3, b4, rec_s1, rec_s2)
+            if not ano_encerrado:
+                situacao_comp = "cursando" if media is not None else None
+            else:
+                situacao_comp = "aprovado" if media >= media_aprovacao else "reprovado"
 
             if media is not None:
                 soma_medias += media
@@ -347,11 +357,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "course_name": course.get("name"),
                 "workload": course.get("workload"),
                 "b1": b1, "b2": b2, "b3": b3, "b4": b4,
-                "rec_b1": rec_b1, "rec_b2": rec_b2,
-                "rec_b3": rec_b3, "rec_b4": rec_b4,
-                "rec_final": rec_final,
+                "rec_s1": rec_s1, "rec_s2": rec_s2,
                 "media": media,
-                "media_final": media_final,
                 "situacao": situacao_comp,
                 "usa_conceito": False,
                 "faltas_componente": faltas_por_componente.get(course.get("id"), 0) if higher_grade else None,
@@ -359,17 +366,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         media_geral = round(soma_medias / n_com_nota, 2) if n_com_nota else None
 
-        # ----- Situação final global (considera média e frequência) -----
+        # ----- Situação final global -----
         situacao_final = "cursando"
         freq_ok = (freq_percent_letivo or 100.0) >= freq_minima
+        todos_bims_preenchidos = bool(linhas) and all(
+            all(row.get(b) not in (None, "") for b in ("b1", "b2", "b3", "b4"))
+            for row in linhas
+        )
         if usa_conceito:
-            # Em turmas por conceito: aprovação depende apenas da frequência e preenchimento
-            todos_bims_preenchidos = all(
-                all(row.get(b) not in (None, "") for b in ("b1", "b2", "b3", "b4"))
-                for row in linhas
-            ) if linhas else False
-            if todos_bims_preenchidos:
-                situacao_final = "aprovado" if freq_ok else "reprovado"
+            # Turmas conceituais: Em andamento (durante o ano) ->
+            # Concluiu a etapa (Ed. Infantil) / Promovido(a) (1º e 2º ano).
+            if not todos_bims_preenchidos:
+                situacao_final = "em_andamento"
+            elif eh_infantil:
+                situacao_final = "concluido"
+            else:
+                situacao_final = "promovido"
         else:
             any_finalizada = any(row.get("situacao") in ("aprovado", "reprovado") for row in linhas)
             if any_finalizada:

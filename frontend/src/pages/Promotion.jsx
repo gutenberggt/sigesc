@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home } from 'lucide-react';
 import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI } from '@/services/api';
-import { usaAvaliacaoConceitual, valorParaConceito } from '@/components/grades/gradeHelpers';
+import { usaAvaliacaoConceitual, valorParaConceito, isEducacaoInfantil } from '@/components/grades/gradeHelpers';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -174,10 +174,13 @@ const RESULT_COLORS = {
   'APROVADO': 'bg-green-100 text-green-800 border-green-300',
   'REPROVADO': 'bg-red-100 text-red-800 border-red-300',
   'CURSANDO': 'bg-blue-100 text-blue-800 border-blue-300',
+  'Em andamento': 'bg-blue-100 text-blue-800 border-blue-300',
   'DESISTENTE': 'bg-gray-100 text-gray-800 border-gray-300',
   'TRANSFERIDO': 'bg-yellow-100 text-yellow-800 border-yellow-300',
   'PROMOVIDO': 'bg-green-100 text-green-800 border-green-300',
+  'Promovido(a)': 'bg-green-100 text-green-800 border-green-300',
   'CONCLUIU': 'bg-green-100 text-green-800 border-green-300',
+  'Concluiu a etapa': 'bg-green-100 text-green-800 border-green-300',
   'APROVADO COM DEPENDÊNCIA': 'bg-orange-100 text-orange-800 border-orange-300',
   'EM DEPENDÊNCIA': 'bg-purple-100 text-purple-800 border-purple-300'
 };
@@ -515,6 +518,25 @@ export function Promotion() {
           result = 'DESISTENTE';
         } else if (status === 'transferencia' || status === 'transferido' || status === 'transferred') {
           result = 'TRANSFERIDO';
+        } else if (classUsaConceito) {
+          // Turmas conceituais (Ed. Infantil, 1º/2º Ano): gatilho = 4 conceitos (B1-B4)
+          // lançados em todos os componentes regulares.
+          const regEntries = Object.entries(gradesByComponent)
+            .filter(([courseId]) => {
+              const course = courses.find(c => c.id === courseId);
+              if (!course) return true;
+              const ap = (course.atendimento_programa || course.atendimento || '').toLowerCase();
+              return !ap.includes('integral') && !ap.includes('aee');
+            });
+          const anoEncerrado = regEntries.length > 0 && regEntries.every(([, c]) =>
+            c.b1 !== null && c.b2 !== null && c.b3 !== null && c.b4 !== null);
+          if (!anoEncerrado) {
+            result = 'Em andamento';
+          } else if (isEducacaoInfantil(classInfo.grade_level, classInfo.education_level)) {
+            result = 'Concluiu a etapa';
+          } else {
+            result = 'Promovido(a)';
+          }
         } else {
           // Só considerar componentes REGULARES (atendimento_programa diferente de regular é formativo)
           const regEntries = Object.entries(gradesByComponent)
@@ -619,8 +641,13 @@ export function Promotion() {
         p.result === 'APROVADO' ||
         p.result === 'APROVADO COM DEPENDÊNCIA' ||
         p.result === 'PROMOVIDO' ||
-        p.result === 'CONCLUIU'
+        p.result === 'CONCLUIU' ||
+        p.result === 'Promovido(a)' ||
+        p.result === 'Concluiu a etapa'
       );
+    }
+    if (quickFilter === 'CURSANDO') {
+      return promotionData.filter(p => p.result === 'CURSANDO' || p.result === 'Em andamento');
     }
     return promotionData.filter(p => p.result === quickFilter);
   }, [promotionData, quickFilter]);
@@ -729,9 +756,9 @@ export function Promotion() {
   // Estatísticas
   const stats = {
     total: promotionData.length,
-    approved: promotionData.filter(p => p.result === 'APROVADO' || p.result === 'APROVADO COM DEPENDÊNCIA' || p.result === 'PROMOVIDO' || p.result === 'CONCLUIU').length,
+    approved: promotionData.filter(p => p.result === 'APROVADO' || p.result === 'APROVADO COM DEPENDÊNCIA' || p.result === 'PROMOVIDO' || p.result === 'CONCLUIU' || p.result === 'Promovido(a)' || p.result === 'Concluiu a etapa').length,
     failed: promotionData.filter(p => p.result === 'REPROVADO').length,
-    inProgress: promotionData.filter(p => p.result === 'CURSANDO').length,
+    inProgress: promotionData.filter(p => p.result === 'CURSANDO' || p.result === 'Em andamento').length,
     dropped: promotionData.filter(p => p.result === 'DESISTENTE').length,
     transferred: promotionData.filter(p => p.result === 'TRANSFERIDO').length
   };
