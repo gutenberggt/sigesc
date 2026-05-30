@@ -733,8 +733,11 @@ def determinar_resultado_documento(
             c for c in medias_por_componente
             if (c.get('atendimento_programa') or '').lower().strip() in ('', 'regular')
         ]
-        ano_encerrado = bool(regulares) and all(
-            c.get('has_all_bims', c.get('has_b4', False)) for c in regulares
+        # Considera apenas componentes que possuem AO MENOS uma nota/conceito lançada
+        # (componentes nunca avaliados não fazem parte da avaliação da turma).
+        avaliados = [c for c in regulares if c.get('has_any_grade', c.get('has_all_bims', False))]
+        ano_encerrado = bool(avaliados) and all(
+            c.get('has_all_bims', c.get('has_b4', False)) for c in avaliados
         )
         if not ano_encerrado:
             return {'resultado': STATUS_EM_ANDAMENTO, 'cor': COR_EM_ANDAMENTO,

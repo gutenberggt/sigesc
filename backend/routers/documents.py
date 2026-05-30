@@ -1023,7 +1023,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/documents/ficha-individual/{student_id}")
     async def get_ficha_individual(
         student_id: str,
-        academic_year: int = 2025,
+        academic_year: int = 2026,
         request: Request = None
     ):
         """Gera a Ficha Individual do Aluno em PDF"""
@@ -1909,7 +1909,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/documents/promotion/{class_id}")
     async def get_livro_promocao_pdf(
         class_id: str,
-        academic_year: int = 2025,
+        academic_year: int = 2026,
         request: Request = None
     ):
         """
@@ -1999,8 +1999,16 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }, {"_id": 0, "course_id": 1}).to_list(500)
             
             assigned_course_ids = list(set(a.get("course_id") for a in assignments if a.get("course_id")))
-            
-            if assigned_course_ids:
+
+            # Prioridade 1: course_ids definidos na própria turma (mesma fonte do Boletim
+            # Online), garantindo consistência de status/notas entre as superfícies.
+            turma_course_ids = class_info.get("course_ids") or []
+
+            if turma_course_ids:
+                courses = await db.courses.find({
+                    "id": {"$in": turma_course_ids}
+                }, {"_id": 0}).to_list(100)
+            elif assigned_course_ids:
                 # Componentes vêm direto das alocações — já são os corretos para a turma
                 courses = await db.courses.find({
                     "id": {"$in": assigned_course_ids}
@@ -2031,6 +2039,25 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
             # Criar mapa de componentes
             courses_map = {c.get("id"): c for c in courses}
+
+            # Consistência com o Boletim Online: garantir que todo componente referenciado
+            # pelas notas dos alunos esteja no mapa (turmas sem course_ids/assignments
+            # resolvem os componentes a partir das próprias notas lançadas).
+            graded_course_ids = set()
+            _tmp_grades = await db.grades.find(
+                {"class_id": class_id, "academic_year": academic_year},
+                {"_id": 0, "course_id": 1},
+            ).to_list(length=None)
+            for _g in _tmp_grades:
+                if _g.get("course_id"):
+                    graded_course_ids.add(_g["course_id"])
+            missing_ids = [cid for cid in graded_course_ids if cid not in courses_map]
+            if missing_ids:
+                extra = await db.courses.find({"id": {"$in": missing_ids}}, {"_id": 0}).to_list(100)
+                for c in extra:
+                    courses_map[c.get("id")] = c
+                if not courses:
+                    courses = extra
             _p(45, 'Carregando notas dos alunos...')
 
             # Mapa de enrollments por student_id (para resolver status)
@@ -2124,18 +2151,24 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 elif status in ["transferencia", "transferido", "transferred"]:
                     result = "TRANSFERIDO"
                 elif is_educacao_infantil(grade_level, nivel_ensino) or is_promocao_automatica(grade_level):
-                    # Turmas conceituais: gatilho = 4 conceitos (B1-B4) lançados em todos os regulares
-                    any_reg = False
+                    # Turmas conceituais: gatilho = 4 conceitos (B1-B4) lançados em todos os
+                    # componentes da turma que possuem ao menos uma nota (ignora componentes
+                    # nunca avaliados e grades órfãs fora do currículo da turma).
+                    has_graded = False
                     all_bims = True
                     for cid, g in grades_by_component.items():
+                        if cid not in courses_map:
+                            continue  # componente não pertence à turma
                         course = courses_map.get(cid, {})
                         ap = (course.get('atendimento_programa') or '').lower()
                         if 'integral' in ap or 'aee' in ap:
                             continue  # formativo, não conta
-                        any_reg = True
+                        if not any(g.get(b) is not None for b in ["b1", "b2", "b3", "b4"]):
+                            continue  # sem nenhuma nota -> não avaliado
+                        has_graded = True
                         if any(g.get(b) is None for b in ["b1", "b2", "b3", "b4"]):
                             all_bims = False
-                    if not (any_reg and all_bims):
+                    if not (has_graded and all_bims):
                         result = STATUS_EM_ANDAMENTO
                     elif is_educacao_infantil(grade_level, nivel_ensino):
                         result = STATUS_CONCLUIU_ETAPA
@@ -2221,7 +2254,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/documents/jobs/promotion/{class_id}")
     async def start_livro_promocao_job(
         class_id: str,
-        academic_year: int = 2025,
+        academic_year: int = 2026,
         request: Request = None,
     ):
         """Inicia job assíncrono do Livro de Promoção e devolve job_id para polling."""
@@ -2294,7 +2327,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def get_batch_documents(
         class_id: str,
         document_type: str,
-        academic_year: int = 2025,
+        academic_year: int = 2026,
         request: Request = None
     ):
         """

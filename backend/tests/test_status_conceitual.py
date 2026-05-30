@@ -20,9 +20,12 @@ from grade_calculator import (
 REGRAS = {"media_aprovacao": 5.0, "frequencia_minima": 75.0}
 
 
-def _comp(has_all_bims, media=10):
+def _comp(has_all_bims, media=10, has_any_grade=None):
+    if has_any_grade is None:
+        has_any_grade = has_all_bims
     return {"nome": "Comp", "media": media, "atendimento_programa": "",
-            "has_all_bims": has_all_bims, "has_b4": has_all_bims}
+            "has_all_bims": has_all_bims, "has_b4": has_all_bims,
+            "has_any_grade": has_any_grade}
 
 
 def test_infantil_em_andamento():
@@ -69,3 +72,23 @@ def test_turma_avaliada_nao_usa_rotulos_conceituais():
                                        "2000-01-01", [comp], REGRAS)
     assert r["resultado"] == "APROVADO"
     assert r["resultado"] not in (STATUS_EM_ANDAMENTO, STATUS_CONCLUIU_ETAPA, STATUS_PROMOVIDO)
+
+
+def test_conceitual_ignora_componente_sem_nota():
+    # 1 componente completo (4 bims) + 1 componente nunca avaliado -> Promovido(a)
+    cheio = _comp(True)
+    vazio = {"nome": "Vazio", "media": None, "atendimento_programa": "",
+             "has_all_bims": False, "has_b4": False, "has_any_grade": False}
+    r = determinar_resultado_documento("active", "1º Ano", "fundamental_anos_iniciais",
+                                       None, [cheio, vazio], REGRAS)
+    assert r["resultado"] == STATUS_PROMOVIDO
+
+
+def test_conceitual_componente_parcial_fica_em_andamento():
+    # 1 componente completo + 1 componente PARCIAL (tem nota mas faltam bims) -> Em andamento
+    cheio = _comp(True)
+    parcial = {"nome": "Parcial", "media": 10, "atendimento_programa": "",
+               "has_all_bims": False, "has_b4": False, "has_any_grade": True}
+    r = determinar_resultado_documento("active", "Pré II", "educacao_infantil",
+                                       None, [cheio, parcial], REGRAS)
+    assert r["resultado"] == STATUS_EM_ANDAMENTO

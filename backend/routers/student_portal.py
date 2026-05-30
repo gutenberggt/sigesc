@@ -369,9 +369,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # ----- Situação final global -----
         situacao_final = "cursando"
         freq_ok = (freq_percent_letivo or 100.0) >= freq_minima
-        todos_bims_preenchidos = bool(linhas) and all(
+        # Considera apenas componentes que possuem ao menos uma nota/conceito lançada.
+        linhas_com_nota = [
+            row for row in linhas
+            if any(row.get(b) not in (None, "") for b in ("b1", "b2", "b3", "b4"))
+        ]
+        todos_bims_preenchidos = bool(linhas_com_nota) and all(
             all(row.get(b) not in (None, "") for b in ("b1", "b2", "b3", "b4"))
-            for row in linhas
+            for row in linhas_com_nota
         )
         if usa_conceito:
             # Turmas conceituais: Em andamento (durante o ano) ->

@@ -535,6 +535,7 @@ def generate_boletim_pdf(
         has_b4 = b4 is not None
         # Todas as 4 notas/conceitos lançadas (gatilho de encerramento p/ conceituais)
         has_all_bims = all(g is not None for g in [b1, b2, b3, b4])
+        has_any_grade = any(g is not None for g in [b1, b2, b3, b4])
         
         medias_por_componente.append({
             'nome': course.get('name', 'N/A'),
@@ -542,7 +543,8 @@ def generate_boletim_pdf(
             'optativo': is_optativo,
             'atendimento_programa': course.get('atendimento_programa') or '',
             'has_b4': has_b4,
-            'has_all_bims': has_all_bims
+            'has_all_bims': has_all_bims,
+            'has_any_grade': has_any_grade
         })
     
     # Extrair regras de aprovação da mantenedora

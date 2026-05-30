@@ -23,6 +23,22 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Boletim Online + Status Conceitual (Fev/2026)
+**Boletim Online do Aluno (`/api/student/me/report-card` + `BoletimAluno.jsx`):**
+- Tabela numérica (3º-9º/EJA): `Componente | 1º Bim | 2º Bim | Rec 1 | 3º Bim | 4º Bim | Rec 2 | Média | Situação` (removidas Faltas/Rec Final/Final).
+- Média ponderada oficial `(B1×2 + B2×3 + B3×2 + B4×3)/10`. Rec semestral substitui a MENOR nota do semestre; em EMPATE substitui a de MAIOR peso (B2 no 1º sem, B4 no 2º sem) e só se a rec for maior. Campos vazios = 0.
+- Turmas conceituais (Ed. Infantil + 1º/2º ano): Média = MAIOR conceito; tabela com B1-B4 + Média + Situação.
+- Alinhado tie-break em `gradeHelpers.jsx` (`<=`→`<`) para consistência com a tela de lançamento.
+
+**Padronização SYSTEM-WIDE do status de turmas CONCEITUAIS** (Ed. Infantil + 1º/2º ano), aplicada em Boletim Online, Boletim PDF, Ficha Individual, Livro de Promoção e tela de Promoção:
+- Durante o ano (nem todas B1-B4 lançadas) = **"Em andamento"**.
+- Ao encerrar (todas as 4 notas/conceitos lançadas, ignorando componentes nunca avaliados) = **"Concluiu a etapa"** (Ed. Infantil) / **"Promovido(a)"** (1º/2º ano).
+- Status especiais (transferido/desistente/falecido) sempre prevalecem.
+- Centralizado em `grade_calculator.determinar_resultado_documento` (constantes `STATUS_EM_ANDAMENTO/CONCLUIU_ETAPA/PROMOVIDO`).
+- Correções de consistência: `documents.py` (Livro) agora resolve componentes igual ao Boletim (merge de `courses_map` com componentes das notas); defaults de `academic_year` alinhados para 2026 (Livro GET/job, Ficha, Batch) — divergência anterior era por ano default 2025 vs dados 2026.
+- Testes: `/app/backend/tests/test_status_conceitual.py` (9 passed). Verificação por extração de PDF (Livro + Ficha → "Promovido(a)" em 2026).
+
+
 ## Multi-Tenancy Architecture
 - Collection `mantenedoras` (plural) é a fonte definitiva de dados de tenants
 - Collection legacy `mantenedora` (singular) foi removida
