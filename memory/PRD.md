@@ -81,6 +81,25 @@ preserva doc editado manualmente, filtro por escola). Lint limpo. E2E HTTP:
 login→CSRF→preview→dry-run apply OK (na base local 11 turmas já têm modelo novo
 → corretamente ignoradas; nada migrado). Endpoints respondem 401 sem auth.
 
+#### Bugfix P0 [Fev/2026] — 500 "ObjectId não serializável" em apply multi-turma
+- **Causa raiz:** `insert_many` do Motor MUTA os dicts de entrada injetando
+  `_id` (ObjectId). Como `sample_synthesized` da resposta referenciava esses
+  mesmos dicts, o ObjectId vazava no payload e o FastAPI `jsonable_encoder`
+  quebrava (500) — SOMENTE quando `created>0` (apply com inserção real);
+  dry_run e re-runs idempotentes retornavam 200. Disparava em escolas
+  multi-turma (mais docs inseridos).
+- **Impacto:** os dados ERAM gravados e a auditoria (`record_run`) ERA
+  persistida ANTES do erro (a falha era só na serialização da resposta HTTP).
+  Nenhuma corrupção; rollback continua possível pelos run_id já gravados.
+- **Fix:** `insert_many([dict(c) for c in pending])` (insere cópias; originais
+  ficam livres de `_id`). + Preview agora desconta já-migrados
+  (`already_migrated_assignments`) → `total_classes_affected` reflete o
+  progresso REAL (antes ficava preso em 118).
+- **Testes:** `test_apply_multi_class_no_objectid_leak`,
+  `test_preview_excludes_already_migrated` (10/10 verdes).
+- **Pós-fix em prod (pré-deploy):** ~34 turmas já migradas com sucesso
+  (legacy_only 120→86) apesar dos 500 cosméticos.
+
 
 ### Bolsa Família — Análise de Impacto da Consolidação Diária **[Fev/2026]** ✅ PRONTO P/ VALIDAÇÃO EM PROD
 

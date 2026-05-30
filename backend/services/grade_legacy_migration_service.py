@@ -205,9 +205,28 @@ async def build_migration_diagnostic(
             )
             affected_class_ids.add(cid)
 
-    # Agregações por escola
+    # Estado atual no banco dos ids candidatos → desconta o que já foi migrado
+    # (progresso real) e mapeia source para a checagem de invariante no apply.
+    cand_ids = [c["id"] for c in candidates]
+    existing_map: Dict[str, Optional[str]] = {}
+    if cand_ids:
+        async for d in db[COLLECTION].find(
+            {"id": {"$in": cand_ids}}, {"_id": 0, "id": 1, "source": 1}
+        ):
+            existing_map[d["id"]] = d.get("source")
+
+    pending = [c for c in candidates if c["id"] not in existing_map]
+    already_migrated = sum(
+        1 for c in candidates if existing_map.get(c["id"]) == MIGRATION_SOURCE
+    )
+    unexpected_ids = [
+        cid for cid, src in existing_map.items() if src != MIGRATION_SOURCE
+    ]
+    pending_class_ids = {c["class_id"] for c in pending}
+
+    # Agregações por escola — baseadas no que FALTA migrar (pending)
     by_school: Dict[str, Dict[str, Any]] = {}
-    for doc in candidates:
+    for doc in pending:
         sid = doc.get("school_id") or "(sem_escola)"
         b = by_school.setdefault(sid, {"classes": set(), "assignments": 0})
         b["classes"].add(doc["class_id"])
@@ -232,22 +251,29 @@ async def build_migration_diagnostic(
         key=lambda x: -x["assignments"],
     )
 
+    sample = (pending or candidates)[:5]
+
     return {
         "scope": {
             "academic_year": year,
             "school_id": scope.get("school_id"),
             "class_id": scope.get("class_id"),
         },
-        "total_classes_affected": len(affected_class_ids),
-        "total_assignments_to_create": len(candidates),
+        "total_classes_affected": len(pending_class_ids),
+        "total_assignments_to_create": len(pending),
+        "already_migrated_assignments": already_migrated,
         "ignored_classes_with_new_model": len(ignored_has_new),
         "classes_with_legacy_but_no_usable_slots": len(no_legacy_slots),
+        "unexpected_duplicate_ids": unexpected_ids[:20],
         "by_school": by_school_list,
         "ignored_sample": ignored_has_new[:5],
-        "sample_synthesized": candidates[:5],
+        "sample_synthesized": sample,
         # internos (não expor no preview público)
         "_candidates": candidates,
-        "_affected_class_ids": sorted(affected_class_ids),
+        "_pending": pending,
+        "_existing_map": existing_map,
+        "_unexpected_ids": unexpected_ids,
+        "_affected_class_ids": sorted(pending_class_ids),
     }
 
 
@@ -274,39 +300,29 @@ async def execute_migration(
     diag_before = await compute_schedules_diagnostic(db, year)
     diag = await build_migration_diagnostic(db, scope, run_id=run_id)
     candidates: List[Dict[str, Any]] = diag["_candidates"]
+    pending: List[Dict[str, Any]] = diag["_pending"]
+    unexpected_ids: List[str] = diag["_unexpected_ids"]
 
     created = 0
-    already_present = 0
+    already_present = diag["already_migrated_assignments"]
     diff_applied: List[Dict[str, Any]] = []
 
     if not dry_run and candidates:
-        cand_ids = [c["id"] for c in candidates]
-        # Estado atual desses ids no banco
-        existing = {
-            d["id"]: d
-            async for d in db[COLLECTION].find(
-                {"id": {"$in": cand_ids}}, {"_id": 0, "id": 1, "source": 1}
-            )
-        }
         # INVARIANTE 3: colisão com doc NÃO-migração → aborta tudo.
-        unexpected = [
-            eid for eid, d in existing.items()
-            if d.get("source") != MIGRATION_SOURCE
-        ]
-        if unexpected:
+        if unexpected_ids:
             raise UnexpectedDeterministicDuplicate(
-                f"{len(unexpected)} id(s) determinístico(s) já existem vinculados "
+                f"{len(unexpected_ids)} id(s) determinístico(s) já existem vinculados "
                 f"a documentos NÃO-migração. Abortado para preservar integridade. "
-                f"Exemplos: {unexpected[:5]}"
+                f"Exemplos: {unexpected_ids[:5]}"
             )
 
-        to_insert = [c for c in candidates if c["id"] not in existing]
-        already_present = len(candidates) - len(to_insert)
-
-        if to_insert:
-            await db[COLLECTION].insert_many(to_insert, ordered=False)
-            created = len(to_insert)
-            for c in to_insert:
+        if pending:
+            # Insere CÓPIAS: o driver injeta `_id` (ObjectId) nos dicts passados;
+            # usando cópias preservamos `candidates`/`sample_synthesized` livres
+            # de ObjectId (que quebraria a serialização JSON da resposta).
+            await db[COLLECTION].insert_many([dict(c) for c in pending], ordered=False)
+            created = len(pending)
+            for c in pending:
                 diff_applied.append({
                     "id": c["id"],
                     "class_id": c["class_id"],
@@ -333,6 +349,7 @@ async def execute_migration(
             "total_assignments_to_create": diag["total_assignments_to_create"],
             "created": created,
             "already_present_idempotent": already_present,
+            "already_migrated_assignments": diag["already_migrated_assignments"],
             "ignored_classes_with_new_model": diag["ignored_classes_with_new_model"],
             "elapsed_seconds": round(elapsed_s, 3),
             "throughput_docs_per_sec": throughput,
@@ -360,6 +377,7 @@ async def execute_migration(
             "total_assignments_to_create": diag["total_assignments_to_create"],
             "created": created,
             "already_present_idempotent": already_present,
+            "already_migrated_assignments": diag["already_migrated_assignments"],
             "ignored_classes_with_new_model": diag["ignored_classes_with_new_model"],
             "by_school": diag["by_school"],
             "sample_synthesized": diag["sample_synthesized"],

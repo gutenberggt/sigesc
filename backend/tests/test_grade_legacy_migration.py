@@ -70,8 +70,13 @@ async def _make_legacy_class(db, cleanup, *, school_id=None, course_id=None, tea
     schedule_id = str(uuid.uuid4())
     ta_id = str(uuid.uuid4())
 
-    await db.schools.insert_one({"id": school_id, "name": f"Escola {cleanup['tag']}"})
-    cleanup["school_ids"].append(school_id)
+    await db.schools.update_one(
+        {"id": school_id},
+        {"$setOnInsert": {"id": school_id, "name": f"Escola {cleanup['tag']}"}},
+        upsert=True,
+    )
+    if school_id not in cleanup["school_ids"]:
+        cleanup["school_ids"].append(school_id)
 
     await db.classes.insert_one({
         "id": cid, "name": f"Turma {cleanup['tag']}", "school_id": school_id,
@@ -237,3 +242,46 @@ async def test_school_filter_scopes_migration(db, cleanup):
     affected = diag["_affected_class_ids"]
     assert ctx_a["class_id"] in affected
     assert ctx_b["class_id"] not in affected
+
+
+@pytest.mark.asyncio
+async def test_apply_multi_class_no_objectid_leak(db, cleanup):
+    """Regressão do bug de prod: insert_many injeta `_id` (ObjectId) nos dicts;
+    com 2 turmas na mesma escola, o sample_synthesized vazava ObjectId e
+    quebrava a serialização JSON (500). Garante que NÃO vaza."""
+    import json
+    from bson import ObjectId
+
+    school = str(uuid.uuid4())
+    ctx1 = await _make_legacy_class(db, cleanup, school_id=school)
+    ctx2 = await _make_legacy_class(db, cleanup, school_id=school)
+    scope = {"academic_year": AY, "school_id": school}
+
+    r = await execute_migration(db, scope, dry_run=False, run_id="run-multi")
+    assert r["summary"]["created"] == 2  # 2 turmas × 1 componente
+    # Nenhum doc do sample pode conter ObjectId / chave _id
+    for doc in r["payload"]["sample_synthesized"]:
+        assert "_id" not in doc
+        assert not any(isinstance(v, ObjectId) for v in doc.values())
+    # O payload inteiro precisa ser serializável (sem ObjectId)
+    json.dumps(r["payload"], default=str)  # não deve depender de default p/ ObjectId
+    assert all(
+        not isinstance(v, ObjectId)
+        for doc in r["payload"]["sample_synthesized"] for v in doc.values()
+    )
+    # Ambas as turmas foram gravadas
+    assert await db.teacher_class_assignments.count_documents({"id": ctx1["det_id"]}) == 1
+    assert await db.teacher_class_assignments.count_documents({"id": ctx2["det_id"]}) == 1
+
+
+@pytest.mark.asyncio
+async def test_preview_excludes_already_migrated(db, cleanup):
+    """Após migrar, o preview deve descontar o já-migrado (progresso real)."""
+    ctx = await _make_legacy_class(db, cleanup)
+    scope = {"academic_year": AY, "school_id": ctx["school_id"]}
+
+    await execute_migration(db, scope, dry_run=False, run_id="run-prog")
+    diag = await build_migration_diagnostic(db, scope)
+    assert diag["total_classes_affected"] == 0
+    assert diag["total_assignments_to_create"] == 0
+    assert diag["already_migrated_assignments"] == 1
