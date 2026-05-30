@@ -24,6 +24,7 @@ from pymongo.errors import DuplicateKeyError
 from models import Student, StudentCreate, StudentUpdate
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
+from utils.serie_canonical import canonicalize_serie, UNRECOGNIZED_KEY
 
 router = APIRouter(prefix="/students", tags=["Alunos"])
 
@@ -627,18 +628,27 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 "count": {"$sum": 1},
             }},
         ]
-        series_counts_raw = {}
+        series_counts = {}
+        unmapped_series = {}
         async for doc in current_db.students.aggregate(series_pipeline):
-            raw = (doc["_id"] or "").strip()
-            if not raw:
-                continue
-            # Normalização Unicode-aware: upper + canonicaliza "°"→"º".
-            key_canon = raw.upper().replace("°", "º")
-            # Etapas EJA são armazenadas como "EJA 1ª ETAPA". O label do
-            # frontend é "1ª Etapa" → remove o prefixo "EJA " para casar.
-            if key_canon.startswith("EJA "):
-                key_canon = key_canon[4:]
-            series_counts_raw[key_canon] = series_counts_raw.get(key_canon, 0) + doc["count"]
+            raw = (doc["_id"] or "")
+            count = doc["count"]
+            canon = canonicalize_serie(raw)
+            if canon:
+                series_counts[canon] = series_counts.get(canon, 0) + count
+            else:
+                # Reconciliação: tudo que não casa vai para "Série não reconhecida"
+                series_counts[UNRECOGNIZED_KEY] = series_counts.get(UNRECOGNIZED_KEY, 0) + count
+                raw_label = (str(raw).strip() or "(vazio)")
+                unmapped_series[raw_label] = unmapped_series.get(raw_label, 0) + count
+
+        # Auditoria: registra nomenclaturas de série não mapeadas para correção
+        if unmapped_series:
+            logger.warning(
+                "[Indicadores] Séries não reconhecidas (filtro=%s): %s",
+                {k: v for k, v in (filter_query or {}).items() if k in ("school_id", "mantenedora_id")},
+                unmapped_series,
+            )
 
         # Contagem por modalidade da turma (classes.atendimento_programa).
         # Fonte: `students.class_id` diretamente, juntado com `classes`.
@@ -727,7 +737,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "total": total,
             "active_count": active_count,
             "race_counts": race_counts,
-            "series_counts": series_counts_raw,
+            "series_counts": series_counts,
+            "unmapped_series": unmapped_series,
             "modalidade_counts": modalidade_counts,
             "page": page,
             "page_size": page_size,

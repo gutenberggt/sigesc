@@ -1,0 +1,32 @@
+{
+  "summary": "Validated bug fix for 'Indicadores da Rede' reconciliation on /admin/students page. Backend canonicalização + unmapped_series + race 'nao_informada' chip + 'Série não reconhecida' chip all working end-to-end. Reconciliation invariant sum(series_counts)==active_count holds for all 6 schools. Frontend chips render with correct data-testid and colors for both 'mapped only' and 'all unmapped' scenarios.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_network_indicators_reconciliation.py",
+    "/app/backend/tests/test_serie_canonical.py",
+    "/app/test_reports/pytest/iter83_indicators.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "StudentsComplete.js > 3800 lines — should be split into smaller components (IndicadoresPanel, FiltrosBar, ListaAlunos, etc.) per the file-size guideline.",
+    "Frontend chips correctly use server-side canonical UPPERCASE keys ('1º ANO','6º ANO','PRÉ I',...) and the special 'SÉRIE NÃO RECONHECIDA' bucket — code is consistent with backend canonicalize_serie contract."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_network_indicators_reconciliation.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (5/5 integration + 5/5 unit canonical)", "frontend": "100% (Indicadores panel manual+playwright validated for 2 schools)"},
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007 (loaded from problem statement; /app/memory/test_credentials.md not consulted as creds were provided explicitly)",
+  "seed_data_creation": "None. Used existing seed: school 'fix_sch_v1' (10 ativos, todos unmapped + sem cor/raça) and '220d4022-...-multisseriada' (4 ativos, séries '2º ANO' e '6º ANO' canonicalizadas).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug fix iteration 83: canonicalização de séries em /api/students (response inclui series_counts UPPERCASE, race_counts incl. 'nao_informada', unmapped_series dict, modalidade_counts, active_count). Frontend route é /admin/students (não /alunos). Filtros de escola é <select> nativo (não shadcn combobox). Painel 'Indicadores da Rede' só renderiza após selecionar escola. data-testids: 'race-nao-informada' (chip laranja), 'series-nao-reconhecida' (bloco vermelho com lista raw). Invariante validado para todas as 6 escolas: sum(series_counts)==active_count. Suite de regressão em /app/backend/tests/test_network_indicators_reconciliation.py (export REACT_APP_BACKEND_URL antes de rodar pytest).",
+  "rca_of_the_issue": "Antes do fix: a contagem por série usava comparação exata contra rótulos fixos do front ('Pré I' etc.), enquanto o cadastro armazenava variações como 'PRÉ-ESCOLA I'. Resultado: alunos sumiam (soma < ativos) e alunos sem cor/raça também não apareciam. Fix aplicado (validado): (a) backend usa canonicalize_serie (utils/serie_canonical.py) normalizando acentos/case/hífens + aliases, devolvendo chaves canônicas UPPERCASE; alunos sem mapeamento caem em 'SÉRIE NÃO RECONHECIDA' + entry em unmapped_series (raw->count); (b) race_counts inclui bucket 'nao_informada'; (c) frontend exibe chip laranja 'Não informada: N' (data-testid='race-nao-informada') e bloco vermelho 'Série não reconhecida: N' com lista raw (data-testid='series-nao-reconhecida'). Invariante sum==active vale por construção e foi confirmada via testes automatizados nas 6 escolas do preview."
+}

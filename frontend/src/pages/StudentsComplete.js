@@ -297,6 +297,7 @@ export function StudentsComplete() {
   const [serverActiveCount, setServerActiveCount] = useState(0);
   const [raceCounts, setRaceCounts] = useState({});
   const [seriesCounts, setSeriesCounts] = useState({});
+  const [unmappedSeries, setUnmappedSeries] = useState({});
   const [modalidadeCounts, setModalidadeCounts] = useState({});
   // Accordion "Indicadores da Rede" — começa SEMPRE recolhido a cada
   // carregamento da página. O usuário expande manualmente quando quiser ver.
@@ -552,6 +553,7 @@ export function StudentsComplete() {
         setServerActiveCount(result.active_count ?? result.total ?? 0);
         setRaceCounts(result.race_counts || {});
         setSeriesCounts(result.series_counts || {});
+        setUnmappedSeries(result.unmapped_series || {});
         setModalidadeCounts(result.modalidade_counts || {});
       } catch (error) {
         console.error('Erro ao carregar alunos:', error);
@@ -3720,6 +3722,15 @@ export function StudentsComplete() {
                           {label}: {raceCounts[key] || 0}
                         </span>
                       ))}
+                      {(raceCounts['nao_informada'] || 0) > 0 && (
+                        <span
+                          data-testid="race-nao-informada"
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 text-xs font-semibold"
+                          title="Alunos ativos sem cor/raça preenchida no cadastro"
+                        >
+                          Não informada: {raceCounts['nao_informada']}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -3782,6 +3793,27 @@ export function StudentsComplete() {
                       ))}
                     </div>
                   </div>
+
+                  {/* RECONCILIAÇÃO: séries não reconhecidas (problema de cadastro/mapeamento) */}
+                  {(seriesCounts['SÉRIE NÃO RECONHECIDA'] || 0) > 0 && (
+                    <div data-testid="series-nao-reconhecida" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                      <p className="text-[11px] font-semibold tracking-wider text-red-500 uppercase mb-1 flex items-center gap-1.5">
+                        <AlertTriangle size={13} /> Série não reconhecida: {seriesCounts['SÉRIE NÃO RECONHECIDA']}
+                      </p>
+                      <p className="text-xs text-red-700">
+                        Esses alunos não foram classificados por série (nomenclatura de cadastro não mapeada). Corrija o cadastro/turma para reconciliar os indicadores.
+                      </p>
+                      {Object.keys(unmappedSeries || {}).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {Object.entries(unmappedSeries).map(([raw, qty]) => (
+                            <span key={raw} className="inline-flex items-center px-2 py-0.5 rounded bg-white border border-red-200 text-red-700 text-[11px] font-medium">
+                              {raw}: {qty}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
