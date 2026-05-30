@@ -20,6 +20,12 @@ COPY . .
 ARG REACT_APP_BACKEND_URL
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 
+# Reduz o consumo de memória do 'yarn build' (evita OOM/exit 255 no build).
+# - GENERATE_SOURCEMAP=false: source maps são o maior consumidor de RAM no CRA.
+# - NODE_OPTIONS: dá folga de heap ao Node durante o build.
+ENV GENERATE_SOURCEMAP=false
+ENV NODE_OPTIONS=--max-old-space-size=2048
+
 # Build da aplicação
 RUN yarn build
 
