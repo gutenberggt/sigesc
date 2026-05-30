@@ -23,6 +23,19 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Indicadores da Rede: reconciliação de contagens (Fev/2026)
+**Bug:** No painel "Indicadores da Rede" (página Alunos), a soma por SÉRIE e por COR/RAÇA não fechava com o total de ativos, em todas as escolas.
+**Causa raiz:** a contagem por série exigia correspondência EXATA com rótulos fixos do front (ex.: cadastro `PRÉ-ESCOLA I` não casava com `Pré I`) → alunos sumiam; alunos sem cor/raça não apareciam.
+**Correção (aprovada pelo usuário, testada 100%):**
+- Canonicalizador robusto `backend/utils/serie_canonical.py` (`canonicalize_serie`): normaliza acentos/caixa/hífens/ordinais + aliases (`PRÉ-ESCOLA I/II`→`Pré I/II`, `Berçário`, `Maternal`, `1º..9º Ano`, `1ª..4ª Etapa`); detecta nível II antes de I; nomenclaturas desconhecidas (Creche, Jardim, "Maternal III", "Prézinho") → `None`.
+- `GET /api/students` agrupa por série, canonicaliza e devolve `series_counts` (chaves UPPER), `unmapped_series` (raw→qtde) e contabiliza os não mapeados em `SÉRIE NÃO RECONHECIDA`. **Invariante garantida:** `sum(series_counts) == active_count`. Log de auditoria (`logger.warning`) das séries não mapeadas.
+- `race_counts` inclui bucket `nao_informada`.
+- Frontend (`StudentsComplete.js`): chip laranja "Não informada: N" (`data-testid=race-nao-informada`) em Cor/Raça; bloco vermelho "Série não reconhecida: N" (`data-testid=series-nao-reconhecida`) listando as nomenclaturas brutas.
+- Testes: `tests/test_serie_canonical.py`, `tests/test_network_indicators_reconciliation.py` (19 passed no total). Validado pelo testing agent (iteração 83) — reconciliação confirmada nas 6 escolas.
+- Rota frontend correta: `/admin/students`.
+- *Dívida técnica anotada:* `StudentsComplete.js` >3800 linhas — recomendado quebrar em componentes (IndicadoresPanel, FiltrosBar, ListaAlunos).
+
+
 ## CHANGELOG — Boletim Online + Status Conceitual (Fev/2026)
 **Boletim Online do Aluno (`/api/student/me/report-card` + `BoletimAluno.jsx`):**
 - Tabela numérica (3º-9º/EJA): `Componente | 1º Bim | 2º Bim | Rec 1 | 3º Bim | 4º Bim | Rec 2 | Média | Situação` (removidas Faltas/Rec Final/Final).
