@@ -29,7 +29,7 @@
   "updated_files": [],
   "success_rate": {"backend": "100% (7/7 pytest + 4/4 endpoints HTTP 200)", "frontend": "85% (Boletim Online and Promoção UI render correctly; UI<->PDF consistency issue for Livro)"},
   "test_credentials": "admin: gutenberg@sigesc.com/@Celta2007 ; aluno: aluno@sigesc.com/aluno123 (seed via scripts/seed_test_student.py)",
-  "seed_data_creation": "None created; reused existing seed (Aluno Teste Duplicidade, turma 2 Ano conceitual id=9f71ed93-c55f-44d2-87a9-c8567ccddd6a, escola Escola Teste Multisseriada).",
+  "seed_data_creation": "None created; reused existing seed (Aluno Teste Duplicidade, turma 2 Ano conceitual id=turma-grade-deploy, escola Escola Teste Multisseriada).",
   "retest_needed": true,
   "should_main_agent_self_test": true,
   "context_for_next_testing_agent": "Backend pytest passes. Three PDFs OK (200). Frontend Boletim/Promoção render the right new layout and labels. Main open issue: status divergence between report-card endpoint (situacao_final='promovido') and ficha/livro PDFs ('Em andamento') and between Promoção UI table ('Promovido(a)') and Livro de Promoção PDF ('Em andamento') for the SAME conceitual class. Verify after main agent unifies the logic via grade_calculator.determinar_resultado_documento. Also re-test once an avaliada-class (3º-9º/EJA) student exists to exercise weighted average and semester Rec rules.",
