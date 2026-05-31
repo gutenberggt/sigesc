@@ -3427,6 +3427,7 @@ export function StudentsComplete() {
             {canEdit && (
               <button
                 onClick={handleCreate}
+                data-testid="create-student-btn"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
               >
                 <Plus size={20} />
@@ -4267,7 +4268,7 @@ export function StudentsComplete() {
           }
           size="xl"
         >
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <Tabs tabs={tabs} activeIndex={formTabIndex} onTabChange={setFormTabIndex} />
             
             <div className="flex justify-end space-x-3 pt-4 border-t mt-6">
@@ -4282,6 +4283,7 @@ export function StudentsComplete() {
                 <button
                   type="submit"
                   disabled={submitting}
+                  data-testid="save-student-btn"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
                 >
                   {submitting ? 'Salvando...' : 'Salvar'}
