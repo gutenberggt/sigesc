@@ -1,5 +1,39 @@
 # CHANGELOG — SIGESC
 
+## 2026-05-31 — Feature: campos obrigatórios no cadastro de aluno + pop-up de alerta
+
+**Solicitação:** Tornar campos obrigatórios no cadastro do aluno; se algum estiver
+ausente ao salvar, abrir um pop-up de alerta (caixa centralizada com mensagem e
+botão OK) e navegar até a aba do primeiro campo faltante.
+
+**Campos obrigatórios:**
+- Aba Identificação: Nome Completo, Data de Nascimento, Sexo, Nacionalidade,
+  Cor/Raça, Comunidade Tradicional, Naturalidade (Cidade), Estado.
+- Aba Responsáveis: Mãe (mother_name) e Responsável Legal (legal_guardian_type;
+  se "Outro", o nome do responsável também é exigido).
+
+**Implementação (frontend):**
+- `getMissingRequiredFields()` + validação no `handleSubmit` que abre o pop-up
+  (`setRequiredAlert`) e troca para a aba do 1º campo faltante (`setFormTabIndex`).
+- Pop-up centralizado novo (data-testid `required-fields-modal`, itens
+  `required-field-item-N`, botão `required-fields-modal-ok-btn`).
+- `components/Tabs.js` tornado CONTROLÁVEL (props opcionais `activeIndex` +
+  `onTabChange`, retrocompatível) para permitir a navegação programática de aba.
+- Labels obrigatórios marcados com `*`. Adicionados data-testid `create-student-btn`
+  e `save-student-btn`.
+- **Fix importante:** o `<form>` recebeu `noValidate` — o input `full_name` tinha
+  `required` HTML5 que disparava o tooltip nativo do browser e bloqueava o
+  `handleSubmit`, impedindo o pop-up. Com `noValidate`, a validação customizada é a
+  única fonte.
+
+**Testado:** testing_agent iteration_85 — 100% (5/5 cenários). Pop-up dispara,
+OK fecha, navegação de aba funciona, asteriscos presentes.
+
+**AÇÃO PENDENTE DO USUÁRIO:** redeploy do **frontend** (Save to GitHub → Coolify
+Redeploy do serviço frontend) para publicar esta feature.
+
+---
+
 ## 2026-05-31 — Fix definitivo: "Série não reconhecida" nos Indicadores da Rede (P0)
 
 **Sintoma (produção):** Escola Nivalda mostrava 314 alunos ativos, mas as séries
