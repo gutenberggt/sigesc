@@ -609,13 +609,18 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             {"$addFields": {
                 "_grade_effective": {
                     "$let": {
-                        "vars": {"ss": "$student_series"},
+                        # `$ifNull` coage null E campo AUSENTE para "" (string vazia).
+                        # Sem isso, alunos cujo campo `student_series` está ausente
+                        # mantêm o valor "missing" dentro do `$cond` (pois
+                        # `$ne: [missing, null]` resolve para TRUE no MongoDB) e
+                        # NÃO caem no fallback de `classes.grade_level`, indo parar
+                        # erroneamente em "Série não reconhecida". O `$trim` ainda
+                        # normaliza valores só-espaços. Espelha a regra `.strip()`
+                        # usada nos scripts de diagnóstico (find_one).
+                        "vars": {"ss": {"$trim": {"input": {"$ifNull": ["$student_series", ""]}}}},
                         "in": {
                             "$cond": [
-                                {"$and": [
-                                    {"$ne": ["$$ss", None]},
-                                    {"$ne": ["$$ss", ""]},
-                                ]},
+                                {"$ne": ["$$ss", ""]},
                                 "$$ss",
                                 {"$arrayElemAt": ["$_class.grade_level", 0]},
                             ]
