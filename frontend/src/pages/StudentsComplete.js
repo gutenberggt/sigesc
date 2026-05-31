@@ -17,6 +17,7 @@ import { Plus, AlertCircle, AlertTriangle, CheckCircle, Home, User, Trash2, Uplo
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { StudentDependencySection } from '@/components/StudentDependencySection';
+import { computeCompleteness, completenessColor } from '@/utils/registrationCompleteness';
 
 // Estados brasileiros
 const STATES = [
@@ -294,6 +295,8 @@ export function StudentsComplete() {
   const [formTabIndex, setFormTabIndex] = useState(0);
   // Pop-up de campos obrigatórios ausentes ({ items: [{tab, label}] } | null)
   const [requiredAlert, setRequiredAlert] = useState(null);
+  // Completude do cadastro (barra de progresso do formulário), em tempo real.
+  const formCompleteness = useMemo(() => computeCompleteness(formData), [formData]);
   
   // Server-side pagination
   const [serverTotal, setServerTotal] = useState(0);
@@ -1664,6 +1667,26 @@ export function StudentsComplete() {
     { header: 'Nome', accessor: 'full_name', render: (row) => row.full_name || '-' },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
     { header: 'Ano', accessor: 'grade_info', render: (row) => getStudentSeries(row) },
+    {
+      header: 'Completude',
+      accessor: 'completeness',
+      render: (row) => {
+        const pct = typeof row.completeness === 'number' ? row.completeness : 0;
+        const c = completenessColor(pct);
+        return (
+          <span
+            data-testid={`completeness-badge-${row.id}`}
+            title={`Cadastro ${pct}% completo`}
+            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.ring}`}
+          >
+            <span className="w-10 h-1.5 rounded-full bg-white/60 overflow-hidden">
+              <span className={`block h-full rounded-full ${c.bar}`} style={{ width: `${pct}%` }} />
+            </span>
+            {pct}%
+          </span>
+        );
+      }
+    },
     { 
       header: 'Status', 
       accessor: 'status',
@@ -4269,6 +4292,37 @@ export function StudentsComplete() {
           size="xl"
         >
           <form onSubmit={handleSubmit} noValidate>
+            {/* Barra de Completude do Cadastro */}
+            {!viewMode && (() => {
+              const c = completenessColor(formCompleteness.percent);
+              return (
+                <div
+                  className={`mb-4 rounded-lg border ${c.ring} ${c.bg} px-4 py-3`}
+                  data-testid="form-completeness-bar"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium text-gray-700">
+                      Completude do cadastro
+                    </span>
+                    <span className={`text-sm font-bold ${c.text}`} data-testid="form-completeness-percent">
+                      {formCompleteness.percent}% ({formCompleteness.filled}/{formCompleteness.total})
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-white/70 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${c.bar}`}
+                      style={{ width: `${formCompleteness.percent}%` }}
+                    />
+                  </div>
+                  {formCompleteness.missing.length > 0 && (
+                    <p className="text-xs text-gray-600 mt-2">
+                      <span className="font-medium">Faltando:</span>{' '}
+                      {formCompleteness.missing.map((m) => m.label).join(', ')}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             <Tabs tabs={tabs} activeIndex={formTabIndex} onTabChange={setFormTabIndex} />
             
             <div className="flex justify-end space-x-3 pt-4 border-t mt-6">

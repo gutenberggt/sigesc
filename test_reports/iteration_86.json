@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only testing of INDICADOR DE COMPLETUDE DO CADASTRO. Form completeness bar (data-testid='form-completeness-bar' + 'form-completeness-percent') WORKS correctly in BOTH 'Novo Aluno' and 'Editar' modals: format 'X% (n/14)' matches, 'Faltando: ...' list rendered, color classes applied. CRITICAL BUG: the 'Completude' badge column is NEVER rendered in the student list table — the table at /admin/students is built with a HARDCODED <thead>/<tbody> (lines 4078-4230 of StudentsComplete.js) that does NOT consume the `columns` array defined at line 1666 (which contains the Completude column with data-testid='completeness-badge-<id>'). Headers shown in UI: Nome, Turma, Ano, Status, Documentos, Ações — Completude is missing. Verified across 6 schools (rows present in 'Escola Fixture v1' x10, Multisseriada x4, etc.) and `document.querySelectorAll('[data-testid^=\"completeness-badge-\"]').length === 0` in every case.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "StudentsComplete.js (lista /admin/students)",
+        "issue": "Coluna 'Completude' AUSENTE na tabela. O array `columns` (linha ~1666) inclui a coluna com badge `data-testid=completeness-badge-<id>`, porém a tabela é renderizada INLINE com <thead> hardcoded (linhas 4078-4092: Nome/Turma/Ano/Status/Documentos/Ações) e <tbody> hardcoded (linhas 4131-4227) que ignora o array columns. Resultado: nenhum badge de completude aparece na lista para nenhuma escola/aluno. Testes 1 e 2 do review_request FALHAM.",
+        "selector": "[data-testid^='completeness-badge-']",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/.screenshots/list_with_badges.png", "/app/.screenshots/badges_visible.png", "/app/.screenshots/edit_form_realtime.png"],
+  "action_items": [
+    "FIX (main agent): renderizar a coluna 'Completude' na tabela inline de /admin/students. Duas opções: (a) adicionar <th>Completude</th> + <td> com o badge entre as colunas Ano e Status no JSX hardcoded (linhas 4087-4088 do <thead> e 4152-4153 do <tbody>), usando completenessColor(row.completeness) e data-testid={`completeness-badge-${row.id}`}; OU (b) refatorar para usar o array `columns` via componente DataTable. A coluna 'Completude' já está no array `columns` (linha 1670-1689) — basta consumi-la.",
+    "Após o fix, retestar: badge visível, % bate com `completeness` retornado pelo backend (43/50/14 já verificado via curl), e cores verde/amarelo/vermelho conforme faixa."
+  ],
+  "critical_code_review_comments": [
+    "Código morto: o array `columns` na linha 1666 (Nome, Turma, Ano, Completude, Status, Documentos) NÃO é usado em lugar nenhum do JSX — a tabela renderiza com markup inline duplicado. Risco de divergências futuras (status mapping, badges, etc. já divergem entre `columns` e o inline). Recomendado: remover `columns` se não for usado OU migrar a tabela para um componente DataTable que consuma `columns` (DRY).",
+    "Barra de completude no formulário (linhas 4295-4325) está bem implementada com useMemo, data-testids corretos, contagem n/14, lista 'Faltando' e cores via completenessColor. Sem ressalvas."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "60% (3/5 critérios funcionais: barra no form OK, criar novo OK, regressão required-fields-modal OK; FALHA: badge na lista ausente, atualização do badge em tempo real não testável pois badge inexiste)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (admin) — válidas, login OK",
+  "seed_data_creation": "Nenhum dado de seed criado. Nenhuma alteração persistida (toda a validação foi visual/DOM).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Após o main agent adicionar a coluna Completude no <thead>/<tbody> inline (ou migrar para DataTable), retestar: 1) login admin -> /admin/students -> selecionar escola 'Escola Fixture v1' (10 alunos) -> conferir `await page.query_selector_all('[data-testid^=\"completeness-badge-\"]')` retorna 10 badges, cada um com texto 'NN%', sem 'undefined'/'NaN'. 2) Conferir cores: classes contendo green/yellow/red conforme faixa. 3) A barra do form já está 100% OK — não precisa retestar a menos que o main agent altere registrationCompleteness.js.",
+  "rca of the issue": "RCA: A feature foi implementada parcialmente — o arquivo registrationCompleteness.js está correto, o backend computa `completeness` por aluno corretamente (já verificado via curl pelo main agent), e a barra no modal de formulário foi adicionada corretamente. Porém, o desenvolvedor adicionou a coluna 'Completude' no array `columns` (que aparentemente era usado por um <DataTable> antigo) sem notar que o componente atual renderiza a tabela com markup inline duplicado em <thead>/<tbody> (linhas 4078-4230 de StudentsComplete.js). Mitigação: adicionar a coluna manualmente no markup inline (entre Ano e Status), por exemplo:\n\n<th className='px-4 py-3 ...'>Completude</th>  (no <thead>)\n\n<td className='px-4 py-3'>{(() => { const pct = typeof row.completeness === 'number' ? row.completeness : 0; const c = completenessColor(pct); return <span data-testid={`completeness-badge-${row.id}`} title={`Cadastro ${pct}% completo`} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.ring}`}><span className='w-10 h-1.5 rounded-full bg-white/60 overflow-hidden'><span className={`block h-full rounded-full ${c.bar}`} style={{ width: `${pct}%` }}/></span>{pct}%</span>; })()}</td>  (no <tbody>)\n\nNão esquecer de atualizar o colSpan da linha 'Nenhum aluno encontrado' (linha 4127: de 6 para 7, batchMode de 7 para 8) e os Skeletons (linhas 4097-4123 — adicionar uma <td><Skeleton .../></td> a mais)."
+}

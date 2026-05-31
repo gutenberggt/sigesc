@@ -31,6 +31,41 @@ router = APIRouter(prefix="/students", tags=["Alunos"])
 logger = logging.getLogger(__name__)
 
 
+def _is_filled(v):
+    return v is not None and str(v).strip() != ""
+
+
+def _compute_student_completeness(student: dict) -> int:
+    """Calcula a % de completude do cadastro do aluno (0-100).
+
+    ESPELHADO com o frontend (utils/registrationCompleteness.js). Conjunto
+    AMPLIADO de 14 critérios: obrigatórios + documento + telefone do responsável
+    + turma + matrícula. Mantenha os dois lados em sincronia.
+    """
+    s = student or {}
+    checks = [
+        _is_filled(s.get("full_name")),
+        _is_filled(s.get("birth_date")),
+        _is_filled(s.get("sex")),
+        _is_filled(s.get("nationality")),
+        _is_filled(s.get("color_race")),
+        _is_filled(s.get("comunidade_tradicional")),
+        _is_filled(s.get("birth_city")),
+        _is_filled(s.get("birth_state")),
+        _is_filled(s.get("mother_name")),
+        _is_filled(s.get("legal_guardian_type")),
+        # Documento: CPF, NIS ou Certidão Civil
+        any(_is_filled(s.get(k)) for k in ("cpf", "nis", "civil_certificate_number")),
+        # Telefone de algum responsável
+        any(_is_filled(s.get(k)) for k in ("mother_phone", "father_phone", "guardian_phone")),
+        _is_filled(s.get("class_id")),
+        _is_filled(s.get("enrollment_number")),
+    ]
+    total = len(checks)
+    filled = sum(1 for c in checks if c)
+    return round(filled / total * 100) if total else 0
+
+
 def setup_students_router(db, audit_service, sandbox_db=None):
     """Configura o router de alunos com as dependências necessárias"""
     
@@ -709,11 +744,19 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         effective_skip = (page - 1) * page_size if page > 0 else skip
         effective_limit = page_size if page > 0 else limit
         
-        # Projeta apenas campos necessários para listagem (mais leve)
+        # Projeta os campos da listagem + os necessários para calcular a
+        # completude do cadastro (estes últimos são removidos após o cálculo
+        # para manter o payload leve).
         list_projection = {
             "_id": 0, "id": 1, "full_name": 1, "school_id": 1, "class_id": 1,
             "status": 1, "cpf": 1, "birth_date": 1, "sex": 1, "inep_code": 1,
-            "student_series": 1, "atendimento_programa_class_id": 1
+            "student_series": 1, "atendimento_programa_class_id": 1,
+            # Campos extras só para completude:
+            "enrollment_number": 1, "nationality": 1, "color_race": 1,
+            "comunidade_tradicional": 1, "birth_city": 1, "birth_state": 1,
+            "mother_name": 1, "legal_guardian_type": 1, "nis": 1,
+            "civil_certificate_number": 1, "mother_phone": 1, "father_phone": 1,
+            "guardian_phone": 1,
         }
         
         students = await current_db.students.find(
@@ -731,11 +774,22 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         else:
             enrollment_series_map = {}
         
-        # Garante compatibilidade e inclui student_series
+        # Garante compatibilidade, calcula completude e remove campos extras.
+        _COMPLETENESS_EXTRA_FIELDS = [
+            "enrollment_number", "nationality", "color_race",
+            "comunidade_tradicional", "birth_city", "birth_state",
+            "mother_name", "legal_guardian_type", "nis",
+            "civil_certificate_number", "mother_phone", "father_phone",
+            "guardian_phone",
+        ]
         for student in students:
             student.setdefault('full_name', '')
             student.setdefault('status', 'active')
             student['student_series'] = enrollment_series_map.get(student.get('id'))
+            student['completeness'] = _compute_student_completeness(student)
+            # Remove os campos usados apenas no cálculo (payload mais leve)
+            for _f in _COMPLETENESS_EXTRA_FIELDS:
+                student.pop(_f, None)
         
         return {
             "items": students,
