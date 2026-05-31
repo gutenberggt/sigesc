@@ -1,5 +1,39 @@
 # CHANGELOG — SIGESC
 
+## 2026-05-31 — Feature: Indicador de Completude do Cadastro
+
+**Solicitação:** Indicador de "completude do cadastro" do aluno. Escolhas do usuário:
+exibir em AMBOS (badge na lista + barra no formulário); conjunto AMPLIADO de campos;
+estilo percentual com cor.
+
+**Critérios (14, espelhados frontend/backend):** os 10 obrigatórios + Documento
+(CPF/NIS/Certidão) + Telefone do Responsável + Turma + Matrícula. (Não há campos de
+endereço no formulário, então não entraram no cálculo.)
+
+**Implementação:**
+- `frontend/src/utils/registrationCompleteness.js` (novo): `computeCompleteness(data)`
+  → {percent, filled, total, missing}, `completenessColor(percent)` (verde ≥80,
+  amarelo 50–79, vermelho <50), e `COMPLETENESS_CRITERIA`.
+- `backend/routers/students.py`: `_compute_student_completeness(student)` (espelha o
+  frontend); a listagem `GET /api/students` adiciona `completeness` (0–100) em cada
+  item, projetando os campos extras só para o cálculo e removendo-os depois (payload leve).
+- `frontend/src/pages/StudentsComplete.js`:
+  - Coluna "Completude" na tabela inline (badge com mini-barra + % colorido,
+    data-testid `completeness-badge-<id>`). Atualizados thead, tbody, skeleton e colSpan.
+  - Barra de progresso no topo do formulário (data-testid `form-completeness-bar` /
+    `form-completeness-percent`), com `useMemo`, contagem n/14, lista "Faltando: ..." e cor.
+  - `components/Tabs.js` já controlável (da feature anterior).
+
+**Testado:** testing_agent iteration_86 (barra do form 100% OK). Coluna da lista
+corrigida (era código morto no array `columns`; migrada para o markup inline da tabela)
+e validada visualmente: 20 badges, cores corretas (43% vermelho, 50% amarelo), %
+batendo com o backend.
+
+**AÇÃO PENDENTE DO USUÁRIO:** redeploy de **frontend E backend** (esta feature mexe
+nos dois) no Coolify.
+
+---
+
 ## 2026-05-31 — Feature: campos obrigatórios no cadastro de aluno + pop-up de alerta
 
 **Solicitação:** Tornar campos obrigatórios no cadastro do aluno; se algum estiver

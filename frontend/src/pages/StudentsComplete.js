@@ -1667,26 +1667,6 @@ export function StudentsComplete() {
     { header: 'Nome', accessor: 'full_name', render: (row) => row.full_name || '-' },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
     { header: 'Ano', accessor: 'grade_info', render: (row) => getStudentSeries(row) },
-    {
-      header: 'Completude',
-      accessor: 'completeness',
-      render: (row) => {
-        const pct = typeof row.completeness === 'number' ? row.completeness : 0;
-        const c = completenessColor(pct);
-        return (
-          <span
-            data-testid={`completeness-badge-${row.id}`}
-            title={`Cadastro ${pct}% completo`}
-            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.ring}`}
-          >
-            <span className="w-10 h-1.5 rounded-full bg-white/60 overflow-hidden">
-              <span className={`block h-full rounded-full ${c.bar}`} style={{ width: `${pct}%` }} />
-            </span>
-            {pct}%
-          </span>
-        );
-      }
-    },
     { 
       header: 'Status', 
       accessor: 'status',
@@ -4085,6 +4065,7 @@ export function StudentsComplete() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ano</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completude</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documentos</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
@@ -4112,6 +4093,7 @@ export function StudentsComplete() {
                       <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
                       <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
                       <td className="px-4 py-3"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-6 w-16 rounded-full" /></td>
                       <td className="px-4 py-3"><Skeleton className="h-4 w-10" /></td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
@@ -4124,7 +4106,7 @@ export function StudentsComplete() {
                   ))
                 ) : students.length === 0 ? (
                   <tr>
-                    <td colSpan={batchMode ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={batchMode ? 8 : 7} className="px-4 py-8 text-center text-gray-500">
                       Nenhum aluno encontrado
                     </td>
                   </tr>
@@ -4150,6 +4132,24 @@ export function StudentsComplete() {
                         <td className="px-4 py-3 text-sm text-gray-900">{row.full_name}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{getClassName(row.class_id)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{getStudentSeries(row)}</td>
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const pct = typeof row.completeness === 'number' ? row.completeness : 0;
+                            const c = completenessColor(pct);
+                            return (
+                              <span
+                                data-testid={`completeness-badge-${row.id}`}
+                                title={`Cadastro ${pct}% completo`}
+                                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.ring}`}
+                              >
+                                <span className="w-10 h-1.5 rounded-full bg-white/60 overflow-hidden">
+                                  <span className={`block h-full rounded-full ${c.bar}`} style={{ width: `${pct}%` }} />
+                                </span>
+                                {pct}%
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             row.status === 'active' ? 'bg-green-100 text-green-800' :
