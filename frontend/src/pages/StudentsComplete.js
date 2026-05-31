@@ -290,6 +290,10 @@ export function StudentsComplete() {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
+  // Controle da aba ativa do formulário (para navegar até campos obrigatórios faltantes)
+  const [formTabIndex, setFormTabIndex] = useState(0);
+  // Pop-up de campos obrigatórios ausentes ({ items: [{tab, label}] } | null)
+  const [requiredAlert, setRequiredAlert] = useState(null);
   
   // Server-side pagination
   const [serverTotal, setServerTotal] = useState(0);
@@ -600,6 +604,7 @@ export function StudentsComplete() {
       school_id: schools.length > 0 ? schools[0].id : '',
       enrollment_number: generateEnrollmentNumber()
     });
+    setFormTabIndex(0);
     setIsModalOpen(true);
   };
 
@@ -622,6 +627,7 @@ export function StudentsComplete() {
       }
     });
     setFormData(mergedData);
+    setFormTabIndex(0);
     setIsModalOpen(true);
     
     // Define o ano letivo com base na turma atual do aluno
@@ -664,6 +670,7 @@ export function StudentsComplete() {
       }));
     }
     setFormData(mergedData);
+    setFormTabIndex(0);
     setIsModalOpen(true);
     
     // Define o ano letivo com base na turma atual do aluno
@@ -1200,9 +1207,52 @@ export function StudentsComplete() {
     return classes.filter(c => c.school_id === actionData.targetSchoolId);
   }, [classes, actionData.targetSchoolId]);
 
+  // Campos OBRIGATÓRIOS do cadastro do aluno (com a aba onde ficam).
+  // tabIndex: 0 = Identificação, 2 = Responsáveis (ver array `tabs`).
+  const REQUIRED_STUDENT_FIELDS = [
+    { tabIndex: 0, key: 'full_name', label: 'Nome Completo' },
+    { tabIndex: 0, key: 'birth_date', label: 'Data de Nascimento' },
+    { tabIndex: 0, key: 'sex', label: 'Sexo' },
+    { tabIndex: 0, key: 'nationality', label: 'Nacionalidade' },
+    { tabIndex: 0, key: 'color_race', label: 'Cor/Raça' },
+    { tabIndex: 0, key: 'comunidade_tradicional', label: 'Comunidade Tradicional' },
+    { tabIndex: 0, key: 'birth_city', label: 'Naturalidade (Cidade)' },
+    { tabIndex: 0, key: 'birth_state', label: 'Estado' },
+    { tabIndex: 2, key: 'mother_name', label: 'Mãe' },
+    { tabIndex: 2, key: 'legal_guardian_type', label: 'Responsável Legal' },
+  ];
+
+  // Retorna a lista de campos obrigatórios ausentes (vazios).
+  const getMissingRequiredFields = () => {
+    const missing = [];
+    REQUIRED_STUDENT_FIELDS.forEach(({ tabIndex, key, label }) => {
+      const val = formData[key];
+      if (val === undefined || val === null || String(val).trim() === '') {
+        missing.push({ tabIndex, label });
+      }
+    });
+    // Se o responsável legal for "Outro", o Nome Completo dele também é obrigatório.
+    if (formData.legal_guardian_type === 'other') {
+      const gn = formData.guardian_name;
+      if (gn === undefined || gn === null || String(gn).trim() === '') {
+        missing.push({ tabIndex: 2, label: 'Nome do Responsável Legal (Outro)' });
+      }
+    }
+    return missing;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // Validação: campos obrigatórios ausentes -> abre pop-up de alerta e
+    // navega até a aba do primeiro campo faltante.
+    const missingRequired = getMissingRequiredFields();
+    if (missingRequired.length > 0) {
+      setRequiredAlert({ items: missingRequired });
+      setFormTabIndex(missingRequired[0].tabIndex);
+      return;
+    }
+
     // Validação: pelo menos um documento
     if (!formData.cpf && !formData.nis && !formData.civil_certificate_number) {
       if (!formData.no_documents_justification) {
@@ -1757,7 +1807,7 @@ export function StudentsComplete() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento *</label>
             <input
               type="date"
               value={formData.birth_date}
@@ -1788,7 +1838,7 @@ export function StudentsComplete() {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Sexo *</label>
           <select
             value={formData.sex}
             onChange={(e) => updateFormData('sex', e.target.value)}
@@ -1801,7 +1851,7 @@ export function StudentsComplete() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nacionalidade</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nacionalidade *</label>
           <input
             type="text"
             value={formData.nationality}
@@ -1811,7 +1861,7 @@ export function StudentsComplete() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cor/Raça</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Cor/Raça *</label>
           <select
             value={formData.color_race}
             onChange={(e) => updateFormData('color_race', e.target.value)}
@@ -1832,7 +1882,7 @@ export function StudentsComplete() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Comunidade Tradicional</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Comunidade Tradicional *</label>
           <select
             value={formData.comunidade_tradicional || 'nao_pertence'}
             onChange={(e) => updateFormData('comunidade_tradicional', e.target.value)}
@@ -1849,7 +1899,7 @@ export function StudentsComplete() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Naturalidade (Cidade)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Naturalidade (Cidade) *</label>
           <CityAutocomplete
             value={formData.birth_city}
             onChange={(value) => updateFormData('birth_city', value)}
@@ -1858,7 +1908,7 @@ export function StudentsComplete() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Estado *</label>
           <select
             value={formData.birth_state}
             onChange={(e) => updateFormData('birth_state', e.target.value)}
@@ -2175,7 +2225,7 @@ export function StudentsComplete() {
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Mãe</h3>
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
           <input
             type="text"
             value={formData.mother_name}
@@ -3418,7 +3468,55 @@ export function StudentsComplete() {
           </div>
         )}
 
-        {/* Campos de Busca Avançada */}
+        {/* Pop-up de Campos Obrigatórios Ausentes (caixa centralizada) */}
+        {requiredAlert && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+            data-testid="required-fields-modal-overlay"
+            onClick={() => setRequiredAlert(null)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+              data-testid="required-fields-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 bg-red-500 px-5 py-4">
+                <AlertCircle className="text-white flex-shrink-0" size={24} />
+                <h3 className="text-white font-semibold text-base">
+                  Preencha os campos obrigatórios
+                </h3>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-sm text-gray-600 mb-3">
+                  Os seguintes campos são obrigatórios e precisam ser preenchidos
+                  antes de salvar o cadastro:
+                </p>
+                <ul className="list-disc list-inside space-y-1 max-h-60 overflow-y-auto">
+                  {requiredAlert.items.map((item, idx) => (
+                    <li
+                      key={idx}
+                      className="text-sm text-gray-800 font-medium"
+                      data-testid={`required-field-item-${idx}`}
+                    >
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="px-5 py-4 bg-gray-50 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setRequiredAlert(null)}
+                  data-testid="required-fields-modal-ok-btn"
+                  className="px-6 py-2 rounded-lg font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex flex-wrap items-end gap-4">
             {/* Busca por Nome */}
@@ -4170,7 +4268,7 @@ export function StudentsComplete() {
           size="xl"
         >
           <form onSubmit={handleSubmit}>
-            <Tabs tabs={tabs} />
+            <Tabs tabs={tabs} activeIndex={formTabIndex} onTabChange={setFormTabIndex} />
             
             <div className="flex justify-end space-x-3 pt-4 border-t mt-6">
               <button

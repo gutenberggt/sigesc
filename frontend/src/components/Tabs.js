@@ -1,7 +1,13 @@
 import { useState } from 'react';
 
-export const Tabs = ({ tabs, defaultTab = 0, children }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab);
+export const Tabs = ({ tabs, defaultTab = 0, activeIndex, onTabChange, children }) => {
+  const [internalTab, setInternalTab] = useState(defaultTab);
+  // Modo controlado: se `activeIndex` for fornecido, ele manda. Senão, estado interno.
+  const activeTab = activeIndex !== undefined && activeIndex !== null ? activeIndex : internalTab;
+  const setActiveTab = (index) => {
+    if (onTabChange) onTabChange(index);
+    if (activeIndex === undefined || activeIndex === null) setInternalTab(index);
+  };
 
   // Detecta se tabs é um array de strings ou de objetos
   const isObjectFormat = tabs && tabs.length > 0 && typeof tabs[0] === 'object';

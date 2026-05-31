@@ -1,0 +1,41 @@
+{
+  "summary": "Tested feature 'campos obrigatorios + pop-up' no cadastro de aluno. Login OK, navegacao para /admin/students OK, modal 'Novo(a) Aluno(a)' abre corretamente com 7 abas (Identificacao, Documentos, Responsaveis, Info Complementares, Anexos, Turma/Observacoes) e labels marcados com asterisco (*) para campos obrigatorios. Porem, ao clicar em Salvar com campos vazios, o pop-up customizado (data-testid='required-fields-modal') NAO aparece porque a validacao nativa HTML5 do browser ('Please fill out this field.') eh disparada primeiro no input 'Nome Completo' (linha 1768 possui atributo `required`). Isso bloqueia o submit antes do handleSubmit() rodar, impedindo o setRequiredAlert(). Feature esta quebrada por essa causa raiz.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "StudentsComplete.js - form Novo Aluno",
+        "issue": "Atributo HTML5 `required` no input full_name (linha 1768) faz com que o browser exiba o tooltip nativo 'Please fill out this field.' ao clicar Salvar, bloqueando o submit. Como resultado, handleSubmit() nunca eh chamado e o pop-up customizado data-testid='required-fields-modal' nunca aparece. A feature inteira (pop-up listando campos faltantes + navegacao automatica para aba do primeiro faltante) fica inativa.",
+        "selector": "input[name implícito 'full_name'] required (StudentsComplete.js:1768)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Validacao de campos obrigatorios no cadastro de aluno",
+        "issue": "Pop-up required-fields-modal nao dispara. Validacao nativa do browser intercepta antes do JS.",
+        "affected_selectors": ["[data-testid=required-fields-modal]", "[data-testid^=required-field-item-]", "[data-testid=required-fields-modal-ok-btn]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPCAO A (recomendada): adicionar atributo noValidate ao <form onSubmit={handleSubmit} noValidate> em StudentsComplete.js linha 4270, para desabilitar validacao HTML5 nativa e permitir que a validacao customizada (getMissingRequiredFields + requiredAlert pop-up) seja a unica responsavel pelo feedback ao usuario.",
+    "OPCAO B: remover o atributo `required` da linha 1768 (input do full_name). Apenas o full_name possui `required` atualmente (grep confirmou que eh o unico).",
+    "Apos o fix, re-testar: abrir Novo Aluno -> Salvar vazio -> validar que pop-up data-testid='required-fields-modal' aparece com itens listados e botao OK funciona; e que ao preencher campo da aba Responsaveis faltando, o formulario navega para tabIndex=2."
+  ],
+  "critical_code_review_comments": [
+    "StudentsComplete.js tem 5148 linhas - excede limite de 700 linhas. Deve ser dividido em componentes menores (TabIdentificacao, TabDocumentos, TabResponsaveis, etc).",
+    "Inconsistencia: a feature usa validacao JS customizada para mostrar pop-up listando TODOS os campos faltantes, mas o input full_name ainda tem o atributo HTML5 `required` que conflita com essa logica. Padronizar: ou usa native validation (com novalidate=false + remove o custom popup), ou usa custom validation (com noValidate no form). A mistura quebra a UX intencional.",
+    "Sem data-testid no botao 'Novo(a) Aluno(a)' e no botao Salvar do modal (linhas 3428 e 4283). Sugiro adicionar data-testid='create-student-btn' e data-testid='save-student-btn' para facilitar testes automatizados futuros."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "20% (login + abertura do modal OK; feature de pop-up de obrigatorios NAO funciona)"},
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "seed_data_creation": "Nenhuma",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Apos main agent aplicar o fix (adicionar noValidate ao form ou remover `required` do input full_name), re-testar: 1) login admin -> /admin/students -> botao 'Novo(a) Aluno(a)'; 2) clicar Salvar vazio -> esperar [data-testid='required-fields-modal'] visivel com >=10 itens em [data-testid^='required-field-item-']; 3) clicar [data-testid='required-fields-modal-ok-btn'] -> modal fecha; 4) preencher TODOS exceto mother_name (aba Responsaveis) -> Salvar -> esperar pop-up E que aba ativa seja 'Responsaveis' (tabIndex=2); 5) preencher TODOS -> Salvar -> sem pop-up, cadastro deve prosseguir.",
+  "rca of the issue": "ROOT CAUSE: O input 'Nome Completo' (StudentsComplete.js linha 1768) possui o atributo HTML5 `required`. Quando o usuario clica em Salvar com campos vazios, o browser executa a validacao nativa HTML5 primeiro e exibe o tooltip 'Please fill out this field.' no input - isso PREVINE o evento submit de propagar para o handler onSubmit={handleSubmit}, portanto handleSubmit nunca executa, getMissingRequiredFields nunca eh chamada, e setRequiredAlert nunca eh setado, fazendo com que o pop-up customizado <div data-testid='required-fields-modal'> jamais seja renderizado. REPRODUCAO: 1) Login como gutenberg@sigesc.com; 2) /admin/students; 3) clicar 'Novo(a) Aluno(a)'; 4) com todos campos vazios, clicar Salvar; 5) OBSERVAR: tooltip nativo do browser em vez do pop-up customizado. MITIGACAO: adicionar noValidate ao <form> (linha 4270) OU remover o atributo `required` do input em linha 1768. Recomendado noValidate pois preserva semantica acessivel dos labels com asterisco e centraliza toda a validacao no handleSubmit."
+}
