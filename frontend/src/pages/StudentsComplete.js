@@ -2330,6 +2330,19 @@ export function StudentsComplete() {
             <input
               type="radio"
               name="legal_guardian_type"
+              value="self"
+              checked={formData.legal_guardian_type === 'self'}
+              onChange={(e) => updateFormData('legal_guardian_type', e.target.value)}
+              disabled={viewMode}
+              className="h-4 w-4 text-blue-600"
+              data-testid="legal-guardian-type-self"
+            />
+            <span className="text-sm text-gray-700">O(A) Aluno(a)</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="legal_guardian_type"
               value="other"
               checked={formData.legal_guardian_type === 'other'}
               onChange={(e) => updateFormData('legal_guardian_type', e.target.value)}
