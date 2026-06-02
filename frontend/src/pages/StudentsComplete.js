@@ -1464,6 +1464,15 @@ export function StudentsComplete() {
   // Turmas filtradas para o filtro de busca
   const filterClassOptions = filterSchoolId === 'all' ? [] : classes.filter(c => c.school_id === filterSchoolId);
 
+  // Soma de alunos por agrupamento de séries (Indicadores da Rede).
+  // seriesCounts é indexado por rótulos em MAIÚSCULAS (ex.: '1º ANO').
+  const sumSeries = (labels) =>
+    labels.reduce((acc, l) => acc + (seriesCounts[l.toUpperCase()] || 0), 0);
+  const totalEducacaoInfantil = sumSeries(['Berçário I', 'Berçário II', 'Maternal I', 'Maternal II', 'Pré I', 'Pré II']);
+  const totalAnosIniciais = sumSeries(['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano']);
+  const totalAnosFinais = sumSeries(['6º Ano', '7º Ano', '8º Ano', '9º Ano']);
+  const totalEJA = sumSeries(['1ª Etapa', '2ª Etapa', '3ª Etapa', '4ª Etapa']);
+
   // Reset de página quando filtros mudam (busca é resetada no debounce)
   useEffect(() => {
     setCurrentPage(1);
@@ -3881,6 +3890,28 @@ export function StudentsComplete() {
                           {label}: {seriesCounts[label.toUpperCase()] || 0}
                         </span>
                       ))}
+                      {/* Somas por agrupamento (totais destacados) */}
+                      <span
+                        data-testid="sum-educacao-infantil"
+                        className="inline-flex items-center px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold"
+                        title="Soma de todas as séries da Educação Infantil"
+                      >
+                        Educação Infantil: {totalEducacaoInfantil}
+                      </span>
+                      <span
+                        data-testid="sum-anos-iniciais"
+                        className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold"
+                        title="Soma do 1º ao 5º Ano (Anos Iniciais)"
+                      >
+                        Anos Iniciais: {totalAnosIniciais}
+                      </span>
+                      <span
+                        data-testid="sum-anos-finais"
+                        className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold"
+                        title="Soma do 6º ao 9º Ano (Anos Finais)"
+                      >
+                        Anos Finais: {totalAnosFinais}
+                      </span>
                     </div>
                   </div>
 
@@ -3895,14 +3926,16 @@ export function StudentsComplete() {
                         { label: '2ª Etapa', value: seriesCounts['2ª ETAPA'] || 0 },
                         { label: '3ª Etapa', value: seriesCounts['3ª ETAPA'] || 0 },
                         { label: '4ª Etapa', value: seriesCounts['4ª ETAPA'] || 0 },
+                        { label: 'EJA', value: totalEJA, isSum: true },
                         { label: 'Regular', value: modalidadeCounts.regular || 0 },
                         { label: 'Integral', value: modalidadeCounts.atendimento_integral || 0 },
                         { label: 'AEE', value: modalidadeCounts.aee || 0 },
                         { label: 'Recomp.', value: modalidadeCounts.recomposicao_aprendizagem || 0 },
-                      ].map(({ label, value }) => (
+                      ].map(({ label, value, isSum }) => (
                         <span
                           key={label}
-                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium"
+                          data-testid={isSum ? 'sum-eja' : undefined}
+                          className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs ${isSum ? 'bg-purple-100 text-purple-800 border border-purple-300 font-bold' : 'bg-purple-50 text-purple-700 font-medium'}`}
                         >
                           {label}: {value}
                         </span>
