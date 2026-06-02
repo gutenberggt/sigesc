@@ -319,7 +319,97 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "items": items,
         }
 
+    @router.get("/enrollment-audit")
+    async def get_enrollment_audit(request: Request):
+        """[Auditoria] Painel read-only de saúde das matrículas (enrollment_number).
 
+        Reporta, em tempo real, matrículas AUSENTES (vazias) e DUPLICADAS nas
+        coleções `students` e `enrollments`, além do status do índice único.
+        Espelha a auditoria do script scripts/backfill_dedup_enrollment.py.
+        Restrito a perfis administrativos/secretaria. Tenant/escola-aware.
+        """
+        current_user = await AuthMiddleware.require_roles(
+            ['super_admin', 'admin', 'admin_teste', 'gerente', 'semed',
+             'semed1', 'semed2', 'semed3', 'secretario']
+        )(request)
+        current_db = get_db_for_user(current_user)
+
+        role = current_user.get('role')
+        base = {}
+        if role != 'super_admin':
+            tenant_id = current_user.get('mantenedora_id')
+            if tenant_id:
+                base['mantenedora_id'] = tenant_id
+        if role == 'secretario':
+            base['school_id'] = {"$in": current_user.get('school_ids', []) or []}
+
+        empty_cond = {"$or": [
+            {"enrollment_number": {"$exists": False}},
+            {"enrollment_number": None},
+            {"enrollment_number": ""},
+        ]}
+
+        result = {}
+        owner_ids = set()
+        for coll_name, owner_field in (("students", "id"), ("enrollments", "student_id")):
+            coll = current_db[coll_name]
+            total = await coll.count_documents(base)
+            empty = await coll.count_documents({**base, **empty_cond})
+
+            pipeline = [
+                {"$match": {**base, "enrollment_number": {"$gt": ""}}},
+                {"$group": {
+                    "_id": "$enrollment_number",
+                    "count": {"$sum": 1},
+                    "owners": {"$addToSet": f"${owner_field}"},
+                }},
+                {"$match": {"count": {"$gt": 1}}},
+                {"$sort": {"count": -1, "_id": 1}},
+                {"$limit": 200},
+            ]
+            dups = []
+            async for g in coll.aggregate(pipeline):
+                for o in g.get("owners", []):
+                    if o:
+                        owner_ids.add(o)
+                dups.append({
+                    "enrollment_number": g["_id"],
+                    "count": g["count"],
+                    "owners": g.get("owners", []),
+                })
+            result[coll_name] = {
+                "total": total,
+                "empty": empty,
+                "duplicate_groups": len(dups),
+                "duplicates": dups,
+            }
+
+        # Amostra de alunos sem matrícula (para ação direta na secretaria)
+        empty_students = []
+        async for s in current_db.students.find(
+            {**base, **empty_cond}, {"_id": 0, "id": 1, "full_name": 1, "school_id": 1}
+        ).limit(200):
+            empty_students.append(s)
+            owner_ids.add(s["id"])
+        result["students"]["empty_sample"] = empty_students
+
+        # Resolve nomes dos alunos (owners das duplicatas + amostra de vazios)
+        names = {}
+        if owner_ids:
+            async for s in current_db.students.find(
+                {"id": {"$in": list(owner_ids)}},
+                {"_id": 0, "id": 1, "full_name": 1},
+            ):
+                names[s["id"]] = s.get("full_name")
+        result["owner_names"] = names
+
+        st_idx = await current_db.students.index_information()
+        en_idx = await current_db.enrollments.index_information()
+        result["unique_index"] = {
+            "students": "uq_enrollment_number" in st_idx,
+            "enrollments": "uq_enrollment_number" in en_idx,
+        }
+        return result
 
     @router.get("/autocomplete")
     async def autocomplete_students(

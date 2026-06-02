@@ -41,6 +41,7 @@ export const DASHBOARD_MENU_GROUPS = [
     items: [
       { label: 'Componentes Curriculares', icon: BookOpen, color: 'orange', route: '/admin/courses', testId: 'nav-courses-button', visible: c => c.isSuperAdmin },
       { label: 'Pré-Matrículas', icon: UserPlus, color: 'pink', route: '/admin/pre-matriculas', testId: 'nav-pre-matriculas-button', visible: c => !c.hasRole('semed', 'semed1', 'semed2') },
+      { label: 'Auditoria de Matrículas', icon: ClipboardCheck, color: 'red', route: '/admin/auditoria-matriculas', testId: 'nav-enrollment-audit-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isSemed || c.hasRole('gerente') },
       { label: 'Livro de Promoção', icon: Award, color: 'emerald', route: '/admin/promotion', testId: 'nav-promotion-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
     ],
   },

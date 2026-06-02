@@ -57,6 +57,7 @@ const MessageLogs = lazy(() => import('@/pages/MessageLogs'));
 const Announcements = lazy(() => import('@/pages/Announcements'));
 const Mantenedora = lazy(() => import('@/pages/Mantenedora'));
 const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
+const EnrollmentAudit = lazy(() => import('@/pages/EnrollmentAudit').then(m => ({ default: m.EnrollmentAudit })));
 const AdminTools = lazy(() => import('@/pages/AdminTools'));
 const Mantenedoras = lazy(() => import('@/pages/Mantenedoras'));
 const SemedPanel = lazy(() => import('@/pages/SemedPanel'));
@@ -540,6 +541,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'semed3']}>
                 <AuditLogs />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Auditoria de Matrículas (read-only) */}
+          <Route
+            path="/admin/auditoria-matriculas"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3', 'secretario']}>
+                <EnrollmentAudit />
               </ProtectedRoute>
             }
           />
