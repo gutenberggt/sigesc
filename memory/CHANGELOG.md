@@ -1,5 +1,21 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Refactor (frontend): config central das categorias de conexão
+
+**Motivo:** Centralizar rótulos/ícones/cores das categorias (antes fixos no
+`OnlineUsers.js`), em par com o módulo central do backend.
+
+**Entregue:**
+- Novo `frontend/src/config/connectionCategories.js`: `CONNECTION_CATEGORIES`
+  (array com key/label/icon/cores/testId). Editar rótulo, ícone ou cor de uma
+  categoria agora é feito SOMENTE aqui. As `key` espelham `by_category` do backend.
+- `OnlineUsers.js` consome o config (removida a array inline e os imports de
+  ícones movidos para o config).
+
+**Validação:** Lint OK; estrutura de renderização idêntica à validada na
+iteration_89 (apenas a fonte da array mudou).
+
+
 ## 2026-02 — Refactor: mapeamento role→categoria de conexão centralizado
 
 **Motivo:** Permitir adicionar novas roles (ex.: novas roles de Saúde) a uma

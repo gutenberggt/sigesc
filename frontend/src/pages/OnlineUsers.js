@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Wifi, Clock, RefreshCw, Home, LogOut, AlertTriangle, History, GraduationCap, BookOpen, HeartHandshake, Syringe, Shield } from 'lucide-react';
+import { Users, Wifi, Clock, RefreshCw, Home, LogOut, AlertTriangle, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hasRole } from '@/utils/permissions';
+import { CONNECTION_CATEGORIES } from '@/config/connectionCategories';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -206,13 +207,7 @@ export default function OnlineUsers() {
           Conexões por categoria
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {[
-            { key: 'professores', label: 'Professores', icon: GraduationCap, iconWrap: 'bg-yellow-50', iconColor: 'text-yellow-600', testId: 'conn-cat-professores' },
-            { key: 'alunos', label: 'Alunos', icon: BookOpen, iconWrap: 'bg-indigo-50', iconColor: 'text-indigo-600', testId: 'conn-cat-alunos' },
-            { key: 'assistencia_social', label: 'Assistência Social', icon: HeartHandshake, iconWrap: 'bg-pink-50', iconColor: 'text-pink-600', testId: 'conn-cat-assistencia' },
-            { key: 'saude', label: 'Saúde', icon: Syringe, iconWrap: 'bg-teal-50', iconColor: 'text-teal-600', testId: 'conn-cat-saude' },
-            { key: 'administrativas', label: 'Administrativas', icon: Shield, iconWrap: 'bg-blue-50', iconColor: 'text-blue-600', testId: 'conn-cat-administrativas' },
-          ].map(({ key, label, icon: Icon, iconWrap, iconColor, testId }) => (
+          {CONNECTION_CATEGORIES.map(({ key, label, icon: Icon, iconWrap, iconColor, testId }) => (
             <div
               key={key}
               data-testid={testId}
