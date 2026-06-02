@@ -727,10 +727,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         # Conta total para paginação
         total = await current_db.students.count_documents(filter_query)
 
-        # Contagem por faixa de completude (verde/amarelo/vermelho) sobre o
-        # MESMO filtro (mesmo universo que `total`). Espelha o cálculo do Python.
+        # Filtro de ATIVOS (usado nos indicadores e na completude). Força
+        # status='active' mesmo que `filterStatus` esteja setado para outro valor.
+        active_filter = {**filter_query, 'status': 'active'}
+
+        # Contagem por faixa de completude (verde/amarelo/vermelho) — considera
+        # APENAS alunos ATIVOS (regra de negócio). Espelha o cálculo do Python.
         band_count_pipeline = [
-            {"$match": filter_query},
+            {"$match": active_filter},
             _completeness_pct_stage(),
             {"$addFields": {"_band": {"$switch": {"branches": [
                 {"case": _BAND_EXPR["green"], "then": "green"},
@@ -744,7 +748,6 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 completeness_counts[doc["_id"]] = doc["count"]
         
         # Conta alunos ativos (para exibição no frontend)
-        active_filter = {**filter_query, 'status': 'active'}
         active_count = await current_db.students.count_documents(active_filter) if not status else (total if status == 'active' else 0)
         
         # Contagem por cor/raça
@@ -911,11 +914,12 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).skip(effective_skip).limit(effective_limit).to_list(effective_limit)
         
         # Filtro por FAIXA de completude (verde/amarelo/vermelho): exige
-        # calcular `_pct` no servidor, então a página é buscada via aggregation
-        # e o `total`/`total_pages` passam a refletir a faixa selecionada.
+        # calcular `_pct` no servidor. A faixa considera APENAS ATIVOS (mesmo
+        # universo das contagens dos cards), então usa `active_filter` e o
+        # `total`/`total_pages` passam a refletir a faixa selecionada.
         if completeness_band in _BAND_EXPR:
             page_pipeline = [
-                {"$match": filter_query},
+                {"$match": active_filter},
                 _completeness_pct_stage(),
                 {"$match": {"$expr": _BAND_EXPR[completeness_band]}},
                 {"$sort": {"full_name": 1}},

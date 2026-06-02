@@ -1,5 +1,22 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Ajuste: cards de Completude contam apenas alunos ATIVOS
+
+**Solicitação:** Nos cards de Completude (verde/amarelo/vermelho), as somas
+devem considerar apenas alunos com status "Ativo".
+
+**Entregue (backend `routers/students.py`, list_students):**
+- `completeness_counts` agora é calculado sobre `active_filter`
+  (`status='active'`), e não mais sobre todos os status.
+- O filtro por faixa (`completeness_band`) na lista também passou a considerar
+  apenas ativos, mantendo a consistência entre a contagem do card e a lista.
+- Testes atualizados/adicionados em `tests/test_students_completeness.py`
+  (soma == active_count; verificação com escola de status misto).
+
+**Validação:** curl numa escola com 1 ativo + 1 transferido → soma das faixas = 1
+(= active_count), total = 2. Pytest 6/6 OK. Sem alteração de frontend.
+
+
 ## 2026-02 — Feature: Somas por agrupamento nos "Indicadores da Rede" (Alunos)
 
 **Solicitação:** Acrescentar somatórios na seção "Indicadores da Rede".

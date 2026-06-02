@@ -92,10 +92,41 @@ def test_filter_band_green(auth_headers):
     assert len(items) == 0
 
 
-def test_counts_match_unfiltered_total(auth_headers):
+def test_counts_match_active_count(auth_headers):
+    """A soma das faixas de completude deve igualar o nº de ATIVOS (não o total)."""
     r = _get_students(auth_headers)
     assert r.status_code == 200
     data = r.json()
     counts = data["completeness_counts"]
+    active = data.get("active_count")
+    assert active is not None, "active_count ausente na resposta"
+    assert active == counts["green"] + counts["yellow"] + counts["red"], \
+        f"active_count={active}, counts={counts}"
+
+
+def test_completeness_counts_consider_only_active(auth_headers):
+    """Numa escola com aluno ativo + transferido, a completude conta só o ativo."""
+    mixed_school = "220d4022-ec5e-4773-8b8b-66cd9dc204ad"  # 1 active + 1 transferred
+    r = requests.get(
+        f"{BASE_URL}/api/students",
+        params={"school_id": mixed_school, "page": 1, "page_size": 20},
+        headers=auth_headers, timeout=30,
+    )
+    assert r.status_code == 200, r.text[:300]
+    data = r.json()
     total = _get_total(data)
-    assert total == counts["green"] + counts["yellow"] + counts["red"], f"total={total}, counts={counts}"
+    active = data.get("active_count")
+    counts = data["completeness_counts"]
+    soma = counts["green"] + counts["yellow"] + counts["red"]
+    # total inclui o transferido; a completude NÃO.
+    assert total > active, f"esperava total>{active} (inclui não-ativos), got total={total}"
+    assert soma == active, f"soma completude ({soma}) deve == active_count ({active})"
+    # Banda também deve retornar apenas ativos
+    rb = requests.get(
+        f"{BASE_URL}/api/students",
+        params={"school_id": mixed_school, "page": 1, "page_size": 20, "completeness_band": "red"},
+        headers=auth_headers, timeout=30,
+    )
+    bd = rb.json()
+    for s in (bd.get("items") or []):
+        assert s.get("status") == "active", f"banda retornou não-ativo: {s.get('status')}"
