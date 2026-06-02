@@ -1,5 +1,27 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Feature: Painel in-app de Auditoria de Matrículas (read-only)
+
+**Solicitação:** Transformar a fase de auditoria do script de saneamento num
+painel in-app na secretaria, para acompanhar matrículas ausentes/duplicadas em
+tempo real sem usar o shell.
+
+**Entregue:**
+- Backend: `GET /api/students/enrollment-audit` (em `routers/students.py`) —
+  read-only, tenant/escola-aware. Retorna, por coleção (`students` e
+  `enrollments`): total, vazios, grupos duplicados (+ owners) e amostra de
+  alunos sem matrícula (limite 200); além de `owner_names` e o status do índice
+  único `uq_enrollment_number`. Restrito a super_admin/admin/gerente/semed/secretario.
+- Frontend: `pages/EnrollmentAudit.jsx` — rota `/admin/auditoria-matriculas`,
+  card "Auditoria de Matrículas" no Dashboard (grupo "Gestão Escolar"). Mostra
+  4 cards de estatística, banner do índice único (ATIVO/inativo) e tabelas de
+  duplicatas + alunos sem matrícula. Botão "Atualizar" para refresh.
+- Testes: `backend/tests/test_enrollment_audit.py` (10 testes, autossuficiente).
+
+**Validação:** Testing agent E2E 100% (backend + frontend, iteration_87). Pytest
+local 10/10 OK.
+
+
 ## 2026-02 — P1: Backfill + Deduplicação de Matrículas + Índice Único
 
 **Solicitação:** Sanar passivo de matrículas AUSENTES (vazias) e DUPLICADAS.

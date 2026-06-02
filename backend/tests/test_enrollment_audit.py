@@ -90,16 +90,39 @@ class TestEnrollmentAuditResponse:
         assert ui["enrollments"] is True, "Unique index uq_enrollment_number should be ACTIVE on enrollments"
 
     def test_demo_empty_student_present(self, admin_token):
-        """Spec inserted ALUNO DEMO AUDITORIA without enrollment_number — should appear."""
-        r = requests.get(f"{BASE_URL}/api/students/enrollment-audit",
-                         headers={"Authorization": f"Bearer {admin_token}"},
-                         timeout=60)
-        data = r.json()
-        assert data["students"]["empty"] >= 1, (
-            f"Expected at least 1 empty student (demo), got {data['students']['empty']}")
-        names = [s.get("full_name", "") for s in data["students"]["empty_sample"]]
-        assert any("ALUNO DEMO AUDITORIA" in (n or "") for n in names), (
-            f"Demo student 'ALUNO DEMO AUDITORIA' not in empty_sample. Sample names: {names[:10]}")
+        """Cria um aluno temporário SEM matrícula e valida que ele aparece
+        na auditoria; remove ao final (teste autossuficiente)."""
+        import asyncio
+        from motor.motor_asyncio import AsyncIOMotorClient
+
+        mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+        db_name = os.environ.get("DB_NAME", "sigesc")
+        demo_id = "TMP_AUDIT_PYTEST_DEMO"
+        demo_name = "ALUNO PYTEST AUDITORIA"
+
+        async def _seed():
+            db = AsyncIOMotorClient(mongo_url)[db_name]
+            await db.students.insert_one(
+                {"id": demo_id, "full_name": demo_name,
+                 "enrollment_number": "", "status": "active"})
+
+        async def _cleanup():
+            db = AsyncIOMotorClient(mongo_url)[db_name]
+            await db.students.delete_one({"id": demo_id})
+
+        asyncio.get_event_loop().run_until_complete(_seed())
+        try:
+            r = requests.get(f"{BASE_URL}/api/students/enrollment-audit",
+                             headers={"Authorization": f"Bearer {admin_token}"},
+                             timeout=60)
+            data = r.json()
+            assert data["students"]["empty"] >= 1, (
+                f"Expected at least 1 empty student, got {data['students']['empty']}")
+            names = [s.get("full_name", "") for s in data["students"]["empty_sample"]]
+            assert any(demo_name in (n or "") for n in names), (
+                f"Demo student '{demo_name}' not in empty_sample. Sample: {names[:10]}")
+        finally:
+            asyncio.get_event_loop().run_until_complete(_cleanup())
 
     def test_no_mongo_objectid_in_payload(self, admin_token):
         r = requests.get(f"{BASE_URL}/api/students/enrollment-audit",
