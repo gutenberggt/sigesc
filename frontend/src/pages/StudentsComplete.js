@@ -306,6 +306,9 @@ export function StudentsComplete() {
   const [seriesCounts, setSeriesCounts] = useState({});
   const [unmappedSeries, setUnmappedSeries] = useState({});
   const [modalidadeCounts, setModalidadeCounts] = useState({});
+  // [Fev/2026] Filtro por faixa de completude (verde/amarelo/vermelho).
+  const [completenessCounts, setCompletenessCounts] = useState({ green: 0, yellow: 0, red: 0 });
+  const [completenessBand, setCompletenessBand] = useState('');
   // Accordion "Indicadores da Rede" — começa SEMPRE recolhido a cada
   // carregamento da página. O usuário expande manualmente quando quiser ver.
   // O estado vive apenas na sessão da página (resetado ao recarregar).
@@ -552,6 +555,7 @@ export function StudentsComplete() {
         if (filterClassId) params.class_id = filterClassId;
         if (filterStatus) params.status = filterStatus;
         if (debouncedSearch) params.search = debouncedSearch;
+        if (completenessBand) params.completeness_band = completenessBand;
         
         const result = await studentsAPI.getAll(params);
         setStudents(result.items || []);
@@ -562,6 +566,7 @@ export function StudentsComplete() {
         setSeriesCounts(result.series_counts || {});
         setUnmappedSeries(result.unmapped_series || {});
         setModalidadeCounts(result.modalidade_counts || {});
+        setCompletenessCounts(result.completeness_counts || { green: 0, yellow: 0, red: 0 });
       } catch (error) {
         console.error('Erro ao carregar alunos:', error);
         showAlert('error', 'Erro ao carregar dados');
@@ -570,7 +575,7 @@ export function StudentsComplete() {
       }
     };
     fetchStudents();
-  }, [filterSchoolId, filterClassId, filterStatus, currentPage, debouncedSearch, reloadTrigger]);
+  }, [filterSchoolId, filterClassId, filterStatus, currentPage, debouncedSearch, completenessBand, reloadTrigger]);
 
   const reloadData = () => setReloadTrigger(prev => prev + 1);
 
@@ -1462,7 +1467,7 @@ export function StudentsComplete() {
   // Reset de página quando filtros mudam (busca é resetada no debounce)
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterSchoolId, filterClassId, filterStatus]);
+  }, [filterSchoolId, filterClassId, filterStatus, completenessBand]);
 
   // Turmas filtradas para ação em lote (baseado na escola selecionada para lote)
   const batchClassOptions = classes.filter(c => c.school_id === batchSchoolId);
@@ -3941,6 +3946,54 @@ export function StudentsComplete() {
               <FileDown size={14} />
               Gerar PDF
             </button>
+
+            {/* Filtros por faixa de completude (espelham a coluna "Completude") */}
+            <div className="flex items-center gap-1.5 pl-3 ml-1 border-l border-gray-300" data-testid="completeness-filters">
+              <span className="text-xs text-gray-500 mr-0.5">Completude:</span>
+              <button
+                type="button"
+                onClick={() => setCompletenessBand(prev => prev === 'green' ? '' : 'green')}
+                title="Cadastro completo (≥80%)"
+                aria-pressed={completenessBand === 'green'}
+                data-testid="completeness-filter-green"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${completenessBand === 'green' ? 'bg-green-500 text-white border-green-600 ring-2 ring-green-300' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-current opacity-70" />
+                {completenessCounts.green}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompletenessBand(prev => prev === 'yellow' ? '' : 'yellow')}
+                title="Cadastro parcial (50-79%)"
+                aria-pressed={completenessBand === 'yellow'}
+                data-testid="completeness-filter-yellow"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${completenessBand === 'yellow' ? 'bg-yellow-500 text-white border-yellow-600 ring-2 ring-yellow-300' : 'bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200'}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-current opacity-70" />
+                {completenessCounts.yellow}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompletenessBand(prev => prev === 'red' ? '' : 'red')}
+                title="Cadastro incompleto (<50%)"
+                aria-pressed={completenessBand === 'red'}
+                data-testid="completeness-filter-red"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${completenessBand === 'red' ? 'bg-red-500 text-white border-red-600 ring-2 ring-red-300' : 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200'}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-current opacity-70" />
+                {completenessCounts.red}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompletenessBand('')}
+                title="Remover filtro (exibir todos)"
+                aria-pressed={completenessBand === ''}
+                data-testid="completeness-filter-all"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${completenessBand === '' ? 'bg-white text-gray-800 border-gray-400 ring-2 ring-gray-300' : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100'}`}
+              >
+                Todos
+              </button>
+            </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input

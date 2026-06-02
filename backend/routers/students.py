@@ -66,6 +66,58 @@ def _compute_student_completeness(student: dict) -> int:
     return round(filled / total * 100) if total else 0
 
 
+# --- Completude em AGGREGATION (espelha _compute_student_completeness) ---
+# Usado para contar alunos por faixa (verde/amarelo/vermelho) sobre TODO o
+# conjunto filtrado e para filtrar a lista server-side por faixa.
+def _agg_filled(field: str):
+    """Expr que retorna True se o campo está preenchido (não vazio após trim)."""
+    return {"$gt": [{"$strLenCP": {"$trim": {"input": {"$toString": {"$ifNull": [f"${field}", ""]}}}}}, 0]}
+
+
+def _agg_any(*fields):
+    return {"$or": [_agg_filled(f) for f in fields]}
+
+
+# Mesmos 14 critérios de _compute_student_completeness, na MESMA ordem.
+_COMPLETENESS_CRITERIA_EXPR = [
+    _agg_filled("full_name"),
+    _agg_filled("birth_date"),
+    _agg_filled("sex"),
+    _agg_filled("nationality"),
+    _agg_filled("color_race"),
+    _agg_filled("comunidade_tradicional"),
+    _agg_filled("birth_city"),
+    _agg_filled("birth_state"),
+    _agg_filled("mother_name"),
+    _agg_filled("legal_guardian_type"),
+    _agg_any("cpf", "nis", "civil_certificate_number"),
+    _agg_any("mother_phone", "father_phone", "guardian_phone"),
+    _agg_filled("class_id"),
+    _agg_filled("enrollment_number"),
+]
+
+
+def _completeness_pct_stage():
+    """$addFields que calcula `_pct` (0-100) idêntico ao cálculo do Python."""
+    n = len(_COMPLETENESS_CRITERIA_EXPR)
+    return {"$addFields": {
+        "_pct": {"$round": [{"$multiply": [
+            {"$divide": [
+                {"$add": [{"$cond": [c, 1, 0]} for c in _COMPLETENESS_CRITERIA_EXPR]},
+                n,
+            ]}, 100]}, 0]}
+    }}
+
+
+# Condições de faixa sobre `_pct` (espelham completenessColor: verde>=80,
+# amarelo 50-79, vermelho <50).
+_BAND_EXPR = {
+    "green": {"$gte": ["$_pct", 80]},
+    "yellow": {"$and": [{"$gte": ["$_pct", 50]}, {"$lt": ["$_pct", 80]}]},
+    "red": {"$lt": ["$_pct", 50]},
+}
+
+
 def setup_students_router(db, audit_service, sandbox_db=None):
     """Configura o router de alunos com as dependências necessárias"""
     
@@ -566,6 +618,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         class_id: Optional[str] = None, 
         status: Optional[str] = None,
         search: Optional[str] = None,
+        completeness_band: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
         skip: int = 0, 
@@ -673,6 +726,22 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         # Conta total para paginação
         total = await current_db.students.count_documents(filter_query)
+
+        # Contagem por faixa de completude (verde/amarelo/vermelho) sobre o
+        # MESMO filtro (mesmo universo que `total`). Espelha o cálculo do Python.
+        band_count_pipeline = [
+            {"$match": filter_query},
+            _completeness_pct_stage(),
+            {"$addFields": {"_band": {"$switch": {"branches": [
+                {"case": _BAND_EXPR["green"], "then": "green"},
+                {"case": _BAND_EXPR["yellow"], "then": "yellow"},
+            ], "default": "red"}}}},
+            {"$group": {"_id": "$_band", "count": {"$sum": 1}}},
+        ]
+        completeness_counts = {"green": 0, "yellow": 0, "red": 0}
+        async for doc in current_db.students.aggregate(band_count_pipeline):
+            if doc["_id"] in completeness_counts:
+                completeness_counts[doc["_id"]] = doc["count"]
         
         # Conta alunos ativos (para exibição no frontend)
         active_filter = {**filter_query, 'status': 'active'}
@@ -841,6 +910,24 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             filter_query, list_projection
         ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).skip(effective_skip).limit(effective_limit).to_list(effective_limit)
         
+        # Filtro por FAIXA de completude (verde/amarelo/vermelho): exige
+        # calcular `_pct` no servidor, então a página é buscada via aggregation
+        # e o `total`/`total_pages` passam a refletir a faixa selecionada.
+        if completeness_band in _BAND_EXPR:
+            page_pipeline = [
+                {"$match": filter_query},
+                _completeness_pct_stage(),
+                {"$match": {"$expr": _BAND_EXPR[completeness_band]}},
+                {"$sort": {"full_name": 1}},
+                {"$skip": effective_skip},
+                {"$limit": effective_limit},
+                {"$project": list_projection},
+            ]
+            students = await current_db.students.aggregate(
+                page_pipeline, collation={"locale": "pt", "strength": 1}
+            ).to_list(effective_limit)
+            total = completeness_counts[completeness_band]
+        
         # Busca student_series das matrículas ativas (batch)
         student_ids = [s.get('id') for s in students if s.get('id')]
         if student_ids:
@@ -877,6 +964,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "series_counts": series_counts,
             "unmapped_series": unmapped_series,
             "modalidade_counts": modalidade_counts,
+            "completeness_counts": completeness_counts,
             "page": page,
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size
