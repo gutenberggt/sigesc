@@ -162,40 +162,17 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         }
         successful = await db.audit_logs.count_documents(successful_match)
 
-        # Subdivisão das conexões bem-sucedidas por categoria de perfil:
-        #  - professores  -> role 'professor'
-        #  - alunos       -> role 'aluno'
-        #  - assistencia_social -> 'ass_social', 'ass_social_2'
-        #  - saude        -> 'agente_vacinas' (+ futuras roles de saúde)
-        #  - administrativas -> todos os demais (admin, semed, secretario, etc.)
-        TEACHER_ROLES = {'professor'}
-        STUDENT_ROLES = {'aluno'}
-        SOCIAL_ROLES = {'ass_social', 'ass_social_2'}
-        HEALTH_ROLES = {'agente_vacinas'}
-        by_category = {
-            'professores': 0,
-            'alunos': 0,
-            'assistencia_social': 0,
-            'saude': 0,
-            'administrativas': 0,
-        }
+        # Subdivisão das conexões bem-sucedidas por categoria de perfil.
+        # O mapeamento role->categoria é CENTRALIZADO em
+        # utils/connection_categories.py (adicione novas roles lá, ex.: Saúde).
+        from utils.connection_categories import categorize_role, empty_category_counts
+        by_category = empty_category_counts()
         role_pipeline = [
             {'$match': successful_match},
             {'$group': {'_id': '$user_role', 'c': {'$sum': 1}}},
         ]
         async for d in db.audit_logs.aggregate(role_pipeline):
-            role = (d.get('_id') or '')
-            c = d.get('c', 0)
-            if role in TEACHER_ROLES:
-                by_category['professores'] += c
-            elif role in STUDENT_ROLES:
-                by_category['alunos'] += c
-            elif role in SOCIAL_ROLES:
-                by_category['assistencia_social'] += c
-            elif role in HEALTH_ROLES:
-                by_category['saude'] += c
-            else:
-                by_category['administrativas'] += c
+            by_category[categorize_role(d.get('_id'))] += d.get('c', 0)
 
         return {'total': total, 'successful': successful, 'by_category': by_category}
 

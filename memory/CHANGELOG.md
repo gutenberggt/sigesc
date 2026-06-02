@@ -1,5 +1,22 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Refactor: mapeamento role→categoria de conexão centralizado
+
+**Motivo:** Permitir adicionar novas roles (ex.: novas roles de Saúde) a uma
+categoria sem editar a lógica do endpoint.
+
+**Entregue:**
+- Novo módulo `backend/utils/connection_categories.py`: `CONNECTION_CATEGORY_ROLES`
+  (mapa categoria→roles), `categorize_role()` (case-insensitive, fallback
+  "administrativas") e `empty_category_counts()`. Para incluir uma role basta
+  editar o conjunto da categoria — único ponto de mudança.
+- `routers/admin.py` (login-count) refatorado para usar o módulo. Resposta
+  inalterada (`by_category`); soma continua == `successful`.
+- Testes: `backend/tests/test_connection_categories.py` (4 testes).
+
+**Validação:** Endpoint confere (soma == successful via curl); 8/8 pytest OK.
+
+
 ## 2026-02 — Feature: Subdivisão das "Conexões Registradas" por categoria (Usuários Online)
 
 **Solicitação:** Manter o campo "Conexões Registradas" e adicionar 5 campos que
