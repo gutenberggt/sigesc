@@ -70,6 +70,13 @@ def setup_router(db, audit_service):
         enrollment_obj = Enrollment(**enrollment_data.model_dump())
         doc = enrollment_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
+
+        # Matrícula é gerada no SERVIDOR (fonte ÚNICA atômica — utils/enrollment.py).
+        # Nunca confiar no número enviado pelo cliente (evita aleatórios/colisões).
+        from utils.enrollment import generate_enrollment_number
+        doc['enrollment_number'] = await generate_enrollment_number(
+            db, enrollment_data.academic_year
+        )
         
         # Multi-tenancy: injeta mantenedora_id derivada da turma/escola
         doc['mantenedora_id'] = await resolve_tenant_id_for_create(

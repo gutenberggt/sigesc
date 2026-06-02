@@ -1,5 +1,37 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — P1: Backfill + Deduplicação de Matrículas + Índice Único
+
+**Solicitação:** Sanar passivo de matrículas AUSENTES (vazias) e DUPLICADAS.
+Regra do usuário p/ duplicatas: manter a matrícula do aluno/registro MAIS ANTIGO
+e gerar nova matrícula para os demais.
+
+**Entregue:**
+- `backend/scripts/backfill_dedup_enrollment.py` (novo): script standalone com
+  3 fases (Dedup → Backfill → Índice único parcial). DRY-RUN por padrão; exige
+  `--apply` para alterar e `--apply --create-index` para criar o índice.
+  - Dedup mantém o doc mais antigo (menor `created_at`/`enrollment_date`) e
+    regenera os demais via gerador atômico (`utils/enrollment.py`).
+  - Backfill preenche vazios em `students` e `enrollments`.
+  - Índice ÚNICO PARCIAL `uq_enrollment_number` (`partialFilterExpression:
+    {enrollment_number: {$gt: ""}}`) — barra duplicatas mas permite vazios.
+  - Contador atômico é "sememeado" via `$max` acima do maior sufixo do ano,
+    evitando colisão com legado.
+- `backend/tests/test_backfill_dedup_enrollment.py` (novo): regressão da lógica
+  de ordenação (mais antigo) e geração única (3 testes, OK).
+
+**Validação (banco de preview):** aplicado com sucesso → 0 vazios, 0 duplicatas
+em ambas as coleções; índice bloqueia inserção duplicada e permite múltiplos
+vazios. Backend saudável (200).
+
+**Como rodar em PRODUÇÃO (após deploy):**
+```
+cd /app/backend
+python3 scripts/backfill_dedup_enrollment.py                 # 1) dry-run (revisar plano)
+python3 scripts/backfill_dedup_enrollment.py --apply --create-index   # 2) aplicar
+```
+
+
 ## 2026-05-31 — Feature: Indicador de Completude do Cadastro
 
 **Solicitação:** Indicador de "completude do cadastro" do aluno. Escolhas do usuário:

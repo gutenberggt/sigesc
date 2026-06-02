@@ -20,7 +20,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://turma-grade-deploy.preview.emergentagent.com",
+    "https://matricula-dedup.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {

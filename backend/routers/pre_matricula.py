@@ -196,10 +196,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 detail="Escola não encontrada"
             )
 
-        # Gerar número de matrícula único
+        # Gerar número de matrícula único (FONTE ÚNICA atômica — evita colisões)
+        from utils.enrollment import generate_enrollment_number
         current_year = datetime.now().year
-        student_count = await db.students.count_documents({"school_id": pre_matricula['school_id']})
-        enrollment_number = f"{current_year}{str(student_count + 1).zfill(5)}"
+        enrollment_number = await generate_enrollment_number(db, current_year)
 
         # Mapear parentesco para tipo de responsável legal
         parentesco_map = {

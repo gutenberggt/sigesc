@@ -57,18 +57,13 @@ export const Students = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const generateEnrollmentNumber = () => {
-    const year = new Date().getFullYear();
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `${year}${random}`;
-  };
-
   const handleCreate = () => {
     setEditingStudent(null);
     setViewMode(false);
     setFormData({
       school_id: schools.length > 0 ? schools[0].id : '',
-      enrollment_number: generateEnrollmentNumber(),
+      // Matrícula é gerada no SERVIDOR (fonte única atômica). Nunca no frontend.
+      enrollment_number: '',
       class_id: '',
       user_id: null,
       birth_date: '',

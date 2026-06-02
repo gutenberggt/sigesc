@@ -593,19 +593,15 @@ export function StudentsComplete() {
     showAlert('error', message, true);
   };
 
-  const generateEnrollmentNumber = () => {
-    const year = new Date().getFullYear();
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `${year}${random}`;
-  };
-
   const handleCreate = () => {
     setEditingStudent(null);
     setViewMode(false);
     setFormData({
       ...initialFormData,
       school_id: schools.length > 0 ? schools[0].id : '',
-      enrollment_number: generateEnrollmentNumber()
+      // Matrícula NÃO é gerada no frontend. O backend é a fonte ÚNICA atômica
+      // (utils/enrollment.py) e atribui a matrícula ao matricular o aluno.
+      enrollment_number: ''
     });
     setFormTabIndex(0);
     setIsModalOpen(true);
