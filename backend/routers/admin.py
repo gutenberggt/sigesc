@@ -156,11 +156,48 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         total = await db.audit_logs.count_documents({'action': 'login'})
         # Conta também apenas conexões bem-sucedidas (description começa com
         # "Login realizado"), para diferenciar de tentativas falhas.
-        successful = await db.audit_logs.count_documents({
+        successful_match = {
             'action': 'login',
             'description': {'$regex': '^Login realizado'}
-        })
-        return {'total': total, 'successful': successful}
+        }
+        successful = await db.audit_logs.count_documents(successful_match)
+
+        # Subdivisão das conexões bem-sucedidas por categoria de perfil:
+        #  - professores  -> role 'professor'
+        #  - alunos       -> role 'aluno'
+        #  - assistencia_social -> 'ass_social', 'ass_social_2'
+        #  - saude        -> 'agente_vacinas' (+ futuras roles de saúde)
+        #  - administrativas -> todos os demais (admin, semed, secretario, etc.)
+        TEACHER_ROLES = {'professor'}
+        STUDENT_ROLES = {'aluno'}
+        SOCIAL_ROLES = {'ass_social', 'ass_social_2'}
+        HEALTH_ROLES = {'agente_vacinas'}
+        by_category = {
+            'professores': 0,
+            'alunos': 0,
+            'assistencia_social': 0,
+            'saude': 0,
+            'administrativas': 0,
+        }
+        role_pipeline = [
+            {'$match': successful_match},
+            {'$group': {'_id': '$user_role', 'c': {'$sum': 1}}},
+        ]
+        async for d in db.audit_logs.aggregate(role_pipeline):
+            role = (d.get('_id') or '')
+            c = d.get('c', 0)
+            if role in TEACHER_ROLES:
+                by_category['professores'] += c
+            elif role in STUDENT_ROLES:
+                by_category['alunos'] += c
+            elif role in SOCIAL_ROLES:
+                by_category['assistencia_social'] += c
+            elif role in HEALTH_ROLES:
+                by_category['saude'] += c
+            else:
+                by_category['administrativas'] += c
+
+        return {'total': total, 'successful': successful, 'by_category': by_category}
 
     @router.post("/admin/sessions/revoke/{user_id}")
     async def force_logout_user(user_id: str, request: Request):

@@ -1,0 +1,21 @@
+{
+  "summary": "Tested new 'Conexões por Categoria' feature on /admin/online-users. Backend GET /api/admin/online-users/login-count returns total/successful/by_category and sum of by_category == successful. Frontend renders existing 'Conexões Registradas' card unchanged plus 5 new category cards (Professores, Alunos, Assistência Social, Saúde, Administrativas), all sum to the same value. Regression flows (Atualizar, online users table) work. 4/4 pytest passed; UI verified live.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_online_users_login_count.py",
+    "/app/test_reports/pytest/online_users_login_count.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "admin.py: by_category uses a single aggregation pipeline grouped by user_role — clean and efficient. Considere normalizar 'user_role' (lowercase) caso surjam variações case-sensitive em audit_logs futuros."
+  ],
+  "updated_files": ["/app/backend/tests/test_online_users_login_count.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (all flows)"},
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "seed_data_creation": "None — used existing audit_logs.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Live values at test time: total=4781, successful=4623, by_category={professores:67, alunos:67, assistencia_social:31, saude:26, administrativas:4432}. Sum=4623=successful. Frontend reflects same numbers (incremented to 4625 by end due to new logins during test). UI testids: total-connections-card/-value (mantido), connections-by-category (container), conn-cat-{professores|alunos|assistencia|saude|administrativas}(-value). Login endpoint returns access_token. Route is /admin/online-users.",
+  "rca of the issue": "N/A — feature works as specified."
+}
