@@ -1,5 +1,29 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Feature: Filtros por faixa de Completude na lista de Alunos
+
+**Solicitação:** Na página Alunos(as), na linha do "Total: N registros / Gerar
+PDF / Ações em Lote", adicionar 4 botões (Verde, Amarelo, Vermelho, Branco/Todos)
+espelhando a coluna "Completude". Cada botão mostra a quantidade de alunos na
+faixa e, ao clicar, filtra a lista; o branco ("Todos") limpa o filtro.
+
+**Faixas:** Verde ≥80%, Amarelo 50-79%, Vermelho <50% (espelham completenessColor).
+
+**Entregue:**
+- Backend (`routers/students.py`, list_students): novo param `completeness_band`
+  (green|yellow|red) que filtra a lista server-side; resposta agora inclui
+  `completeness_counts` {green,yellow,red} calculado por aggregation sobre TODO
+  o conjunto filtrado (não só a página). Helpers `_completeness_pct_stage()` e
+  `_BAND_EXPR` espelham os 14 critérios de `_compute_student_completeness`.
+- Frontend (`StudentsComplete.js`): estados `completenessCounts`/`completenessBand`,
+  4 botões na linha do Total (data-testid completeness-filter-green/yellow/red/all),
+  toggle ao reclicar a faixa ativa, reset de página ao trocar filtro.
+- Testes: `backend/tests/test_students_completeness.py` (5 testes).
+
+**Validação:** Testing agent E2E 100% (backend 5/5 + frontend — iteration_88).
+Contagens batem com o total; filtros e toggle funcionam.
+
+
 ## 2026-02 — Feature: Painel in-app de Auditoria de Matrículas (read-only)
 
 **Solicitação:** Transformar a fase de auditoria do script de saneamento num
