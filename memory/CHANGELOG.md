@@ -1,5 +1,27 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Feature: Subdivisão das "Conexões Registradas" por categoria (Usuários Online)
+
+**Solicitação:** Manter o campo "Conexões Registradas" e adicionar 5 campos que
+subdividem essas conexões por categoria de perfil.
+
+**Categorias:** Professores (role professor), Alunos (aluno), Assistência Social
+(ass_social/ass_social_2), Saúde (agente_vacinas + futuras roles de saúde),
+Administrativas (todos os demais: admin, semed, secretario, etc.).
+
+**Entregue:**
+- Backend (`routers/admin.py`, GET /admin/online-users/login-count): resposta
+  agora inclui `by_category` agrupando os logins bem-sucedidos por `user_role`
+  via aggregation. A soma das 5 categorias == `successful`.
+- Frontend (`OnlineUsers.js`): card "Conexões Registradas" mantido + nova seção
+  "Conexões por categoria" (data-testid connections-by-category) com 5 cards
+  (conn-cat-professores/alunos/assistencia/saude/administrativas).
+- Testes: `backend/tests/test_online_users_login_count.py` (4 testes).
+
+**Validação:** Testing agent E2E 100% (backend 4/4 + frontend — iteration_89).
+Card antigo intacto; soma das categorias confere com o total.
+
+
 ## 2026-02 — Feature: Filtros por faixa de Completude na lista de Alunos
 
 **Solicitação:** Na página Alunos(as), na linha do "Total: N registros / Gerar
