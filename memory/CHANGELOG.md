@@ -1,5 +1,21 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Feature: Somas por agrupamento nos "Indicadores da Rede" (Alunos)
+
+**Solicitação:** Acrescentar somatórios na seção "Indicadores da Rede".
+
+**Entregue (frontend `StudentsComplete.js`, somente exibição):**
+- Helper `sumSeries(labels)` + consts de total (lê `series_counts`, chaves MAIÚSCULAS).
+- Linha "Educação Infantil": 3 badges de soma destacados — `Educação Infantil`
+  (Berçário/Maternal/Pré), `Anos Iniciais` (1º-5º Ano), `Anos Finais` (6º-9º Ano)
+  (data-testids sum-educacao-infantil / sum-anos-iniciais / sum-anos-finais).
+- Linha "Etapas (EJA) e Modalidades": badge `EJA` (soma 1ª-4ª Etapa) inserido
+  ENTRE "4ª Etapa" e "Regular" (data-testid sum-eja).
+
+**Validação:** Testing agent frontend 100% (5/5 — iteration_90). Somas conferem
+com os badges individuais e backend series_counts.
+
+
 ## 2026-02 — Refactor (frontend): config central das categorias de conexão
 
 **Motivo:** Centralizar rótulos/ícones/cores das categorias (antes fixos no
