@@ -83,6 +83,24 @@ const exportRankingToExcel = (schools, year) => {
 
 const CHART_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
+/**
+ * Estado vazio para gráficos/seções sem dados suficientes no período.
+ * Evita exibir gráficos em branco ou valores zerados como se fossem "bug".
+ */
+const EmptyChart = ({ height = 280, message = 'Sem dados suficientes', hint, testId }) => (
+  <div
+    className="flex flex-col items-center justify-center text-center px-6"
+    style={{ height }}
+    data-testid={testId || 'chart-empty-state'}
+  >
+    <BarChart3 className="h-10 w-10 text-gray-300 mb-3" />
+    <p className="text-sm font-medium text-gray-500">{message}</p>
+    <p className="text-xs text-gray-400 mt-1">
+      {hint || 'Os dados aparecerão aqui assim que houver lançamentos no período.'}
+    </p>
+  </div>
+);
+
 // ============================================
 // FUNÇÕES DE EXPORTAÇÃO
 // ============================================
@@ -648,6 +666,14 @@ export function AnalyticsDashboard() {
     );
   }
 
+  // Flags de disponibilidade de dados (estados de "sem dados suficientes")
+  const hasGrades = (overview?.grades?.total || 0) > 0;
+  const hasAttendance = (overview?.attendance?.total_records || 0) > 0;
+  const hasPeriodData = Array.isArray(gradesByPeriod) && gradesByPeriod.some(p => (p.avg_grade || 0) > 0);
+  const hasSubjectData = Array.isArray(gradesBySubject) && gradesBySubject.length > 0;
+  const hasDistributionData = Array.isArray(gradesDistribution) && gradesDistribution.some(d => (d.count || 0) > 0);
+  const hasMonthlyData = Array.isArray(attendanceMonthly) && attendanceMonthly.some(m => (m.total || m.rate || 0) > 0);
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -782,7 +808,11 @@ export function AnalyticsDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-cyan-100 text-sm">Frequência</p>
-                  <p className="text-3xl font-bold">{overview?.attendance?.rate || 0}%</p>
+                  {hasAttendance ? (
+                    <p className="text-3xl font-bold">{overview?.attendance?.rate || 0}%</p>
+                  ) : (
+                    <p className="text-base font-semibold text-white/90 mt-1" data-testid="freq-empty">Sem dados suficientes</p>
+                  )}
                 </div>
                 <Activity className="h-10 w-10 text-cyan-200" />
               </div>
@@ -814,8 +844,14 @@ export function AnalyticsDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Taxa de Aprovação</p>
-                  <p className="text-2xl font-bold text-gray-900">{overview?.grades?.approval_rate || 0}%</p>
-                  <p className="text-xs text-gray-400">{overview?.grades?.approved || 0} aprovados de {overview?.grades?.total || 0}</p>
+                  {hasGrades ? (
+                    <>
+                      <p className="text-2xl font-bold text-gray-900">{overview?.grades?.approval_rate || 0}%</p>
+                      <p className="text-xs text-gray-400">{overview?.grades?.approved || 0} aprovados de {overview?.grades?.total || 0}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm font-medium text-gray-400 mt-1" data-testid="aprovacao-empty">Sem dados suficientes</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -829,8 +865,14 @@ export function AnalyticsDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Presença Média</p>
-                  <p className="text-2xl font-bold text-gray-900">{overview?.attendance?.rate || 0}%</p>
-                  <p className="text-xs text-gray-400">{overview?.attendance?.present || 0} presenças</p>
+                  {hasAttendance ? (
+                    <>
+                      <p className="text-2xl font-bold text-gray-900">{overview?.attendance?.rate || 0}%</p>
+                      <p className="text-xs text-gray-400">{overview?.attendance?.present || 0} presenças</p>
+                    </>
+                  ) : (
+                    <p className="text-sm font-medium text-gray-400 mt-1" data-testid="presenca-empty">Sem dados suficientes</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -844,8 +886,14 @@ export function AnalyticsDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total de Faltas</p>
-                  <p className="text-2xl font-bold text-gray-900">{overview?.attendance?.absent || 0}</p>
-                  <p className="text-xs text-gray-400">{overview?.attendance?.justified || 0} justificadas</p>
+                  {hasAttendance ? (
+                    <>
+                      <p className="text-2xl font-bold text-gray-900">{overview?.attendance?.absent || 0}</p>
+                      <p className="text-xs text-gray-400">{overview?.attendance?.justified || 0} justificadas</p>
+                    </>
+                  ) : (
+                    <p className="text-sm font-medium text-gray-400 mt-1" data-testid="faltas-empty">Sem dados suficientes</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -892,6 +940,7 @@ export function AnalyticsDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {hasMonthlyData ? (
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={attendanceMonthly}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -902,6 +951,9 @@ export function AnalyticsDashboard() {
                   <Area type="monotone" dataKey="rate" name="Taxa %" stroke={COLORS.success} fill={COLORS.success} fillOpacity={0.3} />
                 </AreaChart>
               </ResponsiveContainer>
+              ) : (
+                <EmptyChart message="Sem dados de frequência" hint="Registre a frequência das turmas para ver a evolução mensal." testId="freq-mensal-empty" />
+              )}
             </CardContent>
           </Card>
           
@@ -913,6 +965,7 @@ export function AnalyticsDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {hasPeriodData ? (
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={gradesByPeriod}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -923,6 +976,9 @@ export function AnalyticsDashboard() {
                   <Bar dataKey="avg_grade" name="Média" fill={COLORS.primary} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              ) : (
+                <EmptyChart message="Sem notas lançadas" hint="As médias por bimestre aparecerão após o lançamento das notas." testId="bimestre-empty" />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -937,6 +993,7 @@ export function AnalyticsDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {hasSubjectData ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={gradesBySubject.slice(0, 10)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -950,6 +1007,9 @@ export function AnalyticsDashboard() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+              ) : (
+                <EmptyChart height={300} message="Sem notas por componente" hint="As médias por componente curricular aparecerão após o lançamento das notas." testId="componente-empty" />
+              )}
             </CardContent>
           </Card>
           
@@ -961,6 +1021,7 @@ export function AnalyticsDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {hasDistributionData ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie data={gradesDistribution} cx="50%" cy="50%" outerRadius={100} dataKey="count" nameKey="range"
@@ -973,6 +1034,9 @@ export function AnalyticsDashboard() {
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
+              ) : (
+                <EmptyChart height={300} message="Sem notas para distribuir" hint="A distribuição de notas aparecerá após o lançamento das médias." testId="distribuicao-empty" />
+              )}
             </CardContent>
           </Card>
         </div>

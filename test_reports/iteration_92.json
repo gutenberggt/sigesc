@@ -1,0 +1,45 @@
+{
+  "summary": "Validação UX 'Sem dados suficientes' no Dashboard Analítico (/admin/analytics). Login admin OK. Cenário 2026 (COM dados): NENHUM estado vazio aparece, todos os cards (Frequência 64.9%, Média Geral 8.3, Presença 64.9%, Faltas 40/6 justificadas, Aprovação 100%) e os 4 gráficos (Frequência Mensal, Desempenho por Bimestre, Componente Curricular, Distribuição de Notas) renderizam normalmente — sem regressão. Cenário 2025 (SEM dados): 9 dos 10 estados vazios esperados aparecem corretamente; APENAS o card 'Média Geral' NÃO implementa o estado vazio (data-testid 'media-geral-empty' ausente), exibindo '0' em vez de 'Sem dados suficientes'.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AnalyticsDashboard.jsx - Card 'Média Geral' (linhas 822-832)",
+        "issue": "Não envolve o valor em ternário com hasGrades; sempre exibe overview.grades.average || 0. Falta data-testid 'media-geral-empty' e o texto 'Sem dados suficientes'. Em 2025 o card mostra '0' (exatamente o sintoma que a tarefa tenta eliminar nos outros cards).",
+        "selector": "[data-testid=\"media-geral-empty\"] (esperado, ausente)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "validations_passed": [
+    "Login admin (gutenberg@sigesc.com) OK; navegação direta para /admin/analytics OK",
+    "Cenário 2026 (COM dados) — SEM regressão: cards 'Frequência'=64.9%, 'Média Geral'=8.3, 'Presença Média'=64.9% (74 presenças), 'Total de Faltas'=40 (6 justificadas), 'Taxa de Aprovação'=100% (2/3) renderizam normalmente",
+    "Cenário 2026 — 4 gráficos renderizam normalmente: Frequência Mensal (area), Desempenho por Bimestre (bars), Componente Curricular (bars Art/Mat), Distribuição de Notas (pie 7-7.9:67% / 9-10:33%)",
+    "Cenário 2026 — NENHUM data-testid de estado vazio presente (count=0 para freq-empty, presenca-empty, faltas-empty, aprovacao-empty, bimestre-empty, componente-empty, distribuicao-empty, freq-mensal-empty, chart-empty-state)",
+    "Cenário 2025 (SEM dados) via seletor Ano Letivo — estados vazios visíveis: freq-empty, presenca-empty, faltas-empty, aprovacao-empty (4/5 cards)",
+    "Cenário 2025 — estados vazios visíveis em todos os 4 gráficos: freq-mensal-empty ('Sem dados de frequência'), bimestre-empty ('Sem notas lançadas'), componente-empty ('Sem notas por componente'), distribuicao-empty ('Sem notas para distribuir') com ícone + mensagem + hint",
+    "Texto 'Sem dados suficientes' presente no DOM no cenário 2025"
+  ],
+  "test_report_links": [
+    "/app/.screenshots/analytics_2026.png",
+    "/app/.screenshots/analytics_2025.png"
+  ],
+  "action_items": [
+    "Implementar estado vazio no card 'Média Geral' (AnalyticsDashboard.jsx ~linha 822-832): envolver <p>{overview?.grades?.average || 0}</p> em ternário {hasGrades ? (...) : (<p data-testid=\"media-geral-empty\" className=\"text-base font-semibold text-white/90 mt-1\">Sem dados suficientes</p>)}. É a única peça faltante para fechar a UX especificada na tarefa."
+  ],
+  "critical_code_review_comments": [
+    "Falta padronização no card 'Média Geral' (linha 822-832): diferente de 'Frequência' (linha 811-815) que já tem o ternário com hasAttendance, este card não tem o equivalente com hasGrades. Pequena omissão, fácil de corrigir.",
+    "Log de WebSocket warning persiste (já reportado em iteration_91): /api/ws/<token> falha 'WebSocket is closed before the connection is established' — ruído de console, não bloqueia.",
+    "Dois 401 em 'configuração' antes do login (pré-auth) — bootstrap; considerar try/catch silencioso (já reportado em iteration_91)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "90% (9/10 estados vazios funcionando; 1 faltante: media-geral-empty)" },
+  "test_credentials": "admin: gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "nenhum",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Após o main agent adicionar o estado vazio no card 'Média Geral' (data-testid='media-geral-empty'), basta reabrir /admin/analytics com ano=2025 e verificar que o card mostra 'Sem dados suficientes' em vez de '0'. O resto do fluxo (cenário 2026 e demais 9 estados vazios em 2025) já está 100% validado.",
+  "rca of the issue": "Implementação do estado vazio cobriu cards de Frequência/Presença/Faltas/Aprovação (todos com hasAttendance ou hasGrades) e os 4 gráficos, mas esqueceu o card 'Média Geral' (que também depende de hasGrades). Resultado: em períodos sem notas, esse card único exibe '0' — exatamente o sintoma de 'parece bug' que a melhoria UX visa eliminar."
+}
