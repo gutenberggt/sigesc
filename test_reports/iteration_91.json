@@ -1,0 +1,46 @@
+{
+  "summary": "Validação frontend do Dashboard Analítico (/admin/analytics) após correção das agregações de backend para o schema real (b1..b4/final_average + records[].status P/F/J). Login com gutenberg@sigesc.com/@Celta2007 OK; navegação via card nav-analytics-button OK. Todos os cards e gráficos previamente zerados/em branco agora renderizam valores > 0 conforme esperado. Ranking, tabela de alunos e regras de aprovação validados.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/.screenshots/analytics_top.png",
+    "/app/.screenshots/analytics_mid.png",
+    "/app/.screenshots/analytics_mid2.png",
+    "/app/.screenshots/analytics_bottom.png",
+    "/app/.screenshots/analytics_very_bottom.png"
+  ],
+  "validations_passed": [
+    "Login admin OK e abertura de /admin/analytics via card nav-analytics-button",
+    "Card Frequência = 64.9% (>0) — esperado ~64.9%",
+    "Card Média Geral = 8.3 (>0) — esperado ~8.3",
+    "Card Taxa de Aprovação = 100% (2 aprovados de 3) — coerente",
+    "Card Presença Média = 64.9% com 74 presenças (>0)",
+    "Card Total de Faltas = 40 com 6 justificadas (ambos preenchidos)",
+    "Card Transferências = 1 (5% do total) e Desistências = 0 renderizando",
+    "Gráfico Desempenho por Bimestre: 4 barras (1º, 2º, 3º, 4º) renderizadas; 1º Bimestre ~5 (>0); demais bimestres ~2 (não-lançadas tratadas como 0 conforme regra)",
+    "Gráfico Média por Componente Curricular: barras Art (~10) e Mat (~7.5) renderizadas com nomes e valores",
+    "Gráfico Distribuição de Notas: pizza com 7-7.9: 67% e 9-10: 33% (não está em branco)",
+    "Gráfico Frequência Mensal: linha renderizada (Fev/Mar/Abr/Dez) com pico Abr ~90.6%",
+    "Ranking de Escolas - Score V2.1: 'Escola Teste Multisseriada' com Nota=8.33, Aprov=100%, Freq=64.9%, Evol=63.9, Ret=100%, Cob=0.1%, Score=70.4 — indicadores preenchidos",
+    "Escolas sem notas (Test_escola_paudarco, TEST_CrossTenant_School_B, Test_multitenant_school_phase1) mostram Aprov=0% (NÃO 100% artificial) — regra nova confirmada",
+    "Análise Comparativa por Bloco renderizada com radar + resumo por escola (Aprendizagem/Permanência/Gestão %)",
+    "Tabela Desempenho dos Alunos: Ana Oliveira com Média=7.5, Freq=65.9%, Score=71.4 (coluna Média 60% preenchida); demais alunos com 0 (esperado por falta de notas)",
+    "Tabela Desempenho dos Professores: não renderiza linhas (esperado, sem teacher_assignments) — não é bug"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Logs de WebSocket warning (/api/ws/<token>) ao abrir a página — não bloqueia funcionalidade mas gera ruído. Considerar lazy-connect ou fallback silencioso.",
+    "Console: dois 401 em 'configuração' antes do login (pré-auth) — comportamento esperado de bootstrap, porém o erro é logado como Axios error; considerar try/catch silencioso até a sessão iniciar."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "test_credentials": "admin: gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "nenhum seed criado nesta iteração",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Dashboard Analítico validado em /admin/analytics com ano 2026 (default). Todos os 7 endpoints corrigidos no backend (analytics.py) estão refletindo no frontend. Para revalidar após mudanças, basta abrir a página com admin e conferir os cards principais (Frequência, Média Geral, Presença Média, Total de Faltas) > 0 e o item 1 do Ranking ser 'Escola Teste Multisseriada' com Score 70.4."
+}

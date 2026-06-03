@@ -12,6 +12,29 @@ from utils.grade_dependency_filters import regular_only_aggregate_match
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
+def _attendance_split_stages():
+    """Estágios de pipeline que transformam `records[]` (frequência) em UMA
+    linha por AULA, com o campo `_st` normalizado em {P, F, J}.
+
+    Modelo real: cada doc de `attendance` tem um array `records` de
+    {student_id, status}. O status pode ser combinado por aula (ex.: 'P|F'
+    quando number_of_classes>1). Aqui dividimos por '|' e normalizamos.
+
+    Regra de negócio (Fev/2026): P=presente, F=falta, J=falta justificada.
+    Justificada NÃO conta como presença (conta como ausência, exibida à parte).
+    """
+    return [
+        {'$unwind': '$records'},
+        {'$match': {'records.dependency_id': {'$in': [None]}}},
+        {'$addFields': {'_sts': {'$split': [
+            {'$toUpper': {'$ifNull': ['$records.status', '']}}, '|'
+        ]}}},
+        {'$unwind': '$_sts'},
+        {'$addFields': {'_st': {'$trim': {'input': '$_sts'}}}},
+        {'$match': {'_st': {'$in': ['P', 'F', 'J']}}},
+    ]
+
+
 def setup_analytics_router(db, audit_service=None, sandbox_db=None):
     """Setup analytics router with database connection"""
     
@@ -178,53 +201,50 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         desistencia_base = total_enrollments if school_id else total_students_all
         desistencia_rate = round((desistencia_count / desistencia_base * 100), 1) if desistencia_base > 0 else 0
         
-        # Estatísticas de frequência
-        attendance_base_filter = {}
-        if school_id:
-            attendance_base_filter['school_id'] = school_id
-        elif not is_global and user_school_ids:
-            attendance_base_filter['school_id'] = {'$in': user_school_ids}
-        if class_id:
-            attendance_base_filter['class_id'] = class_id
-        
-        attendance_filter = {**attendance_base_filter}
+        # Estatísticas de frequência (modelo real: records[] com status P/F/J).
+        # OBS: `attendance.school_id` é ausente nos dados — filtra por turma.
+        attendance_match = {}
         if academic_year:
-            attendance_filter['date'] = {'$regex': f'^{academic_year}'}
-        
+            attendance_match['academic_year'] = year_filter(academic_year)
+        if class_id:
+            attendance_match['class_id'] = class_id
+        elif school_id or (not is_global and user_school_ids):
+            school_ids_to_filter = [school_id] if school_id else user_school_ids
+            att_classes = await current_db.classes.find(
+                {'school_id': {'$in': school_ids_to_filter}}, {'id': 1}
+            ).to_list(None)
+            att_class_ids = [c['id'] for c in att_classes]
+            attendance_match['class_id'] = {'$in': att_class_ids or ['__none__']}
+
         attendance_pipeline = [
-            {'$match': {**attendance_filter, **regular_only_aggregate_match()}},  # P0: exclui dependência
+            {'$match': attendance_match},
+            *_attendance_split_stages(),
             {'$group': {
                 '_id': None,
                 'total_records': {'$sum': 1},
-                'present_count': {
-                    '$sum': {'$cond': [{'$eq': ['$status', 'present']}, 1, 0]}
-                },
-                'absent_count': {
-                    '$sum': {'$cond': [{'$eq': ['$status', 'absent']}, 1, 0]}
-                },
-                'justified_count': {
-                    '$sum': {'$cond': [{'$eq': ['$status', 'justified']}, 1, 0]}
-                }
+                'present_count': {'$sum': {'$cond': [{'$eq': ['$_st', 'P']}, 1, 0]}},
+                'falta_count': {'$sum': {'$cond': [{'$eq': ['$_st', 'F']}, 1, 0]}},
+                'justified_count': {'$sum': {'$cond': [{'$eq': ['$_st', 'J']}, 1, 0]}},
             }}
         ]
-        
-        attendance_stats = {'total_records': 0, 'present_count': 0, 'absent_count': 0, 'justified_count': 0}
+
+        attendance_stats = {'total_records': 0, 'present_count': 0, 'falta_count': 0, 'justified_count': 0}
         async for doc in current_db.attendance.aggregate(attendance_pipeline):
             attendance_stats = doc
-        
+
         attendance_rate = 0
         if attendance_stats['total_records'] > 0:
+            # Frequência = P / total de aulas (J e F contam como ausência)
             attendance_rate = round(
-                (attendance_stats['present_count'] + attendance_stats['justified_count']) / 
-                attendance_stats['total_records'] * 100, 1
+                attendance_stats['present_count'] / attendance_stats['total_records'] * 100, 1
             )
         
-        # Estatísticas de notas
+        # Estatísticas de notas (modelo real: final_average por componente)
         grades_filter = {}
         if class_id:
             grades_filter['class_id'] = class_id
         if academic_year:
-            grades_filter['academic_year'] = str(academic_year)
+            grades_filter['academic_year'] = year_filter(academic_year)
         
         # Se tem filtro de escola, buscar turmas da escola primeiro
         if school_id or (not is_global and user_school_ids):
@@ -237,30 +257,46 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             if class_ids:
                 grades_filter['class_id'] = {'$in': class_ids}
         
+        # Média Geral = média dos `final_average` (já é a média dos bimestres
+        # lançados). Aprovação = por ALUNO: aprovado se todos os componentes
+        # avaliados têm média >= 5,0 (base = alunos com nota lançada).
         grades_pipeline = [
-            {'$match': {**grades_filter, **regular_only_aggregate_match()}},  # P0: exclui dependência
-            {'$group': {
-                '_id': None,
-                'avg_grade': {'$avg': '$grade'},
-                'total_grades': {'$sum': 1},
-                'approved': {
-                    '$sum': {'$cond': [{'$gte': ['$grade', 6]}, 1, 0]}
-                },
-                'failed': {
-                    '$sum': {'$cond': [{'$lt': ['$grade', 6]}, 1, 0]}
-                }
+            {'$match': {**grades_filter, 'final_average': {'$ne': None}, **regular_only_aggregate_match()}},
+            {'$facet': {
+                'avg': [
+                    {'$group': {'_id': None, 'avg_grade': {'$avg': '$final_average'}, 'total': {'$sum': 1}}}
+                ],
+                'approval': [
+                    {'$group': {'_id': '$student_id', 'min_avg': {'$min': '$final_average'}}},
+                    {'$group': {'_id': None,
+                        'students': {'$sum': 1},
+                        'approved': {'$sum': {'$cond': [{'$gte': ['$min_avg', 5]}, 1, 0]}}}}
+                ]
             }}
         ]
-        
-        grades_stats = {'avg_grade': 0, 'total_grades': 0, 'approved': 0, 'failed': 0}
+
+        avg_grade_val = 0
+        total_grades_val = 0
+        approved_students = 0
+        total_students_graded = 0
         async for doc in current_db.grades.aggregate(grades_pipeline):
-            grades_stats = doc
-            if grades_stats['avg_grade']:
-                grades_stats['avg_grade'] = round(grades_stats['avg_grade'], 1)
-        
+            avg_block = (doc.get('avg') or [{}])[0] if doc.get('avg') else {}
+            appr_block = (doc.get('approval') or [{}])[0] if doc.get('approval') else {}
+            avg_grade_val = round(avg_block.get('avg_grade') or 0, 1)
+            total_grades_val = avg_block.get('total', 0)
+            approved_students = appr_block.get('approved', 0)
+            total_students_graded = appr_block.get('students', 0)
+
+        grades_stats = {
+            'avg_grade': avg_grade_val,
+            'total_grades': total_grades_val,
+            'approved': approved_students,
+            'failed': max(0, total_students_graded - approved_students),
+        }
+
         approval_rate = 0
-        if grades_stats['total_grades'] > 0:
-            approval_rate = round(grades_stats['approved'] / grades_stats['total_grades'] * 100, 1)
+        if total_students_graded > 0:
+            approval_rate = round(approved_students / total_students_graded * 100, 1)
         
         return {
             'schools': {
@@ -289,7 +325,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             'attendance': {
                 'total_records': attendance_stats.get('total_records', 0),
                 'present': attendance_stats.get('present_count', 0),
-                'absent': attendance_stats.get('absent_count', 0),
+                'absent': attendance_stats.get('falta_count', 0) + attendance_stats.get('justified_count', 0),
                 'justified': attendance_stats.get('justified_count', 0),
                 'rate': attendance_rate
             },
@@ -500,13 +536,13 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 match_filter['class_id'] = {'$in': class_ids}
         
         pipeline = [
-            {'$match': {**(match_filter), **regular_only_aggregate_match()}},
+            {'$match': {**(match_filter), 'final_average': {'$ne': None}, **regular_only_aggregate_match()}},
             {'$group': {
                 '_id': '$course_id',
-                'avg_grade': {'$avg': '$grade'},
+                'avg_grade': {'$avg': '$final_average'},
                 'total_students': {'$addToSet': '$student_id'},
-                'max_grade': {'$max': '$grade'},
-                'min_grade': {'$min': '$grade'}
+                'max_grade': {'$max': '$final_average'},
+                'min_grade': {'$min': '$final_average'}
             }},
             {'$project': {
                 'course_id': '$_id',
@@ -580,42 +616,42 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             if class_ids and not class_id:
                 match_filter['class_id'] = {'$in': class_ids}
         
+        # Modelo real: notas por bimestre nos campos b1..b4. Regra de negócio:
+        # notas NÃO lançadas contam como ZERO (média do bimestre sobre TODOS os
+        # registros do escopo).
         pipeline = [
             {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$group': {
-                '_id': '$period',
-                'avg_grade': {'$avg': '$grade'},
-                'total_grades': {'$sum': 1},
-                'approved': {
-                    '$sum': {'$cond': [{'$gte': ['$grade', 6]}, 1, 0]}
-                }
-            }},
-            {'$sort': {'_id': 1}}
+                '_id': None,
+                'b1': {'$avg': {'$ifNull': ['$b1', 0]}},
+                'b2': {'$avg': {'$ifNull': ['$b2', 0]}},
+                'b3': {'$avg': {'$ifNull': ['$b3', 0]}},
+                'b4': {'$avg': {'$ifNull': ['$b4', 0]}},
+                'b1_app': {'$sum': {'$cond': [{'$gte': [{'$ifNull': ['$b1', 0]}, 5]}, 1, 0]}},
+                'b2_app': {'$sum': {'$cond': [{'$gte': [{'$ifNull': ['$b2', 0]}, 5]}, 1, 0]}},
+                'b3_app': {'$sum': {'$cond': [{'$gte': [{'$ifNull': ['$b3', 0]}, 5]}, 1, 0]}},
+                'b4_app': {'$sum': {'$cond': [{'$gte': [{'$ifNull': ['$b4', 0]}, 5]}, 1, 0]}},
+                'total': {'$sum': 1}
+            }}
         ]
-        
-        period_names = {
-            '1': '1º Bimestre',
-            '2': '2º Bimestre',
-            '3': '3º Bimestre',
-            '4': '4º Bimestre',
-            'final': 'Nota Final'
-        }
-        
-        result = []
+
+        agg = None
         async for doc in current_db.grades.aggregate(pipeline):
-            period = str(doc['_id']) if doc['_id'] else '1'
-            approval_rate = 0
-            if doc['total_grades'] > 0:
-                approval_rate = round(doc['approved'] / doc['total_grades'] * 100, 1)
-            
-            result.append({
-                'period': period,
-                'period_name': period_names.get(period, f'Período {period}'),
-                'avg_grade': round(doc['avg_grade'] or 0, 1),
-                'total_grades': doc['total_grades'],
-                'approval_rate': approval_rate
-            })
-        
+            agg = doc
+
+        result = []
+        if agg and agg.get('total'):
+            total = agg['total']
+            for i, name in [(1, '1º Bimestre'), (2, '2º Bimestre'), (3, '3º Bimestre'), (4, '4º Bimestre')]:
+                approval_rate = round(agg[f'b{i}_app'] / total * 100, 1) if total else 0
+                result.append({
+                    'period': str(i),
+                    'period_name': name,
+                    'avg_grade': round(agg.get(f'b{i}') or 0, 1),
+                    'total_grades': total,
+                    'approval_rate': approval_rate
+                })
+
         return result
     
     @router.get("/schools/ranking")
@@ -770,19 +806,19 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         ):
             classes_by_school[cls['id']] = cls['school_id']
         
-        # Frequência agregada por escola (através dos registros de attendance)
+        # Frequência agregada por escola (records[] com P/F/J).
+        # Regra: J e F contam como AUSÊNCIA; presença = somente 'P'.
         attendance_pipeline = [
             {'$match': {
                 'class_id': {'$in': list(classes_by_school.keys())},
                 'date': {'$regex': f'^{academic_year}'}
             }},
-            {'$unwind': '$records'},
-            {'$match': {'records.dependency_id': {'$in': [None]}}},
+            *_attendance_split_stages(),
             {'$group': {
                 '_id': '$class_id',
                 'total': {'$sum': 1},
                 'present': {
-                    '$sum': {'$cond': [{'$in': ['$records.status', ['P', 'present', 'J', 'justified']]}, 1, 0]}
+                    '$sum': {'$cond': [{'$eq': ['$_st', 'P']}, 1, 0]}
                 }
             }}
         ]
@@ -833,8 +869,6 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                     school_grade_data[school_id]['b3'].append(doc['avg_b3'])
                 if doc['avg_b4']:
                     school_grade_data[school_id]['b4'].append(doc['avg_b4'])
-                schools[school_id]['approved_count'] += doc['approved']
-                schools[school_id]['evaluated_count'] += doc['evaluated']
         
         for school_id, data in school_grade_data.items():
             if data['count'] > 0:
@@ -847,6 +881,30 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 schools[school_id]['grade_b3_avg'] = round(sum(data['b3']) / len(data['b3']), 2)
             if data['b4']:
                 schools[school_id]['grade_b4_avg'] = round(sum(data['b4']) / len(data['b4']), 2)
+        
+        # APROVAÇÃO (regra de negócio): por ALUNO, aprovado somente se TODOS os
+        # componentes avaliados têm média (final_average) >= 5,0. Base = alunos
+        # com pelo menos uma nota lançada. (Substitui a contagem por status,
+        # que ficava vazia no início do ano e inflava a % de aprovação.)
+        approval_pipeline = [
+            {'$match': {
+                'class_id': {'$in': list(classes_by_school.keys())},
+                'academic_year': year_filter(academic_year),
+                'final_average': {'$ne': None},
+                **regular_only_aggregate_match()
+            }},
+            {'$group': {
+                '_id': '$student_id',
+                'min_avg': {'$min': '$final_average'},
+                'class_id': {'$first': '$class_id'}
+            }}
+        ]
+        async for doc in current_db.grades.aggregate(approval_pipeline):
+            school_id = classes_by_school.get(doc.get('class_id'))
+            if school_id and school_id in schools:
+                schools[school_id]['evaluated_count'] += 1
+                if (doc.get('min_avg') or 0) >= 5:
+                    schools[school_id]['approved_count'] += 1
         
         # ============================================
         # 4. COBERTURA CURRICULAR (Objetos de Conhecimento)
@@ -1246,20 +1304,21 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # ============================================
         grades_match = {
             'student_id': {'$in': student_ids},
-            'academic_year': year_filter(academic_year)
+            'academic_year': year_filter(academic_year),
+            'final_average': {'$ne': None}
         }
         
-        # Professor só vê notas dos componentes vinculados
+        # Professor só vê notas dos componentes vinculados (campo real: course_id)
         if is_professor and user_subject_ids:
-            grades_match['subject_id'] = {'$in': user_subject_ids}
+            grades_match['course_id'] = {'$in': user_subject_ids}
         elif subject_id:
-            grades_match['subject_id'] = subject_id
+            grades_match['course_id'] = subject_id
         
         grades_pipeline = [
             {'$match': {**(grades_match), **regular_only_aggregate_match()}},
             {'$group': {
                 '_id': '$student_id',
-                'avg_grade': {'$avg': '$grade'},
+                'avg_grade': {'$avg': '$final_average'},
                 'total': {'$sum': 1}
             }}
         ]
@@ -1283,14 +1342,15 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         attendance_pipeline = [
             {'$match': att_match},
             {'$unwind': '$records'},
-            {'$match': {'records.dependency_id': {'$in': [None]}}},
-            {'$match': {'records.student_id': {'$in': student_ids}}},
+            {'$match': {'records.dependency_id': {'$in': [None]}, 'records.student_id': {'$in': student_ids}}},
+            {'$addFields': {'_sts': {'$split': [{'$toUpper': {'$ifNull': ['$records.status', '']}}, '|']}}},
+            {'$unwind': '$_sts'},
+            {'$addFields': {'_st': {'$trim': {'input': '$_sts'}}}},
+            {'$match': {'_st': {'$in': ['P', 'F', 'J']}}},
             {'$group': {
                 '_id': '$records.student_id',
                 'total': {'$sum': 1},
-                'present': {
-                    '$sum': {'$cond': [{'$in': ['$records.status', ['P', 'present', 'J', 'justified']]}, 1, 0]}
-                }
+                'present': {'$sum': {'$cond': [{'$eq': ['$_st', 'P']}, 1, 0]}}
             }}
         ]
         async for doc in current_db.attendance.aggregate(attendance_pipeline):
@@ -1476,23 +1536,24 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             diario_pct = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
             diario_pct = min(diario_pct, 100)
             
-            # 2. Média de notas dos alunos (40%)
-            # Soma todas as notas lançadas pelo professor e divide pelo número de notas
+            # 2. Média de notas dos alunos (40%) — usa final_average (modelo real)
             media_notas = 0
             grades_pipeline = [
                 {'$match': {
                     'class_id': {'$in': class_ids},
-                    'academic_year': year_filter(academic_year)
+                    'academic_year': year_filter(academic_year),
+                    'final_average': {'$ne': None},
+                    **regular_only_aggregate_match()
                 }},
                 {'$group': {
                     '_id': None,
-                    'soma': {'$sum': '$grade'},
+                    'media': {'$avg': '$final_average'},
                     'total': {'$sum': 1}
                 }}
             ]
             async for doc in current_db.grades.aggregate(grades_pipeline):
                 if doc.get('total', 0) > 0:
-                    media_notas = round(doc['soma'] / doc['total'], 1)
+                    media_notas = round(doc['media'] or 0, 1)
             
             # Score: 60% diários + 40% índice da média (média/10 * 100)
             indice_media = round(media_notas * 10, 1)  # Nota 10 = 100%
@@ -1622,9 +1683,9 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 match_filter['class_id'] = {'$in': class_ids}
         
         pipeline = [
-            {'$match': {**(match_filter), **regular_only_aggregate_match()}},
+            {'$match': {**(match_filter), 'final_average': {'$ne': None}, **regular_only_aggregate_match()}},
             {'$bucket': {
-                'groupBy': '$grade',
+                'groupBy': '$final_average',
                 'boundaries': [0, 3, 5, 6, 7, 8, 9, 10.1],
                 'default': 'other',
                 'output': {
