@@ -1,5 +1,26 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — UX: estado "Sem dados suficientes" no Dashboard Analítico
+
+**Solicitação:** Exibir aviso de "Sem dados suficientes" nos cards/gráficos
+quando não houver notas/frequência no período, em vez de mostrar 0 / gráfico em
+branco (evita falsa impressão de bug quando um bimestre ainda não foi lançado).
+
+**Entregue (frontend `AnalyticsDashboard.jsx`, somente UI):**
+- Novo componente `EmptyChart` (ícone + mensagem + dica).
+- Flags `hasGrades`, `hasAttendance`, `hasPeriodData`, `hasSubjectData`,
+  `hasDistributionData`, `hasMonthlyData`.
+- 5 cards (Frequência, Média Geral, Presença Média, Total de Faltas, Taxa de
+  Aprovação) exibem "Sem dados suficientes" quando sem dados (data-testids
+  freq-empty, media-geral-empty, presenca-empty, faltas-empty, aprovacao-empty).
+- 4 gráficos (Frequência Mensal, Desempenho por Bimestre, Média por Componente,
+  Distribuição de Notas) exibem `EmptyChart` no lugar do gráfico em branco.
+
+**Validação:** Testing agent (iteration_92) — cenário 2026 (com dados): SEM
+regressão; cenário 2025 (sem dados): estados vazios exibidos. Card "Média Geral"
+(única peça faltante apontada) corrigido na sequência (mesmo padrão dos demais).
+
+
 ## 2026-02 — Correção crítica: Dashboard Analítico (10 itens) — schema real
 
 **Problema:** Todos os cards/gráficos/rankings do Dashboard Analítico estavam

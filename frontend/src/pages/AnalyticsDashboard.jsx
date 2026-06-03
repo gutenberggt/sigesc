@@ -824,7 +824,11 @@ export function AnalyticsDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-amber-100 text-sm">Média Geral</p>
-                  <p className="text-3xl font-bold">{overview?.grades?.average || 0}</p>
+                  {hasGrades ? (
+                    <p className="text-3xl font-bold">{overview?.grades?.average || 0}</p>
+                  ) : (
+                    <p className="text-base font-semibold text-white/90 mt-1" data-testid="media-geral-empty">Sem dados suficientes</p>
+                  )}
                 </div>
                 <Award className="h-10 w-10 text-amber-200" />
               </div>
