@@ -1,5 +1,32 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Ajuste: coluna "Diários (60%)" = média ponderada de 3 SLAs (Desempenho dos Professores)
+
+**Solicitação:** Na tabela "Desempenho dos Professores – Top 10" (Dashboard
+Analítico), a coluna "Diários (60%)" deixa de ser só a cobertura de objetos de
+conhecimento e passa a ser a MÉDIA PONDERADA de 3 SLAs (normalizada 0–100%):
+- **SLA Frequência (peso 4):** lançamentos de frequência em até 3 dias / total
+  (compara `attendance.created_at` vs `attendance.date`), nas turmas do professor.
+- **SLA Conteúdo (peso 3):** objetos de conhecimento registrados / previstos
+  (= lógica anterior da coluna).
+- **SLA Notas (peso 3):** placeholder = 100% (workflow de prazo de notas ainda não existe).
+- Fórmula: `Diários = (SLA_Freq×4 + SLA_Conteúdo×3 + SLA_Notas×3) / 10`.
+- `score` final inalterado (60% Diários + 40% índice da média).
+
+**Escopo isolado:** alteração EXCLUSIVA em `GET /api/analytics/teachers/performance`.
+O "Ranking de Escolas – Score V2.1" NÃO foi tocado (confirmado pelo usuário).
+
+**Entregue (backend `routers/analytics.py`, `get_teachers_performance`):**
+- Pré-agregação de SLA Frequência por turma (pipeline `$dateFromString`/`$subtract`).
+- Resposta agora expõe breakdown `sla_freq`, `sla_conteudo`, `sla_notas` além de
+  `diario_pct`. Frontend já consome `diario_pct` (nome de campo inalterado → sem mudança de UI).
+
+**Validação:** novo teste `tests/test_teachers_performance_sla.py` (4 testes, semeia
+ano isolado 2099 → dias letivos fallback 200; valida SLA Freq 66.7, Conteúdo 10.0,
+Notas 100, Diários 59.7). Regressão `test_analytics_dashboard.py` 6/6 verde
+(Ranking V2.1 intacto).
+
+
 ## 2026-02 — UX: estado "Sem dados suficientes" no Dashboard Analítico
 
 **Solicitação:** Exibir aviso de "Sem dados suficientes" nos cards/gráficos

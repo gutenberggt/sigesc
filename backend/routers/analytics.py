@@ -1521,19 +1521,74 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if total_dias_letivos == 0:
             total_dias_letivos = 200  # fallback
         
+        # ============================================
+        # SLA FREQUÊNCIA (3 dias) — pré-agregado por turma
+        # ============================================
+        # Mede a PONTUALIDADE do lançamento da frequência: compara
+        # `attendance.created_at` (data do lançamento) com `attendance.date`
+        # (data da aula). Lançado em até 3 dias = no prazo.
+        # Usado SOMENTE no desempenho do professor (NÃO no Ranking de Escolas).
+        sla_freq_by_class = {}
+        all_class_ids = list({cid for t in teachers.values() for cid in t['class_ids'] if cid})
+        if all_class_ids:
+            sla_freq_pipeline = [
+                {'$match': {
+                    'class_id': {'$in': all_class_ids},
+                    'date': {'$regex': f'^{academic_year}'},
+                    'created_at': {'$ne': None}
+                }},
+                {'$project': {
+                    'class_id': 1,
+                    'days_diff': {
+                        '$divide': [
+                            {'$subtract': [
+                                {'$dateFromString': {'dateString': '$created_at', 'onError': None}},
+                                {'$dateFromString': {'dateString': '$date', 'onError': None}}
+                            ]},
+                            86400000  # ms → dias
+                        ]
+                    }
+                }},
+                {'$match': {'days_diff': {'$ne': None}}},
+                {'$group': {
+                    '_id': '$class_id',
+                    'total': {'$sum': 1},
+                    'on_time': {'$sum': {'$cond': [{'$lte': ['$days_diff', 3]}, 1, 0]}}
+                }}
+            ]
+            async for doc in current_db.attendance.aggregate(sla_freq_pipeline):
+                sla_freq_by_class[doc['_id']] = {
+                    'total': doc['total'], 'on_time': doc['on_time']
+                }
+
         # Para cada professor: calcular métricas
         result = []
         for tid, tdata in teachers.items():
             class_ids = list(tdata['class_ids'])
             n_turmas = len(class_ids)
             
-            # 1. Preenchimento de diários (60%)
+            # 1. Diários (60%) = MÉDIA PONDERADA de 3 SLAs (normalizada 0–100):
+            #    SLA Frequência (peso 4) + SLA Conteúdo (peso 3) + SLA Notas (peso 3)
+
+            # 1a. SLA Conteúdo (peso 3) = objetos de conhecimento registrados / previstos
             lo_count = await current_db.learning_objects.count_documents({
                 'class_id': {'$in': class_ids},
                 'academic_year': year_filter(academic_year)
             })
             expected_lo = n_turmas * total_dias_letivos
-            diario_pct = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
+            sla_conteudo = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
+            sla_conteudo = min(sla_conteudo, 100)
+
+            # 1b. SLA Frequência (peso 4) = lançamentos em até 3 dias / total
+            freq_total = sum(sla_freq_by_class.get(c, {}).get('total', 0) for c in class_ids)
+            freq_on_time = sum(sla_freq_by_class.get(c, {}).get('on_time', 0) for c in class_ids)
+            sla_freq = round(freq_on_time / freq_total * 100, 1) if freq_total > 0 else 0
+
+            # 1c. SLA Notas (peso 3) = placeholder 100% (workflow de prazo ainda não existe)
+            sla_notas = 100.0
+
+            # Média ponderada → coluna "Diários (60%)"
+            diario_pct = round((sla_freq * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
             diario_pct = min(diario_pct, 100)
             
             # 2. Média de notas dos alunos (40%) — usa final_average (modelo real)
@@ -1563,6 +1618,9 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 'teacher_id': tid,
                 'teacher_name': tdata['name'],
                 'diario_pct': diario_pct,
+                'sla_freq': sla_freq,
+                'sla_conteudo': sla_conteudo,
+                'sla_notas': sla_notas,
                 'media_notas': media_notas,
                 'indice_media': min(indice_media, 100),
                 'score': score,
