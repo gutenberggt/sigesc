@@ -84,6 +84,59 @@ const exportRankingToExcel = (schools, year) => {
 const CHART_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 /**
+ * Abreviações oficiais dos componentes curriculares (Dashboard Analítico).
+ * Normaliza o nome (sem acento/caixa) e mapeia para a sigla pedida pelo usuário.
+ */
+const COMPONENT_ABBREVIATIONS = {
+  'lingua portuguesa': 'L. PORT.',
+  'arte': 'ARTE',
+  'artes': 'ARTE',
+  'educacao fisica': 'ED. FÍS.',
+  'lingua inglesa': 'L. ING.',
+  'ingles': 'L. ING.',
+  'matematica': 'MAT.',
+  'ciencias': 'CIÊN.',
+  'historia': 'HIST.',
+  'geografia': 'GEOG.',
+  'ensino religioso': 'ENS. REL.',
+  'estudos amazonicos': 'EST. AMAZ.',
+  'literatura e redacao': 'LIT. E RED.',
+  'educacao ambiental e clima': 'ED. AMB. CLI.',
+};
+
+const abbreviateComponent = (name) => {
+  if (!name) return 'N/A';
+  const key = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  if (COMPONENT_ABBREVIATIONS[key]) return COMPONENT_ABBREVIATIONS[key];
+  // Fallback: iniciais das palavras relevantes (ignora conectores curtos)
+  const parts = name.trim().split(/\s+/).filter((w) => w.length > 2);
+  if (parts.length >= 2) {
+    return parts.slice(0, 2).map((w) => w.slice(0, 4).toUpperCase()).join('. ') + '.';
+  }
+  return name.slice(0, 8).toUpperCase();
+};
+
+/**
+ * Cores distintas por faixa de nota (Distribuição de Notas).
+ * Mantém a semântica (baixo = vermelho, alto = verde/azul) porém com tons
+ * suficientemente diferentes para identificar cada faixa.
+ */
+const DISTRIBUTION_COLORS = {
+  0: '#b91c1c', // 0-2.9   vermelho escuro
+  3: '#f97316', // 3-4.9   laranja
+  5: '#eab308', // 5-5.9   amarelo
+  6: '#84cc16', // 6-6.9   verde-limão
+  7: '#22c55e', // 7-7.9   verde
+  8: '#0ea5e9', // 8-8.9   azul-claro
+  9: '#6366f1', // 9-10    índigo
+};
+const distributionColor = (boundary) => DISTRIBUTION_COLORS[boundary] || '#94a3b8';
+
+/**
  * Estado vazio para gráficos/seções sem dados suficientes no período.
  * Evita exibir gráficos em branco ou valores zerados como se fossem "bug".
  */
@@ -671,6 +724,11 @@ export function AnalyticsDashboard() {
   const hasAttendance = (overview?.attendance?.total_records || 0) > 0;
   const hasPeriodData = Array.isArray(gradesByPeriod) && gradesByPeriod.some(p => (p.avg_grade || 0) > 0);
   const hasSubjectData = Array.isArray(gradesBySubject) && gradesBySubject.length > 0;
+  // Mostra TODOS os componentes com sigla oficial (ordenados por média desc)
+  const subjectChartData = (Array.isArray(gradesBySubject) ? gradesBySubject : []).map((s) => ({
+    ...s,
+    abbr: abbreviateComponent(s.course_name),
+  }));
   const hasDistributionData = Array.isArray(gradesDistribution) && gradesDistribution.some(d => (d.count || 0) > 0);
   const hasMonthlyData = Array.isArray(attendanceMonthly) && attendanceMonthly.some(m => (m.total || m.rate || 0) > 0);
 
@@ -998,14 +1056,17 @@ export function AnalyticsDashboard() {
             </CardHeader>
             <CardContent>
               {hasSubjectData ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={gradesBySubject.slice(0, 10)} layout="vertical">
+              <ResponsiveContainer width="100%" height={Math.max(300, subjectChartData.length * 34)}>
+                <BarChart data={subjectChartData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 12 }} />
-                  <YAxis dataKey="abbreviation" type="category" tick={{ fontSize: 11 }} width={60} />
-                  <Tooltip formatter={(value) => [value, 'Média']} />
+                  <YAxis dataKey="abbr" type="category" tick={{ fontSize: 11 }} width={72} interval={0} />
+                  <Tooltip
+                    formatter={(value) => [value, 'Média']}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.course_name || label}
+                  />
                   <Bar dataKey="avg_grade" fill={COLORS.purple} radius={[0, 4, 4, 0]}>
-                    {gradesBySubject.slice(0, 10).map((entry, index) => (
+                    {subjectChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Bar>
@@ -1031,7 +1092,7 @@ export function AnalyticsDashboard() {
                   <Pie data={gradesDistribution} cx="50%" cy="50%" outerRadius={100} dataKey="count" nameKey="range"
                     label={({ range, percent }) => `${range}: ${(percent * 100).toFixed(0)}%`} labelLine={false}>
                     {gradesDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.boundary >= 6 ? COLORS.success : entry.boundary >= 5 ? COLORS.warning : COLORS.danger} />
+                      <Cell key={`cell-${index}`} fill={distributionColor(entry.boundary)} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => [value, 'Quantidade']} />

@@ -1,5 +1,35 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Dashboard Analítico: siglas de componentes, cores da distribuição e fix Frequência Mensal por escola
+
+**1) Média por Componente Curricular — siglas oficiais + todos os componentes:**
+- Frontend (`AnalyticsDashboard.jsx`): novo mapa `COMPONENT_ABBREVIATIONS` + helper
+  `abbreviateComponent(course_name)` (normaliza acento/caixa). Siglas: L. PORT.,
+  ARTE, ED. FÍS., L. ING., MAT., CIÊN., HIST., GEOG., ENS. REL., EST. AMAZ.,
+  LIT. E RED., ED. AMB. CLI. (fallback p/ não mapeados).
+- Removido o `slice(0,10)` → exibe TODOS os componentes; altura do gráfico dinâmica
+  (`max(300, n×34)`); tooltip mostra o nome COMPLETO do componente.
+
+**2) Distribuição de Notas — cores distintas por faixa:**
+- Novo `DISTRIBUTION_COLORS` por `boundary`: 0-2.9 vermelho escuro, 3-4.9 laranja,
+  5-5.9 amarelo, 6-6.9 verde-limão, 7-7.9 verde, 8-8.9 azul-claro, 9-10 índigo
+  (antes 6+ eram todas verdes, indistinguíveis).
+
+**3) Fix (bug) — Frequência Mensal "Sem dados" ao selecionar escola:**
+- **Causa raiz:** `attendance` NÃO possui campo `school_id`; o endpoint
+  `/analytics/attendance/monthly` filtrava `match_filter['school_id']=school_id`
+  → resultado SEMPRE vazio quando uma escola era selecionada.
+- **Fix (backend `analytics.py`):** resolve as turmas da escola e filtra por
+  `class_id` (mesmo padrão do `/overview`). Pipeline migrado para o helper de
+  split de `records[]` (combos `P|F`) e rate = P/total (J e F = ausência),
+  alinhado ao restante do dashboard.
+- **Validado via curl:** ano 2026 + `school_id` da Escola Multisseriada agora
+  retorna Fev/Mar/Abr/Dez com taxas (antes vinha `[]`).
+
+**Validação:** regressão `test_analytics_dashboard.py` + `test_teachers_performance_sla.py`
+10/10 verde; lint JS/PY limpo.
+
+
 ## 2026-06 — Ajuste: coluna "Diários (60%)" = média ponderada de 3 SLAs (Desempenho dos Professores)
 
 **Solicitação:** Na tabela "Desempenho dos Professores – Top 10" (Dashboard

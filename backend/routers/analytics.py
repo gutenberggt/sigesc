@@ -432,18 +432,25 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             'date': {'$regex': f'^{academic_year}'}
         }
         
+        # IMPORTANTE: documentos de `attendance` NÃO possuem campo `school_id`.
+        # Para filtrar por escola é preciso resolver as turmas da escola e
+        # filtrar por `class_id` (mesmo padrão do /overview). Filtrar por
+        # `school_id` direto retornava SEMPRE vazio (bug do "Sem dados").
         if class_id:
             match_filter['class_id'] = class_id
-        if school_id:
-            match_filter['school_id'] = school_id
-        elif not is_global and user_school_ids:
-            match_filter['school_id'] = {'$in': user_school_ids}
+        elif school_id or (not is_global and user_school_ids):
+            school_ids_to_filter = [school_id] if school_id else user_school_ids
+            classes_in_school = await current_db.classes.find(
+                {'school_id': {'$in': school_ids_to_filter}}, {'id': 1}
+            ).to_list(None)
+            cls_ids = [c['id'] for c in classes_in_school]
+            match_filter['class_id'] = {'$in': cls_ids or ['__none__']}
         
+        # Usa o mesmo helper de split (records[] com combos 'P|F') e a regra
+        # de negócio: Frequência = P / total de aulas (J e F = ausência).
         pipeline = [
             {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$unwind': '$records'},
-            {'$match': {'records.dependency_id': {'$in': [None]}}},
-            # P0: exclui registros de dependência dos cálculos regulares
             {'$match': {'records.dependency_id': {'$in': [None]}}},
         ]
         
@@ -451,21 +458,21 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             pipeline.append({'$match': {'records.student_id': student_id}})
         
         pipeline.extend([
+            {'$addFields': {'_sts': {'$split': [
+                {'$toUpper': {'$ifNull': ['$records.status', '']}}, '|'
+            ]}}},
+            {'$unwind': '$_sts'},
+            {'$addFields': {'_st': {'$trim': {'input': '$_sts'}}}},
+            {'$match': {'_st': {'$in': ['P', 'F', 'J']}}},
             {'$addFields': {
                 'month': {'$substr': ['$date', 5, 2]}
             }},
             {'$group': {
                 '_id': '$month',
                 'total': {'$sum': 1},
-                'present': {
-                    '$sum': {'$cond': [{'$in': ['$records.status', ['P', 'present']]}, 1, 0]}
-                },
-                'absent': {
-                    '$sum': {'$cond': [{'$in': ['$records.status', ['F', 'A', 'absent']]}, 1, 0]}
-                },
-                'justified': {
-                    '$sum': {'$cond': [{'$in': ['$records.status', ['J', 'justified']]}, 1, 0]}
-                }
+                'present': {'$sum': {'$cond': [{'$eq': ['$_st', 'P']}, 1, 0]}},
+                'absent': {'$sum': {'$cond': [{'$eq': ['$_st', 'F']}, 1, 0]}},
+                'justified': {'$sum': {'$cond': [{'$eq': ['$_st', 'J']}, 1, 0]}}
             }},
             {'$sort': {'_id': 1}}
         ])
@@ -481,7 +488,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             month_num = doc['_id']
             rate = 0
             if doc['total'] > 0:
-                rate = round((doc['present'] + doc['justified']) / doc['total'] * 100, 1)
+                # Frequência = presenças / total de aulas (J e F = ausência)
+                rate = round(doc['present'] / doc['total'] * 100, 1)
             
             result.append({
                 'month': months_map.get(month_num, month_num),
