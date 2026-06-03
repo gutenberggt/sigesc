@@ -18,7 +18,8 @@ import {
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -79,6 +80,70 @@ const exportRankingToExcel = (schools, year) => {
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, fileName);
+};
+
+/**
+ * Exporta o Ranking de Escolas (Score V2.1) completo para PDF (paisagem).
+ */
+const exportRankingToPDF = (schools, year) => {
+  const doc = new jsPDF('l', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFillColor(245, 158, 11); // Amber
+  doc.rect(0, 0, pageWidth, 26, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RANKING DE ESCOLAS - SCORE V2.1', pageWidth / 2, 11, { align: 'center' });
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    `Ano Letivo: ${year}  |  Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+    pageWidth / 2, 20, { align: 'center' }
+  );
+
+  autoTable(doc, {
+    startY: 32,
+    head: [['#', 'Escola', 'Matríc.', 'Nota', 'Aprov.', 'Evol.', 'Freq.', 'Reten.',
+      'Cobert.', 'SLA Freq', 'SLA Notas', 'Distorção', 'Aprend.', 'Perman.', 'Gestão', 'SCORE']],
+    body: schools.map((s, i) => {
+      const ind = s.indicators || {};
+      return [
+        i + 1,
+        s.school_name,
+        s.raw_data?.enrollments_active || 0,
+        ind.nota_media || 0,
+        `${ind.aprovacao_pct || 0}%`,
+        ind.ganho_100 || 50,
+        `${ind.frequencia_pct || 0}%`,
+        `${ind.retencao_pct || 0}%`,
+        `${ind.cobertura_pct || 0}%`,
+        `${ind.sla_frequencia_pct || 0}%`,
+        `${ind.sla_notas_pct || 0}%`,
+        `${ind.distorcao_idade_serie_pct || 0}%`,
+        s.score_aprendizagem || 0,
+        s.score_permanencia || 0,
+        s.score_gestao || 0,
+        s.score,
+      ];
+    }),
+    theme: 'striped',
+    headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 7, halign: 'center' },
+    styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
+    columnStyles: { 1: { cellWidth: 50, halign: 'left', fontStyle: 'bold' } },
+  });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `SIGESC - Sistema de Gestão Escolar | Página ${i} de ${pageCount}`,
+      pageWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' }
+    );
+  }
+  doc.save(`Ranking_Escolas_${year}.pdf`);
 };
 
 const CHART_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
@@ -298,7 +363,7 @@ const exportToPDF = (school, year) => {
   doc.setFont('helvetica', 'bold');
   doc.text('COMPOSIÇÃO POR BLOCO:', 14, 65);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: 70,
     head: [['Bloco', 'Pontuação', 'Máximo', '% Aproveitamento']],
     body: [
@@ -322,7 +387,7 @@ const exportToPDF = (school, year) => {
   doc.setFont('helvetica', 'bold');
   doc.text('DETALHAMENTO DOS INDICADORES:', 14, yPos);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos + 5,
     head: [['Indicador', 'Valor', 'Peso', 'Contribuição']],
     body: [
@@ -350,7 +415,7 @@ const exportToPDF = (school, year) => {
   doc.setFont('helvetica', 'bold');
   doc.text('EVOLUÇÃO DAS NOTAS POR BIMESTRE:', 14, yPos);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos + 5,
     head: [['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']],
     body: [
@@ -382,7 +447,7 @@ const exportToPDF = (school, year) => {
   doc.setFont('helvetica', 'bold');
   doc.text('DADOS BRUTOS:', 14, yPos);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos + 5,
     head: [['Indicador', 'Valor']],
     body: [
@@ -732,6 +797,90 @@ export function AnalyticsDashboard() {
   const hasDistributionData = Array.isArray(gradesDistribution) && gradesDistribution.some(d => (d.count || 0) > 0);
   const hasMonthlyData = Array.isArray(attendanceMonthly) && attendanceMonthly.some(m => (m.total || m.rate || 0) > 0);
 
+  // ===== Exportação do Dashboard completo (cards + gráficos) =====
+  const dashboardCaptureRef = useRef(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const handleExportDashboardPDF = async () => {
+    const node = dashboardCaptureRef.current;
+    if (!node) return;
+    setExportingPdf(true);
+    try {
+      const canvas = await html2canvas(node, {
+        scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`Dashboard_Analitico_${selectedYear}.pdf`);
+    } catch (e) {
+      console.error('Erro ao gerar PDF do dashboard:', e);
+      alert('Não foi possível gerar o PDF. Tente novamente.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleExportDashboardExcel = () => {
+    const ov = overview || {};
+    const wb = XLSX.utils.book_new();
+
+    const resumo = [
+      ['DASHBOARD ANALÍTICO - RESUMO'],
+      [`Ano Letivo: ${selectedYear}`],
+      [`Gerado em: ${new Date().toLocaleString('pt-BR')}`],
+      [''],
+      ['Indicador', 'Valor'],
+      ['Escolas', ov.schools?.total || 0],
+      ['Turmas', ov.classes?.total || 0],
+      ['Alunos Ativos', ov.students?.active || 0],
+      ['Matrículas', ov.enrollments?.total || 0],
+      ['Frequência (%)', ov.attendance?.rate || 0],
+      ['Total de Faltas', ov.attendance?.absent || 0],
+      ['Faltas Justificadas', ov.attendance?.justified || 0],
+      ['Média Geral', ov.grades?.average || 0],
+      ['Taxa de Aprovação (%)', ov.grades?.approval_rate || 0],
+      ['Transferências', ov.transfers?.total || 0],
+      ['Desistências', ov.dropouts?.total || 0],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
+
+    const fm = [['Mês', 'Total Aulas', 'Presentes', 'Faltas', 'Justificadas', 'Taxa %'],
+      ...(attendanceMonthly || []).map(m => [m.month, m.total, m.present, m.absent, m.justified, m.rate])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(fm), 'Frequência Mensal');
+
+    const bp = [['Bimestre', 'Média', 'Aprovação %'],
+      ...(gradesByPeriod || []).map(p => [p.period_name, p.avg_grade, p.approval_rate])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bp), 'Desempenho Bimestre');
+
+    const cp = [['Componente Curricular', 'Sigla', 'Média'],
+      ...subjectChartData.map(s => [s.course_name, s.abbr, s.avg_grade])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cp), 'Média por Componente');
+
+    const dn = [['Faixa de Nota', 'Quantidade'],
+      ...(gradesDistribution || []).map(d => [d.range, d.count])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dn), 'Distribuição de Notas');
+
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(
+      new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+      `Dashboard_Analitico_${selectedYear}.xlsx`
+    );
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -749,6 +898,27 @@ export function AnalyticsDashboard() {
               </h1>
               <p className="text-gray-600 text-sm">Acompanhamento de desempenho do município</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportDashboardPDF}
+              disabled={exportingPdf}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              data-testid="export-dashboard-pdf-btn"
+              title="Exportar Dashboard completo (cards + gráficos) para PDF"
+            >
+              <FileText className="h-4 w-4" />
+              {exportingPdf ? 'Gerando...' : 'Exportar PDF'}
+            </button>
+            <button
+              onClick={handleExportDashboardExcel}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+              data-testid="export-dashboard-excel-btn"
+              title="Exportar dados do Dashboard para Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Exportar Excel
+            </button>
           </div>
         </div>
         
@@ -805,6 +975,8 @@ export function AnalyticsDashboard() {
           </div>
         </div>
         
+        {/* Início da captura para exportação (cards + gráficos) */}
+        <div ref={dashboardCaptureRef} className="space-y-6 bg-white">
         {/* Cards de Overview */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
@@ -1105,6 +1277,8 @@ export function AnalyticsDashboard() {
             </CardContent>
           </Card>
         </div>
+        </div>
+        {/* Fim da captura para exportação */}
         
         {/* Ranking de Escolas - Score V2.1 */}
         {canViewRanking && schoolsRanking.length > 0 && (
@@ -1115,15 +1289,26 @@ export function AnalyticsDashboard() {
                   <Award className="h-5 w-5 text-amber-600" />
                   Ranking de Escolas - Score V2.1
                 </CardTitle>
-                <button 
-                  onClick={() => exportRankingToExcel(schoolsRanking, selectedYear)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-                  data-testid="export-ranking-excel-btn"
-                  title="Exportar Ranking para Excel"
-                >
-                  <Download className="h-4 w-4" />
-                  Exportar Ranking
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => exportRankingToExcel(schoolsRanking, selectedYear)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    data-testid="export-ranking-excel-btn"
+                    title="Exportar Ranking para Excel"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel
+                  </button>
+                  <button 
+                    onClick={() => exportRankingToPDF(schoolsRanking, selectedYear)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    data-testid="export-ranking-pdf-btn"
+                    title="Exportar Ranking para PDF"
+                  >
+                    <FileText className="h-4 w-4" />
+                    PDF
+                  </button>
+                </div>
               </div>
               <div className="mt-2 p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-600 font-medium mb-2">Composição do Score (0-100 pontos):</p>

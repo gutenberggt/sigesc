@@ -1,5 +1,33 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Dashboard Analítico: exportação PDF/Excel + fix do botão PDF (jspdf-autotable v5)
+
+**1) Exportar Dashboard completo (cards + gráficos):**
+- Frontend (`AnalyticsDashboard.jsx`): 2 botões no header — **Exportar PDF** e
+  **Exportar Excel** (`data-testid` export-dashboard-pdf-btn / export-dashboard-excel-btn).
+- PDF: captura a região de cards + gráficos via `html2canvas` (Tailwind v3, sem
+  oklch) → `jsPDF` multipágina A4. Wrapper com `ref={dashboardCaptureRef}`.
+- Excel: workbook com abas Resumo (KPIs), Frequência Mensal, Desempenho Bimestre,
+  Média por Componente e Distribuição de Notas.
+- Dependência declarada: `html2canvas@1.4.1` (`yarn add`).
+
+**2) Ranking de Escolas (Score V2.1) — export em PDF além de Excel:**
+- Novo `exportRankingToPDF()` (jsPDF paisagem + `autoTable`, 16 colunas, rodapé
+  paginado). Botões "Excel" + "PDF" lado a lado (`export-ranking-pdf-btn`).
+
+**3) Fix (bug) — botão PDF da "Análise Detalhada do Score V2.1" não funcionava:**
+- **Causa raiz:** `jspdf-autotable@5` REMOVEU o método de protótipo
+  `doc.autoTable(...)`; o código usava a API antiga → `doc.autoTable is not a
+  function`. **Fix:** import funcional `import autoTable from 'jspdf-autotable'`
+  e todas as chamadas migradas para `autoTable(doc, {...})`. `doc.lastAutoTable.finalY`
+  mantido (válido na v5).
+
+**Validação:** `webpack compiled successfully` + lint JS limpo. ⚠️ Verificação
+visual de clique/download NÃO pôde ser feita: o proxy de **preview** estava em
+modo de inatividade ("Preview Unavailable"). Testar após acordar o preview ou no
+ambiente publicado. As mudanças exigem **redeploy do frontend**.
+
+
 ## 2026-06 — Dashboard Analítico: siglas de componentes, cores da distribuição e fix Frequência Mensal por escola
 
 **1) Média por Componente Curricular — siglas oficiais + todos os componentes:**
