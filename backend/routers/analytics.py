@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from typing import Optional, List
 from datetime import datetime, timedelta
 from bson import ObjectId
+import unicodedata
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter
 from utils.grade_dependency_filters import regular_only_aggregate_match
@@ -523,66 +524,99 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
-        match_filter = {
-            'academic_year': year_filter(academic_year)
-        }
-        
-        if student_id:
-            match_filter['student_id'] = student_id
+        # ============================================
+        # Turmas elegíveis: apenas 3º ao 9º Ano e EJA
+        # (exclui Ed. Infantil, 1º e 2º Ano)
+        # ============================================
+        excluded_grades = ['educacao_infantil']
+        excluded_grade_levels = ['1º ANO', '1 ANO', '2º ANO', '2 ANO', 'PRÉ I', 'PRÉ II', 'PRE I', 'PRE II',
+                                 'MATERNAL', 'BERÇÁRIO', 'BERCARIO', 'CRECHE', 'INFANTIL I', 'INFANTIL II',
+                                 'INFANTIL III', 'INFANTIL IV', 'INFANTIL V']
+
+        class_filter = {'academic_year': year_filter(academic_year)}
         if class_id:
-            match_filter['class_id'] = class_id
-        
-        # Filtro por escola (através das turmas)
-        if school_id or (not is_global and user_school_ids):
-            school_ids_to_filter = [school_id] if school_id else user_school_ids
-            classes_in_school = await current_db.classes.find(
-                {'school_id': {'$in': school_ids_to_filter}},
-                {'id': 1}
-            ).to_list(None)
-            class_ids = [c['id'] for c in classes_in_school]
-            if class_ids and not class_id:
-                match_filter['class_id'] = {'$in': class_ids}
-        
+            class_filter['id'] = class_id
+        if school_id:
+            class_filter['school_id'] = school_id
+        elif not is_global and user_school_ids:
+            class_filter['school_id'] = {'$in': user_school_ids}
+
+        eligible_classes = []
+        async for cls in current_db.classes.find(
+            class_filter, {'_id': 0, 'id': 1, 'education_level': 1, 'grade_level': 1, 'name': 1}
+        ):
+            ed_level = cls.get('education_level', '')
+            grade = (cls.get('grade_level') or cls.get('name') or '').upper()
+            if ed_level in excluded_grades:
+                continue
+            if any(eg in grade for eg in excluded_grade_levels):
+                continue
+            eligible_classes.append(cls['id'])
+
+        if not eligible_classes:
+            return []
+
+        grades_match = {
+            'class_id': {'$in': eligible_classes},
+            'academic_year': year_filter(academic_year),
+            'final_average': {'$ne': None},
+        }
+        if student_id:
+            grades_match['student_id'] = student_id
+
+        # Agrega por course_id mantendo soma+contagem para permitir recomputar a
+        # média REAL ao mesclar course_ids que compartilham o mesmo componente.
         pipeline = [
-            {'$match': {**(match_filter), 'final_average': {'$ne': None}, **regular_only_aggregate_match()}},
+            {'$match': {**grades_match, **regular_only_aggregate_match()}},
             {'$group': {
                 '_id': '$course_id',
-                'avg_grade': {'$avg': '$final_average'},
-                'total_students': {'$addToSet': '$student_id'},
+                'sum_grade': {'$sum': '$final_average'},
+                'count': {'$sum': 1},
+                'students': {'$addToSet': '$student_id'},
                 'max_grade': {'$max': '$final_average'},
-                'min_grade': {'$min': '$final_average'}
+                'min_grade': {'$min': '$final_average'},
             }},
-            {'$project': {
-                'course_id': '$_id',
-                'avg_grade': {'$round': ['$avg_grade', 1]},
-                'total_students': {'$size': '$total_students'},
-                'max_grade': 1,
-                'min_grade': 1
-            }},
-            {'$sort': {'avg_grade': -1}}
         ]
-        
-        # Buscar nomes dos cursos
+
+        # Nomes dos componentes
         courses = {}
-        async for course in current_db.courses.find({}, {'id': 1, 'name': 1, 'abbreviation': 1}):
-            courses[course['id']] = {
-                'name': course.get('name', 'N/A'),
-                'abbreviation': course.get('abbreviation', course.get('name', 'N/A')[:3])
-            }
-        
-        result = []
+        async for course in current_db.courses.find({}, {'id': 1, 'name': 1}):
+            courses[course['id']] = course.get('name', 'N/A')
+
+        def _norm(s):
+            nf = unicodedata.normalize('NFD', (s or '').strip())
+            return ''.join(c for c in nf if unicodedata.category(c) != 'Mn').upper()
+
+        # Mescla por NOME canônico → cada componente aparece UMA única vez
+        merged = {}
         async for doc in current_db.grades.aggregate(pipeline):
-            course_info = courses.get(doc['_id'], {'name': 'Desconhecido', 'abbreviation': 'N/A'})
-            result.append({
-                'course_id': doc['_id'],
-                'course_name': course_info['name'],
-                'abbreviation': course_info['abbreviation'],
-                'avg_grade': doc['avg_grade'] or 0,
-                'total_students': doc['total_students'],
-                'max_grade': doc.get('max_grade', 0),
-                'min_grade': doc.get('min_grade', 0)
+            name = courses.get(doc['_id'], 'Desconhecido') or 'Desconhecido'
+            key = _norm(name)
+            m = merged.setdefault(key, {
+                'course_name': name, 'sum_grade': 0.0, 'count': 0,
+                'students': set(), 'max_grade': 0.0, 'min_grade': 10.0,
             })
-        
+            m['sum_grade'] += doc.get('sum_grade') or 0
+            m['count'] += doc.get('count') or 0
+            m['students'].update(doc.get('students') or [])
+            m['max_grade'] = max(m['max_grade'], doc.get('max_grade') or 0)
+            if doc.get('min_grade') is not None:
+                m['min_grade'] = min(m['min_grade'], doc['min_grade'])
+
+        result = []
+        for m in merged.values():
+            if m['count'] <= 0:
+                continue
+            result.append({
+                'course_name': m['course_name'],
+                'avg_grade': round(m['sum_grade'] / m['count'], 1),
+                'total_students': len(m['students']),
+                'max_grade': round(m['max_grade'], 1),
+                'min_grade': round(m['min_grade'], 1),
+            })
+
+        # Ordem decrescente por média (maior no topo do gráfico)
+        result.sort(key=lambda x: x['avg_grade'], reverse=True)
         return result
     
     @router.get("/grades/by-period")

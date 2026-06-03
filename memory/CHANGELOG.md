@@ -1,5 +1,30 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Fix: "Média por Componente Curricular" repetia componentes + escopo 3º–9º/EJA
+
+**Sintoma:** o gráfico "Média por Componente Curricular" exibia o MESMO componente
+várias vezes (ex.: Educação Física/Ensino Religioso repetidos).
+
+**Causa raiz:** `GET /analytics/grades/by-subject` agrupava por `course_id`. Como
+existem múltiplos documentos em `courses` com o mesmo nome (um por escola/série),
+cada um virava uma barra → duplicação.
+
+**Fix (backend `analytics.py::get_grades_by_subject`):**
+- Passa a mesclar por NOME canônico do componente (normaliza acento/caixa) →
+  cada componente aparece UMA única vez; a média é recomputada como soma÷contagem
+  real entre todos os `course_id` daquele nome (não média de médias).
+- Restringe às turmas elegíveis **3º ao 9º Ano e EJA** (exclui Ed. Infantil, 1º e
+  2º Ano), mesma regra do `/students/performance`.
+- Retorna ordenado por média **decrescente** (maior no topo). Removidos campos
+  `course_id`/`abbreviation` do payload (frontend já gera a sigla a partir de
+  `course_name`).
+
+**Validação:** `tests/test_grades_by_subject_dedup.py` (3 testes — componente único,
+média mesclada 7.0 ignorando 1º Ano, ordem desc com maior no topo) + regressão
+`test_by_subject_usa_final_average` verde. Curl 2026: retorna cada componente 1×.
+Requer **redeploy do backend**.
+
+
 ## 2026-06 — Dashboard Analítico: exportação PDF/Excel + fix do botão PDF (jspdf-autotable v5)
 
 **1) Exportar Dashboard completo (cards + gráficos):**
