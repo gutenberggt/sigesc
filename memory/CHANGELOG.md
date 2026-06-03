@@ -1,5 +1,33 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Cabeçalho institucional (brasão + município + escola) nos PDFs exportados
+
+**Solicitação:** todos os PDFs do Dashboard Analítico devem trazer um cabeçalho
+institucional com o brasão da mantenedora + nome do município; quando o relatório
+for de uma escola específica, citar o nome da escola.
+
+**Backend (`routers/mantenedora.py`):** novo `GET /api/mantenedora/brasao-base64`.
+A URL do brasão fica em outro domínio SEM cabeçalho CORS (o `fetch` do browser
+falharia), então o backend baixa a imagem (httpx), faz downscale com Pillow
+(thumbnail 400px → de ~2,7MB para ~165KB) e devolve um data URL base64 mesma origem.
+
+**Frontend (`AnalyticsDashboard.jsx`):**
+- `useMantenedora()` + `useEffect` (na seção de hooks, antes de qualquer early-return)
+  carrega o brasão em base64 e guarda em `logoDataUrl`.
+- Helper `drawInstitutionalHeader(doc, {...})` desenha faixa com brasão + nome da
+  mantenedora + "Município de X - UF" + título do documento; se `schoolName`, cita
+  "Escola: ...". Retorna o Y onde o conteúdo começa.
+- Aplicado aos 3 PDFs: **Dashboard completo** (cita escola se filtro de escola ativo),
+  **Ranking de Escolas** (rede toda, sem escola) e **Análise Detalhada do Score**
+  (sempre cita a escola). A planilha Excel do Dashboard também ganhou o contexto
+  (mantenedora/município/escola) no topo do "Resumo".
+
+**Validação:** endpoint testado via curl (retorna PNG base64 ~165KB). Lint JS/PY
+limpo; `webpack compiled successfully`. Regras de Hooks respeitadas (sem React #310).
+⚠️ Verificação visual do PDF NÃO feita: preview em modo inatividade. Requer
+**redeploy do backend + frontend** (e acordar o preview p/ testar o download).
+
+
 ## 2026-06 — Fix: "Média por Componente Curricular" repetia componentes + escopo 3º–9º/EJA
 
 **Sintoma:** o gráfico "Média por Componente Curricular" exibia o MESMO componente

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { schoolsAPI, classesAPI, studentsAPI } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,6 +30,65 @@ const COLORS = {
   warning: '#f59e0b',
   danger: '#ef4444',
   purple: '#8b5cf6'
+};
+
+/** Detecta o formato da imagem a partir do data URL (para jsPDF.addImage). */
+const _imgFormatFromDataUrl = (d) => {
+  if (!d) return 'PNG';
+  if (d.startsWith('data:image/jpeg') || d.startsWith('data:image/jpg')) return 'JPEG';
+  if (d.startsWith('data:image/webp')) return 'WEBP';
+  return 'PNG';
+};
+
+/**
+ * Desenha o cabeçalho institucional (brasão da mantenedora + nome do município)
+ * no topo do PDF. Quando `header.schoolName` é informado, cita a escola.
+ * Retorna a coordenada Y (mm) onde o conteúdo do documento deve começar.
+ */
+const drawInstitutionalHeader = (doc, { header = {}, title, subtitle, accent = [79, 70, 229] }) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const bandH = 32;
+  doc.setFillColor(accent[0], accent[1], accent[2]);
+  doc.rect(0, 0, pageWidth, bandH, 'F');
+
+  let textX = 14;
+  if (header.logoDataUrl) {
+    try {
+      doc.addImage(header.logoDataUrl, _imgFormatFromDataUrl(header.logoDataUrl), 12, 6, 20, 20);
+      textX = 38;
+    } catch { /* imagem inválida → segue sem logo */ }
+  }
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text(header.mantenedoraNome || 'Prefeitura Municipal', textX, 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const loc = `Município de ${header.municipio || ''}${header.estado ? ' - ' + header.estado : ''}`.trim();
+  doc.text(loc, textX, 18);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(title, pageWidth / 2, 28, { align: 'center' });
+
+  let y = bandH + 7;
+  if (subtitle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(90, 90, 90);
+    doc.text(subtitle, pageWidth / 2, y, { align: 'center' });
+    y += 6;
+  }
+  if (header.schoolName) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(accent[0], accent[1], accent[2]);
+    doc.text(`Escola: ${header.schoolName}`, 14, y);
+    y += 7;
+  }
+  doc.setTextColor(0, 0, 0);
+  return y;
 };
 
 /**
@@ -85,25 +145,19 @@ const exportRankingToExcel = (schools, year) => {
 /**
  * Exporta o Ranking de Escolas (Score V2.1) completo para PDF (paisagem).
  */
-const exportRankingToPDF = (schools, year) => {
+const exportRankingToPDF = (schools, year, header = {}) => {
   const doc = new jsPDF('l', 'mm', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setFillColor(245, 158, 11); // Amber
-  doc.rect(0, 0, pageWidth, 26, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RANKING DE ESCOLAS - SCORE V2.1', pageWidth / 2, 11, { align: 'center' });
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(
-    `Ano Letivo: ${year}  |  Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
-    pageWidth / 2, 20, { align: 'center' }
-  );
+  // Cabeçalho institucional (brasão + município). Ranking é da rede toda → sem escola específica.
+  const startY = drawInstitutionalHeader(doc, {
+    header,
+    title: 'RANKING DE ESCOLAS - SCORE V2.1',
+    subtitle: `Ano Letivo ${year} · Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+    accent: [245, 158, 11],
+  });
 
   autoTable(doc, {
-    startY: 32,
+    startY,
     head: [['#', 'Escola', 'Matríc.', 'Nota', 'Aprov.', 'Evol.', 'Freq.', 'Reten.',
       'Cobert.', 'SLA Freq', 'SLA Notas', 'Distorção', 'Aprend.', 'Perman.', 'Gestão', 'SCORE']],
     body: schools.map((s, i) => {
@@ -134,13 +188,14 @@ const exportRankingToPDF = (schools, year) => {
   });
 
   const pageCount = doc.internal.getNumberOfPages();
+  const footerWidth = doc.internal.pageSize.getWidth();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(
       `SIGESC - Sistema de Gestão Escolar | Página ${i} de ${pageCount}`,
-      pageWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' }
+      footerWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' }
     );
   }
   doc.save(`Ranking_Escolas_${year}.pdf`);
@@ -320,7 +375,7 @@ const exportToExcel = (school, year) => {
 /**
  * Exporta o relatório da escola para PDF
  */
-const exportToPDF = (school, year) => {
+const exportToPDF = (school, year, header = {}) => {
   const ind = school.indicators || {};
   const raw = school.raw_data || {};
   const evolution = school.grade_evolution || {};
@@ -329,42 +384,37 @@ const exportToPDF = (school, year) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  // Cabeçalho
-  doc.setFillColor(79, 70, 229); // Indigo
-  doc.rect(0, 0, pageWidth, 35, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RELATÓRIO DE DESEMPENHO ESCOLAR', pageWidth / 2, 15, { align: 'center' });
-  
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Score V2.1 - ${school.school_name}`, pageWidth / 2, 25, { align: 'center' });
-  doc.text(`Ano Letivo: ${year}`, pageWidth / 2, 32, { align: 'center' });
-  
+  // Cabeçalho institucional (brasão + município + escola)
+  const startY = drawInstitutionalHeader(doc, {
+    header: { ...header, schoolName: school.school_name },
+    title: 'RELATÓRIO DE DESEMPENHO ESCOLAR',
+    subtitle: `Score V2.1 · Ano Letivo ${year}`,
+    accent: [79, 70, 229],
+  });
+
   // Score Total
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('SCORE TOTAL:', 14, 50);
+  doc.text('SCORE TOTAL:', 14, startY + 4);
   
   doc.setFontSize(28);
   doc.setTextColor(59, 130, 246); // Blue
-  doc.text(`${school.score}`, 60, 50);
+  doc.text(`${school.score}`, 60, startY + 4);
   
   doc.setFontSize(12);
   doc.setTextColor(100, 100, 100);
-  doc.text('pontos', 85, 50);
+  doc.text('pontos', 85, startY + 4);
   
   // Composição por Bloco
+  const compY = startY + 18;
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('COMPOSIÇÃO POR BLOCO:', 14, 65);
+  doc.text('COMPOSIÇÃO POR BLOCO:', 14, compY);
   
   autoTable(doc, {
-    startY: 70,
+    startY: compY + 5,
     head: [['Bloco', 'Pontuação', 'Máximo', '% Aproveitamento']],
     body: [
       ['Aprendizagem', `${school.score_aprendizagem || 0}`, '45', `${((school.score_aprendizagem || 0) / 45 * 100).toFixed(1)}%`],
@@ -486,9 +536,29 @@ const exportToPDF = (school, year) => {
 export function AnalyticsDashboard() {
   const navigate = useNavigate();
   const { user, accessToken } = useAuth();
+  const { mantenedora } = useMantenedora();
+  const [logoDataUrl, setLogoDataUrl] = useState(null);
   const token = accessToken;
   const tokenRef = useRef(token);
   tokenRef.current = token;
+
+  // Carrega o brasão da mantenedora (base64 via backend, evitando CORS) p/ os PDFs
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/mantenedora/brasao-base64`, {
+          headers: { 'Authorization': `Bearer ${tokenRef.current}` },
+        });
+        if (!res.ok) { if (active) setLogoDataUrl(null); return; }
+        const data = await res.json();
+        if (active) setLogoDataUrl(data?.data_url || null);
+      } catch {
+        if (active) setLogoDataUrl(null);
+      }
+    })();
+    return () => { active = false; };
+  }, [mantenedora]);
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedSchool, setSelectedSchool] = useState('');
@@ -800,6 +870,20 @@ export function AnalyticsDashboard() {
   const hasMonthlyData = Array.isArray(attendanceMonthly) && attendanceMonthly.some(m => (m.total || m.rate || 0) > 0);
 
   // ===== Exportação do Dashboard completo (cards + gráficos) =====
+  // Monta o cabeçalho institucional. `withSelectedSchool` cita a escola filtrada.
+  const buildHeaderInfo = (withSelectedSchool = false) => {
+    const info = {
+      logoDataUrl,
+      mantenedoraNome: mantenedora?.nome || 'Prefeitura Municipal',
+      municipio: mantenedora?.municipio || '',
+      estado: mantenedora?.estado || '',
+    };
+    if (withSelectedSchool && selectedSchool) {
+      info.schoolName = (schools.find(s => s.id === selectedSchool) || {}).name || '';
+    }
+    return info;
+  };
+
   const handleExportDashboardPDF = async () => {
     const node = dashboardCaptureRef.current;
     if (!node) return;
@@ -812,12 +896,20 @@ export function AnalyticsDashboard() {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Cabeçalho institucional (brasão + município + escola, se filtrada)
+      const startY = drawInstitutionalHeader(pdf, {
+        header: buildHeaderInfo(true),
+        title: 'DASHBOARD ANALÍTICO',
+        subtitle: `Ano Letivo ${selectedYear}`,
+        accent: [37, 99, 235],
+      });
+
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      let position = startY;
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      let heightLeft = imgHeight - (pageHeight - startY);
       while (heightLeft > 0) {
         position -= pageHeight;
         pdf.addPage();
@@ -838,6 +930,9 @@ export function AnalyticsDashboard() {
     const wb = XLSX.utils.book_new();
 
     const resumo = [
+      [(mantenedora?.nome || 'Prefeitura Municipal')],
+      [`Município de ${mantenedora?.municipio || ''}${mantenedora?.estado ? ' - ' + mantenedora.estado : ''}`.trim()],
+      ...(selectedSchool ? [[`Escola: ${(schools.find(s => s.id === selectedSchool) || {}).name || ''}`]] : []),
       ['DASHBOARD ANALÍTICO - RESUMO'],
       [`Ano Letivo: ${selectedYear}`],
       [`Gerado em: ${new Date().toLocaleString('pt-BR')}`],
@@ -1299,7 +1394,7 @@ export function AnalyticsDashboard() {
                     Excel
                   </button>
                   <button 
-                    onClick={() => exportRankingToPDF(schoolsRanking, selectedYear)}
+                    onClick={() => exportRankingToPDF(schoolsRanking, selectedYear, buildHeaderInfo(false))}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
                     data-testid="export-ranking-pdf-btn"
                     title="Exportar Ranking para PDF"
@@ -1650,7 +1745,7 @@ export function AnalyticsDashboard() {
                         Excel
                       </button>
                       <button 
-                        onClick={() => exportToPDF(selectedSchoolDetail, selectedYear)}
+                        onClick={() => exportToPDF(selectedSchoolDetail, selectedYear, buildHeaderInfo())}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors"
                         data-testid="export-pdf-btn"
                         title="Exportar para PDF"

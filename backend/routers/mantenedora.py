@@ -100,6 +100,55 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return doc
 
 
+    @router.get("/mantenedora/brasao-base64")
+    async def get_mantenedora_brasao_base64(request: Request):
+        """Retorna o brasão/logotipo da mantenedora ATIVA como data URL base64.
+
+        Necessário para embutir a imagem em PDFs gerados no frontend: a URL
+        original costuma estar em outro domínio sem cabeçalho CORS, então o
+        `fetch` do browser falharia. Aqui o backend baixa a imagem (sem CORS)
+        e devolve em base64 (mesma origem). Falhas retornam data_url=None.
+        """
+        import base64
+        import httpx
+
+        _, _, doc, _ = await _resolve_active(request)
+        url = (doc or {}).get("brasao_url") or (doc or {}).get("logotipo_url")
+        if not url:
+            return {"data_url": None}
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(url)
+            if resp.status_code != 200:
+                return {"data_url": None}
+            content_type = resp.headers.get("content-type", "image/png").split(";")[0].strip()
+            if not content_type.startswith("image/"):
+                content_type = "image/png"
+            raw = resp.content
+            # Downscale para manter o PDF leve (logo aparece pequeno no cabeçalho)
+            try:
+                import io
+                from PIL import Image
+                img = Image.open(io.BytesIO(raw))
+                img.thumbnail((400, 400))
+                buf = io.BytesIO()
+                if img.mode in ("RGBA", "LA", "P"):
+                    img = img.convert("RGBA")
+                    img.save(buf, format="PNG", optimize=True)
+                    content_type = "image/png"
+                else:
+                    img = img.convert("RGB")
+                    img.save(buf, format="JPEG", quality=82, optimize=True)
+                    content_type = "image/jpeg"
+                raw = buf.getvalue()
+            except Exception:
+                pass  # mantém a imagem original se o resize falhar
+            b64 = base64.b64encode(raw).decode("ascii")
+            return {"data_url": f"data:{content_type};base64,{b64}"}
+        except Exception:
+            return {"data_url": None}
+
+
     @router.put("/mantenedora")
     async def update_mantenedora(
         mantenedora_update: MantenedoraUpdate,
