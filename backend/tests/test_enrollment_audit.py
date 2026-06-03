@@ -3,7 +3,7 @@ import os
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://matricula-dedup.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sla-trio-weighted.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "gutenberg@sigesc.com"
 ADMIN_PASSWORD = "@Celta2007"
 
