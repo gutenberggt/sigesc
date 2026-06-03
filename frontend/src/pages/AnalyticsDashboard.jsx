@@ -523,6 +523,8 @@ export function AnalyticsDashboard() {
   const [showSemedTerms, setShowSemedTerms] = useState(false); // Modal do termo SEMED
   const [semedTermsAccepted, setSemedTermsAccepted] = useState(false); // Status do termo
   const [performanceRestricted, setPerformanceRestricted] = useState(false); // Restrição de dados de alunos
+  const dashboardCaptureRef = useRef(null); // Captura do dashboard p/ exportação PDF
+  const [exportingPdf, setExportingPdf] = useState(false);
   
   const userRole = (user?.role || '').toLowerCase();
   const isAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(userRole);
@@ -798,9 +800,6 @@ export function AnalyticsDashboard() {
   const hasMonthlyData = Array.isArray(attendanceMonthly) && attendanceMonthly.some(m => (m.total || m.rate || 0) > 0);
 
   // ===== Exportação do Dashboard completo (cards + gráficos) =====
-  const dashboardCaptureRef = useRef(null);
-  const [exportingPdf, setExportingPdf] = useState(false);
-
   const handleExportDashboardPDF = async () => {
     const node = dashboardCaptureRef.current;
     if (!node) return;
