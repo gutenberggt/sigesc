@@ -1,5 +1,36 @@
 # CHANGELOG — SIGESC
 
+## 2026-02 — Correção crítica: Dashboard Analítico (10 itens) — schema real
+
+**Problema:** Todos os cards/gráficos/rankings do Dashboard Analítico estavam
+zerados/em branco e o ranking mostrava aprovação irreal (100%).
+
+**Causa raiz:** `routers/analytics.py` agregava sobre um schema inexistente
+(`grades.grade`, `attendance.status` no topo, `academic_year` como TEXTO). O
+banco real usa: notas em **b1..b4 + final_average** (course_id, ano int) e
+frequência em **records[]** com status **P/F/J** (combos `P|F`).
+
+**Regras de negócio aplicadas (confirmadas pelo usuário):**
+- Frequência = P / total de aulas (J e F = ausência; J exibida à parte).
+- Total de Faltas = F + J (Justificadas detalhadas à parte).
+- Média Geral / Média(60%) = `final_average` (já é a média dos bimestres lançados).
+- Aprovação = por ALUNO: ≥ 5,0 em TODOS os componentes avaliados (base = alunos
+  com nota lançada). Substitui a contagem por `status='aprovado'`.
+- Desempenho por Bimestre = b1..b4 com notas não-lançadas contando como ZERO.
+
+**Corrigidos 7 endpoints** (`analytics.py`): /overview, /grades/by-period,
+/grades/by-subject, /distribution/grades, /schools/ranking, /students/performance,
+/teachers/performance. Novo helper `_attendance_split_stages()` (unwind records[]
++ split de `|` + normaliza P/F/J).
+
+**Validação:** Backend pytest 6/6 (`tests/test_analytics_dashboard.py`); frontend
+E2E 100% (iteration_91) — cards >0, gráficos renderizando, ranking correto
+(escolas sem notas = 0% aprovação, não 100%), Média(60%) preenchida.
+OBS: tabela de Professores fica vazia no PREVIEW por não haver `teacher_assignments`
+cadastrados (esperado); o cálculo de `media_notas` foi validado via alocação
+temporária (retornou 10.0). Sem alterações de frontend.
+
+
 ## 2026-02 — Ajuste: cards de Completude contam apenas alunos ATIVOS
 
 **Solicitação:** Nos cards de Completude (verde/amarelo/vermelho), as somas
