@@ -92,6 +92,29 @@ const drawInstitutionalHeader = (doc, { header = {}, title, subtitle, accent = [
 };
 
 /**
+ * Desenha o rodapé em TODAS as páginas: quem gerou + data/hora + paginação.
+ * Fundo branco para garantir legibilidade mesmo sobre a imagem do dashboard.
+ */
+const drawPdfFooter = (doc, generatedBy) => {
+  const pageCount = doc.internal.getNumberOfPages();
+  const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
+  const now = new Date().toLocaleString('pt-BR');
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, h - 13, w, 13, 'F');
+    doc.setDrawColor(220, 220, 220);
+    doc.line(10, h - 11, w - 10, h - 11);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(130, 130, 130);
+    doc.text(`Gerado por ${generatedBy || '—'} em ${now}`, 10, h - 6);
+    doc.text(`SIGESC · Página ${i} de ${pageCount}`, w - 10, h - 6, { align: 'right' });
+  }
+};
+
+/**
  * Exporta o ranking completo de todas as escolas para Excel
  */
 const exportRankingToExcel = (schools, year) => {
@@ -187,17 +210,7 @@ const exportRankingToPDF = (schools, year, header = {}) => {
     columnStyles: { 1: { cellWidth: 50, halign: 'left', fontStyle: 'bold' } },
   });
 
-  const pageCount = doc.internal.getNumberOfPages();
-  const footerWidth = doc.internal.pageSize.getWidth();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text(
-      `SIGESC - Sistema de Gestão Escolar | Página ${i} de ${pageCount}`,
-      footerWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' }
-    );
-  }
+  drawPdfFooter(doc, header.generatedBy);
   doc.save(`Ranking_Escolas_${year}.pdf`);
 };
 
@@ -530,6 +543,7 @@ const exportToPDF = (school, year, header = {}) => {
   
   // Salvar PDF
   const fileName = `Score_${school.school_name.replace(/[^a-zA-Z0-9]/g, '_')}_${year}.pdf`;
+  drawPdfFooter(doc, header.generatedBy);
   doc.save(fileName);
 };
 
@@ -877,6 +891,7 @@ export function AnalyticsDashboard() {
       mantenedoraNome: mantenedora?.nome || 'Prefeitura Municipal',
       municipio: mantenedora?.municipio || '',
       estado: mantenedora?.estado || '',
+      generatedBy: user?.full_name || user?.email || '',
     };
     if (withSelectedSchool && selectedSchool) {
       info.schoolName = (schools.find(s => s.id === selectedSchool) || {}).name || '';
@@ -916,6 +931,7 @@ export function AnalyticsDashboard() {
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
+      drawPdfFooter(pdf, buildHeaderInfo(true).generatedBy);
       pdf.save(`Dashboard_Analitico_${selectedYear}.pdf`);
     } catch (e) {
       console.error('Erro ao gerar PDF do dashboard:', e);

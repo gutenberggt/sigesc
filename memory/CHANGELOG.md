@@ -1,5 +1,18 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Rodapé (gerado por + data/hora + paginação) nos 3 PDFs
+
+- Frontend (`AnalyticsDashboard.jsx`): helper `drawPdfFooter(doc, generatedBy)`
+  desenha em TODAS as páginas: "Gerado por {nome do usuário} em {data/hora}" à
+  esquerda e "SIGESC · Página i de N" à direita, com faixa branca + linha separadora
+  (legível mesmo sobre a imagem do dashboard). Nome vem de `user.full_name` (fallback
+  e-mail), via `buildHeaderInfo().generatedBy`.
+- Aplicado aos 3 PDFs: Dashboard completo, Ranking de Escolas (substituiu o rodapé
+  antigo) e Análise Detalhada do Score.
+- Lint JS limpo; `webpack compiled successfully`. ⚠️ Verificação visual pendente
+  (preview em inatividade) → requer **redeploy do frontend**.
+
+
 ## 2026-06 — Cabeçalho institucional (brasão + município + escola) nos PDFs exportados
 
 **Solicitação:** todos os PDFs do Dashboard Analítico devem trazer um cabeçalho
