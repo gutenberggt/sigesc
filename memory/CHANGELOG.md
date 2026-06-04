@@ -1,5 +1,18 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — PDFs: cabeçalho com fundo branco + linha de contexto escola-turma-aluno
+
+- **Fundo branco** no cabeçalho dos 3 PDFs (antes era faixa colorida): texto da
+  mantenedora/município em escuro, título na cor de destaque e linha separadora.
+- **Dashboard Analítico:** a linha de contexto agora combina, na mesma linha e
+  separada por hífen, os filtros ativos — `Nome da escola - Nome da turma - Nome
+  do aluno` — SEM o rótulo "Escola:" (o próprio nome já identifica). Montada em
+  `buildHeaderInfo(true)` a partir de `selectedSchool/selectedClass/selectedStudent`.
+- **Análise Detalhada do Score:** usa `contextLine` = nome da escola (sem rótulo).
+- Lint JS limpo; `webpack compiled successfully`. ⚠️ Requer **redeploy do frontend**
+  (verificação visual pendente — preview em inatividade).
+
+
 ## 2026-06 — Rodapé (gerado por + data/hora + paginação) nos 3 PDFs
 
 - Frontend (`AnalyticsDashboard.jsx`): helper `drawPdfFooter(doc, generatedBy)`

@@ -48,7 +48,8 @@ const _imgFormatFromDataUrl = (d) => {
 const drawInstitutionalHeader = (doc, { header = {}, title, subtitle, accent = [79, 70, 229] }) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const bandH = 32;
-  doc.setFillColor(accent[0], accent[1], accent[2]);
+  // Fundo branco
+  doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pageWidth, bandH, 'F');
 
   let textX = 14;
@@ -59,18 +60,28 @@ const drawInstitutionalHeader = (doc, { header = {}, title, subtitle, accent = [
     } catch { /* imagem inválida → segue sem logo */ }
   }
 
-  doc.setTextColor(255, 255, 255);
+  // Mantenedora + município (texto escuro sobre branco)
+  doc.setTextColor(33, 37, 41);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.text(header.mantenedoraNome || 'Prefeitura Municipal', textX, 12);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
+  doc.setTextColor(90, 90, 90);
   const loc = `Município de ${header.municipio || ''}${header.estado ? ' - ' + header.estado : ''}`.trim();
   doc.text(loc, textX, 18);
 
+  // Título do documento (cor de destaque)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text(title, pageWidth / 2, 28, { align: 'center' });
+  doc.setTextColor(accent[0], accent[1], accent[2]);
+  doc.text(title, pageWidth / 2, 27, { align: 'center' });
+
+  // Linha separadora
+  doc.setDrawColor(accent[0], accent[1], accent[2]);
+  doc.setLineWidth(0.6);
+  doc.line(10, bandH, pageWidth - 10, bandH);
+  doc.setLineWidth(0.2);
 
   let y = bandH + 7;
   if (subtitle) {
@@ -80,11 +91,12 @@ const drawInstitutionalHeader = (doc, { header = {}, title, subtitle, accent = [
     doc.text(subtitle, pageWidth / 2, y, { align: 'center' });
     y += 6;
   }
-  if (header.schoolName) {
+  // Linha de contexto (escola - turma - aluno), sem rótulo
+  if (header.contextLine) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(accent[0], accent[1], accent[2]);
-    doc.text(`Escola: ${header.schoolName}`, 14, y);
+    doc.text(header.contextLine, 14, y);
     y += 7;
   }
   doc.setTextColor(0, 0, 0);
@@ -399,7 +411,7 @@ const exportToPDF = (school, year, header = {}) => {
   
   // Cabeçalho institucional (brasão + município + escola)
   const startY = drawInstitutionalHeader(doc, {
-    header: { ...header, schoolName: school.school_name },
+    header: { ...header, contextLine: school.school_name },
     title: 'RELATÓRIO DE DESEMPENHO ESCOLAR',
     subtitle: `Score V2.1 · Ano Letivo ${year}`,
     accent: [79, 70, 229],
@@ -884,8 +896,9 @@ export function AnalyticsDashboard() {
   const hasMonthlyData = Array.isArray(attendanceMonthly) && attendanceMonthly.some(m => (m.total || m.rate || 0) > 0);
 
   // ===== Exportação do Dashboard completo (cards + gráficos) =====
-  // Monta o cabeçalho institucional. `withSelectedSchool` cita a escola filtrada.
-  const buildHeaderInfo = (withSelectedSchool = false) => {
+  // Monta o cabeçalho institucional. `withFilters` adiciona a linha de contexto
+  // (escola - turma - aluno) conforme os filtros ativos.
+  const buildHeaderInfo = (withFilters = false) => {
     const info = {
       logoDataUrl,
       mantenedoraNome: mantenedora?.nome || 'Prefeitura Municipal',
@@ -893,8 +906,22 @@ export function AnalyticsDashboard() {
       estado: mantenedora?.estado || '',
       generatedBy: user?.full_name || user?.email || '',
     };
-    if (withSelectedSchool && selectedSchool) {
-      info.schoolName = (schools.find(s => s.id === selectedSchool) || {}).name || '';
+    if (withFilters) {
+      const parts = [];
+      if (selectedSchool) {
+        const sName = (schools.find(s => s.id === selectedSchool) || {}).name;
+        if (sName) parts.push(sName);
+      }
+      if (selectedClass) {
+        const cName = (classes.find(c => c.id === selectedClass) || {}).name;
+        if (cName) parts.push(cName);
+      }
+      if (selectedStudent) {
+        const st = students.find(s => s.id === selectedStudent) || {};
+        const stName = st.full_name || st.name;
+        if (stName) parts.push(stName);
+      }
+      if (parts.length) info.contextLine = parts.join(' - ');
     }
     return info;
   };
