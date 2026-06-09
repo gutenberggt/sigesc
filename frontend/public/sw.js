@@ -1,8 +1,10 @@
-// SIGESC Service Worker - Versão 2.8.0
+// SIGESC Service Worker - Versão 2.9.0
+// [Jun/2026] Background Sync agora envia X-CSRF-Token (derivado do JWT) → corrige
+// o 403 silencioso que quebrava a sincronização automática em segundo plano.
 // [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
 // Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
 // (impedindo que bundles JS antigos quebrem o app após deploy).
-const CACHE_NAME = 'sigesc-cache-v9';
+const CACHE_NAME = 'sigesc-cache-v10';
 const OFFLINE_URL = '/offline.html';
 const DB_NAME = 'SigescOfflineDB';
 
@@ -381,12 +383,26 @@ async function syncAllPendingData() {
   }
 }
 
+// Extrai o claim 'csrf' do JWT — é exatamente o valor que o middleware CSRF do
+// backend valida (header X-CSRF-Token == claim csrf do access token).
+function parseJwtCsrf(token) {
+  try {
+    let p = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (p.length % 4) p += '=';
+    return JSON.parse(atob(p)).csrf || null;
+  } catch (e) {
+    console.warn('[SW] Falha ao extrair CSRF do JWT:', e.message);
+    return null;
+  }
+}
+
 // Envia dados para o servidor
 async function sendToServer(operations) {
   try {
     const clients = await self.clients.matchAll();
     let apiUrl = '';
     let token = '';
+    let csrf = '';
     
     if (clients.length > 0) {
       const clientInfo = await new Promise((resolve) => {
@@ -401,23 +417,42 @@ async function sendToServer(operations) {
       
       apiUrl = clientInfo.apiUrl;
       token = clientInfo.token;
+      csrf = clientInfo.csrf;
     }
     
     if (!apiUrl || !token) {
       console.log('[SW] Não foi possível obter apiUrl ou token do cliente');
       return { success: false, error: 'Credenciais não disponíveis', succeeded: [], failed: operations };
     }
-    
+
+    // CSRF: usa o token vindo do cliente ou, como fallback, deriva do próprio JWT.
+    // Sem ele, /api/sync/push responde 403 e a sync em background falha.
+    csrf = csrf || parseJwtCsrf(token);
+    if (!csrf) {
+      console.error('[SW] CSRF token indisponível — push será rejeitado (403). Abortando sync em background.');
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+
     const response = await fetch(`${apiUrl}/api/sync/push`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify({ operations })
     });
     
     if (!response.ok) {
+      // Logging explícito por tipo de falha — NADA de falha silenciosa.
+      if (response.status === 401) {
+        console.error('[SW] Sync push 401 — token expirado/inválido; sync adiada até novo login.');
+      } else if (response.status === 403) {
+        console.error('[SW] Sync push 403 — CSRF ausente/inválido.');
+      } else {
+        console.error(`[SW] Sync push falhou: HTTP ${response.status}`);
+      }
       throw new Error(`HTTP ${response.status}`);
     }
     
@@ -438,7 +473,8 @@ async function sendToServer(operations) {
     return { success: true, succeeded, failed };
     
   } catch (error) {
-    console.error('[SW] Erro ao enviar para servidor:', error);
+    // Inclui erros de rede (fetch lançou) — também logado explicitamente.
+    console.error('[SW] Erro ao enviar para servidor (rede/HTTP):', error.message);
     return { 
       success: false, 
       error: error.message, 

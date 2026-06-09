@@ -13,6 +13,8 @@ from pydantic import BaseModel
 from datetime import datetime, timezone
 import logging
 
+from tenant_scope import apply_tenant_filter, resolve_tenant_id_for_create
+
 logger = logging.getLogger(__name__)
 
 # PATCH 2.1: Campos sensíveis que NUNCA devem ser sincronizados
@@ -112,7 +114,7 @@ def setup_sync_router(db, auth_middleware, limiter=None):
         
         for op in body.operations:
             try:
-                result = await process_sync_operation(db, current_user, op)
+                result = await process_sync_operation(db, current_user, op, request)
                 results.append(result)
                 if result.success:
                     succeeded += 1
@@ -172,7 +174,8 @@ def setup_sync_router(db, auth_middleware, limiter=None):
                     body.academicYear,
                     body.lastSync,
                     page,
-                    page_size
+                    page_size,
+                    request
                 )
                 
                 # PATCH 2.1: Filtrar campos sensíveis
@@ -211,12 +214,13 @@ def setup_sync_router(db, auth_middleware, limiter=None):
         """
         current_user = await auth_middleware.get_current_user(request)
         
-        # Conta registros nas coleções principais
-        grades_count = await db.grades.count_documents({})
-        attendance_count = await db.attendance.count_documents({})
-        students_count = await db.students.count_documents({})
-        classes_count = await db.classes.count_documents({})
-        courses_count = await db.courses.count_documents({})
+        # Conta registros nas coleções principais (escopo da mantenedora ativa)
+        tenant_q = apply_tenant_filter({}, current_user, request)
+        grades_count = await db.grades.count_documents(tenant_q)
+        attendance_count = await db.attendance.count_documents(tenant_q)
+        students_count = await db.students.count_documents(tenant_q)
+        classes_count = await db.classes.count_documents(tenant_q)
+        courses_count = await db.courses.count_documents(tenant_q)
         
         return {
             "serverTime": datetime.now(timezone.utc).isoformat(),
@@ -236,8 +240,13 @@ def setup_sync_router(db, auth_middleware, limiter=None):
     return router
 
 
-async def process_sync_operation(db, user, op: SyncOperation) -> SyncPushResult:
-    """Processa uma operação de sincronização individual"""
+async def process_sync_operation(db, user, op: SyncOperation, request: Request = None) -> SyncPushResult:
+    """Processa uma operação de sincronização individual (com escopo multi-tenant).
+
+    Multi-tenant (G3 Jun/2026):
+    - create: `mantenedora_id` é SEMPRE derivado do servidor (ignora o valor do cliente).
+    - update/delete: filtrados por mantenedora ativa → impossível tocar registro de outro tenant.
+    """
     
     collection_name = op.collection
     operation = op.operation
@@ -262,7 +271,7 @@ async def process_sync_operation(db, user, op: SyncOperation) -> SyncPushResult:
     
     try:
         if operation == 'create':
-            # Remove campos de controle local
+            # Remove campos de controle local + campos de autoridade do servidor
             clean_data = clean_sync_data(data)
             
             # Verifica se é um ID temporário
@@ -274,6 +283,20 @@ async def process_sync_operation(db, user, op: SyncOperation) -> SyncPushResult:
             else:
                 clean_data['id'] = record_id
                 server_id = record_id
+            
+            # Tenant: SEMPRE derivado no servidor (nunca confia no cliente)
+            tenant_id = await resolve_tenant_id_for_create(
+                db, user, request,
+                class_id=clean_data.get('class_id'),
+                student_id=clean_data.get('student_id'),
+            )
+            if not tenant_id:
+                return SyncPushResult(
+                    recordId=record_id,
+                    success=False,
+                    error="Não foi possível determinar a mantenedora do registro"
+                )
+            clean_data['mantenedora_id'] = tenant_id
             
             # Adiciona metadados
             clean_data['created_at'] = datetime.now(timezone.utc).isoformat()
@@ -292,9 +315,10 @@ async def process_sync_operation(db, user, op: SyncOperation) -> SyncPushResult:
             clean_data['updated_at'] = datetime.now(timezone.utc).isoformat()
             clean_data['updated_by'] = user['id']
             
-            # Atualiza o registro
+            # Escopo de tenant: só atualiza registro da mantenedora ativa
+            tenant_filter = apply_tenant_filter({'id': record_id}, user, request)
             result = await collection.update_one(
-                {'id': record_id},
+                tenant_filter,
                 {'$set': clean_data}
             )
             
@@ -312,7 +336,9 @@ async def process_sync_operation(db, user, op: SyncOperation) -> SyncPushResult:
             )
             
         elif operation == 'delete':
-            result = await collection.delete_one({'id': record_id})
+            # Escopo de tenant: só remove registro da mantenedora ativa
+            tenant_filter = apply_tenant_filter({'id': record_id}, user, request)
+            result = await collection.delete_one(tenant_filter)
             
             return SyncPushResult(
                 recordId=record_id,
@@ -337,12 +363,16 @@ async def process_sync_operation(db, user, op: SyncOperation) -> SyncPushResult:
 
 
 def clean_sync_data(data: dict) -> dict:
-    """Remove campos de controle local dos dados"""
+    """Remove campos de controle local e campos de autoridade do servidor.
+
+    `mantenedora_id`, `created_by` e `updated_by` NUNCA vêm do cliente — são
+    carimbados pelo servidor a partir do usuário autenticado.
+    """
     if not data:
         return {}
     
-    # Campos que devem ser removidos
-    local_fields = ['localId', 'syncStatus', '_id']
+    # Campos que devem ser removidos (controle local + autoridade do servidor)
+    local_fields = ['localId', 'syncStatus', '_id', 'mantenedora_id', 'created_by', 'updated_by']
     
     cleaned = {k: v for k, v in data.items() if k not in local_fields}
     
@@ -385,13 +415,15 @@ async def fetch_collection_data_paginated(
     academic_year: Optional[str],
     last_sync: Optional[str],
     page: int = 1,
-    page_size: int = DEFAULT_PAGE_SIZE
+    page_size: int = DEFAULT_PAGE_SIZE,
+    request: Request = None
 ) -> tuple:
     """
     Busca dados de uma coleção para sincronização com paginação.
     Retorna tupla (dados, total_count) para suportar paginação.
     
     PATCH 2.2: Implementa paginação para evitar sobrecarga de memória.
+    G3 (Jun/2026): TODAS as coleções filtradas por mantenedora ativa (tenant).
     """
     
     query = {}
@@ -410,18 +442,20 @@ async def fetch_collection_data_paginated(
                 {'created_at': {'$gte': last_sync}},
                 {'updated_at': {'$gte': last_sync}}
             ]
-        except:
+        except Exception:
             pass  # Ignora se formato de data inválido
     
-    # Busca baseada na coleção
+    # Busca baseada na coleção (sempre com escopo de tenant)
     if collection == 'grades':
-        total = await db.grades.count_documents(query)
-        cursor = db.grades.find(query, {'_id': 0}).skip(skip).limit(page_size)
+        q = apply_tenant_filter(query, user, request)
+        total = await db.grades.count_documents(q)
+        cursor = db.grades.find(q, {'_id': 0}).skip(skip).limit(page_size)
         return await cursor.to_list(page_size), total
         
     elif collection == 'attendance':
-        total = await db.attendance.count_documents(query)
-        cursor = db.attendance.find(query, {'_id': 0}).skip(skip).limit(page_size)
+        q = apply_tenant_filter(query, user, request)
+        total = await db.attendance.count_documents(q)
+        cursor = db.attendance.find(q, {'_id': 0}).skip(skip).limit(page_size)
         return await cursor.to_list(page_size), total
         
     elif collection == 'students':
@@ -436,6 +470,7 @@ async def fetch_collection_data_paginated(
             student_ids = [e['student_id'] for e in enrollments]
             student_query['id'] = {'$in': student_ids}
         
+        student_query = apply_tenant_filter(student_query, user, request)
         total = await db.students.count_documents(student_query)
         cursor = db.students.find(student_query, {'_id': 0}).skip(skip).limit(page_size)
         return await cursor.to_list(page_size), total
@@ -449,6 +484,7 @@ async def fetch_collection_data_paginated(
         if user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente'] and user.get('school_ids'):
             class_query['school_id'] = {'$in': user['school_ids']}
         
+        class_query = apply_tenant_filter(class_query, user, request)
         total = await db.classes.count_documents(class_query)
         cursor = db.classes.find(class_query, {'_id': 0}).skip(skip).limit(page_size)
         return await cursor.to_list(page_size), total
@@ -460,6 +496,7 @@ async def fetch_collection_data_paginated(
         if user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente'] and user.get('school_ids'):
             course_query['school_id'] = {'$in': user['school_ids']}
         
+        course_query = apply_tenant_filter(course_query, user, request)
         total = await db.courses.count_documents(course_query)
         cursor = db.courses.find(course_query, {'_id': 0}).skip(skip).limit(page_size)
         return await cursor.to_list(page_size), total
@@ -471,6 +508,7 @@ async def fetch_collection_data_paginated(
         if user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente'] and user.get('school_ids'):
             school_query['id'] = {'$in': user['school_ids']}
         
+        school_query = apply_tenant_filter(school_query, user, request)
         total = await db.schools.count_documents(school_query)
         cursor = db.schools.find(school_query, {'_id': 0}).skip(skip).limit(page_size)
         return await cursor.to_list(page_size), total

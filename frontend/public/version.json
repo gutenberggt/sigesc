@@ -1,6 +1,6 @@
 {
-  "version": "2.8.0",
-  "build_date": "2026-02-12T00:00:00Z",
+  "version": "2.9.0",
+  "build_date": "2026-06-09T00:00:00Z",
   "features": [
     "Atestados Médicos",
     "Edição Offline de Alunos",
@@ -8,6 +8,8 @@
     "Permissões de Secretário",
     "Sessão Persistente",
     "CORS regex (multi-domínio)",
-    "Service Worker auto-update (fix loop pós-deploy)"
+    "Service Worker auto-update (fix loop pós-deploy)",
+    "Background Sync com CSRF (fix 403 silencioso)",
+    "Isolamento multi-tenant no sync (push/pull/status)"
   ]
 }

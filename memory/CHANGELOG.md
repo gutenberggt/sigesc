@@ -1,5 +1,41 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Offline: fix do Background Sync (CSRF) + blindagem multi-tenant do sync
+
+**Contexto:** verificação do funcionamento offline (PWA + SW + Dexie + push/pull).
+Sistema maduro, mas com 2 falhas reais.
+
+**P0-a — Background Sync quebrado (CSRF):**
+- `public/sw.js` enviava `POST /api/sync/push` só com `Authorization: Bearer`, sem
+  `X-CSRF-Token` → middleware CSRF respondia **403** e a sync automática em segundo
+  plano falhava silenciosamente (cenário-chave: app fechado, internet volta depois).
+- **Fix:** SW agora envia `X-CSRF-Token` (recebido do cliente via `GET_SYNC_INFO`
+  ou, em fallback, derivado do claim `csrf` do próprio JWT) + **logging explícito**
+  de 401/403/erro de rede (sem falha silenciosa). `OfflineContext` passou a incluir
+  `csrf` (sessionStorage `sigesc_csrf_token`) na mensagem. Cache `v9→v10`,
+  `version.json` `2.9.0`.
+
+**P0-b — Isolamento multi-tenant no `routers/sync.py` (crítico):**
+- Antes: create não carimbava `mantenedora_id` (confiava no cliente); update/delete
+  por `{'id'}` sem escopo; pull/status sem tenant → risco de vazamento/alteração
+  cruzada entre redes e contagens globais.
+- **Fix (via `tenant_scope`):** create usa `resolve_tenant_id_for_create` (servidor
+  é a autoridade; `clean_sync_data` agora descarta `mantenedora_id/created_by/updated_by`
+  do cliente); update/delete usam `apply_tenant_filter({'id': ...})`; pull aplica
+  `apply_tenant_filter` em TODAS as coleções; status conta por tenant ativo.
+  `super_admin` continua cross-tenant (ou sob `X-Mantenedora-Id`).
+
+**P1 — Testes (`tests/test_sync_tenant_isolation.py`, 6/6 verde):**
+- CSRF: push sem CSRF → 403; com CSRF → 200.
+- Multi-tenant: create carimba tenant do servidor (ignora tenant forjado pelo
+  cliente); update/delete não tocam registro de outro tenant; pull não vaza.
+- ⚠️ O e2e completo do SW (offline→fechar→reconectar→sync sozinho) exige browser;
+  aqui validou-se o **contrato de servidor** que o habilita.
+
+**Validação:** lint backend/JS limpo, `node --check sw.js` OK, frontend compila,
+sync status/pull do super_admin sem regressão. Requer **redeploy backend+frontend**.
+
+
 ## 2026-06 — PDFs: cabeçalho com fundo branco + linha de contexto escola-turma-aluno
 
 - **Fundo branco** no cabeçalho dos 3 PDFs (antes era faixa colorida): texto da

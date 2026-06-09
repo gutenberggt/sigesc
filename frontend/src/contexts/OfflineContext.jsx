@@ -275,7 +275,10 @@ export const OfflineProvider = ({ children }) => {
             if (event.ports && event.ports[0]) {
               const token = localStorage.getItem('accessToken');
               const apiUrl = process.env.REACT_APP_BACKEND_URL;
-              event.ports[0].postMessage({ token, apiUrl });
+              // CSRF: necessário no push (double-submit). Cobre o caso cross-domain
+              // em que o cookie sigesc_csrf não é legível pelo SW.
+              const csrf = sessionStorage.getItem('sigesc_csrf_token') || null;
+              event.ports[0].postMessage({ token, apiUrl, csrf });
             }
             break;
             
