@@ -165,6 +165,33 @@ export async function countPendingSyncItems() {
 }
 
 /**
+ * Conta itens pendentes/com falha agrupados por categoria (coleção).
+ * Ex.: { attendance: { pending: 2, failed: 0 }, grades: { pending: 0, failed: 1 } }
+ */
+export async function countPendingByCollection() {
+  const items = await db.syncQueue
+    .where('status')
+    .anyOf('pending', 'error', 'failed')
+    .toArray();
+  const result = {};
+  for (const it of items) {
+    const key = it.collection || 'outros';
+    if (!result[key]) result[key] = { pending: 0, failed: 0 };
+    if (it.status === 'error' || it.status === 'failed') result[key].failed += 1;
+    else result[key].pending += 1;
+  }
+  return result;
+}
+
+/**
+ * Retorna itens que falharam na sincronização (para o "Ver detalhes").
+ */
+export async function getFailedSyncItems() {
+  const items = await db.syncQueue.toArray();
+  return items.filter((it) => it.status === 'error' || it.status === 'failed');
+}
+
+/**
  * Atualiza status de um item na fila
  */
 export async function updateSyncQueueItem(id, status, error = null) {

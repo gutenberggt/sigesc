@@ -307,6 +307,22 @@ class SyncService {
       .where('status').equals('failed')
       .modify({ status: 'pending', retries: 0, lastError: null });
   }
+
+  /**
+   * Envia telemetria de sincronização ao servidor (best-effort).
+   * Modelo de dados preparado para o SIGESC IA. Nunca quebra a sincronização.
+   */
+  async recordTelemetry(payload) {
+    try {
+      const token = this.getAuthToken();
+      if (!token) return;
+      await axios.post(`${API_URL}/api/sync/telemetry`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (e) {
+      // Telemetria é opcional; ignora falhas silenciosamente.
+    }
+  }
 }
 
 // Instância singleton

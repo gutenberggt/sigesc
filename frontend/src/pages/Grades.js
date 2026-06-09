@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreFieldIndicator } from '@/components/BimestreStatus';
 import { OfflineManagementPanel, OfflineDataBadge } from '@/components/OfflineManagementPanel';
+import { PainelSincronizacao } from '@/components/PainelSincronizacao';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import { GradesContext } from '@/contexts/GradesContext';
@@ -747,6 +748,9 @@ export function Grades() {
         
         {/* Alerta de prazos de edição (para bimestres ABERTOS) */}
         <BimestreDeadlineAlert editStatus={editStatus} />
+        
+        {/* Painel de Sincronização — visibilidade dos lançamentos (núcleo offline) */}
+        <PainelSincronizacao />
         
         {/* Painel de Gerenciamento Offline */}
         <OfflineManagementPanel 

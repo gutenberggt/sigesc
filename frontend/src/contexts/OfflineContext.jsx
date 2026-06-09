@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { syncService } from '@/services/syncService';
-import { countPendingSyncItems, initializeDatabase } from '@/db/database';
+import { countPendingSyncItems, countPendingByCollection, getFailedSyncItems, initializeDatabase } from '@/db/database';
 import { notificationService } from '@/services/notificationService';
 
 const OfflineContext = createContext(null);
@@ -10,7 +10,13 @@ export const OfflineProvider = ({ children }) => {
   const [isServiceWorkerReady, setIsServiceWorkerReady] = useState(false);
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [pendingByCategory, setPendingByCategory] = useState({}); // { collection: {pending, failed} }
+  const [failedSyncCount, setFailedSyncCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState(() => {
+    // Persistido: "Última atualização enviada" sobrevive a recarregamentos
+    const stored = localStorage.getItem('sigesc_last_sync_at');
+    return stored ? new Date(stored) : null;
+  });
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'error' | 'success'
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -59,6 +65,11 @@ export const OfflineProvider = ({ children }) => {
     try {
       const count = await countPendingSyncItems();
       setPendingSyncCount(count);
+      // Detalhe por categoria (Frequência, Notas, Planejamento...) + falhas
+      const byCat = await countPendingByCollection();
+      setPendingByCategory(byCat);
+      const failed = Object.values(byCat).reduce((s, c) => s + (c.failed || 0), 0);
+      setFailedSyncCount(failed);
     } catch (err) {
       console.error('[PWA] Erro ao contar pendências:', err);
       // Se for erro de versão, tenta reinicializar
@@ -78,13 +89,16 @@ export const OfflineProvider = ({ children }) => {
 
     setSyncStatus('syncing');
     setSyncProgress({ current: 0, total: 0 });
+    const startedAt = Date.now();
 
     try {
       // Processa fila de sincronização
       const result = await syncService.processQueue();
 
       if (result.success) {
-        setLastSyncTime(new Date());
+        const now = new Date();
+        setLastSyncTime(now);
+        localStorage.setItem('sigesc_last_sync_at', now.toISOString());
         setSyncStatus('success');
         
         // Notifica sucesso se tiver itens sincronizados
@@ -106,6 +120,20 @@ export const OfflineProvider = ({ children }) => {
       }
 
       await updatePendingCount();
+
+      // Telemetria (best-effort) — modelo de dados para o SIGESC IA
+      try {
+        const pending = await syncService.getPendingCount();
+        syncService.recordTelemetry({
+          is_online: true,
+          last_sync_at: new Date().toISOString(),
+          pending_items: pending,
+          failed_items: result.results?.failed || 0,
+          last_error: result.success ? null : (result.error || result.reason || null),
+          sync_duration_ms: Date.now() - startedAt,
+        });
+      } catch (_) { /* ignora */ }
+
       return result;
 
     } catch (error) {
@@ -257,13 +285,16 @@ export const OfflineProvider = ({ children }) => {
         const { type, payload } = event.data || {};
         
         switch (type) {
-          case 'SYNC_COMPLETE':
+          case 'SYNC_COMPLETE': {
             console.log('[PWA] Sincronização em background concluída:', payload);
-            setLastSyncTime(new Date());
+            const nowBg = new Date();
+            setLastSyncTime(nowBg);
+            localStorage.setItem('sigesc_last_sync_at', nowBg.toISOString());
             setSyncStatus('success');
             updatePendingCount();
             setTimeout(() => setSyncStatus('idle'), 3000);
             break;
+          }
             
           case 'SYNC_ERROR':
             console.error('[PWA] Erro na sincronização em background:', payload);
@@ -332,15 +363,36 @@ export const OfflineProvider = ({ children }) => {
     }
   }, []);
 
+  // Reenvia itens que falharam e dispara nova sincronização
+  const retryFailedSync = useCallback(async () => {
+    await syncService.retryFailedItems();
+    await updatePendingCount();
+    if (triggerSyncRef.current) return triggerSyncRef.current();
+    return null;
+  }, [updatePendingCount]);
+
+  // Lista de itens com falha (para o "Ver detalhes")
+  const getFailedItems = useCallback(async () => {
+    try {
+      return await getFailedSyncItems();
+    } catch (_) {
+      return [];
+    }
+  }, []);
+
   const value = {
     isOnline,
     isServiceWorkerReady,
     isDatabaseReady,
     pendingSyncCount,
+    pendingByCategory,
+    failedSyncCount,
     lastSyncTime,
     syncStatus,
     syncProgress,
     triggerSync,
+    retryFailedSync,
+    getFailedItems,
     updateServiceWorker,
     clearCache,
     updatePendingCount,

@@ -34,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert } from '@/components/BimestreStatus';
 import { OfflineManagementPanel } from '@/components/OfflineManagementPanel';
+import { PainelSincronizacao } from '@/components/PainelSincronizacao';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
@@ -1023,6 +1024,9 @@ export const Attendance = () => {
         
         {/* Alerta de prazos de edição (para bimestres ABERTOS) */}
         <BimestreDeadlineAlert editStatus={editStatus} />
+        
+        {/* Painel de Sincronização — visibilidade dos lançamentos (núcleo offline) */}
+        <PainelSincronizacao />
         
         {/* Painel de Gerenciamento Offline */}
         <OfflineManagementPanel 

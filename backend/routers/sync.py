@@ -13,7 +13,13 @@ from pydantic import BaseModel
 from datetime import datetime, timezone
 import logging
 
-from tenant_scope import apply_tenant_filter, resolve_tenant_id_for_create
+import uuid
+from tenant_scope import (
+    apply_tenant_filter,
+    resolve_tenant_id_for_create,
+    get_mantenedora_scope,
+    get_user_mantenedora_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +71,15 @@ class SyncPushResponse(BaseModel):
     succeeded: int
     failed: int
     results: List[SyncPushResult]
+
+class SyncTelemetryIn(BaseModel):
+    """Telemetria de sincronização do dispositivo (modelo p/ SIGESC IA)."""
+    is_online: Optional[bool] = True
+    last_sync_at: Optional[str] = None
+    pending_items: int = 0
+    failed_items: int = 0
+    last_error: Optional[str] = None
+    sync_duration_ms: Optional[int] = None
 
 class SyncPullRequest(BaseModel):
     """Request para baixar dados do servidor"""
@@ -236,6 +251,39 @@ def setup_sync_router(db, auth_middleware, limiter=None):
                 "role": current_user["role"]
             }
         }
+    
+    @router.post("/telemetry")
+    async def sync_telemetry(request: Request, body: SyncTelemetryIn):
+        """Registra telemetria de sincronização do dispositivo do usuário.
+
+        Modelo de dados preparado para o SIGESC IA / Student Intelligence Engine:
+        permitirá no futuro monitorar escolas com internet ruim, professores que
+        trabalham muito offline, gargalos e regiões com mais falhas de envio.
+        """
+        current_user = await auth_middleware.get_current_user(request)
+        tenant_id = get_mantenedora_scope(current_user, request) or get_user_mantenedora_id(current_user)
+        school_id = None
+        links = current_user.get("school_links") or []
+        if links and isinstance(links, list) and isinstance(links[0], dict):
+            school_id = links[0].get("school_id")
+
+        doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["id"],
+            "user_name": current_user.get("full_name"),
+            "role": current_user.get("role"),
+            "mantenedora_id": tenant_id,
+            "school_id": school_id,
+            "is_online": body.is_online,
+            "last_sync_at": body.last_sync_at,
+            "pending_items": body.pending_items,
+            "failed_items": body.failed_items,
+            "last_error": body.last_error,
+            "sync_duration_ms": body.sync_duration_ms,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.sync_telemetry.insert_one(doc)
+        return {"recorded": True}
     
     return router
 

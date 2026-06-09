@@ -1,5 +1,39 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Offline: Painel de Sincronização (visibilidade p/ o professor) + telemetria p/ SIGESC IA
+
+**Objetivo:** acabar com a insegurança "será que perdi os lançamentos?". Tudo em
+português claro (sem "sync"/jargão).
+
+**Frontend — novo `components/PainelSincronizacao.jsx` (núcleo do módulo offline):**
+- Status **Conectado / Sem internet**; resumo grande com cor (Tudo enviado ✓ /
+  N aguardando envio / N não enviados / sem internet).
+- **"Última vez enviado"** em linguagem natural (agora mesmo / há X min / hoje às
+  HH:MM / ontem...), **persistida** (sobrevive a recarregar).
+- **Detalhe por categoria**: Frequência, Notas (+ Planejamento/Alunos quando houver)
+  com ✓ Tudo enviado / ⏳ aguardando / ⚠ não enviada.
+- Botão **"Sincronizar Agora"** (mesmo com envio automático) + **"Ver detalhes"**
+  (P2) listando falhas com mensagem amigável e **"Tentar enviar novamente"**.
+- Renderizado no topo das telas de **Notas (Grades.js)** e **Frequência (Attendance.js)**;
+  o `OfflineManagementPanel` (avançado) permanece abaixo.
+
+**OfflineContext / dados:** `lastSyncTime` persistido (localStorage); novos
+`pendingByCategory` e `failedSyncCount`; `retryFailedSync` e `getFailedItems`;
+helpers `countPendingByCollection`/`getFailedSyncItems` no Dexie.
+
+**Telemetria — modelo de dados preparado para o SIGESC IA:**
+- Backend: coleção `sync_telemetry` + `POST /api/sync/telemetry` registrando
+  `{ last_sync_at, pending_items, failed_items, last_error, sync_duration_ms }` +
+  contexto `mantenedora_id/school_id/user_id/role/is_online/created_at`.
+- Frontend envia telemetria (best-effort) ao fim de cada sincronização. Habilita,
+  no futuro, monitorar escolas com internet ruim, professores muito offline e
+  gargalos de envio (P3 — painel gerencial da SEMED ainda não construído).
+
+**Validação:** lint limpo; frontend compila; `POST /telemetry` → 200 e doc gravado
+com a forma correta; 6/6 testes de isolamento do sync verdes. ⚠️ Verificação visual
+do painel pendente (preview em inatividade) → testar após redeploy do frontend.
+
+
 ## 2026-06 — Offline: fix do Background Sync (CSRF) + blindagem multi-tenant do sync
 
 **Contexto:** verificação do funcionamento offline (PWA + SW + Dexie + push/pull).
