@@ -96,13 +96,16 @@ def setup_router(db, audit_service):
                 detail="Este aluno já possui matrícula ativa nesta turma. Não é possível duplicar."
             )
         
-        # Sincroniza dados do aluno com a matrícula (school_id, class_id, status)
+        # Sincroniza dados do aluno com a matrícula (school_id, class_id, status).
+        # IMPORTANTE: espelha o enrollment_number no doc do aluno — sem isto o aluno
+        # fica "sem número de matrícula" na auditoria mesmo tendo matrícula ativa.
         await db.students.update_one(
             {"id": enrollment_data.student_id},
             {"$set": {
                 "school_id": enrollment_data.school_id,
                 "class_id": enrollment_data.class_id,
-                "status": "active"
+                "status": "active",
+                "enrollment_number": doc['enrollment_number']
             }}
         )
         

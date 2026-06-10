@@ -301,6 +301,11 @@ export const studentsAPI = {
       classId ? { class_id: classId } : {}
     );
     return response.data;
+  },
+
+  repairEnrollment: async () => {
+    const response = await axios.post(`${API}/students/enrollment-audit/repair`, {});
+    return response.data;
   }
 };
 

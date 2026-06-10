@@ -12,11 +12,14 @@ import {
   Home,
   Users,
   BookOpen,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { studentsAPI } from '@/services/api';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -47,6 +50,7 @@ export const EnrollmentAudit = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [repairing, setRepairing] = useState(false);
 
   const fetchAudit = useCallback(async () => {
     try {
@@ -68,6 +72,29 @@ export const EnrollmentAudit = () => {
 
   useEffect(() => {
     fetchAudit();
+  }, [fetchAudit]);
+
+  const runRepair = useCallback(async () => {
+    try {
+      setRepairing(true);
+      const res = await studentsAPI.repairEnrollment();
+      const total = (res.fixed_students || 0) + (res.fixed_enrollments || 0);
+      if (total === 0) {
+        toast.success('Tudo certo! Nenhuma matrícula sem número encontrada.');
+      } else {
+        toast.success(
+          `Correção concluída: ${res.fixed_students} aluno(s) e ${res.fixed_enrollments} matrícula(s) numerados` +
+          (res.created_enrollments ? `, ${res.created_enrollments} matrícula(s) criada(s).` : '.')
+        );
+      }
+      await fetchAudit();
+    } catch (e) {
+      toast.error(
+        e?.response?.data?.detail || 'Não foi possível corrigir as matrículas. Tente novamente.'
+      );
+    } finally {
+      setRepairing(false);
+    }
   }, [fetchAudit]);
 
   const ownerName = (id) => (data?.owner_names && data.owner_names[id]) || id;
@@ -134,13 +161,26 @@ export const EnrollmentAudit = () => {
               Auditoria de Matrículas
             </h1>
             <p className="text-slate-500 mt-1 text-sm">
-              Painel somente leitura. Acompanhe matrículas ausentes e duplicadas em tempo real.
+              Acompanhe matrículas ausentes e duplicadas em tempo real. Use “Corrigir” para numerar automaticamente alunos sem matrícula.
             </p>
           </div>
-          <Button onClick={fetchAudit} disabled={loading} data-testid="refresh-audit-button">
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            {data && (data.students.empty > 0 || data.enrollments.empty > 0) && (
+              <Button
+                onClick={runRepair}
+                disabled={repairing || loading}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                data-testid="repair-enrollment-button"
+              >
+                <Wrench className={`w-4 h-4 mr-2 ${repairing ? 'animate-spin' : ''}`} />
+                {repairing ? 'Corrigindo...' : 'Corrigir matrículas sem número'}
+              </Button>
+            )}
+            <Button onClick={fetchAudit} disabled={loading} variant="outline" data-testid="refresh-audit-button">
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {error && (

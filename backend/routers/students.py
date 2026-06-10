@@ -463,6 +463,113 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         }
         return result
 
+    @router.post("/enrollment-audit/repair")
+    async def repair_enrollment_numbers(request: Request):
+        """[Auditoria] Repara matrículas SEM número (enrollment_number vazio).
+
+        Acionável pelo painel de Auditoria. Tenant/escola-aware. Para cada
+        registro vazio, atribui número via gerador ATÔMICO (utils.enrollment):
+          1) Preenche matrículas (`enrollments`) vazias com número fresco.
+          2) Preenche alunos (`students`) vazios espelhando o número da sua
+             matrícula ativa; se não houver, gera fresco (e cria a matrícula
+             quando o aluno está ativo com turma/escola).
+        Idempotente: rodar de novo não altera quem já tem número.
+        """
+        from utils.enrollment import generate_enrollment_number
+
+        current_user = await AuthMiddleware.require_roles(
+            ['super_admin', 'admin', 'admin_teste', 'gerente', 'semed',
+             'semed1', 'semed2', 'semed3', 'secretario']
+        )(request)
+        current_db = get_db_for_user(current_user)
+
+        role = current_user.get('role')
+        base = {}
+        if role != 'super_admin':
+            tenant_id = current_user.get('mantenedora_id')
+            if tenant_id:
+                base['mantenedora_id'] = tenant_id
+        if role == 'secretario':
+            base['school_id'] = {"$in": current_user.get('school_ids', []) or []}
+
+        empty_cond = {"$or": [
+            {"enrollment_number": {"$exists": False}},
+            {"enrollment_number": None},
+            {"enrollment_number": ""},
+        ]}
+        year = datetime.now().year
+
+        fixed_enrollments = 0
+        fixed_students = 0
+        created_enrollments = 0
+
+        # 1) Matrículas vazias → número fresco atômico (cada matrícula é única)
+        async for e in current_db.enrollments.find(
+            {**base, **empty_cond}, {"_id": 0, "id": 1}
+        ):
+            num = await generate_enrollment_number(current_db, year)
+            await current_db.enrollments.update_one(
+                {"id": e["id"]}, {"$set": {"enrollment_number": num}}
+            )
+            fixed_enrollments += 1
+
+        # 2) Alunos vazios → espelha matrícula ativa; senão gera fresco (e cria matrícula)
+        async for s in current_db.students.find(
+            {**base, **empty_cond},
+            {"_id": 0, "id": 1, "status": 1, "class_id": 1, "school_id": 1, "mantenedora_id": 1}
+        ):
+            sid = s["id"]
+            enr = await current_db.enrollments.find_one(
+                {"student_id": sid, "status": "active",
+                 "enrollment_number": {"$gt": ""}},
+                sort=[("created_at", -1)]
+            )
+            if enr and enr.get("enrollment_number"):
+                num = enr["enrollment_number"]
+            else:
+                num = await generate_enrollment_number(current_db, year)
+                # Cria a matrícula ausente quando o aluno está ativo com turma
+                if s.get("status") == "active" and s.get("class_id") and s.get("school_id"):
+                    class_info = await current_db.classes.find_one(
+                        {"id": s["class_id"]}, {"_id": 0, "grade_level": 1}
+                    )
+                    await current_db.enrollments.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "student_id": sid,
+                        "school_id": s["school_id"],
+                        "class_id": s["class_id"],
+                        "academic_year": year,
+                        "status": "active",
+                        "enrollment_number": num,
+                        "student_series": class_info.get("grade_level") if class_info else None,
+                        "enrollment_date": datetime.now(timezone.utc).isoformat(),
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "mantenedora_id": s.get("mantenedora_id"),
+                    })
+                    created_enrollments += 1
+            await current_db.students.update_one(
+                {"id": sid}, {"$set": {"enrollment_number": num}}
+            )
+            fixed_students += 1
+
+        await audit_service.log(
+            action='update',
+            collection='enrollments',
+            user=current_user,
+            request=request,
+            document_id='enrollment-audit-repair',
+            description=(f"Reparo de matrículas sem número: "
+                        f"{fixed_students} alunos, {fixed_enrollments} matrículas, "
+                        f"{created_enrollments} matrículas criadas.")
+        )
+
+        return {
+            "fixed_students": fixed_students,
+            "fixed_enrollments": fixed_enrollments,
+            "created_enrollments": created_enrollments,
+        }
+
+
     @router.get("/autocomplete")
     async def autocomplete_students(
         request: Request,
@@ -1387,6 +1494,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 {"student_id": student_id, "school_id": old_school_id, "class_id": old_class_id, "academic_year": academic_year},
                 {"_id": 0}
             )
+            # Mantém o número da matrícula de origem (mesma identidade do aluno).
+            # Se a matrícula de origem estiver SEM número (passivo legado), gera um
+            # número atômico fresco em vez de propagar None — assim a nova matrícula
+            # nunca nasce "sem número".
+            carried_number = old_enrollment.get("enrollment_number") if old_enrollment else None
+            if not carried_number:
+                carried_number = await generate_enrollment_number(current_db, academic_year)
+                update_data['enrollment_number'] = carried_number
             new_enrollment = {
                 "id": str(uuid.uuid4()),
                 "student_id": student_id,
@@ -1394,7 +1509,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 "class_id": new_class_id,
                 "academic_year": academic_year,
                 "status": "active",
-                "enrollment_number": old_enrollment.get("enrollment_number") if old_enrollment else None,
+                "enrollment_number": carried_number,
                 "student_series": update_data.get('student_series') or (old_enrollment.get("student_series") if old_enrollment else None),
                 "enrollment_date": (f"{custom_action_date}T12:00:00+00:00" if custom_action_date else datetime.now(timezone.utc).isoformat())
             }
@@ -1530,6 +1645,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 if not existing_enrollment and new_school_id and new_class_id:
                     # Gera número de matrícula (atômico)
                     new_enrollment_number = await generate_enrollment_number(current_db, academic_year)
+                    # Espelha no doc do aluno — garante que ele NÃO fique "sem número".
+                    update_data['enrollment_number'] = new_enrollment_number
                     
                     # Cria nova matrícula
                     new_enrollment = {
