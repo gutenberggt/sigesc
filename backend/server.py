@@ -112,6 +112,7 @@ from routers import curriculum as curriculum_mod
 from routers import curriculum_import as curriculum_import_mod
 from routers import curriculum_v2 as curriculum_v2_mod
 from routers import interventions as interventions_mod
+from routers import student_intelligence as student_intelligence_mod
 from routers import tenant_admin as tenant_admin_mod
 from routers import snapshots as snapshots_mod
 from routers import verifiable_docs as verifiable_docs_mod
@@ -574,6 +575,7 @@ app.include_router(curriculum_mod.setup_router(db), prefix="/api")
 app.include_router(curriculum_import_mod.setup_router(db), prefix="/api")
 app.include_router(curriculum_v2_mod.setup_router(db), prefix="/api")
 app.include_router(interventions_mod.setup_router(db), prefix="/api")
+app.include_router(student_intelligence_mod.setup_router(db, audit_service, sandbox_db), prefix="/api")
 app.include_router(tenant_admin_mod.setup_router(db), prefix="/api")
 app.include_router(snapshots_mod.setup_router(db), prefix="/api")
 _vd_public, _vd_admin = verifiable_docs_mod.setup_router(db, limiter=limiter)

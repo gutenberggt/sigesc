@@ -1,0 +1,37 @@
+{
+  "summary": "Testes de backend dos 7 endpoints do SIE (FASE 0) via HTTP/pytest. Todos os endpoints retornaram 200 com payloads esperados; auth via Bearer + X-CSRF-Token validada; PUT /config corretamente bloqueado para papéis fora do allow-list (professor → 403); persistência idempotente verificada (re-compute no mesmo dia não duplica risk_score). 9/9 endpoint tests + 11/11 unit tests (test_sie_engines.py) passando.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/sie/config", "issue": "Super_admin sem X-Mantenedora-Id recebe 400 'Mantenedora não identificada'. Comportamento esperado pelo design, mas vale documentar (E1 já alertou em context). Frontend admin deve enviar o header."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sie_endpoints.py",
+    "/app/backend/tests/test_sie_engines.py",
+    "/app/test_reports/pytest/sie_endpoints.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routers/student_intelligence.py: endpoints corretamente projetam {'_id': 0} em todas as queries (sem vazamento de ObjectId). Persistência via upsert por (student_id, academic_year) e snapshot por (student_id, academic_year, snapshot_date) garante idempotência diária — verificado em teste.",
+    "Resolução de alertas (update_many com $nin nos alert_types correntes) é elegante mas executa por aluno em loop dentro do batch; para mantenedoras grandes considerar bulk write. Não bloqueante para FASE 0.",
+    "POST /api/sie/compute carrega cfg.get_or_create_config dentro do loop por aluno (mesmo tenant_id repetido). Caching por tenant_id reduziria N idas ao Mongo; otimização para FASE 1.",
+    "Pydantic ConfigUpdate aceita Optional[Dict[str, float]] para weights/bands mas não valida se a soma bate 100. Validador opcional para evitar config inconsistente."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sie_endpoints.py (criado — 9 testes pytest)"
+  ],
+  "success_rate": {"backend": "100% (9/9 endpoint + 11/11 unit)", "frontend": "N/A (skipped)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin) com header X-Mantenedora-Id=a991c1ac-56b1-46a8-b122-effedbe19b21 (SEMED Floresta). Para teste de 403 no PUT /config usei professor.teste@sigesc.com / Professor@2026 (papel professor, fora do allow-list). NOTA: coordenador@sigesc.com/coordenador123 e kledbyaschenkel@sigesc.com/856567 listados em /app/memory/test_credentials.md retornaram 'Email ou senha incorretos' — não estão semeados no ambiente preview.",
+  "seed_data_creation": "Nenhum seed criado. Usado student real (primeiro retornado por /api/students) que é tenant SEMED. Persistência cria docs em student_risk_scores, student_diagnostics, student_snapshots e student_alerts — todos com mantenedora_id preenchido.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_sie_endpoints.py é regression-safe (limpa estado restaurando passing_grade=6.0 ao final). Para rodar: cd /app/backend && python -m pytest tests/test_sie_endpoints.py -v. Endpoints validados: GET /api/sie/config, PUT /api/sie/config, GET /api/sie/students/{id}, POST /api/sie/students/{id}/compute (idempotência por dia confirmada), POST /api/sie/compute (batch com filtro class_id), GET /api/sie/risk (ordenação overall_risk desc + filtros level), GET /api/sie/alerts (ordenação por severidade + filtro resolved=false), GET /api/sie/students/{id}/snapshots. Isolamento tenant: docs persistidos carregam mantenedora_id e _id nunca é serializado.",
+  "rca of the issue": "N/A — sem bugs encontrados."
+}
