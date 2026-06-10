@@ -248,9 +248,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         stats = {'processed': 0, 'by_level': {'low': 0, 'moderate': 0, 'high': 0, 'critical': 0},
                  'alerts_open': 0}
+        cfg_cache: Dict[str, Any] = {}
         async for student in current_db.students.find(q, {'_id': 0}):
             tenant_id = student.get('mantenedora_id')
-            cfg = await sie_service.get_or_create_config(current_db, tenant_id)
+            cfg = cfg_cache.get(tenant_id or '__none__')
+            if cfg is None:
+                cfg = await sie_service.get_or_create_config(current_db, tenant_id)
+                cfg_cache[tenant_id or '__none__'] = cfg
             result = await sie_service.compute_for_student(current_db, student, cfg, year)
             await _persist(current_db, student, result, year, tenant_id)
             stats['processed'] += 1

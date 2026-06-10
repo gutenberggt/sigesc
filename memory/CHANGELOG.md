@@ -1,5 +1,21 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — SIE (Student Intelligence Engine) — FASE 0 (backend, baseado em regras)
+
+- Novo motor de inteligência por aluno com **scores SEPARADOS**: Risco Acadêmico,
+  Risco de Frequência e Risco Geral (0–100), em **4 níveis** (low/moderate/high/critical).
+- 5 coleções multi-tenant: `sie_config`, `student_risk_scores`, `student_diagnostics`
+  (estruturado), `student_snapshots` (série temporal), `student_alerts`.
+- 5 motores puros e testáveis (`services/`): academic/attendance/overall/diagnostic/alert
+  + orquestração `sie_service.py`. Pesos: acadêmico (notas 50/recup 20/repro 20/tend 10),
+  frequência (presença anual 70/faltas recentes 30), geral (acad 55% + freq 45%).
+- Tendência (improving/stable/falling) e **explicabilidade** (factors/breakdown) em todo score.
+- Endpoints `/api/sie`: GET/PUT `/config`, GET `/students/{id}` (ao vivo), POST
+  `/students/{id}/compute` (persiste), POST `/compute` (lote), GET `/risk`, `/alerts`,
+  `/students/{id}/snapshots`. Multi-tenant via `tenant_scope.py`.
+- Testes: 11 unitários (`tests/test_sie_engines.py`) + 9 de endpoint — 100% passando.
+- Blueprint em `/app/memory/ROADMAP_SIE.md`. Próximo: FASE 1 (frontend MVP + cron + notificações).
+
 ## 2026-06 — Offline: confirmação acolhedora no momento do salvar (offline)
 
 - Ao salvar **Notas** ou **Frequência** sem internet, a mensagem passou a ser, em
