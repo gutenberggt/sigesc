@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://sla-trio-weighted.preview.emergentagent.com/api"
+API_URL = "https://login-offline-mode.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [

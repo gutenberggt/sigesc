@@ -9,7 +9,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://sla-trio-weighted.preview.emergentagent.com",
+    "https://login-offline-mode.preview.emergentagent.com",
 ).rstrip("/")
 SUPER_ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 

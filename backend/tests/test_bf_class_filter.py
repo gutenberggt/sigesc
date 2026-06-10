@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sla-trio-weighted.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://login-offline-mode.preview.emergentagent.com").rstrip("/")
 
 SCHOOL_ID = "220d4022-ec5e-4fb6-86fc-9233112b87b2"
 CLASS_2ANO = "9f71ed93-c55f-44d2-87a9-c8567ccddd6a"      # 2 Ano - 1 aluno
