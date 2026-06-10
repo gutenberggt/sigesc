@@ -25,20 +25,30 @@ const CSRF_WRITE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
 
 // G2 fix Mai/2026: em deploys cross-domain (frontend ≠ backend) o cookie CSRF
 // fica vinculado ao domínio do backend e o JS não consegue lê-lo via
-// document.cookie. O backend agora retorna o csrf_token no body do /login e
-// /refresh — guardamos em sessionStorage e usamos como fonte primária.
+// document.cookie. O backend retorna o csrf_token no body do /login e /refresh.
+// Jun/2026: passamos a guardar em localStorage (e não sessionStorage) para que o
+// token CSRF seja COMPARTILHADO ENTRE ABAS. sessionStorage é isolado por aba, o
+// que fazia POSTs de uma aba recém-aberta irem SEM CSRF → 403 "CSRF inválido".
 export function setCsrfToken(token) {
   if (token) {
-    try { sessionStorage.setItem(CSRF_STORAGE_KEY, token); } catch { /* ignore */ }
+    try { localStorage.setItem(CSRF_STORAGE_KEY, token); } catch { /* ignore */ }
+    // Limpa resíduo antigo em sessionStorage para evitar divergência entre abas.
+    try { sessionStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
   }
 }
 export function clearCsrfToken() {
+  try { localStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
   try { sessionStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
 }
 function getCsrfToken() {
   try {
-    const stored = sessionStorage.getItem(CSRF_STORAGE_KEY);
+    const stored = localStorage.getItem(CSRF_STORAGE_KEY);
     if (stored) return stored;
+  } catch { /* ignore */ }
+  // Fallbacks: sessionStorage (sessões antigas nesta aba) e cookie (mesmo domínio).
+  try {
+    const legacy = sessionStorage.getItem(CSRF_STORAGE_KEY);
+    if (legacy) return legacy;
   } catch { /* ignore */ }
   return readCookie(CSRF_COOKIE_NAME);
 }
