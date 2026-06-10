@@ -1,7 +1,8 @@
 {
-  "version": "2.9.0",
-  "build_date": "2026-06-09T00:00:00Z",
+  "version": "2.10.0",
+  "build_date": "2026-06-12T00:00:00Z",
   "features": [
+    "Login Offline Real (app shell via Service Worker)",
     "Atestados Médicos",
     "Edição Offline de Alunos",
     "Legendas em PDFs",

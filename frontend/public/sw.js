@@ -1,11 +1,18 @@
-// SIGESC Service Worker - Versão 2.9.0
+// SIGESC Service Worker - Versão 2.10.0
+// [Jun/2026] LOGIN OFFLINE REAL: a navegação agora usa network-first com fallback
+// para o app shell (index.html) cacheado dinamicamente. Ao abrir a URL SEM internet,
+// o React inicia e exibe a tela de login offline em vez da página estática offline.html.
+// Anti-loop: online sempre busca index.html + bundles frescos (network-first) e os
+// cacheia casados; offline serve a dupla cacheada da última visita online.
 // [Jun/2026] Background Sync agora envia X-CSRF-Token (derivado do JWT) → corrige
 // o 403 silencioso que quebrava a sincronização automática em segundo plano.
 // [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
 // Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
 // (impedindo que bundles JS antigos quebrem o app após deploy).
-const CACHE_NAME = 'sigesc-cache-v10';
+const CACHE_NAME = 'sigesc-cache-v11';
 const OFFLINE_URL = '/offline.html';
+// Chave fixa onde o app shell (index.html) é cacheado dinamicamente a cada visita online.
+const APP_SHELL_URL = '/index.html';
 const DB_NAME = 'SigescOfflineDB';
 
 // Assets estáticos para cache imediato.
@@ -148,7 +155,7 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.8.0...');
+  console.log('[SW] Instalando Service Worker v2.10.0...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -212,10 +219,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Navegação (HTML / index): SEMPRE rede primeiro, NUNCA cachear o index.html.
-  // Se a rede falhar e for navegação, cai em offline.html.
-  // Isso evita o "loop Carregando..." quando o navegador tem um SW antigo cujo
-  // index.html cacheado referencia bundles JS com hash que já não existem.
+  // Navegação (HTML / index): rede primeiro. Em sucesso, cacheia o app shell fresco.
+  // Se a rede falhar (offline), serve o index.html cacheado para o React iniciar e
+  // exibir o login offline; só cai em offline.html se nem o shell estiver em cache.
   if (request.mode === 'navigate' || (request.destination === 'document')) {
     event.respondWith(navigationStrategy(request));
     return;
@@ -235,14 +241,27 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Estratégia para navegação HTML — nunca cacheia o index, sempre busca rede.
-// Se offline, cai no offline.html.
+// Estratégia para navegação HTML — network-first com fallback para o app shell.
+// Online: busca o index.html fresco e o cacheia (casado com os bundles network-first).
+// Offline: serve o index.html cacheado da última visita online → React inicia → login offline.
 async function navigationStrategy(request) {
   try {
     const networkResponse = await fetch(request, { cache: 'no-store' });
+    // Cacheia o app shell fresco sob chave fixa para uso offline futuro.
+    if (networkResponse && networkResponse.ok) {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(APP_SHELL_URL, networkResponse.clone());
+      } catch (e) {
+        console.warn('[SW] Não foi possível cachear o app shell:', e.message);
+      }
+    }
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Rede falhou em navegação, servindo offline.html');
+    console.log('[SW] Rede falhou em navegação — servindo app shell cacheado (index.html)');
+    const cachedShell = await caches.match(APP_SHELL_URL);
+    if (cachedShell) return cachedShell;
+    // Fallback final: nenhum shell cacheado ainda (usuário nunca abriu online).
     const offline = await caches.match(OFFLINE_URL);
     if (offline) return offline;
     return new Response('Offline', { status: 503 });
@@ -588,4 +607,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-console.log('[SW] Service Worker v2.2.0 carregado com Background Sync');
+console.log('[SW] Service Worker v2.10.0 carregado (login offline via app shell + Background Sync)');
