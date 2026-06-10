@@ -703,7 +703,7 @@ export const Attendance = () => {
             await addToSyncQueue('attendance', SYNC_OPERATIONS.CREATE, tempId, dataWithMeta);
           }
           
-          showAlertMessage('success', 'Frequência salva localmente! Será sincronizada quando houver conexão.');
+          showAlertMessage('success', 'Frequência salva no aparelho ✓ — será enviada automaticamente quando a internet voltar.');
         }
       }
       

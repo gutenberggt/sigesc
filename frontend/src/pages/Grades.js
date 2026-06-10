@@ -580,7 +580,7 @@ export function Grades() {
             await addToSyncQueue('grades', SYNC_OPERATIONS.CREATE, tempId, gradeWithMeta);
           }
         }
-        showAlert('success', 'Notas salvas localmente! Serão sincronizadas quando houver conexão.');
+        showAlert('success', 'Notas salvas no aparelho ✓ — serão enviadas automaticamente quando a internet voltar.');
       }
       
       setHasChanges(false);

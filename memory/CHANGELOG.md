@@ -1,5 +1,17 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Offline: confirmação acolhedora no momento do salvar (offline)
+
+- Ao salvar **Notas** ou **Frequência** sem internet, a mensagem passou a ser, em
+  linguagem clara e tranquilizadora: *"Notas/Frequência salva no aparelho ✓ — será
+  enviada automaticamente quando a internet voltar."* (antes: "salvas localmente /
+  serão sincronizadas").
+- Reforça a confiança no exato momento da ação, complementando o Painel de
+  Sincronização. Frontend compila; alteração é apenas de texto (sem lógica nova).
+  Obs.: avisos de lint `react-hooks` em Grades.js/Attendance.js são pré-existentes,
+  não relacionados a esta mudança.
+
+
 ## 2026-06 — Offline: Painel de Sincronização (visibilidade p/ o professor) + telemetria p/ SIGESC IA
 
 **Objetivo:** acabar com a insegurança "será que perdi os lançamentos?". Tudo em
