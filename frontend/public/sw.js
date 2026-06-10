@@ -1,15 +1,14 @@
-// SIGESC Service Worker - Versão 2.10.0
-// [Jun/2026] LOGIN OFFLINE REAL: a navegação agora usa network-first com fallback
-// para o app shell (index.html) cacheado dinamicamente. Ao abrir a URL SEM internet,
-// o React inicia e exibe a tela de login offline em vez da página estática offline.html.
-// Anti-loop: online sempre busca index.html + bundles frescos (network-first) e os
-// cacheia casados; offline serve a dupla cacheada da última visita online.
+// SIGESC Service Worker - Versão 2.11.0
+// [Jun/2026] LOGIN OFFLINE SEMPRE: o app shell (index.html) é pré-cacheado já na
+// instalação do SW (visita online) e também a cada navegação online. Offline, a
+// navegação serve o shell cacheado → React inicia → tela de LOGIN, nunca a página
+// estática offline.html (esta só aparece em dispositivo que NUNCA acessou online).
 // [Jun/2026] Background Sync agora envia X-CSRF-Token (derivado do JWT) → corrige
 // o 403 silencioso que quebrava a sincronização automática em segundo plano.
 // [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
 // Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
 // (impedindo que bundles JS antigos quebrem o app após deploy).
-const CACHE_NAME = 'sigesc-cache-v11';
+const CACHE_NAME = 'sigesc-cache-v12';
 const OFFLINE_URL = '/offline.html';
 // Chave fixa onde o app shell (index.html) é cacheado dinamicamente a cada visita online.
 const APP_SHELL_URL = '/index.html';
@@ -155,13 +154,17 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.10.0...');
+  console.log('[SW] Instalando Service Worker v2.11.0...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('[SW] Cacheando assets estáticos');
-        return cache.addAll(STATIC_ASSETS);
+        await cache.addAll(STATIC_ASSETS);
+        // Pré-cacheia o app shell (index.html) JÁ na instalação. Como a instalação
+        // ocorre durante uma visita ONLINE, garante que o login offline esteja
+        // disponível imediatamente na próxima navegação sem internet.
+        await precacheAppShell(cache);
       })
       .then(() => {
         console.log('[SW] Service Worker instalado');
@@ -172,6 +175,20 @@ self.addEventListener('install', (event) => {
       })
   );
 });
+
+// Busca o index.html fresco e o guarda sob a chave fixa do app shell.
+// Tolerante a falha: se estiver offline na instalação, não quebra o SW.
+async function precacheAppShell(cache) {
+  try {
+    const res = await fetch(APP_SHELL_URL, { cache: 'no-store' });
+    if (res && res.ok) {
+      await cache.put(APP_SHELL_URL, res.clone());
+      console.log('[SW] App shell (index.html) pré-cacheado para login offline');
+    }
+  } catch (e) {
+    console.warn('[SW] Não foi possível pré-cachear o app shell na instalação:', e.message);
+  }
+}
 
 // ============= Ativação do Service Worker =============
 
@@ -607,4 +624,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-console.log('[SW] Service Worker v2.10.0 carregado (login offline via app shell + Background Sync)');
+console.log('[SW] Service Worker v2.11.0 carregado (login offline sempre via app shell + Background Sync)');

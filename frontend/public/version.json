@@ -1,8 +1,8 @@
 {
-  "version": "2.10.0",
+  "version": "2.11.0",
   "build_date": "2026-06-12T00:00:00Z",
   "features": [
-    "Login Offline Real (app shell via Service Worker)",
+    "Login Offline Sempre (app shell pré-cacheado na instalação do SW)",
     "Atestados Médicos",
     "Edição Offline de Alunos",
     "Legendas em PDFs",
