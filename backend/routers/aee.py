@@ -99,11 +99,15 @@ def setup_aee_router(db, audit_service):
             "student_id": plano_data.student_id,
             "academic_year": plano_data.academic_year,
             "status": {"$in": ["ativo", "rascunho"]}
-        })
+        }, {"_id": 0, "status": 1})
         if existing:
+            status_label = {"ativo": "ativo", "rascunho": "em rascunho"}.get(
+                existing.get("status"), existing.get("status") or "ativo")
+            nome = student.get('full_name', 'Este aluno')
             raise HTTPException(
                 status_code=400,
-                detail="Já existe um Plano AEE ativo ou em rascunho para este aluno neste ano letivo"
+                detail=(f"{nome} já possui um Plano AEE {status_label} no ano letivo "
+                        f"{plano_data.academic_year}. Edite o plano existente em vez de criar um novo.")
             )
         
         # Cria o plano — [Mai/2026] CAPS lock automático removido (autorizado pelo proprietário)
