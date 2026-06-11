@@ -11,8 +11,17 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from pymongo import InsertOne
 
 from auth_middleware import AuthMiddleware
+from scripts.text_improvement import (
+    CONTENT_FIELDS_BY_COLLECTION,
+    _build_queue_item,
+    detect_format_issues,
+    detect_spelling_issues,
+    should_skip_format,
+    should_skip_spelling,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/text-improvement", tags=["Text Improvement"])
@@ -53,6 +62,12 @@ class BulkApproveRequest(BaseModel):
 class BulkApproveByRuleRequest(BaseModel):
     rule: str = Field(..., min_length=1, max_length=64)
     confirm: bool = Field(default=False)
+
+
+class ScanRequest(BaseModel):
+    # Admin pode restringir a coleção; professor sempre analisa só os próprios
+    # registros de `learning_objects` (ignorado para professor).
+    collection: Optional[str] = None
 
 
 def setup_router(db, **_kwargs):
@@ -219,6 +234,107 @@ def setup_router(db, **_kwargs):
             rows[col][st] = doc["count"]
             totals[st] = totals.get(st, 0) + doc["count"]
         return {"per_collection": rows, "totals": totals}
+
+    # ------------------------------------------------------------------
+    # BUSCA SOB DEMANDA — analisa textos e propõe correções.
+    # Professor: APENAS os próprios registros (learning_objects criados por ele).
+    # Admin: todas as coleções da whitelist (ou uma específica).
+    # ------------------------------------------------------------------
+    MAX_SCAN_DOCS = 3000
+
+    async def _already_pending(col_name: str, doc_id, field: str, tipo: str) -> bool:
+        existing = await db[QUEUE].find_one({
+            "source_collection": col_name,
+            "source_id": str(doc_id),
+            "source_field": field,
+            "tipo": tipo,
+            "status": "pending",
+        }, {"_id": 1})
+        return existing is not None
+
+    @router.post("/scan")
+    async def scan_texts(request: Request, body: ScanRequest = ScanRequest()):
+        user = await _require_user(request)
+        uid = user.get("id")
+        is_teacher = user.get("role") in _TEACHER_ROLES
+
+        # Define alvo e filtro de propriedade
+        if is_teacher:
+            targets = {"learning_objects": CONTENT_FIELDS_BY_COLLECTION["learning_objects"]}
+            owner_filter = {"$or": [
+                {"recorded_by": uid},
+                {"created_by_user_id": uid},
+                {"created_by": uid},
+            ]}
+        else:
+            if body and body.collection:
+                if body.collection not in CONTENT_FIELDS_BY_COLLECTION:
+                    raise HTTPException(400, "Coleção fora da whitelist.")
+                cols = [body.collection]
+            else:
+                cols = list(CONTENT_FIELDS_BY_COLLECTION.keys())
+            targets = {c: CONTENT_FIELDS_BY_COLLECTION[c] for c in cols}
+            owner_filter = {}
+
+        meta_fields = {
+            "_id": 1, "id": 1, "mantenedora_id": 1, "full_name": 1, "nome": 1,
+            "name": 1, "class_id": 1, "course_id": 1, "recorded_by": 1,
+            "created_by_user_id": 1, "created_by": 1,
+        }
+
+        enqueued = duplicates = candidates = scanned = 0
+        for col_name, fields in targets.items():
+            projection = {**meta_fields, **{f: 1 for f in fields}}
+            cursor = db[col_name].find(owner_filter, projection).limit(MAX_SCAN_DOCS)
+            ops: List[InsertOne] = []
+            async for doc in cursor:
+                scanned += 1
+                doc_id = doc.get("id") or doc.get("_id")
+                for f in fields:
+                    v = doc.get(f)
+                    if not isinstance(v, str) or not v.strip():
+                        continue
+
+                    # FASE 1 — Formatação
+                    if not should_skip_format(v):
+                        new_v, rules = detect_format_issues(v)
+                        if rules:
+                            candidates += 1
+                            if await _already_pending(col_name, doc_id, f, "formatacao"):
+                                duplicates += 1
+                            else:
+                                ops.append(InsertOne(_build_queue_item(
+                                    col_name, doc, f, v, new_v, rules, tipo="formatacao")))
+                                enqueued += 1
+
+                    # FASE 2 — Ortografia
+                    if not should_skip_spelling(v):
+                        new_sp, corrections = detect_spelling_issues(v)
+                        if corrections:
+                            candidates += 1
+                            if await _already_pending(col_name, doc_id, f, "ortografia"):
+                                duplicates += 1
+                            else:
+                                avg_conf = sum(c["confidence"] for c in corrections) / len(corrections)
+                                rules_list = [f"sp_{c['original']}_{c['sugestao']}" for c in corrections]
+                                ops.append(InsertOne(_build_queue_item(
+                                    col_name, doc, f, v, new_sp, rules_list,
+                                    tipo="ortografia", confidence=round(avg_conf, 2),
+                                    spelling_corrections=corrections)))
+                                enqueued += 1
+
+                if len(ops) >= 500:
+                    await db[QUEUE].bulk_write(ops, ordered=False); ops.clear()
+            if ops:
+                await db[QUEUE].bulk_write(ops, ordered=False)
+
+        return {
+            "enqueued": enqueued,
+            "duplicates": duplicates,
+            "candidates": candidates,
+            "scanned": scanned,
+            "scope": "self" if is_teacher else "all",
+        }
 
     @router.get("/{item_id}/context")
     async def get_context(item_id: str, request: Request):

@@ -1,5 +1,21 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Apoio à Escrita: busca sob demanda para o PROFESSOR
+
+- Novo endpoint `POST /api/admin/text-improvement/scan`: o professor (ou admin)
+  dispara a análise de textos e recebe propostas de correção (formatação +
+  ortografia, 100% determinístico, reutilizando `scripts/text_improvement.py`).
+- **Escopo restrito ao usuário logado**: professor analisa SOMENTE seus próprios
+  `learning_objects` (`recorded_by`); itens enfileirados ficam visíveis só a ele
+  (`recorded_by_user_id`). Admin pode varrer todas as coleções da whitelist.
+- Frontend (`TextImprovement.jsx`): página agora role-aware — botão "Buscar
+  sugestões" para todos; ferramentas de admin (aprovação em massa / por regra e
+  `rules-summary`) só aparecem para admin (evita 403 que quebrava a página do
+  professor). Empty state orienta a clicar em "Buscar sugestões". `authHeaders`
+  corrigido (lê `accessToken` + CSRF do localStorage).
+- Testado: professor → scan (3 sugestões no próprio registro) → lista (scope=self)
+  → aprovar (dono validado, aplicado na origem). Smoke de UI do professor OK.
+
 ## 2026-06 — SIE (Student Intelligence Engine) — FASE 0 (backend, baseado em regras)
 
 - Novo motor de inteligência por aluno com **scores SEPARADOS**: Risco Acadêmico,

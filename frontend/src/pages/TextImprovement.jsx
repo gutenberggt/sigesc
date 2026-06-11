@@ -20,8 +20,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const ADMIN_ROLES = ['super_admin', 'admin', 'admin_teste'];
 
 const COLLECTION_LABELS = {
   students: 'Alunos',
@@ -62,8 +64,8 @@ const STATUS_BADGES = {
 };
 
 function authHeaders() {
-  const token = localStorage.getItem('sigesc_token');
-  const csrf = sessionStorage.getItem('sigesc_csrf_token');
+  const token = localStorage.getItem('accessToken');
+  const csrf = localStorage.getItem('sigesc_csrf_token') || sessionStorage.getItem('sigesc_csrf_token');
   return {
     Authorization: `Bearer ${token}`,
     ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
@@ -82,9 +84,12 @@ function ruleLabel(rule) {
 }
 
 export default function TextImprovement() {
+  const { user } = useAuth();
+  const isAdmin = ADMIN_ROLES.includes(user?.role);
   const [items, setItems] = useState([]);
   const [stats, setStats] = useState({ totals: {}, per_collection: {} });
   const [loading, setLoading] = useState(true);
+  const [scanLoading, setScanLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [collectionFilter, setCollectionFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
@@ -102,14 +107,18 @@ export default function TextImprovement() {
     try {
       const params = { status: statusFilter, limit: 100 };
       if (collectionFilter) params.collection = collectionFilter;
-      const [listRes, statsRes, rulesRes] = await Promise.all([
+      const reqs = [
         axios.get(`${API}/admin/text-improvement`, { params, headers: authHeaders() }),
         axios.get(`${API}/admin/text-improvement/stats`, { headers: authHeaders() }),
-        axios.get(`${API}/admin/text-improvement/rules-summary`, { headers: authHeaders() }),
-      ]);
+      ];
+      // rules-summary é ferramenta administrativa (aprovação em massa por regra).
+      if (isAdmin) {
+        reqs.push(axios.get(`${API}/admin/text-improvement/rules-summary`, { headers: authHeaders() }));
+      }
+      const [listRes, statsRes, rulesRes] = await Promise.all(reqs);
       setItems((listRes.data.items || []).filter(it => !tipoFilter || it.tipo === tipoFilter));
       setStats(statsRes.data || { totals: {}, per_collection: {} });
-      setRulesSummary(rulesRes.data.single_rule_groups || []);
+      setRulesSummary(isAdmin && rulesRes ? (rulesRes.data.single_rule_groups || []) : []);
       setSelected(new Set());
     } catch (err) {
       toast.error('Falha ao carregar fila de higienização');
@@ -117,9 +126,30 @@ export default function TextImprovement() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, collectionFilter, tipoFilter]);
+  }, [statusFilter, collectionFilter, tipoFilter, isAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleScan = async () => {
+    setScanLoading(true);
+    try {
+      const res = await axios.post(`${API}/admin/text-improvement/scan`, {}, { headers: authHeaders() });
+      const { enqueued = 0, candidates = 0 } = res.data || {};
+      if (enqueued > 0) {
+        toast.success(`${enqueued} sugestão(ões) de escrita encontrada(s) nos seus textos.`);
+      } else if (candidates > 0) {
+        toast.info('Nenhuma sugestão nova — as encontradas já estavam na sua fila.');
+      } else {
+        toast.success('Tudo certo! Não encontramos ajustes de escrita nos seus textos.');
+      }
+      setStatusFilter('pending');
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Falha ao analisar os textos.');
+    } finally {
+      setScanLoading(false);
+    }
+  };
 
   const handleApprove = async (id) => {
     setActionLoading(true);
@@ -270,8 +300,13 @@ export default function TextImprovement() {
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} data-testid="refresh-btn">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
+          <Button size="sm" onClick={handleScan} disabled={scanLoading || loading}
+                  className="bg-violet-600 hover:bg-violet-700" data-testid="scan-btn">
+            {scanLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+            {scanLoading ? 'Analisando...' : 'Buscar sugestões'}
+          </Button>
           <div className="ml-auto flex gap-2">
-            {statusFilter === 'pending' && items.length > 0 && (
+            {isAdmin && statusFilter === 'pending' && items.length > 0 && (
               <>
                 <Button variant="outline" size="sm" onClick={toggleSelectAll} data-testid="toggle-select-all">
                   {selected.size === items.length ? <CheckSquare className="w-4 h-4 mr-1" /> : <Square className="w-4 h-4 mr-1" />}
@@ -286,8 +321,8 @@ export default function TextImprovement() {
           </div>
         </div>
 
-        {/* Bulk approve by rule (apenas regras únicas pendentes) */}
-        {statusFilter === 'pending' && rulesSummary.length > 0 && (
+        {/* Bulk approve by rule (apenas regras únicas pendentes) — somente admin */}
+        {isAdmin && statusFilter === 'pending' && rulesSummary.length > 0 && (
           <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 mb-4" data-testid="bulk-by-rule-bar">
             <div className="flex items-start gap-2 mb-3">
               <Sparkles className="w-4 h-4 text-violet-600 mt-0.5" />
@@ -332,7 +367,7 @@ export default function TextImprovement() {
                 onApprove={() => handleApprove(item.id)} onReject={() => handleReject(item.id)}
                 onEdit={() => { setEditing(item); setEditedText(item.sugestao); }}
                 onViewContext={() => handleViewContext(item)}
-                actionLoading={actionLoading} showCheckbox={statusFilter === 'pending'} />
+                actionLoading={actionLoading} showCheckbox={isAdmin && statusFilter === 'pending'} />
             ))}
           </div>
         )}
@@ -583,7 +618,7 @@ function ContextView({ data, sugestao }) {
 
 function EmptyState({ statusFilter }) {
   const messages = {
-    pending: { title: 'Nenhuma correção pendente', sub: 'Rode text_improvement.py --scan para gerar sugestões.' },
+    pending: { title: 'Nenhuma correção pendente', sub: 'Clique em "Buscar sugestões" para analisar seus textos e receber propostas de correção.' },
     approved: { title: 'Nenhuma correção aprovada ainda', sub: 'Itens aprovados aparecerão aqui.' },
     rejected: { title: 'Nenhuma correção rejeitada', sub: 'Itens descartados aparecerão aqui.' },
     edited: { title: 'Nenhuma correção editada', sub: 'Sugestões editadas pelo admin aparecerão aqui.' },
