@@ -294,9 +294,10 @@ export const UserProfile = () => {
       // CSRF: o backend (CSRFMiddleware) exige X-CSRF-Token em todos os POSTs.
       // O axios injeta automaticamente via interceptor, mas este endpoint
       // usa fetch() direto — então buscamos o token explicitamente.
-      // Fonte primária: sessionStorage (cross-domain). Fallback: cookie.
+      // Fonte primária: localStorage (compartilhado entre abas, fix Jun/2026).
+      // Fallback: sessionStorage (sessões antigas) e cookie.
       let csrfToken = '';
-      try { csrfToken = sessionStorage.getItem('sigesc_csrf_token') || ''; } catch { /* ignore */ }
+      try { csrfToken = localStorage.getItem('sigesc_csrf_token') || sessionStorage.getItem('sigesc_csrf_token') || ''; } catch { /* ignore */ }
       if (!csrfToken) {
         const m = document.cookie.match(/(?:^|;\s*)sigesc_csrf=([^;]+)/);
         if (m) csrfToken = decodeURIComponent(m[1]);

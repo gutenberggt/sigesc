@@ -55,8 +55,8 @@ const STATUS_BADGES = {
 };
 
 function authHeaders() {
-  const token = localStorage.getItem('sigesc_token');
-  const csrf = sessionStorage.getItem('sigesc_csrf_token');
+  const token = localStorage.getItem('accessToken');
+  const csrf = localStorage.getItem('sigesc_csrf_token') || sessionStorage.getItem('sigesc_csrf_token');
   return {
     Authorization: `Bearer ${token}`,
     ...(csrf ? { 'X-CSRF-Token': csrf } : {}),

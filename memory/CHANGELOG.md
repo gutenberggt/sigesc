@@ -1,5 +1,18 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — FIX (regressão CSRF): "Erro ao salvar" no Diário AEE e outras telas
+
+- **Causa raiz**: na migração do token CSRF para `localStorage` (fix multi-aba),
+  4 telas continuaram lendo o CSRF do `sessionStorage` (que passou a ficar vazio).
+  Resultado: POST/PUT iam SEM `X-CSRF-Token` → 403 → "Erro ao salvar plano AEE /
+  atendimento" (e afins).
+- **Corrigido** para ler `localStorage` primeiro (fallback sessionStorage/cookie) em:
+  `DiarioAEE.js` (readCsrfToken), `ContentReview.jsx` (authHeaders — também corrigido
+  token `sigesc_token`→`accessToken`), `UserProfile.js` e `OfflineContext.jsx` (CSRF
+  enviado ao Service Worker no push).
+- **Validado**: em aba nova (sessionStorage vazio), POST `/api/aee/atendimentos` agora
+  leva o CSRF e retorna 404 (plano inexistente) em vez de 403. Frontend compila OK.
+
 ## 2026-06 — Apoio à Escrita: busca sob demanda para o PROFESSOR
 
 - Novo endpoint `POST /api/admin/text-improvement/scan`: o professor (ou admin)

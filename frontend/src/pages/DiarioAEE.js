@@ -28,10 +28,14 @@ import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-/** Lê o CSRF token do sessionStorage (fonte primária pós refactor de Mai/2026)
- *  ou do cookie sigesc_csrf como fallback. Sem ele, o middleware CSRF
- *  rejeita POST/PUT/PATCH/DELETE com 403. */
+/** Lê o CSRF token. Fonte primária: localStorage (compartilhado entre abas,
+ *  pós-fix Jun/2026). Fallback: sessionStorage (sessões antigas) e cookie
+ *  sigesc_csrf. Sem ele, o middleware CSRF rejeita POST/PUT/PATCH/DELETE com 403. */
 function readCsrfToken() {
+  try {
+    const ls = localStorage.getItem('sigesc_csrf_token');
+    if (ls) return ls;
+  } catch { /* ignore */ }
   try {
     const stored = sessionStorage.getItem('sigesc_csrf_token');
     if (stored) return stored;
