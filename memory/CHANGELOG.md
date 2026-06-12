@@ -1,5 +1,19 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Diário AEE: causa raiz do "Erro ao salvar plano" + guard de UX
+
+- **Causa raiz (provada com artefatos da API de produção):** `POST /api/aee/planos` →
+  HTTP **400** = regra de duplicidade. Os alunos selecionados já possuíam Plano AEE
+  ativo/rascunho no ano. Backend correto (criar para aluno SEM plano → 201). Não era
+  CSRF (403), 422 (schema) nem multi-tenant. O frontend de produção (bundle antigo)
+  mostrava o genérico "Erro ao salvar plano", escondendo o motivo.
+- **Backend (`routers/aee.py`):** mensagem de duplicidade agora é acionável (nome do
+  aluno, status, ano e orientação a editar o plano existente).
+- **Frontend (`PlanoAEEModal.js` + `DiarioAEE.js`):** novo GUARD no dropdown "Aluno" do
+  Novo Plano — alunos que já têm plano no ano aparecem **desabilitados** com selo
+  "já possui plano" + nota orientando a editar pela aba Planos. Validado com dados reais
+  (4/5 desabilitados; só o aluno sem plano selecionável).
+
 ## 2026-06 — FIX (regressão CSRF): "Erro ao salvar" no Diário AEE e outras telas
 
 - **Causa raiz**: na migração do token CSRF para `localStorage` (fix multi-aba),

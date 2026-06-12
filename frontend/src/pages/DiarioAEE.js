@@ -1587,6 +1587,10 @@ const DiarioAEE = () => {
         editingPlano={editingPlano}
         estudantes={estudantes}
         canEdit={canEdit}
+        academicYear={academicYear}
+        studentsWithPlan={planos
+          .filter(p => ['ativo', 'rascunho'].includes(p.status))
+          .map(p => p.student_id)}
       />
       {showAtendimentoModal && atendimentoModalContent}
 

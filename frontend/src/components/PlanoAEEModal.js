@@ -84,9 +84,10 @@ const INITIAL_FORM = {
   adaptacoes_por_componente: ''
 };
 
-function StudentDropdown({ value, onChange, estudantes, disabled }) {
+function StudentDropdown({ value, onChange, estudantes, disabled, studentsWithPlan = [], academicYear }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const planSet = new Set(studentsWithPlan);
 
   useEffect(() => {
     const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -103,6 +104,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled }) {
         type="button"
         onClick={() => !disabled && setOpen(!open)}
         className={`force-visible-text w-full border rounded-lg px-3 py-2 text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}`}
+        data-testid="plano-aluno-dropdown"
       >
         <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? getName(selected) : 'Selecione o aluno'}</span>
         <ChevronDown size={16} className="force-visible-text-muted" />
@@ -113,20 +115,32 @@ function StudentDropdown({ value, onChange, estudantes, disabled }) {
             className="force-visible-text-muted px-3 py-2 cursor-pointer hover:bg-gray-100"
             onClick={() => { onChange(''); setOpen(false); }}
           >Selecione o aluno</div>
-          {estudantes.map(est => (
-            <div
-              key={est.student_id}
-              className={`force-visible-text px-3 py-2 cursor-pointer hover:bg-blue-50 ${est.student_id === value ? 'bg-blue-100 font-medium' : ''}`}
-              onClick={() => { onChange(est.student_id); setOpen(false); }}
-            >{getName(est)}</div>
-          ))}
+          {estudantes.map(est => {
+            const hasPlan = planSet.has(est.student_id);
+            return (
+              <div
+                key={est.student_id}
+                title={hasPlan ? `Já possui plano em ${academicYear || 'no ano vigente'} — edite o plano existente` : ''}
+                className={`force-visible-text px-3 py-2 flex items-center justify-between ${
+                  hasPlan
+                    ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                    : `cursor-pointer hover:bg-blue-50 ${est.student_id === value ? 'bg-blue-100 font-medium' : ''}`
+                }`}
+                onClick={() => { if (!hasPlan) { onChange(est.student_id); setOpen(false); } }}
+                data-testid={`plano-aluno-option-${est.student_id}`}
+              >
+                <span>{getName(est)}</span>
+                {hasPlan && <span className="text-[11px] text-amber-600 font-medium ml-2 whitespace-nowrap">já possui plano</span>}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, estudantes, canEdit }) {
+export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, estudantes, canEdit, academicYear, studentsWithPlan = [] }) {
   const [form, setForm] = useState({ ...INITIAL_FORM });
 
   useEffect(() => {
@@ -253,7 +267,15 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                   onChange={handleStudentChange}
                   estudantes={estudantes}
                   disabled={!!editingPlano}
+                  studentsWithPlan={studentsWithPlan}
+                  academicYear={academicYear}
                 />
+                {!editingPlano && (
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Alunos que já possuem plano em {academicYear || 'no ano vigente'} aparecem
+                    desabilitados — edite o plano existente pela aba "Planos de AEE".
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Público-alvo *</label>
