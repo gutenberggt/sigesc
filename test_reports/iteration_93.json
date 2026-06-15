@@ -27,7 +27,7 @@
     "/app/backend/tests/test_sie_endpoints.py (criado — 9 testes pytest)"
   ],
   "success_rate": {"backend": "100% (9/9 endpoint + 11/11 unit)", "frontend": "N/A (skipped)"},
-  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin) com header X-Mantenedora-Id=a991c1ac-56b1-46a8-b122-effedbe19b21 (SEMED Floresta). Para teste de 403 no PUT /config usei professor.teste@sigesc.com / Professor@2026 (papel professor, fora do allow-list). NOTA: coordenador@sigesc.com/coordenador123 e kledbyaschenkel@sigesc.com/856567 listados em /app/memory/test_credentials.md retornaram 'Email ou senha incorretos' — não estão semeados no ambiente preview.",
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin) com header X-Mantenedora-Id=pdf-roster-debug (SEMED Floresta). Para teste de 403 no PUT /config usei professor.teste@sigesc.com / Professor@2026 (papel professor, fora do allow-list). NOTA: coordenador@sigesc.com/coordenador123 e kledbyaschenkel@sigesc.com/856567 listados em /app/memory/test_credentials.md retornaram 'Email ou senha incorretos' — não estão semeados no ambiente preview.",
   "seed_data_creation": "Nenhum seed criado. Usado student real (primeiro retornado por /api/students) que é tenant SEMED. Persistência cria docs em student_risk_scores, student_diagnostics, student_snapshots e student_alerts — todos com mantenedora_id preenchido.",
   "retest_needed": false,
   "should_main_agent_self_test": false,

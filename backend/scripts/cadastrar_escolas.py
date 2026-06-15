@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://login-offline-mode.preview.emergentagent.com/api"
+API_URL = "https://pdf-roster-debug.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [

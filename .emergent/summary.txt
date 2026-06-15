@@ -1,148 +1,150 @@
-<analysis>**original_problem_statement**: Refatoração do cálculo de desempenho dos professores no Dashboard Analítico, ajustes visuais e de exportação de PDFs/Excel no Dashboard. Correção e blindagem (CSRF e multi-tenant) do sistema de sincronização offline (Service Worker, Dexie). Criação de um roadmap arquitetural para o Student Intelligence Engine (SIGESC IA) e correção do comportamento de fallback do PWA (Service Worker) para exibir a tela de login offline ao invez de uma página estática de erro. PRODUCT REQUIREMENTS: O app deve funcionar estavelmente offline e permitir login via cache; PDFs devem conter cabeçalho/rodapé institucionais.
+<analysis>**original_problem_statement**: Resolver bugs do fallback offline do Service Worker, tratar a falta de numeração de matrículas de alunos, corrigir conflitos de CSRF token entre múltiplas abas, implementar o backend (Fase 0) do Student Intelligence Engine (SIE), liberar a ferramenta Apoio à Escrita para professores, e consertar o salvamento de Planos AEE. Atualmente, o usuário reportou uma nova divergência: na geração de diários/notas para turmas multisseriadas (Maternal I e II), a lista de alunos na turma tem 14, mas os registros de notas separados por etapa listam apenas 7 no total. PRODUCT REQUIREMENTS: O sistema deve ser blindado contra inconsistências em turmas multisseriadas, o SIE deve manter independência de scores (Geral, Frequência, Acadêmico) e o PWA deve carregar sempre offline.
 
 **User's preferred language**: Portuguese (INSTRUCT NEXT AGENT: Responda SEMPRE em Português).
 
 **what currently exists?**: 
-- Dashboard Analítico com exportação completa (PDF/Excel) operando, com cabeçalhos/rodapés institucionais gerados via  e proxy base64 de imagem ().
-- Sincronização offline completamente refatorada para suportar  seguro, envio correto de  em background sync pelo Service Worker, e registro de telemetria no backend.
-- Novo  (Painel de Sincronização) centralizado nas telas de Notas e Frequência para maior transparência do estado offline para o professor.
-- Roadmap estruturado e validado para a construção futura do Student Intelligence Engine (SIE).
+- Service Worker servindo app shell PWA em modo offline (corrigido).
+- Fluxos de matrícula ajustados e ferramenta de auditoria de matrículas com botão de reparo ativado.
+- Token CSRF consolidado no  para funcionar corretamente com múltiplas abas abertas.
+- FASE 0 do Student Intelligence Engine (SIE) concluída no backend com 5 coleções, cálculos isolados (Acadêmico, Frequência) e 100% de testes passando.
+- Apoio à Escrita liberado para professores (escutando apenas seus próprios registros ).
+- Diário AEE com travas de UX (alunos com plano ativo ou rascunho no ano ficam bloqueados na UI para evitar HTTP 400).
+- Permissões do painel Bolsa Família mapeadas e consolidadas (Admin vê tudo, Assistência tem modo leitura, Secretário edita a própria escola e valida PDFs).
 
 **Last working item**: 
-    - Last item agent was working: Correção do fallback de navegação do Service Worker (). Atualmente, quando o usuário acessa a URL do sistema já estando offline, o Service Worker serve a página estática . O objetivo é fazê-lo servir o app shell (), permitindo que o React carregue e exiba a tela de login offline com acesso cacheado.
+    - Last item agent was working: Investigação de divergência de alunos em turmas multisseriadas. O usuário enviou 3 PDFs de uma turma Maternal I e II que possui 14 alunos matriculados, mas os PDFs de notas listam apenas 3 alunos no Maternal I e 4 alunos no Maternal II (faltando 7 alunos). O agente analisou os dados dos PDFs e iniciou a averiguação no backend de notas ().
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? manual testing by curl / screenshot tool (para verificar o carregamento da DOM).
+    - Which testing method agent to use? backend testing agent/ manual testing by curl
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Fallback do Service Worker carregando página errada em navegação offline (P0)
-     - Attempted fixes: Identificou-se que o handler de fetch em  (linha ~200-230) intercepta falhas de rede para  e devolve .
-     - Next debug checklist: Editar . Modificar o fallback de  para retornar a versão em cache de  em vez de . Isso garante que a SPA inicie offline.
-     - Why fix this issue and what will be achieved with this fix? Permitirá que os professores acessem o sistema do zero mesmo sem internet, viabilizando o login offline real.
+  Issue 1: Divergência de quantidade de alunos em PDFs de Registro de Notas de Turmas Multisseriadas (P0)
+     - Attempted fixes: O agente processou os PDFs extraindo os textos para notar o gap (14 vs 7). Nenhuma correção em código foi feita ainda.
+     - Next debug checklist: 
+       1. Inspecionar  (endpoints que buscam alunos ou notas para impressão de PDFs).
+       2. Inspecionar endpoints relacionados a PDFs de diários ou notas (ex:  ou serviços de renderização).
+       3. Verificar se há alguma filtragem incorreta sendo aplicada ao recuperar a matrícula dos alunos usando  /  em turmas onde a etapa do aluno diverge ou onde a matrícula está com dados incompletos.
+     - Why fix this issue and what will be achieved with the fix? As notas e registros precisam ser impressos para todos os alunos de turmas agrupadas/multisseriadas; o gestor e professor não conseguirão fechar as notas sem todos os alunos visíveis.
      - Status: IN PROGRESS
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? frontend
+     - Should Test frontend/backend/both after fix? backend
 
 **In progress Task List**: 
-  Nenhuma tarefa longa em andamento, apenas a Issue 1 acima descrita.
+  Nenhuma no momento, fora a Issue P0 acima.
 
 **Upcoming and Future Tasks**
-  Task 1: Iniciar implementação da FASE 0 do Student Intelligence Engine (SIE) - P1
-    - Criar novas coleções (, , , ).
-    - Desenvolver os motores baseados em regras:  e .
-    - Criar os endpoints básicos em .
-    - (Nota: O escopo e os fatores matemáticos estão validados no histórico da conversa).
-  
-  Task 2: Limpeza de advertências de Lint (React Hooks) - P2
-    - Resolver advertências de dependências ausentes de hooks em  e  que são pré-existentes.
+  Task 1: FASE 1 do Student Intelligence Engine (SIE) (P1)
+    - Integrar o frontend aos motores backend recém-criados. 
+    - Criar painéis no Dashboard da SEMED (ex: Top 10 alunos em risco crítico).
+    - Exibir o diagnóstico (Risco Geral, Frequência, Acadêmico) na ficha individual do aluno.
+  Task 2: Resolução de advertências de Lint (P2)
+    - Limpar os avisos do linter de dependências ausentes de hooks em  e .
 
 **Completed work in this session**
-- Refatoração de  usando média ponderada de 3 SLAs (DONE).
-- Fix do bug de Frequência Mensal (resolvido ausência de ) (DONE).
-- Ajuste de interface e empty states em  (DONE).
-- Exportação PDF/Excel do Analytics completo com  e  v5 (DONE).
-- Criação de rota  para bypass de CORS em imagens PDF e downscale com Pillow (DONE).
-- Cabeçalhos e rodapés institucionais nos relatórios (DONE).
-- Resolução do erro React #310 (Hooks após early return) (DONE).
-- Correção de bug silencioso no Background Sync do Service Worker (adicionado envio de CSRF token) (DONE).
-- Blindagem multi-tenant dos endpoints  e criação do tracking de Telemetria (DONE).
-- Criação do componente  para visibilidade offline em Notas e Frequência (DONE).
-- Adicionadas mensagens amigáveis/acolhedoras no Toast ao salvar offline (DONE).
+- Correção de fallback do Service Worker (PWA carregando index.html do cache) (DONE)
+- Preenchimento atômico e sincronização de  + Endpoint de Auditoria e Reparo de Matrículas vazias (DONE)
+- Migração definitiva da leitura de  para  para prevenir bug  cross-tab (DONE)
+- Implementação backend completa (FASE 0) do Student Intelligence Engine (SIE) (DONE)
+- Endpoint  acoplado ao frontend  para professores revisarem próprios textos (DONE)
+- Bug no Diário AEE corrigido (falta de CSRF local ajustado, além da adição de UI guard no Modal para impedir planos duplicados no mesmo ano bloqueados via ) (DONE)
 
 **Earlier issues found/mentioned but not fixed**
    Issue 1: Advertências de lint de hooks em  e 
    - Debug checklist: Verificar dependências omitidas em ,  e .
-   - Why to solve this issue and what will be achieved with this? Prevenir bugs de estados obsoletos na interface.
+   - Why to solve this issue and what will be achieved with this? Prevenir re-renderizações desnecessárias e possíveis dados obsoletos.
    - Should Test frontend/backend/both after fix: frontend
    - Is recurring issue? Y
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: 0
+  - Issue recurrence in previous fork: 1 (O bug de CSRF 403 voltou momentaneamente devido a uma falha na substituição da chave de session para localStorage, mas já foi 100% estabilizado no final do job passado).
   - Status: RESOLVED
 
 **Code Architecture**
-React Frontend (SPA) + PWA (Service Worker configurado em  com IndexedDB local via Dexie). 
-Backend FastAPI em Python + MongoDB.
-Autenticação dupla (Cookie + CSRF token no Header).
+- Frontend (React SPA, Hooks, PWA / Dexie.js offline mode).
+- Backend FastAPI + Motor de IA com tenant_scope.py. 
+- Multi-tenancy baseado em header .
+- Arquitetura de SIE separada em engines (, , , ).
 
 **Key Technical Concepts**
-PWA, Service Worker, Dexie (IndexedDB) para offline first. 
-Sincronização Bidirecional Offline com segurança CSRF.
-Autenticação Multi-Tenant usando o helper .
-Integração de PDFs do frontend usando  + .
+- Background Sync PWA acoplado com auth token e CSRF.
+- CSRF Token **sempre** gravado e consumido do  (), nunca .
+- Turmas multisseriadas podem associar múltiplos  (etapas) a uma mesma .
 
 **key DB schema**
-  - : (Future SIE collection)
-  - : (Future SIE collection)
-  - : (IndexedDB offline no frontend)
-  - : {nome, municipio, estado, brasao_url}
-  - : {failed_items, pending_items, last_sync_at, etc.}
+  - : {weights, bands, passing_grade}
+  - , , , 
+  - : {student_id, academic_year, status}
+  -  e  (amarrados via )
 
 **changes in tech stack**
-  - Instalação e uso em produção de  e migração das chamadas legadas do  (v5 funcional API).
-  - Utilização da lib genérica do Python  para resize de base64.
+  - Nenhuma estrutural além da mudança completa e rigorosa para  para tokens de segurança visando suportar multi-abas abertas pelo usuário.
 
 **All files of reference**
-  -  (PWA - Service Worker, foco do problema atual)
+  -  e módulos de geração de pdf (foco atual da investigação).
+  -  (Arquivos SIE).
   - 
   - 
-  - 
-  - 
-  -  (Blueprint mental do roadmap para IA)
+  -  (Blueprint e roadmap do SIGESC IA).
 
 **Areas that need refactoring**: 
--  e  (Muitos avisos de linter do  e funções dependentes de memoization incorreta).
+-  e  (Muitos avisos de react-hooks/exhaustive-deps).
 
 **key api endpoints**
--  e  (Agora totalmente ancorados em tenant)
+- 
+- 
+-  (e lote)
 - 
 
 **Critical Info for New Agent**
-- O sistema CSRF requer  em todos os requests de manipulação, inclusive nas chamadas via Service Worker em background.
-- Em hipótese alguma ignore os helpers do arquivo  ao criar novas coleções (especialmente para o projeto SIE).
-- Atualize a versão de cache do service worker  e dentro do cabeçalho do arquivo  toda vez que você editar regras de cache no arquivo .
+- **Sempre recupere CSRF token do localStorage**. Código legado em alguns arquivos ainda pode tentar olhar . Se surgir bug , verifique a fonte de extração no client.
+- Lembre o usuário de dar Deploy na plataforma ao realizar melhorias visuais (como o fix do modal AEE), pois a produção tem cache ativo e os test tests feitos em endpoints às vezes já estão valendo na API de prod mas não refletem no front sem deploy.
+- Atenção ao diagnosticar notas em turmas multisseriadas. A coleção  mapeia alunos para turmas (). No caso de Maternal I e II, a turma é uma só, porém a série curricular do aluno (/) é diferente. Verificar se queries do motor PDF excluem turmas agrupadas ou fazem fetch incorreto.
 
 **documents and test reports created in this job**
   - 
   - 
-  - 
+  -  e 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- 1. User pede para adicionar rodapé nos relatórios em PDF com dados do usuário/data. (Concluído)
- 2. User pede ajuste no fundo do cabeçalho PDF e padronização do sub-título escola - turma - aluno. (Concluído)
- 3. User pede para desenhar arquitetura dos 7 pilares do SIGESC IA (Sem codar). (Planejado)
- 4. User concorda com o plano mas altera a ordem (Fase 1 = Diagnóstico Aluno) e nomeia SIE. (Ajuste Absorvido)
- 5. Agente confirma validação do esquema real. (Concluído blueprint)
- 6. User pede para verificar o sistema Offline PWA antes de codar IA.
- 7. User revisa bug encontrado de sincronização e escolhe aplicar a correção global multi-tenant + CSRF. (Concluído)
- 8. User sugere criar Painel central de visualização de última sincronização para amenizar ansiedade do professor. (Concluído)
- 9. User aprova toast informacional ao lançar notas offline. (Concluído)
- 10. **LATEST (HUMAN MSG PENDENTE)**: User reporta que ao abrir a URL estando SEM internet, a tela presa exibida é o estático Você está offline. Requisita que, caso o cache local exista, abra diretamente o painel de login offline para o acesso continuar normalmente.
+ 1. User pede para focar no erro do service worker de fallback offline. (Concluído)
+ 2. User mostra imagem do erro acontecendo no domínio de produção. (Explicado pre-cache e resolvido).
+ 3. User reporta alunos matriculados sem número de matrícula. (Resolvido).
+ 4. User clica em corrigir e toma erro 403 CSRF Inválido. (Corrigido para usar localStorage).
+ 5. User pede para desenvolver a FASE 0 do SIE limitando a regras e alterando lógicas de risco. (Concluído e blueprint salvo).
+ 6. User pede para Apoio à Escrita ficar ativa para professor com escopo próprio. (Concluído).
+ 7. User aponta erro no Diário AEE ao salvar plano. (Após testar tudo, agente mostra que era erro 400 por plano já existente, melhorou o backend e colocou trava visual).
+ 8. User pergunta sobre papéis do Acompanhamento Bolsa Família. (Agente documenta acesso e explica que secretário pode reeditar a própria escola enquanto frequência for baixa).
+ 9. **PENDING HUMAN MSG:** User envia 3 pdfs de turma multisseriada:  (14 alunos),  (3 notas) e  (4 notas). Há 7 alunos faltando na listagem de notas do PDF.
 
 **Project Health Check:**
 Healthy.
 
 **3rd Party Integrations**
-- Emergent LLM Key (Utilizado via Claude Sonnet nas rotas ).
+- Emergent LLM Key (Utilizada via Claude Sonnet nas rotas ).
 
 **Testing status**
-  - Testing agent used after significant changes: NO (testes feitos localmente via PyTest abrangendo 100% dos novos fluxos).
+  - Testing agent used after significant changes: YES (usado no SIE, sem issues backend residuais).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: [Listados acima]
-  - Known regressions: [None]
+  - Test files created: , 
+  - Known regressions: [Nenhum ativo, erro CSRF mitigado]
 
 **Credentials to test flow:**
-Admin - Email: gutenberg@sigesc.com / Senha: @Celta2007
+Admin: gutenberg@sigesc.com / @Celta2007
+Professor AEE: professor.teste@sigesc.com / Professor@2026
 
 **What agent forgot to execute**
-Nada foi esquecido dentro do escopo estabelecido. O último request do usuário acabou de entrar na fila de atividades.
+O agente decodificou os PDFs enviados na última mensagem para entender o problema de ausência de alunos, mas a sessão acabou antes que se examinasse o endpoint/código em Python gerador dos PDFs para fazer o bugfix das turmas multisseriadas.
 
 **Debugging checklist for current issue**
-    Issue: App Shell não carrega quando a navegação inicial é offline.
+    Issue: Alunos desaparecendo em PDFs de registros de notas de turmas multisseriadas.
     
-    Frontend files to check: 
+    Backend files to check: 
+    -  (Verificar rotas responsáveis por agregar alunos da turma e notas)
+    -  ou o endpoint PDF exato usado para registros de nota (boletim/notas de turma).
     - 
     
     Ação a executar:
-    No handler  que trata de , em vez de retornar  direto no bloco , deve tentar retornar  e só fazer o fallback se este falhar. Assim a Single Page Application vai instanciar e o Router interno lidará com a rota, permitindo o Login Offline. E lembre-se de fazer um  para forçar atualização do SW no browser.</analysis>
+    1. Identifique qual rota o frontend usa para gerar os diários/registros maternal I.pdf e maternal II.pdf.
+    2. Analise como os  dessa turma são agrupados. Em turmas multisseriadas, a query possivelmente está fazendo um INNER JOIN implícito ou exigindo um match exato de / no documento de nota, que ignora alunos sem nota preenchida na etapa específica.
+    3. Ajuste a agregação para garantir que **todos os matriculados na turma e na respectiva etapa** apareçam na lista do PDF, com o status correto. O total do documento das duas etapas deve fechar os 14 alunos da .</analysis>

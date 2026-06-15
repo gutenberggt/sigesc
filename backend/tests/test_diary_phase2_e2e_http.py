@@ -9,7 +9,7 @@ import os
 import requests
 import pytest
 
-BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else "https://login-offline-mode.preview.emergentagent.com"
+BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else "https://pdf-roster-debug.preview.emergentagent.com"
 EMAIL = "gutenberg@sigesc.com"
 PASSWORD = "@Celta2007"
 TENANT = "fix_mant_v1"
