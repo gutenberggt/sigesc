@@ -1,6 +1,19 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Coluna "ANO" vazia na listagem de Alunos mesmo após salvar (P0)
+
+- **Causa raiz:** `routers/students.py` (`list_students`, ~linha 1064) **sobrescrevia**
+  `student['student_series']` com o valor da matrícula ativa — que muitas vezes é
+  `None` em turmas multisseriadas. Assim, mesmo com a série salva no cadastro
+  (e selecionada em "Editar Aluno(a)"), a coluna "ANO" aparecia vazia ("-") e a série
+  não refletia na tela de notas.
+- **Correção:** fallback — `enrollment_series_map.get(id) or student.get('student_series')`.
+  Agora a listagem usa a série da matrícula e, se ela estiver vazia, a série do
+  cadastro do aluno. Consistente com `grades/by-class` e com o PDF de notas.
+- **Teste:** `tests/test_multigrade_series_pdf.py::test_students_list_ano_column_fallback_to_record` (PASS). Suite do arquivo: 4/4 PASS.
+
 ## 2026-06 — Turmas multisseriadas: alunos sumindo dos PDFs/telas de notas (P0)
+
 
 - **Causa raiz (provada com os 3 PDFs enviados):** turma "Maternal I e II" tem 14
   matriculados, mas os PDFs por etapa listavam só 3 (Maternal I) + 4 (Maternal II) = 7.

@@ -1061,7 +1061,11 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         for student in students:
             student.setdefault('full_name', '')
             student.setdefault('status', 'active')
-            student['student_series'] = enrollment_series_map.get(student.get('id'))
+            # Prefere a série da matrícula ativa; faz FALLBACK para a série do
+            # cadastro do aluno quando a matrícula estiver sem série. Sem o fallback,
+            # a coluna "ANO" some mesmo após salvar a série em "Editar Aluno(a)"
+            # (ex.: turmas multisseriadas com matrícula sem `student_series`).
+            student['student_series'] = enrollment_series_map.get(student.get('id')) or student.get('student_series')
             student['completeness'] = _compute_student_completeness(student)
             # Remove os campos usados apenas no cálculo (payload mais leve)
             for _f in _COMPLETENESS_EXTRA_FIELDS:

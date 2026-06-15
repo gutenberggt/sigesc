@@ -188,3 +188,21 @@ def test_pdf_fallback_to_student_record_and_normalized_case(scenario, admin_head
     present = _pdf_names(r.content, all_names)
     assert present["QA SER C"] and present["QA SER D"]
     assert present["QA SER F"], "F deveria aparecer via fallback (cadastro) + normalização de case"
+
+
+def test_students_list_ano_column_fallback_to_record(scenario, admin_headers):
+    """Coluna "ANO" da listagem deve usar a série do CADASTRO quando a matrícula
+    estiver sem série (bug: list_students sobrescrevia com o valor vazio da matrícula).
+    """
+    a = next(s for s in scenario["students"] if s["name"] == "QA SER A")  # série "Etapa I"
+    # Zera a série da matrícula ativa (mantém a do cadastro)
+    _run(scenario["db"].enrollments.update_one(
+        {"student_id": a["id"], "status": "active"}, {"$set": {"student_series": None}}))
+    r = requests.get(f"{BASE_URL}/api/students?search=QA%20SER%20A&page=1&page_size=10",
+                     headers=admin_headers, timeout=30)
+    assert r.status_code == 200, r.text[:200]
+    items = r.json().get("items") or r.json().get("students") or []
+    target = next((it for it in items if it["full_name"] == "QA SER A"), None)
+    assert target is not None, f"QA SER A não retornado ({[i['full_name'] for i in items]})"
+    assert target.get("student_series") == "Etapa I", (
+        f"coluna ANO deveria cair no cadastro: {target.get('student_series')!r}")
