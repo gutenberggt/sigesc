@@ -1685,10 +1685,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             {"$set": update_data}
         )
         
-        # Propaga student_series para a matrícula ativa (se foi alterado)
+        # Propaga student_series para a(s) matrícula(s) ativa(s) do aluno.
+        # IMPORTANTE: não filtra por academic_year — em turmas multisseriadas a
+        # série do aluno (etapa) precisa refletir na matrícula independentemente do
+        # ano da matrícula, senão o aluno some dos PDFs/diários por etapa (que leem
+        # enrollments.student_series). A matrícula ativa é sempre a vigente.
         if 'student_series' in update_data:
-            await current_db.enrollments.update_one(
-                {"student_id": student_id, "status": "active", "academic_year": datetime.now().year},
+            await current_db.enrollments.update_many(
+                {"student_id": student_id, "status": "active"},
                 {"$set": {"student_series": update_data['student_series']}}
             )
         

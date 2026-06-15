@@ -401,8 +401,10 @@ export function Grades() {
         // Online: busca da API e atualiza cache local
         const data = await gradesAPI.getByClass(selectedClass, selectedCourse, academicYear);
         // Para turmas multisseriadas, filtra apenas alunos da série selecionada
+        // (comparação normalizada para evitar sumiço por divergência de case/espaços)
+        const _normSerie = (v) => (v || '').toString().trim().toLowerCase();
         const filteredData = (isMultiGrade && selectedSeries)
-          ? data.filter(item => item.student?.student_series === selectedSeries)
+          ? data.filter(item => _normSerie(item.student?.student_series) === _normSerie(selectedSeries))
           : data;
         setGradesData(filteredData);
         

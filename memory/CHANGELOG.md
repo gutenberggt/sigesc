@@ -1,5 +1,31 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Turmas multisseriadas: alunos sumindo dos PDFs/telas de notas (P0)
+
+- **Causa raiz (provada com os 3 PDFs enviados):** turma "Maternal I e II" tem 14
+  matriculados, mas os PDFs por etapa listavam só 3 (Maternal I) + 4 (Maternal II) = 7.
+  Os 7 ausentes estavam **sem `student_series`** (ou com case/espaços divergentes). O
+  endpoint de PDF (`grades.py` → `generate_grades_pdf`) filtrava por igualdade EXATA de
+  `enrollments.student_series`, descartando-os silenciosamente.
+- **Bug secundário:** em "Editar Aluno(a)", `PUT /api/students/{id}` só propagava a série
+  para a matrícula quando `academic_year == ano_atual` — fragilizando a correção.
+- **Correções:**
+  - `routers/students.py` (`update_student`): propagação de `student_series` agora usa
+    `update_many` na(s) matrícula(s) **ativa(s)** do aluno, sem travar por ano.
+  - `routers/grades.py` (`generate_grades_pdf`): filtro de série agora **normaliza**
+    (case/espaços) e faz **fallback** para `students.student_series` quando a matrícula
+    estiver vazia → nenhum aluno classificado some do PDF.
+  - `pages/StudentsComplete.js`: dropdown de Ano/Série em multisseriada com fallback
+    para `grade_levels` (resiliência quando `series` não está populado), em edição e
+    cadastro.
+  - `pages/Grades.js`: filtro da tela de notas por série agora normalizado.
+- **Fluxo final:** o gestor abre **Editar Aluno(a)**, escolhe a etapa (Etapa I/II) no
+  dropdown e salva → série persiste no cadastro **e** na matrícula ativa → o aluno passa
+  a aparecer no diário/PDF da etapa correta, fechando os 14.
+- **Testes:** `tests/test_multigrade_series_pdf.py` (3 casos: by-class lista todos;
+  edição propaga + inclui no PDF; fallback por cadastro + normalização de case). 3/3 PASS.
+
+
 ## 2026-06 — Diário AEE: causa raiz do "Erro ao salvar plano" + guard de UX
 
 - **Causa raiz (provada com artefatos da API de produção):** `POST /api/aee/planos` →

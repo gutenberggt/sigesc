@@ -820,9 +820,27 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "student_series": 1}
             ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
         
-        # Filtra por série se for multisseriada
+        # Filtra por série se for multisseriada.
+        # ROBUSTEZ: compara via canonicalização de séries (acentos/caixa/aliases,
+        # ex.: "MATERNAL I" == "Maternal I") e faz fallback para `students.student_series`
+        # quando a matrícula estiver sem série — assim nenhum aluno some do PDF por
+        # divergência de dados em turmas multisseriadas.
         if student_series:
-            students = [s for s in students if enrollment_map.get(s['id'], {}).get('student_series') == student_series]
+            from utils.serie_canonical import canonicalize_serie
+
+            def _series_match(a, b):
+                ca, cb = canonicalize_serie(a or ''), canonicalize_serie(b or '')
+                if ca and cb:
+                    return ca == cb
+                return (a or '').strip().lower() == (b or '').strip().lower()
+
+            students = [
+                s for s in students
+                if _series_match(
+                    enrollment_map.get(s['id'], {}).get('student_series') or s.get('student_series'),
+                    student_series,
+                )
+            ]
         
         # Busca notas
         grades = await current_db.grades.find(

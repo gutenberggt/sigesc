@@ -2999,7 +2999,8 @@ export function StudentsComplete() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Ano/Série</label>
               {(() => {
                 const selectedClass = classes.find(c => c.id === formData.class_id);
-                if (selectedClass?.is_multi_grade && selectedClass?.series?.length > 0) {
+                const multiSeries = (selectedClass?.series?.length ? selectedClass.series : selectedClass?.grade_levels) || [];
+                if (selectedClass?.is_multi_grade && multiSeries.length > 0) {
                   // Turma multisseriada: dropdown para escolher
                   return (
                     <select
@@ -3010,7 +3011,7 @@ export function StudentsComplete() {
                       data-testid="student-series-select"
                     >
                       <option value="">Selecione o ano/série</option>
-                      {selectedClass.series.map(serie => (
+                      {multiSeries.map(serie => (
                         <option key={serie} value={serie}>{serie}</option>
                       ))}
                     </select>
@@ -3177,7 +3178,8 @@ export function StudentsComplete() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Ano/Série</label>
               {(() => {
                 const selectedClass = classes.find(c => c.id === formData.class_id);
-                if (selectedClass?.is_multi_grade && selectedClass?.series?.length > 0) {
+                const multiSeries = (selectedClass?.series?.length ? selectedClass.series : selectedClass?.grade_levels) || [];
+                if (selectedClass?.is_multi_grade && multiSeries.length > 0) {
                   return (
                     <select
                       value={formData.student_series || ''}
@@ -3187,7 +3189,7 @@ export function StudentsComplete() {
                       data-testid="new-student-series-select"
                     >
                       <option value="">Selecione o ano/série</option>
-                      {selectedClass.series.map(serie => (
+                      {multiSeries.map(serie => (
                         <option key={serie} value={serie}>{serie}</option>
                       ))}
                     </select>
