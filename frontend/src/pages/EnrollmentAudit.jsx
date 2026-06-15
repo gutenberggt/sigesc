@@ -51,6 +51,17 @@ export const EnrollmentAudit = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [repairing, setRepairing] = useState(false);
+  const [seriesData, setSeriesData] = useState(null);
+  const [seriesRepairing, setSeriesRepairing] = useState(false);
+
+  const fetchSeriesAudit = useCallback(async () => {
+    try {
+      const res = await studentsAPI.auditSeriesSync();
+      setSeriesData(res);
+    } catch {
+      setSeriesData(null);
+    }
+  }, []);
 
   const fetchAudit = useCallback(async () => {
     try {
@@ -72,7 +83,8 @@ export const EnrollmentAudit = () => {
 
   useEffect(() => {
     fetchAudit();
-  }, [fetchAudit]);
+    fetchSeriesAudit();
+  }, [fetchAudit, fetchSeriesAudit]);
 
   const runRepair = useCallback(async () => {
     try {
@@ -98,6 +110,23 @@ export const EnrollmentAudit = () => {
   }, [fetchAudit]);
 
   const ownerName = (id) => (data?.owner_names && data.owner_names[id]) || id;
+
+  const runSeriesRepair = useCallback(async () => {
+    try {
+      setSeriesRepairing(true);
+      const res = await studentsAPI.repairSeriesSync();
+      if ((res.fixed_enrollments || 0) === 0) {
+        toast.success('Tudo certo! Nenhuma matrícula precisava de sincronização de série.');
+      } else {
+        toast.success(`Sincronização concluída: ${res.fixed_enrollments} matrícula(s) tiveram a série preenchida a partir do cadastro.`);
+      }
+      await fetchSeriesAudit();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Não foi possível sincronizar as séries. Tente novamente.');
+    } finally {
+      setSeriesRepairing(false);
+    }
+  }, [fetchSeriesAudit]);
 
   const renderDuplicates = (collName, label, Icon) => {
     const block = data?.[collName];
@@ -165,6 +194,17 @@ export const EnrollmentAudit = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {seriesData && seriesData.total_to_fix > 0 && (
+              <Button
+                onClick={runSeriesRepair}
+                disabled={seriesRepairing || loading}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                data-testid="repair-series-sync-button"
+              >
+                <Wrench className={`w-4 h-4 mr-2 ${seriesRepairing ? 'animate-spin' : ''}`} />
+                {seriesRepairing ? 'Sincronizando...' : `Sincronizar séries (${seriesData.total_to_fix})`}
+              </Button>
+            )}
             {data && (data.students.empty > 0 || data.enrollments.empty > 0) && (
               <Button
                 onClick={runRepair}
@@ -176,7 +216,7 @@ export const EnrollmentAudit = () => {
                 {repairing ? 'Corrigindo...' : 'Corrigir matrículas sem número'}
               </Button>
             )}
-            <Button onClick={fetchAudit} disabled={loading} variant="outline" data-testid="refresh-audit-button">
+            <Button onClick={() => { fetchAudit(); fetchSeriesAudit(); }} disabled={loading} variant="outline" data-testid="refresh-audit-button">
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
@@ -288,6 +328,50 @@ export const EnrollmentAudit = () => {
                     </p>
                   )}
                 </div>
+              )}
+            </div>
+            {/* Sincronização de série matrícula ↔ cadastro (turmas multisseriadas) */}
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" data-testid="series-sync-table">
+              <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-slate-500" />
+                <h3 className="text-base font-semibold text-slate-800">Matrículas sem série (corrigíveis pelo cadastro)</h3>
+                <Badge variant="outline" className="ml-2">{seriesData?.total_to_fix || 0}</Badge>
+              </div>
+              {!seriesData || (seriesData.total_to_fix || 0) === 0 ? (
+                <p className="px-5 py-6 text-sm text-slate-500">Todas as matrículas com aluno classificado já têm série. 🎉</p>
+              ) : (
+                <>
+                  <p className="px-5 pt-3 text-xs text-slate-500">
+                    Estes alunos têm a série salva no cadastro, mas a matrícula está sem série — por isso somem dos diários/PDFs por etapa. Clique em “Sincronizar séries” para copiar a série do cadastro para a matrícula.
+                  </p>
+                  <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0">
+                        <tr>
+                          <th className="text-left px-5 py-2 font-medium">Aluno</th>
+                          <th className="text-left px-5 py-2 font-medium">Turma</th>
+                          <th className="text-left px-5 py-2 font-medium">Série (cadastro)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(seriesData.sample || []).map((s) => (
+                          <tr key={s.student_id} className="border-t border-slate-100">
+                            <td className="px-5 py-2 text-slate-800">{s.full_name || '—'}</td>
+                            <td className="px-5 py-2 text-slate-600">{s.class_name || '—'}</td>
+                            <td className="px-5 py-2">
+                              <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100">{s.target_series}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {seriesData.total_to_fix > (seriesData.sample || []).length && (
+                      <p className="px-5 py-3 text-xs text-slate-400">
+                        Exibindo {seriesData.sample.length} de {seriesData.total_to_fix}.
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </>

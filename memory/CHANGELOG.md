@@ -1,6 +1,24 @@
 # CHANGELOG — SIGESC
 
-## 2026-06 — Coluna "ANO" vazia na listagem de Alunos mesmo após salvar (P0)
+## 2026-06 — Reparo em lote: sincroniza série matrícula↔cadastro (multisseriadas)
+
+- **O quê:** ferramenta de reparo em lote que copia `students.student_series` →
+  `enrollments.student_series` para matrículas ATIVAS sem série cujo aluno já tem
+  série no cadastro. Resolve em massa os PDFs/diários por etapa sem depender do
+  fallback em tempo de leitura.
+- **Backend (`routers/students.py`):**
+  - `GET /api/students/series-sync/audit` — preview (total + amostra com nome,
+    turma e série-alvo). Read-only, tenant/escola-aware.
+  - `POST /api/students/series-sync/repair` — aplica a sincronização. Idempotente
+    (filtro `student_series` vazio no update), auditado, NÃO toca alunos sem série
+    no cadastro.
+- **Frontend (`EnrollmentAudit.jsx` + `services/api.js`):** painel "Auditoria de
+  Matrículas" (`/admin/auditoria-matriculas`) ganhou seção "Matrículas sem série
+  (corrigíveis pelo cadastro)" + botão "Sincronizar séries (N)".
+- **Verificação:** curl e2e (audit=2 candidatos, repair fixou 2, rerun=0 idempotente)
+  + `tests/test_multigrade_series_pdf.py::test_series_sync_repair_copies_record_to_enrollment` (PASS). Arquivo: 5/5 PASS.
+
+
 
 - **Causa raiz:** `routers/students.py` (`list_students`, ~linha 1064) **sobrescrevia**
   `student['student_series']` com o valor da matrícula ativa — que muitas vezes é

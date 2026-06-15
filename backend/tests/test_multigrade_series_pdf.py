@@ -206,3 +206,32 @@ def test_students_list_ano_column_fallback_to_record(scenario, admin_headers):
     assert target is not None, f"QA SER A não retornado ({[i['full_name'] for i in items]})"
     assert target.get("student_series") == "Etapa I", (
         f"coluna ANO deveria cair no cadastro: {target.get('student_series')!r}")
+
+
+def test_series_sync_repair_copies_record_to_enrollment(scenario, admin_headers):
+    """Reparo em lote: copia students.student_series -> enrollments.student_series
+    quando a matrícula ativa está sem série e o aluno tem série no cadastro.
+    Não toca em alunos sem série no cadastro. Idempotente."""
+    b = next(s for s in scenario["students"] if s["name"] == "QA SER B")  # cadastro 'Etapa I'
+    # Zera a série da matrícula (mantém a do cadastro) -> vira candidato
+    _run(scenario["db"].enrollments.update_one(
+        {"student_id": b["id"], "status": "active"}, {"$set": {"student_series": None}}))
+
+    # Preview deve listar B
+    a = requests.get(f"{BASE_URL}/api/students/series-sync/audit", headers=admin_headers, timeout=30)
+    assert a.status_code == 200, a.text[:200]
+    names = {x["full_name"] for x in a.json().get("sample", [])}
+    assert "QA SER B" in names, f"B deveria ser candidato ({names})"
+
+    # Repair
+    r = requests.post(f"{BASE_URL}/api/students/series-sync/repair", headers=admin_headers, timeout=60)
+    assert r.status_code == 200, r.text[:200]
+    assert r.json().get("fixed_enrollments", 0) >= 1
+
+    enr = _run(scenario["db"].enrollments.find_one({"student_id": b["id"], "status": "active"}))
+    assert enr["student_series"] == "Etapa I", "matrícula deveria receber a série do cadastro"
+
+    # Idempotência: B já não é candidato
+    a2 = requests.get(f"{BASE_URL}/api/students/series-sync/audit", headers=admin_headers, timeout=30)
+    names2 = {x["full_name"] for x in a2.json().get("sample", [])}
+    assert "QA SER B" not in names2, "B não deveria mais ser candidato após o reparo"

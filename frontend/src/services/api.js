@@ -316,6 +316,16 @@ export const studentsAPI = {
   repairEnrollment: async () => {
     const response = await axios.post(`${API}/students/enrollment-audit/repair`, {});
     return response.data;
+  },
+
+  auditSeriesSync: async () => {
+    const response = await axios.get(`${API}/students/series-sync/audit`);
+    return response.data;
+  },
+
+  repairSeriesSync: async () => {
+    const response = await axios.post(`${API}/students/series-sync/repair`, {});
+    return response.data;
   }
 };
 

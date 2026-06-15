@@ -569,6 +569,130 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "created_enrollments": created_enrollments,
         }
 
+    # =====================================================================
+    # Reparo em lote — sincroniza a série da MATRÍCULA com a do CADASTRO
+    # (turmas multisseriadas). Copia `students.student_series` →
+    # `enrollments.student_series` quando a matrícula ATIVA estiver sem série
+    # mas o aluno possuir série definida. Assim os PDFs/diários por etapa
+    # fecham sem depender do fallback em tempo de leitura.
+    # =====================================================================
+    _SERIES_ROLES = ['super_admin', 'admin', 'admin_teste', 'gerente', 'semed',
+                     'semed1', 'semed2', 'semed3', 'secretario']
+
+    def _series_scope_base(current_user):
+        role = current_user.get('role')
+        base = {}
+        if role != 'super_admin':
+            tenant_id = current_user.get('mantenedora_id')
+            if tenant_id:
+                base['mantenedora_id'] = tenant_id
+        if role == 'secretario':
+            base['school_id'] = {"$in": current_user.get('school_ids', []) or []}
+        return base
+
+    _EMPTY_SERIES_COND = {"$or": [
+        {"student_series": {"$exists": False}},
+        {"student_series": None},
+        {"student_series": ""},
+    ]}
+
+    async def _collect_series_sync_candidates(current_db, base):
+        """Retorna a lista de matrículas ativas sem série cujo aluno TEM série
+        no cadastro: [{enrollment_id, student_id, target_series, class_id}]."""
+        enrollments = await current_db.enrollments.find(
+            {**base, "status": "active", **_EMPTY_SERIES_COND},
+            {"_id": 0, "id": 1, "student_id": 1, "class_id": 1}
+        ).to_list(None)
+        student_ids = list({e.get('student_id') for e in enrollments if e.get('student_id')})
+        student_map = {}
+        if student_ids:
+            async for s in current_db.students.find(
+                {"id": {"$in": student_ids}, **{k: v for k, v in base.items() if k != 'mantenedora_id'}},
+                {"_id": 0, "id": 1, "full_name": 1, "student_series": 1}
+            ):
+                ss = (s.get('student_series') or '').strip()
+                if ss:
+                    student_map[s['id']] = {"full_name": s.get('full_name', ''), "series": ss}
+        candidates = []
+        for e in enrollments:
+            info = student_map.get(e.get('student_id'))
+            if info:
+                candidates.append({
+                    "enrollment_id": e.get('id'),
+                    "student_id": e.get('student_id'),
+                    "full_name": info["full_name"],
+                    "target_series": info["series"],
+                    "class_id": e.get('class_id'),
+                })
+        return candidates
+
+    @router.get("/series-sync/audit")
+    async def audit_series_sync(request: Request):
+        """[Auditoria] Preview do reparo de série: lista matrículas ativas SEM
+        série cujo aluno já possui série no cadastro (serão preenchidas). Tenant/
+        escola-aware e read-only."""
+        current_user = await AuthMiddleware.require_roles(_SERIES_ROLES)(request)
+        current_db = get_db_for_user(current_user)
+        base = _series_scope_base(current_user)
+
+        candidates = await _collect_series_sync_candidates(current_db, base)
+
+        # Agrupa por turma para um resumo legível
+        class_ids = list({c["class_id"] for c in candidates if c.get("class_id")})
+        class_names = {}
+        if class_ids:
+            async for cl in current_db.classes.find(
+                {"id": {"$in": class_ids}}, {"_id": 0, "id": 1, "name": 1}
+            ):
+                class_names[cl["id"]] = cl.get("name", "")
+
+        return {
+            "total_to_fix": len(candidates),
+            "sample": [
+                {
+                    "student_id": c["student_id"],
+                    "full_name": c["full_name"],
+                    "target_series": c["target_series"],
+                    "class_id": c["class_id"],
+                    "class_name": class_names.get(c["class_id"], ""),
+                }
+                for c in candidates[:200]
+            ],
+        }
+
+    @router.post("/series-sync/repair")
+    async def repair_series_sync(request: Request):
+        """[Auditoria] Copia a série do CADASTRO do aluno para a MATRÍCULA ATIVA
+        quando esta estiver sem série. Tenant/escola-aware, idempotente e auditado.
+        Resolve turmas multisseriadas onde o aluno tem série no cadastro mas a
+        matrícula nasceu/migrou sem `student_series` (sumindo dos PDFs por etapa)."""
+        current_user = await AuthMiddleware.require_roles(_SERIES_ROLES)(request)
+        current_db = get_db_for_user(current_user)
+        base = _series_scope_base(current_user)
+
+        candidates = await _collect_series_sync_candidates(current_db, base)
+
+        fixed = 0
+        for c in candidates:
+            res = await current_db.enrollments.update_one(
+                {"id": c["enrollment_id"], **_EMPTY_SERIES_COND},
+                {"$set": {"student_series": c["target_series"]}}
+            )
+            fixed += res.modified_count
+
+        await audit_service.log(
+            action='update',
+            collection='enrollments',
+            user=current_user,
+            request=request,
+            document_id='series-sync-repair',
+            description=(f"Sincronização de série matrícula↔cadastro: "
+                        f"{fixed} matrícula(s) preenchida(s) a partir de students.student_series.")
+        )
+
+        return {"fixed_enrollments": fixed, "candidates": len(candidates)}
+
+
 
     @router.get("/autocomplete")
     async def autocomplete_students(
