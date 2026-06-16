@@ -18,6 +18,7 @@ const LandingPage = lazy(() => import('@/pages/LandingPage'));
 const TutorialsPage = lazy(() => import('@/pages/TutorialsPage'));
 const TutorialAcesso = lazy(() => import('@/pages/tutorials/TutorialAcesso'));
 const TutorialDiarioAEE = lazy(() => import('@/pages/tutorials/TutorialDiarioAEE'));
+const TutorialTransferencia = lazy(() => import('@/pages/tutorials/TutorialTransferencia'));
 const PreMatricula = lazy(() => import('@/pages/PreMatricula'));
 const PreMatriculaManagement = lazy(() => import('@/pages/PreMatriculaManagement'));
 const VerifyPublic = lazy(() => import('@/pages/VerifyPublic'));
@@ -130,6 +131,7 @@ function App() {
           <Route path="/tutoriais" element={<TutorialsPage />} />
           <Route path="/tutoriais/secretarios/acesso" element={<TutorialAcesso />} />
           <Route path="/tutoriais/professor-aee/diario-aee" element={<TutorialDiarioAEE />} />
+          <Route path="/tutoriais/secretarios/transferencia" element={<TutorialTransferencia />} />
           
           {/* Rotas públicas */}
           <Route path="/login" element={<Login />} />

@@ -87,7 +87,7 @@ export default function TutorialsPage() {
         { title: 'Acesso ao sistema e permissões', icon: Key, link: '/tutoriais/secretarios/acesso' },
         { title: 'Cadastro de novos alunos', icon: UserPlus },
         { title: 'Matrícula de alunos em turmas', icon: CheckSquare },
-        { title: 'Transferência de alunos entre escolas', icon: Users },
+        { title: 'Transferência de alunos entre escolas', icon: Users, link: '/tutoriais/secretarios/transferencia' },
         { title: 'Remanejamento de alunos entre turmas', icon: School },
         { title: 'Edição de dados cadastrais de alunos', icon: PenLine },
         { title: 'Busca e filtros de alunos', icon: Search },
