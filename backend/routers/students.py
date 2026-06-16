@@ -1988,7 +1988,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         
-        await current_db.enrollments.insert_one(new_enrollment)
+        await current_db.enrollments.insert_one(dict(new_enrollment))
         
         # Atualiza dados do aluno
         await current_db.students.update_one(
