@@ -1,6 +1,28 @@
 # CHANGELOG — SIGESC
 
-## 2026-06 — Cancelado ainda aparecia no Detalhe da Turma (faltou class_details.py)
+## 2026-06 — RAIZ do "deploy não reflete": .env fora do repositório + reforço PWA
+
+- **Diagnóstico (deployment_agent):** `backend/.env` e `frontend/.env` estavam sendo
+  IGNORADOS pelo `.gitignore` (dezenas de duplicatas de `.env`/`*.env`, linha 850).
+  Como não iam para o repositório, o deploy de produção subia o backend SEM as
+  variáveis (ex.: `MONGO_URL`) → backend falhava no boot → health check falhava →
+  a plataforma mantinha a **versão ANTIGA** no ar. Isso explica os DOIS casos em que
+  mudanças de backend (completude e ocultar cancelados) "não refletiram" pós-deploy.
+- **Correção:** adicionadas negações no fim do `.gitignore` (`!backend/.env`,
+  `!frontend/.env`); ambos agora versionados (confirmado via `git check-ignore` e
+  `git add`). Supervisor config já existe no pod (falso positivo do diagnóstico).
+- **Reforço PWA (a pedido do usuário):**
+  - `public/sw.js`: bump `sigesc-cache-v12` → `v13` (força novo SW, que já tem
+    `skipWaiting`+`clients.claim` e apaga caches antigos na ativação). Endpoints de
+    roster dinâmico (`/api/attendance`, `/api/grades`, `/api/classes/{id}/details`,
+    `.../cancelled-enrollments`) agora são **network-only** (nunca servidos de cache
+    do SW), para nunca exibir aluno cancelado/transferido a partir de cache.
+  - `pages/StudentsComplete.js`: ao cancelar um vínculo, limpa o cache local Dexie
+    (remove o aluno de `db.students` e invalida `db.attendance`/`db.grades` da turma).
+- **Próximo passo do usuário:** refazer o Deploy (agora com `.env` versionado),
+  aguardar ~15 min e testar em janela anônima.
+
+
 
 - **Causa:** ao esconder cancelados de notas/frequência eu corrigi grades.py,
   attendance.py e attendance_ext.py, mas **faltou `routers/class_details.py`** — que

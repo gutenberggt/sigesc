@@ -7,6 +7,7 @@ import { Modal } from '@/components/Modal';
 import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 import { Tabs } from '@/components/Tabs';
 import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI, medicalCertificatesAPI, cpfAPI, enrollmentsAPI } from '@/services/api';
+import { db } from '@/db/database';
 import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail, isValidCPF } from '@/utils/formatters';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
@@ -828,6 +829,16 @@ export function StudentsComplete() {
         reason: cancelReason.trim()
       });
       showAlert('success', data.message || 'Vínculo cancelado com sucesso');
+      // Limpeza do cache OFFLINE (Dexie): remove o aluno cancelado da lista local
+      // e invalida frequência/notas cacheadas da turma, para que o cancelado não
+      // reapareça em listas offline. Tolerante a falha (não bloqueia o fluxo online).
+      try {
+        await db.students.where('id').equals(cancelModal.student.id).delete();
+        await db.attendance.where('class_id').equals(filterClassId).delete();
+        await db.grades.where('class_id').equals(filterClassId).delete();
+      } catch (e) {
+        console.warn('[Cancelamento] Falha ao limpar cache local:', e?.message);
+      }
       setCancelModal({ open: false, student: null });
       setCancelReason('');
       reloadData();

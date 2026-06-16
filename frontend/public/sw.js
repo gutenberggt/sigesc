@@ -8,7 +8,7 @@
 // [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
 // Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
 // (impedindo que bundles JS antigos quebrem o app após deploy).
-const CACHE_NAME = 'sigesc-cache-v12';
+const CACHE_NAME = 'sigesc-cache-v13';
 const OFFLINE_URL = '/offline.html';
 // Chave fixa onde o app shell (index.html) é cacheado dinamicamente a cada visita online.
 const APP_SHELL_URL = '/index.html';
@@ -28,6 +28,12 @@ const CACHE_PATTERNS = {
   pages: /^\/(login|dashboard|admin|professor)/,
   api: /\/api\/(schools|classes|courses|students|mantenedora)/
 };
+
+// Endpoints de roster MUITO dinâmicos (frequência/notas/detalhes da turma).
+// NUNCA devem ser cacheados pelo SW: precisam refletir na hora cancelamentos,
+// transferências, novas matrículas etc. Quando offline, o app usa o IndexedDB
+// (Dexie) próprio — não a resposta da API cacheada pelo SW.
+const NEVER_CACHE_API = /\/api\/(attendance|grades|classes\/[^/]+\/(details|cancelled-enrollments))/;
 
 // ============= IndexedDB Helper para Service Worker =============
 
@@ -246,7 +252,13 @@ self.addEventListener('fetch', (event) => {
 
   // Apenas requisições same-origin são cacheadas/interceptadas
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstStrategy(request));
+    // Roster dinâmico (frequência/notas/detalhes): SEMPRE da rede, sem cachear,
+    // para nunca exibir aluno cancelado/transferido a partir de cache do SW.
+    if (NEVER_CACHE_API.test(url.pathname)) {
+      event.respondWith(networkOnlyStrategy(request));
+    } else {
+      event.respondWith(networkFirstStrategy(request));
+    }
   } else if (/\.(js|css)$/.test(url.pathname)) {
     // JS e CSS bundles: sempre buscar da rede primeiro (garante código atualizado após deploy)
     event.respondWith(networkFirstStrategy(request));
@@ -294,6 +306,20 @@ async function cacheFirstStrategy(request) {
   }
   
   return fetchAndCache(request);
+}
+
+// Network-only: nunca usa cache. Para rosters dinâmicos (frequência/notas/detalhes
+// da turma) que precisam refletir cancelamentos/transferências imediatamente.
+// Em caso de falha de rede, retorna 503 JSON e o app cai no fallback do Dexie.
+async function networkOnlyStrategy(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: 'Offline - dados de turma não disponíveis sem conexão' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 }
 
 async function networkFirstStrategy(request) {
