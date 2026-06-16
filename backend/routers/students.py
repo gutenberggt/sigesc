@@ -1616,25 +1616,36 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             
             academic_year = datetime.now().year
             
-            # Marca a matrícula antiga como inativa (mantém registro na turma de origem)
-            await current_db.enrollments.update_one(
-                {"student_id": student_id, "school_id": old_school_id, "class_id": old_class_id, "status": "active", "academic_year": academic_year},
-                {"$set": {"status": enrollment_inactive_status}}
-            )
-            
-            # Cria nova matrícula ativa na turma de destino
+            # Lê a matrícula ativa de ORIGEM antes de qualquer mutação.
             old_enrollment = await current_db.enrollments.find_one(
-                {"student_id": student_id, "school_id": old_school_id, "class_id": old_class_id, "academic_year": academic_year},
+                {"student_id": student_id, "school_id": old_school_id, "class_id": old_class_id, "status": "active", "academic_year": academic_year},
                 {"_id": 0}
             )
-            # Mantém o número da matrícula de origem (mesma identidade do aluno).
-            # Se a matrícula de origem estiver SEM número (passivo legado), gera um
-            # número atômico fresco em vez de propagar None — assim a nova matrícula
-            # nunca nasce "sem número".
+            # O número de matrícula é a identidade do aluno e deve viajar com a
+            # matrícula ATIVA. Como há índice único global `uq_enrollment_number`
+            # (partial: enrollment_number > ''), NÃO podem existir dois documentos
+            # com o mesmo número. Por isso, ao remanejar, transferimos o número para
+            # a nova matrícula e LIBERAMOS o número da matrícula de origem histórica
+            # (guardando-o em `previous_enrollment_number` para auditoria). Sem isso,
+            # o insert da nova matrícula quebrava com DuplicateKeyError → HTTP 500.
             carried_number = old_enrollment.get("enrollment_number") if old_enrollment else None
+
+            # Marca a matrícula antiga como inativa e libera seu número.
+            old_inactive_update = {"status": enrollment_inactive_status}
+            if carried_number:
+                old_inactive_update["enrollment_number"] = ""
+                old_inactive_update["previous_enrollment_number"] = carried_number
+            await current_db.enrollments.update_one(
+                {"student_id": student_id, "school_id": old_school_id, "class_id": old_class_id, "status": "active", "academic_year": academic_year},
+                {"$set": old_inactive_update}
+            )
+
+            # Se a matrícula de origem estava SEM número (passivo legado), gera um
+            # número atômico fresco — assim a nova matrícula nunca nasce "sem número".
             if not carried_number:
                 carried_number = await generate_enrollment_number(current_db, academic_year)
-                update_data['enrollment_number'] = carried_number
+            update_data['enrollment_number'] = carried_number
+
             new_enrollment = {
                 "id": str(uuid.uuid4()),
                 "student_id": student_id,
@@ -1646,7 +1657,13 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 "student_series": update_data.get('student_series') or (old_enrollment.get("student_series") if old_enrollment else None),
                 "enrollment_date": (f"{custom_action_date}T12:00:00+00:00" if custom_action_date else datetime.now(timezone.utc).isoformat())
             }
-            await current_db.enrollments.insert_one(new_enrollment)
+            try:
+                await current_db.enrollments.insert_one(new_enrollment)
+            except DuplicateKeyError:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Este aluno já possui matrícula ativa na turma de destino."
+                )
             
             new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
             if action_type == 'progressao':

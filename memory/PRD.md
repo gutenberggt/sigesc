@@ -23,6 +23,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Fix P0: "Network Error" ao remanejar aluno (Jun/2026)
+**Bug:** `PUT /api/students/{id}` com mudança de `class_id` (remanejamento) retornava HTTP 500 ("Network Error" no front).
+**Causa raiz:** ao criar a nova matrícula, o backend carregava o MESMO `enrollment_number` da matrícula de origem. Como existe índice único global `uq_enrollment_number` (partial: `enrollment_number > ''`) e a matrícula antiga (agora `relocated`) ainda mantinha esse número, o `insert_one` quebrava com `DuplicateKeyError`.
+**Fix (`routers/students.py` ~1617-1665):** o número de matrícula (identidade do aluno) é transferido para a NOVA matrícula ativa; o número da matrícula de origem é liberado (`enrollment_number=""`) e preservado em `previous_enrollment_number` para auditoria. Insert protegido com try/except → 409 amigável. Regras de remanejamento/progressão/reclassificação preservadas.
+**Testes:** `tests/test_relocate_student_regression.py` (2 verdes — retorna 200, número preservado, histórico registra remanejamento).
+**Deploy:** subir via "Save to Github" (Coolify puxa do repositório).
+
+
 ## CHANGELOG — Indicadores da Rede: reconciliação de contagens (Fev/2026)
 **Bug:** No painel "Indicadores da Rede" (página Alunos), a soma por SÉRIE e por COR/RAÇA não fechava com o total de ativos, em todas as escolas.
 **Causa raiz:** a contagem por série exigia correspondência EXATA com rótulos fixos do front (ex.: cadastro `PRÉ-ESCOLA I` não casava com `Pré I`) → alunos sumiam; alunos sem cor/raça não apareciam.
