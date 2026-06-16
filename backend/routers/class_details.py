@@ -119,9 +119,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     'student_series': e.get('student_series')
                 }
 
-        # Busca alunos inativos que JÁ ESTIVERAM nesta turma
+        # Busca alunos inativos que JÁ ESTIVERAM nesta turma.
+        # IMPORTANTE: "cancelled" (matrícula cancelada) é EXCLUÍDO de propósito —
+        # aluno com matrícula cancelada NÃO deve aparecer na lista de alunos da turma
+        # (aparece apenas na visão de auditoria "Matrículas Canceladas").
         inactive_enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed", "reclassified"]}},
+            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "relocated", "progressed", "reclassified"]}},
             {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1, "academic_year": 1}
         ).to_list(1000)
 

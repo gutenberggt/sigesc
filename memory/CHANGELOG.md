@@ -1,6 +1,22 @@
 # CHANGELOG — SIGESC
 
-## 2026-06 — Aba "Matrículas Canceladas" no detalhe da turma (auditoria, read-only)
+## 2026-06 — Cancelado ainda aparecia no Detalhe da Turma (faltou class_details.py)
+
+- **Causa:** ao esconder cancelados de notas/frequência eu corrigi grades.py,
+  attendance.py e attendance_ext.py, mas **faltou `routers/class_details.py`** — que
+  também incluía `cancelled` na lista de alunos da turma (modal "Detalhes da Turma" e
+  PDF), mostrando o aluno com selo "(Cancelado)".
+- **Correção:** removido `cancelled` da query de inativos em `class_details.py`. Agora
+  o cancelado sai da lista de alunos e aparece apenas na seção de auditoria
+  "Matrículas Canceladas". Teste estendido valida `/classes/{id}/details` (PASS).
+- **Nota importante (tela de Frequência):** a tela de Frequência usa
+  `GET /api/attendance/by-class/...` (já corrigido e testado). Se o cancelado ainda
+  aparecer lá em produção, é (a) backend não reimplantado (Deploy) ou (b) lista
+  carregada do **cache offline Dexie** — ao reabrir online/sincronizado o cache é
+  reescrito sem o cancelado. A seção "Matrículas Canceladas" fica no modal
+  "Detalhes da Turma" (Turmas → Visualizar), não na tela de Frequência.
+
+
 
 - **Contexto:** como alunos cancelados foram removidos das listas operacionais
   (notas/frequência), o gestor precisava de uma forma de rastrear quem foi cancelado.

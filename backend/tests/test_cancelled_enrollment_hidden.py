@@ -128,6 +128,14 @@ def test_cancelled_student_hidden_from_grades_and_attendance(scenario, admin_hea
     assert "QA CANCEL Cancelado" not in names2, "cancelado não pode aparecer em notas"
     assert "QA CANCEL Ativo" in names2
 
+    # Depois: detalhe da turma (lista de alunos) só com o ativo
+    det = requests.get(f"{BASE_URL}/api/classes/{CLASS_ID}/details?academic_year={YEAR}",
+                       headers=admin_headers, timeout=30)
+    assert det.status_code == 200, det.text[:200]
+    det_names = {s["full_name"] for s in det.json().get("students", [])}
+    assert "QA CANCEL Cancelado" not in det_names, "cancelado não pode aparecer na lista de alunos da turma"
+    assert "QA CANCEL Ativo" in det_names
+
     # Depois: frequência só com o ativo
     a = requests.get(f"{BASE_URL}/api/attendance/by-class/{CLASS_ID}/{YEAR}-06-15?academic_year={YEAR}",
                      headers=admin_headers, timeout=30)
