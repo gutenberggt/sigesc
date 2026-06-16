@@ -12,7 +12,7 @@ import calendar
 
 from auth_middleware import AuthMiddleware
 from pdf_cache import get_mantenedora_cached
-from pdf.utils import format_date_pt
+from pdf.utils import format_date_pt, get_logo_image
 from services.attendance_utils import (
     compute_monthly_valid_absences,
     fetch_medical_days_for_students,
@@ -1160,6 +1160,21 @@ def setup_router(db, **kwargs):
         secretario = school.get("secretario_escolar") or ""
         months_range = list(range(month_start, month_end + 1))
 
+        # [Jun/2026] Identificação da turma no PDF quando filtrado por turma.
+        selected_class_label = ""
+        if class_id:
+            sel_cls = class_map.get(class_id)
+            if not sel_cls:
+                sel_cls = await db.classes.find_one(
+                    {"id": class_id}, {"_id": 0, "name": 1, "grade_level": 1}
+                )
+            if sel_cls:
+                _cname = sel_cls.get("name", "")
+                _cgrade = sel_cls.get("grade_level", "")
+                selected_class_label = _cname or _cgrade
+                if _cname and _cgrade and _cgrade not in _cname:
+                    selected_class_label = f"{_cname} ({_cgrade})"
+
         # [Fev/2026] Validação digital: a assinatura digital aparece no PDF SOMENTE
         # se TODOS os meses do range tiverem AO MENOS UM tracking salvo por
         # `saved_by_role='secretario'` (autenticidade do registro pela escola).
@@ -1207,6 +1222,8 @@ def setup_router(db, **kwargs):
                 digital_signer_name=digital_signer_name,
                 digital_signature_valid=digital_signature_valid,
                 reason_name_map=reason_name_map,
+                mantenedora=mant,
+                selected_class_label=selected_class_label,
             )
         except Exception as e:
             logger.error(f"Erro ao gerar PDF Bolsa Família: {e}")
@@ -1219,7 +1236,7 @@ def setup_router(db, **kwargs):
             headers={"Content-Disposition": f"inline; filename={filename}"}
         )
 
-    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences, digital_signer_name="", digital_signature_valid=False, reason_name_map=None):
+    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences, digital_signer_name="", digital_signature_valid=False, reason_name_map=None, mantenedora=None, selected_class_label=""):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.units import mm, cm
@@ -1237,26 +1254,82 @@ def setup_router(db, **kwargs):
         cell_center = ParagraphStyle('BFCellCenter', fontSize=6.5, leading=8, alignment=TA_CENTER)
         sign_style = ParagraphStyle('BFSign', fontSize=8, alignment=TA_CENTER, leading=10)
 
-        elements.append(Paragraph("Acompanhamento de Frequência Escolar", title_style))
-        elements.append(Spacer(1, 4))
+        # === CABEÇALHO INSTITUCIONAL (Jun/2026) ===
+        # Brasão da mantenedora + nome + secretaria + slogan, no mesmo padrão dos
+        # demais documentos institucionais do sistema (frequência, boletim, etc.).
+        mant = mantenedora or {}
+        mant_municipio = mant.get('municipio', municipio_uf or '')
+        mant_nome = mant.get('nome') or mant.get('name') or (f'Prefeitura Municipal de {mant_municipio}' if mant_municipio else 'Prefeitura Municipal')
+        mant_secretaria = mant.get('secretaria') or 'Secretaria Municipal de Educação'
+        mant_slogan = mant.get('slogan', '') or ''
+        logo_url = mant.get('brasao_url') or mant.get('logotipo_url')
+        logo = get_logo_image(width=2.0*cm, height=2.0*cm, logo_url=logo_url) if logo_url else None
+
+        institucional_style = ParagraphStyle('BFInstitucional', fontSize=9, alignment=TA_LEFT, leading=12, fontName='Helvetica')
+        slogan_html = (f'<br/><font size="7" color="#666666"><i>"{mant_slogan}"</i></font>' if mant_slogan else '')
+        institucional_html = (
+            f'<font size="10"><b>{mant_nome.upper()}</b></font><br/>'
+            f'<font size="8"><i>{mant_secretaria}</i></font>'
+            f'{slogan_html}'
+        )
+        title_html = Paragraph("<b>ACOMPANHAMENTO DE FREQUÊNCIA ESCOLAR</b><br/><font size='8'>Programa Bolsa Família</font>", title_style)
+        if logo:
+            header_data = [[logo, Paragraph(institucional_html, institucional_style), title_html]]
+            header_table = Table(header_data, colWidths=[2.4*cm, 8.6*cm, 7*cm])
+            header_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+                ('ALIGN', (2, 0), (2, 0), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (1, 0), (1, 0), 8),
+                ('LINEAFTER', (0, 0), (0, 0), 0.5, colors.Color(0.7, 0.7, 0.7)),
+            ]))
+        else:
+            header_data = [[Paragraph(institucional_html, institucional_style), title_html]]
+            header_table = Table(header_data, colWidths=[10*cm, 8*cm])
+            header_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+        elements.append(header_table)
+        elements.append(Spacer(1, 6))
 
         school_name = school.get('name', '')
         inep = school.get('inep_code', '')
 
-        school_data = [
-            [Paragraph(f"<b>Nome da Escola:</b> {school_name}", info_style),
-             Paragraph(f"<b>Código INEP:</b> {inep}", info_style),
-             Paragraph(f"<b>Município/UF:</b> {municipio_uf}", info_style)]
+        school_info_cells = [
+            Paragraph(f"<b>Nome da Escola:</b> {school_name}", info_style),
+            Paragraph(f"<b>Código INEP:</b> {inep}", info_style),
+            Paragraph(f"<b>Município/UF:</b> {municipio_uf}", info_style),
         ]
-        school_table = Table(school_data, colWidths=[8*cm, 4.5*cm, 4.5*cm])
-        school_table.setStyle(TableStyle([
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ]))
+        # [Jun/2026] Identifica a turma no PDF quando o filtro de turma é aplicado.
+        if selected_class_label:
+            school_data = [
+                school_info_cells,
+                [Paragraph(f"<b>Turma:</b> {selected_class_label}", info_style), '', ''],
+            ]
+            school_table = Table(school_data, colWidths=[8*cm, 4.5*cm, 4.5*cm])
+            school_table.setStyle(TableStyle([
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('SPAN', (0, 1), (2, 1)),
+            ]))
+        else:
+            school_data = [school_info_cells]
+            school_table = Table(school_data, colWidths=[8*cm, 4.5*cm, 4.5*cm])
+            school_table.setStyle(TableStyle([
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ]))
         elements.append(school_table)
         elements.append(Spacer(1, 6))
 

@@ -523,6 +523,7 @@ export default function BolsaFamilia() {
                     <thead>
                       <tr className="bg-gray-100">
                         <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase w-28">Mês</th>
+                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-20">Faltas</th>
                         <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">Frequência</th>
                         <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase w-[420px]">Motivo Oficial MEC</th>
                         <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Observações</th>
@@ -546,6 +547,15 @@ export default function BolsaFamilia() {
                         return (
                           <tr key={m} className={`hover:bg-gray-50 ${belowThreshold ? 'bg-amber-50/40' : ''}`}>
                             <td className="px-4 py-2 font-medium text-gray-700">{MESES[m]}</td>
+                            <td className="px-3 py-2 text-center" data-testid={`bf-absences-${student.id}-${m}`}>
+                              {data.frequency ? (
+                                <span className={`font-semibold ${data.absences > 0 ? 'text-amber-700' : 'text-gray-900'}`}>
+                                  {data.absences ?? 0}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </td>
                             <td className="px-3 py-2 text-center font-medium">
                               <div className="flex flex-col items-center gap-0.5">
                                 {data.frequency ? (

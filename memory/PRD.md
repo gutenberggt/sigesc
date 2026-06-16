@@ -23,6 +23,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Bolsa Família: PDF institucional + coluna Faltas (Jun/2026)
+**3 aprimoramentos no "Acompanhamento Bolsa Família":**
+1. **PDF institucional** (`_generate_bf_pdf` em `routers/bolsa_familia.py`): cabeçalho com brasão/logotipo da mantenedora + nome + secretaria + slogan (mesmo padrão dos demais documentos do sistema, via `get_logo_image`). Título "Acompanhamento de Frequência Escolar — Programa Bolsa Família".
+2. **Identificação da turma no PDF**: quando o filtro `class_id` é aplicado, o PDF passa a exibir uma linha "Turma: {nome} ({série})" no bloco da escola.
+3. **Coluna "Faltas" (somente na tela)**: em `frontend/src/pages/BolsaFamilia.js`, entre as colunas Mês e Frequência, exibindo `months[m].absences` (faltas válidas somadas no mês, em âmbar quando > 0). NÃO reproduzida no PDF.
+**Validação:** PDFs com/sem turma geram 200; extração confirmou cabeçalho institucional + "Turma Multi 1-2-3 (1º ANO)". Screenshot confirma a coluna FALTAS na tela. Deploy via "Save to Github".
+
+
 ## CHANGELOG — Fix P0: "Network Error" ao remanejar aluno (Jun/2026)
 **Bug:** `PUT /api/students/{id}` com mudança de `class_id` (remanejamento) retornava HTTP 500 ("Network Error" no front).
 **Causa raiz:** ao criar a nova matrícula, o backend carregava o MESMO `enrollment_number` da matrícula de origem. Como existe índice único global `uq_enrollment_number` (partial: `enrollment_number > ''`) e a matrícula antiga (agora `relocated`) ainda mantinha esse número, o `insert_one` quebrava com `DuplicateKeyError`.
