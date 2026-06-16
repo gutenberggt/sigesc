@@ -1212,6 +1212,80 @@ def setup_router(db, **kwargs):
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Falha ao validar assinatura digital BF: {e}")
 
+        # === [Jun/2026] Lista de alunos TRANSFERIDOS (saída) da escola/turma ===
+        # Exibida no PDF, antes da assinatura. Mostra nome, data da transferência e,
+        # se o aluno estiver matriculado (ativo) em OUTRA escola da rede, qual escola;
+        # caso contrário, "Fora da rede". Escopo segue o filtro (escola ou turma).
+        transferred_list = []
+        try:
+            saida_query = {"school_id": school_id, "action_type": "transferencia_saida"}
+            if class_id:
+                saida_query["class_id"] = class_id
+            saida_history = await db.student_history.find(
+                saida_query, {"_id": 0, "student_id": 1, "action_date": 1}
+            ).to_list(20000)
+
+            # Mantém apenas a saída mais recente por aluno, dentro do ano letivo do relatório.
+            latest_saida = {}
+            for h in saida_history:
+                sid = h.get("student_id")
+                if not sid:
+                    continue
+                ad = h.get("action_date") or ""
+                if ad and len(ad) >= 4 and ad[:4] != str(academic_year):
+                    continue
+                if sid not in latest_saida or ad > latest_saida[sid]:
+                    latest_saida[sid] = ad
+
+            if latest_saida:
+                sids = list(latest_saida.keys())
+                t_students = await db.students.find(
+                    {"id": {"$in": sids},
+                     "benefits": {"$in": ["Bolsa Família", "bolsa_familia", "Bolsa Familia"]}},
+                    {"_id": 0, "id": 1, "full_name": 1}
+                ).to_list(20000)
+                t_student_map = {s["id"]: s for s in t_students}
+
+                active_enrs = await db.enrollments.find(
+                    {"student_id": {"$in": sids}, "status": "active"},
+                    {"_id": 0, "student_id": 1, "school_id": 1}
+                ).to_list(20000)
+                active_school_by_student = {e["student_id"]: e.get("school_id") for e in active_enrs}
+
+                dest_school_ids = list({s for s in active_school_by_student.values() if s and s != school_id})
+                dest_school_names = {}
+                if dest_school_ids:
+                    async for sch in db.schools.find(
+                        {"id": {"$in": dest_school_ids}}, {"_id": 0, "id": 1, "name": 1}
+                    ):
+                        dest_school_names[sch["id"]] = sch.get("name", "")
+
+                for sid, ad in latest_saida.items():
+                    st = t_student_map.get(sid)
+                    if not st:
+                        continue  # aluno não é Bolsa Família (ou não existe mais)
+                    active_school = active_school_by_student.get(sid)
+                    if active_school and active_school == school_id:
+                        continue  # transferência cancelada / voltou à escola → não listar
+                    if active_school and active_school != school_id:
+                        destino = dest_school_names.get(active_school) or "Outra escola da rede"
+                    else:
+                        destino = "Fora da rede"
+                    data_fmt = ad
+                    if isinstance(ad, str) and len(ad) >= 10:
+                        try:
+                            data_fmt = datetime.strptime(ad[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+                        except Exception:
+                            data_fmt = ad[:10]
+                    transferred_list.append({
+                        "full_name": st.get("full_name", ""),
+                        "transfer_date": data_fmt or "-",
+                        "destination": destino,
+                    })
+                transferred_list.sort(key=lambda x: (x["full_name"] or "").lower())
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Falha ao montar lista de transferidos BF: {e}")
+
         try:
             pdf_buffer = _generate_bf_pdf(
                 school=school, students=students, class_map=class_map,
@@ -1224,6 +1298,7 @@ def setup_router(db, **kwargs):
                 reason_name_map=reason_name_map,
                 mantenedora=mant,
                 selected_class_label=selected_class_label,
+                transferred_list=transferred_list,
             )
         except Exception as e:
             logger.error(f"Erro ao gerar PDF Bolsa Família: {e}")
@@ -1236,7 +1311,7 @@ def setup_router(db, **kwargs):
             headers={"Content-Disposition": f"inline; filename={filename}"}
         )
 
-    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences, digital_signer_name="", digital_signature_valid=False, reason_name_map=None, mantenedora=None, selected_class_label=""):
+    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences, digital_signer_name="", digital_signature_valid=False, reason_name_map=None, mantenedora=None, selected_class_label="", transferred_list=None):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.units import mm, cm
@@ -1414,6 +1489,36 @@ def setup_router(db, **kwargs):
             elements.append(Spacer(1, 8))
 
         elements.append(Spacer(1, 20))
+
+        # === [Jun/2026] Alunos transferidos da escola/turma (antes da assinatura) ===
+        if transferred_list:
+            trans_title_style = ParagraphStyle('BFTransTitle', fontSize=9, fontName='Helvetica-Bold', alignment=TA_LEFT, spaceAfter=4)
+            elements.append(Paragraph("Alunos Transferidos no Período", trans_title_style))
+            trans_header = [
+                Paragraph("<b>Nome do Estudante</b>", cell_center),
+                Paragraph("<b>Data da Transferência</b>", cell_center),
+                Paragraph("<b>Situação / Escola de Destino</b>", cell_center),
+            ]
+            trans_data = [trans_header]
+            for t in transferred_list:
+                trans_data.append([
+                    Paragraph(t.get("full_name", ""), cell_style),
+                    Paragraph(t.get("transfer_date", ""), cell_center),
+                    Paragraph(t.get("destination", ""), cell_style),
+                ])
+            trans_table = Table(trans_data, colWidths=[8*cm, 4*cm, 5*cm])
+            trans_table.setStyle(TableStyle([
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.85, 0.85, 0.85)),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ]))
+            elements.append(trans_table)
+            elements.append(Spacer(1, 18))
+
         if digital_signature_valid and digital_signer_name:
             # Assinatura digital: aparece SOMENTE quando todos os meses do range
             # foram salvos por um secretário da escola.

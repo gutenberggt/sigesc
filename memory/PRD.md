@@ -23,6 +23,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Bolsa Família: lista de transferidos no PDF (Jun/2026)
+**Aprimoramento:** no PDF do "Acompanhamento Bolsa Família", antes da assinatura, passa a exibir a seção **"Alunos Transferidos no Período"** com colunas: Nome do Estudante, Data da Transferência e Situação/Escola de Destino.
+**Regras:** lista os alunos BF com `transferencia_saida` da escola (ou da turma, quando o filtro de turma está aplicado) no ano letivo do relatório. Destino = matrícula ATIVA atual do aluno: se estiver ativo em OUTRA escola da rede → exibe o nome da escola; caso contrário → "Fora da rede". Transferências canceladas (aluno voltou à escola de origem) são omitidas.
+**Arquivos:** `routers/bolsa_familia.py` (coleta em `generate_bolsa_familia_pdf` + render em `_generate_bf_pdf`).
+**Validação:** PDF 200; extração confirmou os 2 caminhos — "Escola Demo Portal" (rede) e "Fora da rede" — com a assinatura logo após.
+**Bug descoberto (NÃO corrigido — fora de escopo):** `POST /api/students/{id}/transfer` retorna HTTP 500 por serialização de ObjectId no retorno (`new_enrollment` mutado pelo `insert_one`), embora os dados sejam gravados. Recomendado corrigir (retornar doc sem `_id`).
+
+
 ## CHANGELOG — Bolsa Família: PDF institucional + coluna Faltas (Jun/2026)
 **3 aprimoramentos no "Acompanhamento Bolsa Família":**
 1. **PDF institucional** (`_generate_bf_pdf` em `routers/bolsa_familia.py`): cabeçalho com brasão/logotipo da mantenedora + nome + secretaria + slogan (mesmo padrão dos demais documentos do sistema, via `get_logo_image`). Título "Acompanhamento de Frequência Escolar — Programa Bolsa Família".
