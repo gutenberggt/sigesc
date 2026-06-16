@@ -1174,13 +1174,17 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         else:
             enrollment_series_map = {}
         
-        # Garante compatibilidade, calcula completude e remove campos extras.
-        _COMPLETENESS_EXTRA_FIELDS = [
-            "enrollment_number", "nationality", "color_race",
-            "comunidade_tradicional", "birth_city", "birth_state",
-            "mother_name", "legal_guardian_type", "nis",
-            "civil_certificate_number", "mother_phone", "father_phone",
-            "guardian_phone",
+        # Garante compatibilidade e calcula completude.
+        # NÃO removemos os campos usados na completude: o frontend recalcula a %
+        # da coluna "Completude" com o MESMO util do modal (registrationCompleteness),
+        # garantindo que LISTA e "Editar Aluno(a)" nunca divirjam. Campos ausentes no
+        # documento são incluídos como null para o cliente conseguir recalcular.
+        _COMPLETENESS_SOURCE_FIELDS = [
+            "full_name", "birth_date", "sex", "nationality", "color_race",
+            "comunidade_tradicional", "birth_city", "birth_state", "mother_name",
+            "legal_guardian_type", "cpf", "nis", "civil_certificate_number",
+            "mother_phone", "father_phone", "guardian_phone", "class_id",
+            "enrollment_number",
         ]
         for student in students:
             student.setdefault('full_name', '')
@@ -1191,9 +1195,10 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             # (ex.: turmas multisseriadas com matrícula sem `student_series`).
             student['student_series'] = enrollment_series_map.get(student.get('id')) or student.get('student_series')
             student['completeness'] = _compute_student_completeness(student)
-            # Remove os campos usados apenas no cálculo (payload mais leve)
-            for _f in _COMPLETENESS_EXTRA_FIELDS:
-                student.pop(_f, None)
+            # Garante que TODOS os campos de completude existam no payload (null se
+            # ausentes) para o recálculo no cliente bater com o backend e o modal.
+            for _f in _COMPLETENESS_SOURCE_FIELDS:
+                student.setdefault(_f, None)
         
         return {
             "items": students,

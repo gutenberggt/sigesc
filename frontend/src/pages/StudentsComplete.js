@@ -4231,7 +4231,14 @@ export function StudentsComplete() {
                         <td className="px-4 py-3 text-sm text-gray-500">{getStudentSeries(row)}</td>
                         <td className="px-4 py-3">
                           {(() => {
-                            const pct = typeof row.completeness === 'number' ? row.completeness : 0;
+                            // Recalcula a completude no cliente com o MESMO util do
+                            // modal (registrationCompleteness), garantindo que a coluna
+                            // bata exatamente com a barra do "Editar Aluno(a)". Fallback
+                            // para o valor do backend apenas se os campos não vierem.
+                            const hasFields = ('color_race' in row) || ('mother_name' in row) || ('birth_city' in row);
+                            const pct = hasFields
+                              ? computeCompleteness(row).percent
+                              : (typeof row.completeness === 'number' ? row.completeness : 0);
                             const c = completenessColor(pct);
                             return (
                               <span

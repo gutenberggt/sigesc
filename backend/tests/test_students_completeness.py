@@ -130,3 +130,44 @@ def test_completeness_counts_consider_only_active(auth_headers):
     bd = rb.json()
     for s in (bd.get("items") or []):
         assert s.get("status") == "active", f"banda retornou não-ativo: {s.get('status')}"
+
+
+def _recompute_frontend_style(s):
+    """Espelha utils/registrationCompleteness.js (14 critérios)."""
+    def f(v):
+        return v is not None and str(v).strip() != ""
+    checks = [
+        f(s.get("full_name")), f(s.get("birth_date")), f(s.get("sex")),
+        f(s.get("nationality")), f(s.get("color_race")), f(s.get("comunidade_tradicional")),
+        f(s.get("birth_city")), f(s.get("birth_state")), f(s.get("mother_name")),
+        f(s.get("legal_guardian_type")),
+        any(f(s.get(k)) for k in ("cpf", "nis", "civil_certificate_number")),
+        any(f(s.get(k)) for k in ("mother_phone", "father_phone", "guardian_phone")),
+        f(s.get("class_id")), f(s.get("enrollment_number")),
+    ]
+    return round(sum(1 for c in checks if c) / len(checks) * 100)
+
+
+def test_list_includes_completeness_source_fields_for_client_recompute(auth_headers):
+    """A lista deve trazer os campos-fonte da completude (null se vazios) para o
+    frontend recalcular a % com o MESMO util do modal — assim lista e
+    'Editar Aluno(a)' nunca divergem."""
+    r = _get_students(auth_headers, page=1, page_size=10)
+    assert r.status_code == 200, r.text[:300]
+    items = r.json().get("items") or r.json().get("students") or []
+    if not items:
+        pytest.skip("Sem alunos para validar")
+    required = [
+        "full_name", "birth_date", "sex", "nationality", "color_race",
+        "comunidade_tradicional", "birth_city", "birth_state", "mother_name",
+        "legal_guardian_type", "cpf", "nis", "civil_certificate_number",
+        "mother_phone", "father_phone", "guardian_phone", "class_id",
+        "enrollment_number",
+    ]
+    for s in items:
+        for field in required:
+            assert field in s, f"campo de completude ausente no payload: {field} (aluno {s.get('full_name')})"
+        # O recálculo client-side deve bater com o completeness do backend
+        assert _recompute_frontend_style(s) == s.get("completeness"), (
+            f"divergência lista×recálculo para {s.get('full_name')}: "
+            f"backend={s.get('completeness')} client={_recompute_frontend_style(s)}")

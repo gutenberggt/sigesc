@@ -1,6 +1,24 @@
 # CHANGELOG — SIGESC
 
-## 2026-06 — Reparo em lote: sincroniza série matrícula↔cadastro (multisseriadas)
+## 2026-06 — Completude divergente: lista (93%) × Editar Aluno (50%) (P0)
+
+- **Causa raiz:** a coluna "Completude" da lista usava o **inteiro calculado no
+  backend** (`row.completeness`), enquanto o modal "Editar Aluno(a)" recalcula no
+  cliente (`registrationCompleteness.js`). Em produção, a resposta da listagem vinha
+  de versão antiga/cache do backend (todos 93%), divergindo do modal (50%, correto —
+  a aluna realmente está sem 7 campos). Além disso, o backend **removia** os campos-
+  fonte da completude do payload da lista, impedindo o cliente de recalcular.
+- **Correção (blinda os dois lados para nunca divergir):**
+  - `routers/students.py` (`list_students`): em vez de remover, agora **inclui todos
+    os 14 campos-fonte** da completude (null quando vazios) no payload.
+  - `pages/StudentsComplete.js`: a coluna "Completude" passa a **recalcular no cliente
+    com o MESMO util do modal** (`computeCompleteness`), com fallback para o valor do
+    backend apenas se os campos não vierem (resposta cacheada antiga).
+- **Resultado:** lista e "Editar Aluno(a)" usam o mesmo cálculo sobre os mesmos dados —
+  sempre batem, independente de versão/cache do backend.
+- **Testes:** `tests/test_students_completeness.py::test_list_includes_completeness_source_fields_for_client_recompute` (valida que o payload traz os campos e que o recálculo client-side == backend). Suite: 12/12 PASS.
+
+
 
 - **O quê:** ferramenta de reparo em lote que copia `students.student_series` →
   `enrollments.student_series` para matrículas ATIVAS sem série cujo aluno já tem
