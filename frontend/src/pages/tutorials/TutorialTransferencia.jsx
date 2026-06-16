@@ -114,6 +114,27 @@ export default function TutorialTransferencia() {
                   <strong className="text-white">1.5</strong> Pronto: o status do aluno muda para <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-0.5 rounded">Transferido</span> e a matrícula na escola de origem é encerrada.
                 </li>
               </ol>
+
+              <div className="mt-6 space-y-5">
+                <figure>
+                  <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
+                    <img src="/tutorials/transf-1-lista.png" alt="Tela de Alunos com a escola selecionada" className="w-full" />
+                  </div>
+                  <figcaption className="text-slate-400 text-sm mt-2 text-center">Tela <strong className="text-slate-200">Alunos</strong>: selecione a escola e clique em <strong className="text-slate-200">Editar</strong>.</figcaption>
+                </figure>
+                <figure>
+                  <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
+                    <img src="/tutorials/transf-2-acoes.png" alt="Aba Turma/Observações com o seletor de Ação" className="w-full" />
+                  </div>
+                  <figcaption className="text-slate-400 text-sm mt-2 text-center">Na aba <strong className="text-slate-200">Turma/Observações</strong>, abra o seletor <strong className="text-slate-200">Ação</strong> e escolha <strong className="text-slate-200">Transferir</strong>.</figcaption>
+                </figure>
+                <figure>
+                  <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
+                    <img src="/tutorials/transf-3-transferir.png" alt="Modal Transferir Aluno" className="w-full" />
+                  </div>
+                  <figcaption className="text-slate-400 text-sm mt-2 text-center">Informe o motivo e a data, depois clique em <strong className="text-slate-200">Confirmar Transferência</strong>.</figcaption>
+                </figure>
+              </div>
             </section>
 
             {/* Etapa 2 */}
@@ -137,6 +158,13 @@ export default function TutorialTransferencia() {
                   <strong className="text-white">2.4</strong> Confirme. O sistema gera uma <strong className="text-white">nova matrícula</strong> na escola de destino e o status volta para <span className="inline-block bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded">Ativo</span>.
                 </li>
               </ol>
+
+              <figure className="mt-6">
+                <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
+                  <img src="/tutorials/transf-4-matricular.png" alt="Modal Matricular Aluno com escola, turma e ano letivo de destino" className="w-full" />
+                </div>
+                <figcaption className="text-slate-400 text-sm mt-2 text-center">No modal <strong className="text-slate-200">Matricular Aluno</strong>, escolha a <strong className="text-slate-200">Escola de Destino</strong>, a <strong className="text-slate-200">Turma de Destino</strong> e o <strong className="text-slate-200">Ano Letivo</strong>, e clique em <strong className="text-slate-200">Confirmar Matrícula</strong>.</figcaption>
+              </figure>
 
               <div className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mt-6">
                 <AlertCircle className="text-yellow-400 flex-shrink-0 mt-0.5" size={20} />

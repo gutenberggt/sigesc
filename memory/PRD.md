@@ -23,6 +23,15 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Tutorial de Transferência: capturas reais (Jun/2026)
+**Aprimoramento:** o tutorial "Transferir um Aluno de uma Escola para Outra" (`/tutoriais/secretarios/transferencia`) passou a incluir 4 capturas de tela reais do sistema, inseridas em cada passo:
+- `transf-1-lista.png` — tela Alunos com escola selecionada (Editar)
+- `transf-2-acoes.png` — aba Turma/Observações com o seletor "Ação"
+- `transf-3-transferir.png` — modal "Transferir Aluno" (motivo, data, confirmar)
+- `transf-4-matricular.png` — modal "Matricular Aluno" (escola/turma/ano de destino)
+**Como foram geradas:** script Playwright temporário percorreu o fluxo real logado (admin) e salvou os PNGs em `frontend/public/tutorials/`. Aluno de teste criado/excluído via API (sem resíduo). Validado: as 4 imagens carregam (naturalWidth=1280) na página.
+
+
 ## CHANGELOG — Bolsa Família: lista de transferidos no PDF (Jun/2026)
 **Aprimoramento:** no PDF do "Acompanhamento Bolsa Família", antes da assinatura, passa a exibir a seção **"Alunos Transferidos no Período"** com colunas: Nome do Estudante, Data da Transferência e Situação/Escola de Destino.
 **Regras:** lista os alunos BF com `transferencia_saida` da escola (ou da turma, quando o filtro de turma está aplicado) no ano letivo do relatório. Destino = matrícula ATIVA atual do aluno: se estiver ativo em OUTRA escola da rede → exibe o nome da escola; caso contrário → "Fora da rede". Transferências canceladas (aluno voltou à escola de origem) são omitidas.
