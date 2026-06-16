@@ -20,7 +20,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://pdf-roster-debug.preview.emergentagent.com",
+    "https://multi-class-sync.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {

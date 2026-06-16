@@ -15,7 +15,7 @@ import requests
 import pytest
 
 BASE_URL = os.environ.get(
-    "REACT_APP_BACKEND_URL", "https://pdf-roster-debug.preview.emergentagent.com"
+    "REACT_APP_BACKEND_URL", "https://multi-class-sync.preview.emergentagent.com"
 ).rstrip("/")
 ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 CLASS_ID = "3da4e569-6522-432c-9b42-1e344a2f0c69"

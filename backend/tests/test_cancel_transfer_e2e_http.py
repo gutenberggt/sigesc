@@ -21,7 +21,7 @@ import requests
 import pytest
 
 BASE_URL = (
-    os.environ.get("REACT_APP_BACKEND_URL", "https://pdf-roster-debug.preview.emergentagent.com")
+    os.environ.get("REACT_APP_BACKEND_URL", "https://multi-class-sync.preview.emergentagent.com")
     .rstrip("/")
 )
 EMAIL = "gutenberg@sigesc.com"
