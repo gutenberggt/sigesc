@@ -1,6 +1,23 @@
 # CHANGELOG — SIGESC
 
-## 2026-06 — RAIZ do "deploy não reflete": .env fora do repositório + reforço PWA
+## 2026-06 — CAUSA DEFINITIVA do "deploy não reflete": frontend/yarn.lock fora do repo (Coolify)
+
+- **Descoberta (via git.pdf do usuário):** a produção é implantada no **Coolify** a
+  partir do repo GitHub `gutenberggt/sigesc` (Dockerfile em `frontend/`). O CI
+  "CI - Build & Lint" estava FALHANDO em "Frontend - yarn build".
+- **Causa raiz:** `frontend/yarn.lock` **NÃO estava versionado** (untracked). O
+  Dockerfile/CI rodam `yarn install --frozen-lockfile`, que **falha sem o lockfile**
+  → build do Coolify quebra → a produção nunca atualiza. Isso explica TODOS os casos
+  em que mudanças (completude, ocultar cancelados, endpoint novo) "não refletiram".
+- **Correção:** `git add frontend/yarn.lock` (validado: `yarn install --frozen-lockfile`
+  passa, EXIT 0 — lockfile em sincronia com package.json). Reverti a tentativa de
+  versionar `.env` (o Coolify injeta variáveis pelo painel; `.env` não vai pro repo).
+- **AÇÃO DO USUÁRIO:** usar **"Save to GitHub"** para enviar o `frontend/yarn.lock`
+  ao repo; o Coolify então reconstrói com sucesso e sobe a versão nova.
+- Observação: a config do supervisor existe no pod (falso positivo). O Emergent remove
+  `.env` dos commits por segurança — esperado e ok para o fluxo Coolify.
+
+
 
 - **Diagnóstico (deployment_agent):** `backend/.env` e `frontend/.env` estavam sendo
   IGNORADOS pelo `.gitignore` (dezenas de duplicatas de `.env`/`*.env`, linha 850).
