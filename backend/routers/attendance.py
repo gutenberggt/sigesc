@@ -271,8 +271,11 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 enrollment_dates[student_id] = e.get('enrollment_date')
         
         # Busca alunos inativos que JÁ ESTIVERAM nesta turma (transferidos, desistentes, etc.)
+        # IMPORTANTE: "cancelled" (matrícula cancelada) é EXCLUÍDO de propósito —
+        # aluno com matrícula cancelada NÃO deve aparecer em nenhuma lista da turma
+        # onde foi cancelada (notas/frequência).
         inactive_enrollments = await current_db.enrollments.find(
-            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed", "reclassified"]}},
+            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "relocated", "progressed", "reclassified"]}},
             {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "status": 1}
         ).to_list(1000)
         

@@ -312,8 +312,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             enrollment_numbers[sid] = e.get('enrollment_number')
 
         # Fonte 2: Matrículas inativas (transferidos, desistentes, etc.)
+        # IMPORTANTE: "cancelled" (matrícula cancelada) é EXCLUÍDO de propósito —
+        # aluno com matrícula cancelada NÃO deve aparecer na turma onde foi cancelada.
         inactive_enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed"]}},
+            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "relocated", "progressed"]}},
             {"_id": 0, "student_id": 1, "enrollment_number": 1}
         ).to_list(1000)
 

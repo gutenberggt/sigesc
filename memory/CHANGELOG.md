@@ -1,6 +1,22 @@
 # CHANGELOG — SIGESC
 
-## 2026-06 — Completude divergente: lista (93%) × Editar Aluno (50%) (P0)
+## 2026-06 — Matrícula cancelada não aparece mais na turma (notas/frequência)
+
+- **Pedido:** aluno com matrícula CANCELADA não deve aparecer em nenhuma lista da
+  turma onde foi cancelado (frequência ou notas).
+- **Causa:** os endpoints incluíam matrículas com status `cancelled` na fonte de
+  "inativos que já estiveram na turma", exibindo o aluno (com selo "Cancelado").
+- **Correção:** removido `cancelled` da query de inativos em
+  `routers/grades.py` (`get_grades_by_class`), `routers/attendance.py`
+  (`get_attendance_by_class`) e `routers/attendance_ext.py`. Demais status
+  (transferido, desistente, remanejado, progredido, reclassificado) seguem visíveis.
+  O fluxo de cancelamento já marca a matrícula como `cancelled` e limpa o `class_id`
+  do aluno, então ele some das 3 estratégias de busca da turma.
+- **Teste:** `tests/test_cancelled_enrollment_hidden.py` — cancela via
+  `POST /api/enrollments/cancel-enrollment` e valida que o aluno some de notas e
+  frequência, restando só o ativo (PASS).
+
+
 
 - **Causa raiz:** a coluna "Completude" da lista usava o **inteiro calculado no
   backend** (`row.completeness`), enquanto o modal "Editar Aluno(a)" recalcula no
