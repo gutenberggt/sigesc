@@ -1,5 +1,19 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Aba "Matrículas Canceladas" no detalhe da turma (auditoria, read-only)
+
+- **Contexto:** como alunos cancelados foram removidos das listas operacionais
+  (notas/frequência), o gestor precisava de uma forma de rastrear quem foi cancelado.
+- **Backend (`routers/class_details.py`):** novo endpoint somente-leitura
+  `GET /api/classes/{class_id}/cancelled-enrollments` → lista matrículas com status
+  `cancelled` da turma, com nome do aluno, nº de matrícula, data, **quem cancelou**
+  (resolvido de `cancelled_by` via `users`) e o **motivo**.
+- **Frontend (`Classes.js` + `services/api.js`):** o modal "Detalhes da Turma" ganhou
+  a seção **"Matrículas Canceladas (N) — somente leitura"** (tabela vermelha) abaixo
+  dos alunos matriculados; só aparece quando há cancelamentos.
+- **Teste:** `tests/test_cancelled_enrollment_hidden.py` estendido — valida que o
+  cancelado some de notas/frequência E consta na auditoria com motivo e autor (PASS).
+
 ## 2026-06 — Matrícula cancelada não aparece mais na turma (notas/frequência)
 
 - **Pedido:** aluno com matrícula CANCELADA não deve aparecer em nenhuma lista da

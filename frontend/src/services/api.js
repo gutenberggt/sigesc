@@ -186,6 +186,11 @@ export const classesAPI = {
     return response.data;
   },
 
+  getCancelledEnrollments: async (id) => {
+    const response = await axios.get(`${API}/classes/${id}/cancelled-enrollments`);
+    return response.data;
+  },
+
   getCurriculum: async (id) => {
     const response = await axios.get(`${API}/classes/${id}/curriculum`);
     return response.data;

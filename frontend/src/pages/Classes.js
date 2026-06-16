@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { classesAPI, schoolsAPI, documentsAPI, studentsAPI } from '@/services/api';
-import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink, Pencil, Undo2 } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink, Pencil, Undo2, Ban } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { extractErrorMessage } from '@/utils/errorHandler';
@@ -102,6 +102,7 @@ export const Classes = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingClass, setViewingClass] = useState(null);
   const [classDetails, setClassDetails] = useState(null);
+  const [cancelledEnrollments, setCancelledEnrollments] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   const isModalOpenRef = useRef(false);
@@ -262,10 +263,15 @@ export const Classes = () => {
     setViewingClass(classItem);
     setIsViewModalOpen(true);
     setLoadingDetails(true);
+    setCancelledEnrollments(null);
     
     try {
-      const details = await classesAPI.getDetails(classItem.id);
+      const [details, cancelled] = await Promise.all([
+        classesAPI.getDetails(classItem.id),
+        classesAPI.getCancelledEnrollments(classItem.id).catch(() => null),
+      ]);
       setClassDetails(details);
+      setCancelledEnrollments(cancelled);
     } catch (error) {
       console.error('Erro ao carregar detalhes:', error);
       showAlert('error', 'Erro ao carregar detalhes da turma');
@@ -743,6 +749,7 @@ export const Classes = () => {
           onClose={() => {
             setIsViewModalOpen(false);
             setClassDetails(null);
+            setCancelledEnrollments(null);
           }}
           title={
             <div className="flex items-center justify-between w-full pr-8">
@@ -1015,6 +1022,43 @@ export const Classes = () => {
                     <FileText size={18} />
                     Fichas Individuais (PDF)
                   </button>
+                </div>
+              )}
+
+              {/* Matrículas Canceladas (somente leitura — auditoria) */}
+              {cancelledEnrollments && cancelledEnrollments.total > 0 && (
+                <div className="pt-4 border-t" data-testid="cancelled-enrollments-section">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Ban size={18} className="text-red-600" />
+                    <h3 className="text-base font-semibold text-gray-800">
+                      Matrículas Canceladas ({cancelledEnrollments.total})
+                    </h3>
+                    <span className="text-xs text-gray-400">somente leitura</span>
+                  </div>
+                  <div className="overflow-x-auto rounded-lg border border-red-100">
+                    <table className="w-full text-sm">
+                      <thead className="bg-red-50 text-red-700 text-xs uppercase">
+                        <tr>
+                          <th className="text-left px-4 py-2 font-medium">Aluno</th>
+                          <th className="text-left px-4 py-2 font-medium">Matrícula</th>
+                          <th className="text-left px-4 py-2 font-medium">Data</th>
+                          <th className="text-left px-4 py-2 font-medium">Cancelado por</th>
+                          <th className="text-left px-4 py-2 font-medium">Motivo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cancelledEnrollments.items.map((c, idx) => (
+                          <tr key={`${c.student_id}-${idx}`} className="border-t border-red-50" data-testid={`cancelled-row-${idx}`}>
+                            <td className="px-4 py-2 text-gray-800">{c.full_name}</td>
+                            <td className="px-4 py-2 text-gray-500 font-mono text-xs">{c.enrollment_number || '-'}</td>
+                            <td className="px-4 py-2 text-gray-500">{c.cancellation_date ? new Date(c.cancellation_date).toLocaleDateString('pt-BR') : '-'}</td>
+                            <td className="px-4 py-2 text-gray-500">{c.cancelled_by_name || '-'}</td>
+                            <td className="px-4 py-2 text-gray-600">{c.cancellation_reason || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>

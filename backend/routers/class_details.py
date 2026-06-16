@@ -268,6 +268,69 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         }
 
 
+    @router.get("/classes/{class_id}/cancelled-enrollments")
+    async def get_class_cancelled_enrollments(class_id: str, request: Request):
+        """[Auditoria — somente leitura] Lista as matrículas CANCELADAS desta turma.
+
+        Como alunos cancelados foram removidos das listas operacionais (notas/
+        frequência), esta visão permite ao gestor rastrear quem foi cancelado,
+        quando, por quem e o motivo. Não altera nada."""
+        current_user = await AuthMiddleware.get_current_user(request)
+
+        class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0, "id": 1, "name": 1})
+        if not class_doc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turma não encontrada")
+
+        cancelled = await db.enrollments.find(
+            {"class_id": class_id, "status": "cancelled"},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1,
+             "cancellation_reason": 1, "cancellation_date": 1, "cancelled_by": 1,
+             "academic_year": 1}
+        ).sort("cancellation_date", -1).to_list(1000)
+
+        student_ids = list({e.get("student_id") for e in cancelled if e.get("student_id")})
+        canceller_ids = list({e.get("cancelled_by") for e in cancelled if e.get("cancelled_by")})
+
+        students_map = {}
+        if student_ids:
+            async for s in db.students.find(
+                {"id": {"$in": student_ids}},
+                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
+            ):
+                students_map[s["id"]] = s
+
+        cancellers_map = {}
+        if canceller_ids:
+            async for u in db.users.find(
+                {"id": {"$in": canceller_ids}},
+                {"_id": 0, "id": 1, "full_name": 1, "name": 1, "email": 1}
+            ):
+                cancellers_map[u["id"]] = u.get("full_name") or u.get("name") or u.get("email")
+
+        items = []
+        for e in cancelled:
+            sid = e.get("student_id")
+            stu = students_map.get(sid, {})
+            items.append({
+                "student_id": sid,
+                "full_name": stu.get("full_name") or "(aluno removido)",
+                "enrollment_number": e.get("enrollment_number") or stu.get("enrollment_number"),
+                "student_series": e.get("student_series"),
+                "academic_year": e.get("academic_year"),
+                "cancellation_reason": e.get("cancellation_reason") or "",
+                "cancellation_date": e.get("cancellation_date") or "",
+                "cancelled_by_name": cancellers_map.get(e.get("cancelled_by")) or "",
+            })
+
+        return {
+            "class_id": class_id,
+            "class_name": class_doc.get("name"),
+            "total": len(items),
+            "items": items,
+        }
+
+
+
     @router.get("/classes/{class_id}/details/pdf")
     async def get_class_details_pdf(class_id: str, request: Request):
         """

@@ -137,3 +137,14 @@ def test_cancelled_student_hidden_from_grades_and_attendance(scenario, admin_hea
     att_names = {(s.get("full_name") or (s.get("student") or {}).get("full_name")) for s in (studs or [])}
     assert "QA CANCEL Cancelado" not in att_names, "cancelado não pode aparecer em frequência"
     assert "QA CANCEL Ativo" in att_names
+
+    # Mas DEVE aparecer na visão de auditoria de matrículas canceladas da turma
+    aud = requests.get(f"{BASE_URL}/api/classes/{CLASS_ID}/cancelled-enrollments",
+                       headers=admin_headers, timeout=30)
+    assert aud.status_code == 200, aud.text[:200]
+    data = aud.json()
+    assert data["total"] >= 1
+    audited = {i["full_name"]: i for i in data["items"]}
+    assert "QA CANCEL Cancelado" in audited, "cancelado deveria constar na auditoria da turma"
+    assert audited["QA CANCEL Cancelado"]["cancellation_reason"] == "teste"
+    assert audited["QA CANCEL Cancelado"]["cancelled_by_name"], "deveria registrar quem cancelou"
