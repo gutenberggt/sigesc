@@ -1,0 +1,31 @@
+{
+  "summary": "Testei o ProgressModal global em 4 fluxos de PDF. App carregou normalmente após injeção dos Providers (sem tela branca). P1 (Relatórios SEMED) PASSOU end-to-end: modal global apareceu com data-testid='progress-modal', transicionou de 'progress-state-preparing' -> 'progress-state-completed' SEM 'progress-state-error'. Confirmei que o modal antigo 'pdf-progress-modal' NÃO existe mais em /admin/promotion (nem na árvore DOM, nem em grep do source). Os fluxos P2 (Bulletins) e P3 (Students) e o gatilho do Promotion ficaram bloqueados por seletores em cascata (Escola->Turma->Aluno) que dependem de dados específicos do tenant ativo — nestes casos não cheguei a acionar a geração de PDF; reporto como BLOQUEIO DE DADOS, não bug do ProgressModal.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "P3 Students - generate-report-btn", "issue": "data-testid 'generate-report-btn' só renderiza após selecionar uma escola no filtro (lista de alunos carregada). Sem escola/dados no tenant 'Todas as mantenedoras', botão não fica acessível. Sugestão: testar trocando explicitamente p/ SEMED ou navegando com o professor.teste@sigesc.com.", "affected_selectors": ["[data-testid=\"generate-report-btn\"]"]},
+      {"flow": "P2 BulletinViewer - OfficialBulletinPdfCard", "issue": "O card de geração do Boletim Oficial só é renderizado APÓS busca por aluno e seleção de um boletim. data-testids disponíveis no inicial: bulletin-student-search, bulletin-year-input. Sem dados de aluno preenchidos no tenant atual, o fluxo PDF não foi acionado.", "affected_selectors": ["[data-testid=\"bulletin-student-search\"]"]},
+      {"flow": "Promotion - Gerar PDF", "issue": "Botão 'Gerar PDF' fica disabled até que Escola, Turma e Nº do Livro estejam preenchidos. Selecionei 'Escola Demo Portal', mas a Turma não populou com dados disponíveis (combobox vazio). NÃO consegui acionar o fluxo; porém validei que o modal antigo data-testid='pdf-progress-modal' NÃO existe (DOM + grep).", "affected_selectors": ["button:has-text('Gerar PDF')"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_98.json"
+  ],
+  "action_items": [
+    "OPCIONAL: re-testar P2/P3 e Promotion usando o tenant SEMED explícito ou o usuário professor.teste@sigesc.com (que tem turma 'Turma Multi 1-2-3' com alunos ativos), para acionar a geração assíncrona e observar a transição 'preparing' -> 'transferring' -> 'completed'. O core do ProgressModal já está provado em P1 (mesma utilidade downloadBlobWithProgress)."
+  ],
+  "critical_code_review_comments": [
+    "StudentsComplete.js tem ~5310 linhas — recomendado split em módulos (alunos list, filtros, modal de relatório, modais de criação). Excede limite recomendado de 700 linhas.",
+    "ProgressContext/ProgressModal estão bem desenhados: API enxuta (startTask/updateTask/setTransferring/completeTask/failTask/closeTask), data-testids consistentes, e o modelo HONESTO (sem percentual fake em 'preparing') está corretamente implementado em ProgressModal.jsx (linhas 62-67 e 71-97).",
+    "downloadBlobWithProgress (utils/downloadBlob.js) referenciado corretamente em todos os 4 fluxos. Boa reutilização da abstração."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "P1=PASS (full e2e), Promotion=PARCIAL (old modal absent confirmado, geração não acionada por falta de dados), P2/P3=BLOQUEADO por dados"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin) — login OK",
+  "seed_data_creation": "nenhuma",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "P1 (Relatórios Mensais /admin/relatorios-mensais) é o caminho mais confiável para validar o ProgressModal global — basta clicar no botão 'PDF Exec.' do card de JANEIRO/2026. Validei e o ciclo preparing->completed apareceu corretamente. Para P2/P3/Promotion, é preciso navegar pelos seletores em cascata (Escola->Turma->Aluno/Nº Livro) — comboboxes shadcn-ui que requerem click no trigger + click nas options. No tenant 'Todas as mantenedoras' (default do super_admin) os comboboxes ficaram inconsistentes; recomendo logar com professor.teste@sigesc.com ou trocar mantenedora para SEMED antes."
+}

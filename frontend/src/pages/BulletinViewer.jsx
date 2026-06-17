@@ -28,7 +28,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Search, X, AlertCircle, Calendar, Stethoscope, BookOpen, GraduationCap } from 'lucide-react';
-import { downloadBlob } from '@/utils/downloadBlob';
+import { downloadBlob, downloadBlobWithProgress } from '@/utils/downloadBlob';
+import { useProgressTask } from '@/contexts/ProgressContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -551,6 +552,7 @@ function StudentPicker({ value, onSelect, mantId }) {
 }
 
 function OfficialBulletinPdfCard({ studentId, studentName, academicYear, authHeaders }) {
+  const progress = useProgressTask();
   const [status, setStatus] = useState('idle'); // idle | requesting | polling | ready | error
   const [jobId, setJobId] = useState(null);
   const [error, setError] = useState(null);
@@ -572,6 +574,7 @@ function OfficialBulletinPdfCard({ studentId, studentName, academicYear, authHea
     if (!studentId) return;
     setStatus('requesting');
     setError(null);
+    progress.startTask({ title: 'Gerando Boletim Oficial', message: 'Preparando documento...' });
     try {
       const r = await axios.post(
         `${API}/bulletins/${studentId}/render-pdf`,
@@ -586,6 +589,7 @@ function OfficialBulletinPdfCard({ studentId, studentName, academicYear, authHea
         return;
       }
       setStatus('polling');
+      progress.updateTask({ status: 'preparing', message: 'Gerando boletim no servidor...' });
       pollRef.current = setInterval(async () => {
         try {
           const s = await axios.get(`${API}/render-jobs/${id}`, { headers: authHeaders });
@@ -598,23 +602,28 @@ function OfficialBulletinPdfCard({ studentId, studentName, academicYear, authHea
             clearInterval(pollRef.current); pollRef.current = null;
             setStatus('error');
             setError(job?.error_message || 'Falha ao gerar PDF.');
+            progress.failTask(job?.error_message || 'Falha ao gerar o boletim.');
           }
         } catch (_e) { /* mantém polling */ }
       }, 2000);
     } catch (e) {
       setStatus('error');
-      setError(e?.response?.data?.detail || e.message || 'Erro ao enfileirar geração.');
+      const msg = e?.response?.data?.detail || e.message || 'Erro ao enfileirar geração.';
+      setError(msg);
+      progress.failTask(msg);
     }
   };
 
   const downloadJobFile = async (id) => {
     const safe = (studentName || 'aluno').replace(/\s+/g, '_');
     try {
-      await downloadBlob(
-        `${API}/render-jobs/${id}/file`,
-        `boletim_oficial_${safe}_${academicYear}.pdf`,
-        authHeaders
-      );
+      await downloadBlobWithProgress({
+        url: `${API}/render-jobs/${id}/file`,
+        filename: `boletim_oficial_${safe}_${academicYear}.pdf`,
+        headers: authHeaders,
+        progress,
+        title: 'Gerando Boletim Oficial',
+      });
     } catch (e) {
       setStatus('error');
       setError(e?.message || 'Erro ao baixar o PDF gerado.');

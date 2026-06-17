@@ -21,6 +21,8 @@ import {
   Mail, Hash, ArrowUpRight, ChevronDown, ChevronUp, TrendingDown,
   TrendingUp,
 } from 'lucide-react';
+import { useProgressTask } from '@/contexts/ProgressContext';
+import { downloadBlobWithProgress } from '@/utils/downloadBlob';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -48,6 +50,7 @@ function formatPct(v) {
 }
 
 export default function MonthlyReports() {
+  const progress = useProgressTask();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -98,17 +101,14 @@ export default function MonthlyReports() {
 
   const handleDownloadPdf = async (id, mode) => {
     try {
-      const r = await axios.get(`${API}/monthly-reports/${id}/pdf?mode=${mode}`, {
-        responseType: 'blob',
+      await downloadBlobWithProgress({
+        url: `${API}/monthly-reports/${id}/pdf?mode=${mode}`,
+        filename: `relatorio-${id.slice(0, 8)}-${mode}.pdf`,
+        progress,
+        title: 'Gerando Relatório SEMED',
       });
-      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `relatorio-${id.slice(0, 8)}-${mode}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (e) {
-      showToast('error', 'Falha ao baixar PDF');
+      showToast('error', e?.message || 'Falha ao baixar PDF');
     }
   };
 

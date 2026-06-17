@@ -40,7 +40,7 @@ export function clearCsrfToken() {
   try { localStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
   try { sessionStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
 }
-function getCsrfToken() {
+export function getCsrfToken() {
   try {
     const stored = localStorage.getItem(CSRF_STORAGE_KEY);
     if (stored) return stored;

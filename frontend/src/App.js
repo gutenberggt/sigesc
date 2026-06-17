@@ -7,6 +7,8 @@ import { MantenedoraProvider } from '@/contexts/MantenedoraContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { MessagingProvider } from '@/contexts/MessagingContext';
 import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext';
+import { ProgressProvider } from '@/contexts/ProgressContext';
+import ProgressModal from '@/components/ProgressModal';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Login } from '@/pages/Login';
@@ -113,6 +115,8 @@ function App() {
       <MantenedoraProvider>
       <BrowserRouter>
         <UnsavedChangesProvider>
+        <ProgressProvider>
+        <ProgressModal />
         <SonnerToaster
           position="top-right"
           richColors
@@ -775,6 +779,7 @@ function App() {
           />
         </Routes>
         </Suspense>
+        </ProgressProvider>
         </UnsavedChangesProvider>
       </BrowserRouter>
       </MantenedoraProvider>

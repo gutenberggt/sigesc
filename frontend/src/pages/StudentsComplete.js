@@ -11,6 +11,8 @@ import { db } from '@/db/database';
 import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail, isValidCPF } from '@/utils/formatters';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProgressTask } from '@/contexts/ProgressContext';
+import { downloadBlobWithProgress } from '@/utils/downloadBlob';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -281,6 +283,7 @@ export function StudentsComplete() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const progress = useProgressTask();
   const [students, setStudents] = useState([]);
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -1518,31 +1521,19 @@ export function StudentsComplete() {
         school_id: filterSchoolId && filterSchoolId !== 'all' ? filterSchoolId : null,
         class_id: filterClassId || null
       };
-      // Usar axios — injeta Authorization e X-CSRF-Token automaticamente via
-      // interceptor configurado em services/api.js. O fetch() nativo bypass
-      // o interceptor e o backend rejeita com 403 "CSRF token inválido".
-      const response = await axios.post(
-        `${API}/api/students/report/pdf`,
-        payload,
-        { responseType: 'blob' }
-      );
-      const blob = response.data;
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      await downloadBlobWithProgress({
+        url: `${API}/api/students/report/pdf`,
+        method: 'POST',
+        body: payload,
+        filename: 'relatorio-alunos.pdf',
+        progress,
+        title: 'Gerando Relatório de Alunos',
+        openInNewTab: true,
+      });
       setShowReportModal(false);
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
-      // Se for um blob de erro JSON, decodifica
-      let detail = '';
-      if (error?.response?.data instanceof Blob) {
-        try {
-          const text = await error.response.data.text();
-          const parsed = JSON.parse(text);
-          detail = parsed?.detail || '';
-        } catch (_e) { /* ignore */ }
-      }
-      showAlert('error', detail || error.message || 'Erro ao gerar relatório PDF');
+      showAlert('error', error?.message || 'Erro ao gerar relatório PDF');
     } finally {
       setGeneratingReport(false);
     }
