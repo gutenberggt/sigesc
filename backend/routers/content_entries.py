@@ -33,6 +33,8 @@ from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
 from services.content_audit import build_content_audit_extra, compute_snapshot_hash
+from utils.academic_year import create_academic_year_validators
+from tenant_scope import resolve_tenant_id_for_create
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +56,16 @@ class ContentEntryCreate(BaseModel):
     component_id: Optional[str] = None
     aula_numero: Optional[int] = None
     teacher_id: Optional[str] = None  # default: usuário logado
+    academic_year: Optional[int] = None  # default: derivado da turma
+    number_of_classes: int = 1
     content: str = Field(..., min_length=1, max_length=20000)
     methodology: Optional[str] = Field(default=None, max_length=5000)
     observations: Optional[str] = Field(default=None, max_length=5000)
+    # Optimistic locking — permite que o motor canônico faça upsert idempotente
+    # (mesmo caminho do HTTP e do futuro sync offline). Mesmo padrão da Frequência.
+    expected_version: Optional[int] = None
+    force_overwrite: bool = False
+    change_note: Optional[str] = None
 
 
 class ContentEntryUpdate(BaseModel):
@@ -118,77 +127,248 @@ def _public(entry: dict) -> dict:
     return e
 
 
+def _iso(v):
+    """Serializa datetime → ISO string (detalhes de HTTPException usam json.dumps cru)."""
+    return v.isoformat() if isinstance(v, datetime) else v
+
+
+# ============================ MOTOR CANÔNICO ================================
+
+async def _resolve_bimestre_for_date(db, academic_year: int, target_date: str) -> Optional[int]:
+    """Retorna o número do bimestre (1-4) que contém a data, ou None."""
+    calendario = await db.calendario_letivo.find_one({"ano_letivo": academic_year}, {"_id": 0})
+    if not calendario:
+        return None
+    for i in range(1, 5):
+        inicio = calendario.get(f"bimestre_{i}_inicio")
+        fim = calendario.get(f"bimestre_{i}_fim")
+        if inicio and fim and inicio <= target_date <= fim:
+            return i
+    return None
+
+
+async def save_content_canonical(db, current_user, request, entry: "ContentEntryCreate", audit_service):
+    """Motor canônico ÚNICO de escrita de conteúdo pedagógico (Diário).
+
+    Autoridade única usada pelo endpoint HTTP `POST /content-entries`, pelo adapter
+    de compatibilidade (`/api/learning-objects`) e pelo futuro sync offline. Garante:
+      - UPSERT por CHAVE NATURAL (class_id, component_id, teacher_id, date, aula_numero)
+        → idempotente: reenviar não duplica; N edições convergem para o estado final.
+      - Versionamento + optimistic locking (expected_version/force_overwrite/change_note).
+      - LOCKS DE CALENDÁRIO portados do legado (ano letivo aberto + prazo do bimestre),
+        validados SEMPRE server-side — única autoridade.
+      - Auditoria canônica em `audit_logs`.
+      - Timestamps como Date nativo do MongoDB (serializados como ISO na API).
+    """
+    validators = create_academic_year_validators(db)
+    user_role = current_user.get("role", "")
+
+    # Identidade do autor (NUNCA inventa autoria — fallback explícito)
+    teacher_id = entry.teacher_id or current_user.get("id")
+    teacher_unknown = teacher_id is None
+    teacher_name = await _resolve_teacher_name(db, teacher_id) or current_user.get("name")
+
+    class_info = await db.classes.find_one(
+        {"id": entry.class_id}, {"_id": 0, "name": 1, "school_id": 1, "academic_year": 1}
+    )
+    if not class_info:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+
+    academic_year = entry.academic_year or class_info.get("academic_year") or datetime.now().year
+    school_id = class_info.get("school_id")
+    component_id = entry.component_id or entry.course_id
+
+    # ===================== LOCKS DE CALENDÁRIO (portados) =====================
+    # Ano letivo aberto (exceto admin puro).
+    if user_role != "admin":
+        await validators["verify_academic_year_open_or_raise"](school_id, academic_year)
+    # Prazo de edição do bimestre (exceto papéis administrativos).
+    if user_role not in ["admin", "admin_teste", "super_admin", "gerente", "secretario"]:
+        bimestre = await _resolve_bimestre_for_date(db, academic_year, entry.date)
+        if bimestre:
+            await validators["verify_bimestre_edit_deadline_or_raise"](academic_year, bimestre, user_role)
+    # ==========================================================================
+
+    now = datetime.now(timezone.utc)  # Date nativo MongoDB
+    nk = {
+        "class_id": entry.class_id,
+        "component_id": component_id,
+        "teacher_id": teacher_id,
+        "date": entry.date,
+        "aula_numero": entry.aula_numero,
+        "deleted": False,
+    }
+    existing = await db.content_entries.find_one(nk)
+
+    if existing:
+        # Entry já publicado/corrigido exige fluxo /correct — não sobrescreve por upsert.
+        if existing.get("status") != "draft":
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "REQUIRES_CORRECT_FLOW",
+                    "message": (
+                        "Já existe conteúdo publicado para esta turma/componente/aula/data. "
+                        "Use POST /content-entries/{id}/correct com change_note."
+                    ),
+                    "current_status": existing.get("status"),
+                    "content_entry_id": existing.get("id"),
+                },
+            )
+
+        current_version = existing.get("version") or 1
+        ev = entry.expected_version
+        change_kind = "content_updated"
+        if ev is not None and ev != current_version:
+            if not entry.force_overwrite:
+                last_uid = existing.get("updated_by") or existing.get("created_by")
+                last_modifier = None
+                if last_uid:
+                    u = await db.users.find_one(
+                        {"id": last_uid}, {"_id": 0, "name": 1, "full_name": 1, "email": 1, "role": 1}
+                    )
+                    if u:
+                        last_modifier = {
+                            "id": last_uid,
+                            "name": u.get("full_name") or u.get("name"),
+                            "email": u.get("email"),
+                            "role": u.get("role"),
+                        }
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "CONTENT_VERSION_CONFLICT",
+                        "message": (
+                            "Conteúdo foi alterado por outro usuário desde que você carregou. "
+                            "Recarregue OU reenvie com force_overwrite=true e change_note='motivo'."
+                        ),
+                        "expected_version": ev,
+                        "current_version": current_version,
+                        "last_modified_by": last_modifier,
+                        "last_modified_at": _iso(existing.get("updated_at")),
+                        "content_entry_id": existing.get("id"),
+                    },
+                )
+            if not (entry.change_note and entry.change_note.strip()):
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "OVERWRITE_REQUIRES_NOTE",
+                        "message": "Sobrescrita após conflito requer change_note (motivo) obrigatório.",
+                    },
+                )
+            change_kind = "content_overwrite"
+
+        new_version = current_version + 1
+        previous_content = existing.get("content")
+        set_fields = {
+            "content": entry.content,
+            "methodology": entry.methodology,
+            "observations": entry.observations,
+            "number_of_classes": entry.number_of_classes,
+            "academic_year": academic_year,
+            "updated_by": current_user["id"],
+            "updated_at": now,
+            "version": new_version,
+        }
+        await db.content_entries.update_one({"id": existing["id"]}, {"$set": set_fields})
+        updated = await db.content_entries.find_one({"id": existing["id"]}, {"_id": 0})
+
+        extra = build_content_audit_extra(
+            entry=updated, change_kind=change_kind,
+            expected_version=ev, final_version=new_version,
+            previous_content=previous_content, new_content=entry.content,
+            change_note=entry.change_note if change_kind == "content_overwrite" else None,
+            class_info=class_info,
+        )
+        await audit_service.log(
+            action="update", collection="content_entries",
+            user=current_user, request=request, document_id=existing["id"],
+            description=(
+                f"{'Sobrescreveu' if change_kind == 'content_overwrite' else 'Atualizou'} "
+                f"conteúdo da turma {class_info.get('name', 'N/A')} em {entry.date}"
+            ),
+            old_value={"content": previous_content, "version": current_version},
+            new_value={"content": entry.content, "version": new_version},
+            school_id=school_id,
+            extra_data=extra,
+        )
+        return _public(updated)
+
+    # ---- CREATE (version 1) ----
+    mantenedora_id = await resolve_tenant_id_for_create(
+        db, current_user, request, class_id=entry.class_id
+    )
+    doc = {
+        "id": str(uuid.uuid4()),
+        "mantenedora_id": mantenedora_id,
+        "academic_year": academic_year,
+        "class_id": entry.class_id,
+        "course_id": entry.course_id,
+        "component_id": component_id,
+        "aula_numero": entry.aula_numero,
+        "date": entry.date,
+        "teacher_id": teacher_id,
+        "teacher_name": teacher_name,
+        "teacher_unknown": teacher_unknown,
+        "number_of_classes": entry.number_of_classes,
+        "content": entry.content,
+        "methodology": entry.methodology,
+        "observations": entry.observations,
+        "status": "draft",
+        "version": 1,
+        "deleted": False,
+        "created_by": current_user["id"],
+        "created_at": now,
+        "updated_by": current_user["id"],
+        "updated_at": now,
+        "published_at": None,
+        "published_by": None,
+        "corrected_from_version": None,
+        "school_id": school_id,
+    }
+    try:
+        await db.content_entries.insert_one(doc)
+    except Exception as ex:  # noqa: BLE001
+        if "duplicate key" in str(ex).lower():
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "CONTENT_ENTRY_DUPLICATE",
+                    "message": "Já existe entry para esta turma/data/componente/aula/professor.",
+                },
+            )
+        raise
+
+    extra = build_content_audit_extra(
+        entry=doc, change_kind="content_created",
+        expected_version=None, final_version=1,
+        previous_content=None, new_content=entry.content,
+        class_info=class_info,
+    )
+    await audit_service.log(
+        action="create", collection="content_entries",
+        user=current_user, request=request, document_id=doc["id"],
+        description=(
+            f"Criou conteúdo da turma {class_info.get('name', 'N/A')} "
+            f"em {entry.date} (aula {entry.aula_numero or '-'})"
+        ),
+        school_id=school_id,
+        extra_data=extra,
+    )
+    return _public(await db.content_entries.find_one({"id": doc["id"]}, {"_id": 0}))
+
+
 # ============================ ROUTER FACTORY ================================
 
 def setup_content_entries_router(db, audit_service, sandbox_db=None):
     router = APIRouter(prefix="/content-entries", tags=["Diário - Conteúdo"])
 
-    # ---------------- CREATE ----------------
+    # ---------------- CREATE (motor canônico) ----------------
     @router.post("")
     async def create_content_entry(entry: ContentEntryCreate, request: Request):
         current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
-        teacher_id = entry.teacher_id or current_user["id"]
-        teacher_name = await _resolve_teacher_name(db, teacher_id) or current_user.get("name")
-        class_info = await _resolve_class_info(db, entry.class_id)
-        if not class_info:
-            raise HTTPException(status_code=404, detail="Turma não encontrada")
-
-        now = datetime.now(timezone.utc).isoformat()
-        doc = {
-            "id": str(uuid.uuid4()),
-            "class_id": entry.class_id,
-            "course_id": entry.course_id,
-            "component_id": entry.component_id,
-            "aula_numero": entry.aula_numero,
-            "date": entry.date,
-            "teacher_id": teacher_id,
-            "teacher_name": teacher_name,
-            "content": entry.content,
-            "methodology": entry.methodology,
-            "observations": entry.observations,
-            "status": "draft",
-            "version": 1,
-            "deleted": False,
-            "created_by": current_user["id"],
-            "created_at": now,
-            "updated_by": current_user["id"],
-            "updated_at": now,
-            "published_at": None,
-            "published_by": None,
-            "corrected_from_version": None,
-            "school_id": class_info.get("school_id"),
-        }
-        try:
-            await db.content_entries.insert_one(doc)
-        except Exception as ex:  # noqa: BLE001
-            # Provável violação do UNIQUE composto
-            if "duplicate key" in str(ex).lower():
-                raise HTTPException(
-                    status_code=409,
-                    detail={
-                        "code": "CONTENT_ENTRY_DUPLICATE",
-                        "message": "Já existe entry para esta turma/data/componente/aula/professor.",
-                    },
-                )
-            raise
-
-        extra = build_content_audit_extra(
-            entry=doc, change_kind="content_created",
-            expected_version=None, final_version=1,
-            previous_content=None, new_content=entry.content,
-            class_info=class_info,
-        )
-        await audit_service.log(
-            action="create", collection="content_entries",
-            user=current_user, request=request, document_id=doc["id"],
-            description=(
-                f"Criou conteúdo da turma {class_info.get('name', 'N/A')} "
-                f"em {entry.date} (aula {entry.aula_numero or '-'})"
-            ),
-            school_id=class_info.get("school_id"),
-            extra_data=extra,
-        )
-        return _public(await db.content_entries.find_one({"id": doc["id"]}, {"_id": 0}))
+        return await save_content_canonical(db, current_user, request, entry, audit_service)
 
     # ---------------- LIST ----------------
     @router.get("")
@@ -279,7 +459,7 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
                         "expected_version": ev,
                         "current_version": current_version,
                         "last_modified_by": last_modifier,
-                        "last_modified_at": existing.get("updated_at"),
+                        "last_modified_at": _iso(existing.get("updated_at")),
                         "content_entry_id": entry_id,
                     },
                 )

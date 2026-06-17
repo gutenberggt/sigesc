@@ -166,16 +166,22 @@ def test_force_overwrite_with_note_preserves_previous_content(headers):
     assert r.json()["content"] == "Sobrescrito pela coordenação"
 
 
-# --- 3. Delete lógico + UNIQUE -----------------------------------------------
+# --- 3. Upsert idempotente por chave natural (A3) + Delete lógico ------------
 
-def test_unique_constraint_blocks_duplicate_within_same_key(headers):
+def test_same_natural_key_upserts_idempotently(headers):
+    """Motor canônico (P1.0): reenviar a MESMA chave natural NÃO duplica —
+    faz upsert (atualiza o draft, version++), convergindo para o estado final."""
     n = 5
-    r1 = _create(headers, n, component_id=f"comp-dup-{_RUN_TAG}", aula_numero=1)
-    assert r1.status_code == 200
-    # MESMO {turma, componente, professor, data, aula} → deve falhar
-    r2 = _create(headers, n, component_id=f"comp-dup-{_RUN_TAG}", aula_numero=1)
-    assert r2.status_code == 409, r2.text[:300]
-    assert r2.json()["detail"]["code"] == "CONTENT_ENTRY_DUPLICATE"
+    cid = f"comp-dup-{_RUN_TAG}"
+    r1 = _create(headers, n, component_id=cid, aula_numero=1)
+    assert r1.status_code == 200, r1.text[:300]
+    assert r1.json()["version"] == 1
+    first_id = r1.json()["id"]
+    # MESMO {turma, componente, professor, data, aula} → UPSERT (não 409, não duplica)
+    r2 = _create(headers, n, component_id=cid, aula_numero=1)
+    assert r2.status_code == 200, r2.text[:300]
+    assert r2.json()["id"] == first_id  # mesmo documento
+    assert r2.json()["version"] == 2     # versão incrementada
 
 
 def test_soft_delete_allows_recreate(headers):

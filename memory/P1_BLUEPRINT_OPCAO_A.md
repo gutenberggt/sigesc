@@ -104,3 +104,29 @@
 
 ---
 **Status:** BLUEPRINT pronto. Implementação aguardando confirmação de **homologação da Fase A em produção**.
+
+---
+
+## ✅ P1.0 (A–D) IMPLEMENTADO E VALIDADO (Jun/2026) — migração (E) e offline AINDA pendentes de homologação da Fase A
+
+Decisões dos arquitetos aplicadas (BNCC redesenhado/não migrado; `resources` descartado;
+`teacher_id` via derivação + fallback `teacher_unknown`; só 13 reais na migração; `created_at` Date nativo).
+
+- **P1.0-A — Schema estendido** (`routers/content_entries.py::ContentEntryCreate` + doc):
+  adicionados `academic_year`, `number_of_classes`, `teacher_unknown`, `mantenedora_id`;
+  timestamps `created_at`/`updated_at` agora **Date nativo** (ISO só na serialização da API).
+  **SEM** `resources`/`skill_codigos`/`adaptation_ids`/`evidencia_aprendizagem` (descartados).
+- **P1.0-B — Motor canônico único** `save_content_canonical()` (espelho de `save_attendance_canonical`):
+  **UPSERT por chave natural** `(class_id, component_id, teacher_id, date, aula_numero)` → idempotente
+  (reenviar não duplica; N edições convergem). `POST /content-entries` agora roteia por ele.
+- **P1.0-C — Locks de calendário portados** (única autoridade no motor): `ano letivo aberto`
+  (`verify_academic_year_open_or_raise`) + `prazo de edição do bimestre`
+  (`verify_bimestre_edit_deadline_or_raise`) via `utils/academic_year.create_academic_year_validators`.
+- **P1.0-D — Testes** `tests/test_content_canonical.py` (5/5): conteúdo válido, ano fechado (403),
+  bimestre encerrado (403), optimistic locking (409 + force overwrite + idempotência), multi-tenant
+  (mantenedora derivada da turma, não do header). Suíte de conteúdo+freq+sync: **34/34 verdes**.
+  (Teste legado `test_unique_constraint_blocks_duplicate...` atualizado para o novo contrato de upsert idempotente.)
+
+**Pendente (após homologação da Fase A em produção):** P1.0-E migração dos 13 reais (script idempotente
+com derivação de `teacher_id` + `teacher_unknown`), P1.2 adapter write-through `/api/learning-objects`,
+P1.3 offline de conteúdo (sync canônico + `rejected` por lock), P1.4 pré-cache, P1.5 painel, P1.6 desativação.

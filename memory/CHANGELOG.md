@@ -1,5 +1,25 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — P1.0: Motor canônico de Conteúdo/Diário (pré-migração)
+
+Decisão arquitetural: `content_entries` = fonte oficial; `learning_objects` = LEGADO.
+Implementado P1.0 (A–D) — base para offline de conteúdo (P1.3). Migração e offline aguardam
+homologação da Fase A em produção.
+
+- **Schema estendido** de `content_entries`: +`academic_year`, +`number_of_classes`,
+  +`teacher_unknown`, +`mantenedora_id`; `created_at`/`updated_at` → Date nativo MongoDB.
+  Campos legados sem uso real descartados (`resources` 0%, BNCC `skill_codigos`/`adaptation_ids`/
+  `evidencia_aprendizagem` 0%) — serão remodelados no módulo BNCC do SIE Fase 2.
+- **Motor canônico único** `save_content_canonical()` (espelho de `save_attendance_canonical`):
+  upsert por chave natural `(class_id, component_id, teacher_id, date, aula_numero)`, idempotente,
+  versionamento + optimistic locking + auditoria. `POST /content-entries` roteia por ele.
+- **Locks de calendário portados** ao motor (ano letivo aberto + prazo do bimestre) — única autoridade.
+- **Testes**: `tests/test_content_canonical.py` 5/5; suíte conteúdo+freq+sync 34/34 verdes.
+- Auditoria de dados que embasou o schema: 19 LO (13 reais + 6 seed); matriz campo→tipo→% em
+  `/app/memory/P1_BLUEPRINT_OPCAO_A.md`.
+
+
+
 ## 2026-06 — FASE A (P0): Integridade do MODO OFFLINE de Frequência
 
 Auditoria completa do modo offline (salva em `/app/memory/AUDITORIA_OFFLINE.md`)
