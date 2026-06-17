@@ -306,10 +306,16 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         enrollment_student_ids = set()
         enrollment_numbers = {}
+        # Conjunto de alunos ATIVOS nesta turma (Fonte 1 + Fonte 3). Para estes,
+        # NUNCA apagamos as células de frequência por causa de histórico antigo
+        # (ex.: aluno que foi cancelado/remanejado e depois rematriculado na mesma
+        # turma — ele está ativo de novo e tem frequência lançada).
+        active_in_class_ids = set()
         for e in enrollments_active:
             sid = e.get('student_id')
             enrollment_student_ids.add(sid)
             enrollment_numbers[sid] = e.get('enrollment_number')
+            active_in_class_ids.add(sid)
 
         # Fonte 2: Matrículas inativas (transferidos, desistentes, etc.)
         # IMPORTANTE: "cancelled" (matrícula cancelada) é EXCLUÍDO de propósito —
@@ -338,6 +344,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 enrollment_student_ids.add(sid)
             if sid not in enrollment_numbers:
                 enrollment_numbers[sid] = s.get('enrollment_number')
+            active_in_class_ids.add(sid)
 
         student_ids = list(enrollment_student_ids)
 
@@ -452,7 +459,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             students_attendance = []
             for student in students:
                 attendance_by_session = {}
-                action_dt_for_student = inactive_action_dates.get(student['id'])
+                action_dt_for_student = None if student['id'] in active_in_class_ids else inactive_action_dates.get(student['id'])
 
                 for att in sorted_attendances:
                     # Feb 2026: pula registros com data >= action_date (célula vazia no PDF)
@@ -520,7 +527,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             for student in students:
                 attendance_by_date = {}
                 attendance_classes_by_date = {}
-                action_dt_for_student = inactive_action_dates.get(student['id'])
+                action_dt_for_student = None if student['id'] in active_in_class_ids else inactive_action_dates.get(student['id'])
 
                 for att in sorted_attendances:
                     # Feb 2026: pula registros com data >= action_date (célula vazia no PDF)

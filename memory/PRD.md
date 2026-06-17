@@ -23,6 +23,13 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Fix: células P/F/J em branco no PDF de Frequência (Jun/2026)
+**Bug:** no PDF "Controle de Frequência" por bimestre, um ou dois alunos ATIVOS apareciam com todas as células P/F/J em branco (ex.: aluna Eloah Botelho Ferreira, turma "Pré I A"), mesmo tendo frequência lançada na tela.
+**Causa raiz:** o recurso (Fev/2026) que apaga células a partir da `action_date` de alunos que SAÍRAM da turma (`student_history`: transferencia_saida/remanejamento/progressao/reclassificacao/desistencia/cancelamento) também atingia alunos que continuam ATIVOS na turma mas possuem um registro histórico ANTIGO para aquela turma — caso típico de aluno cancelado/remanejado e depois REMATRICULADO na mesma turma. Com a `action_date` antiga, todas as frequências posteriores eram omitidas.
+**Fix (`routers/attendance_ext.py`):** monta `active_in_class_ids` (matrículas ativas + alunos com class_id direto) e NÃO aplica o apagamento por `action_date` a alunos ativos na turma. Mantém o comportamento correto para alunos genuinamente inativos (Fonte 2).
+**Testes:** `tests/test_attendance_pdf_blank_cells_regression.py` (1 verde — valida via pdfplumber que aluno ativo com histórico de cancelamento antigo renderiza "P P", FALTAS=0/PRESEN.=2). Verificado também o caso real-simulado no preview. Deploy via "Save to Github".
+
+
 ## CHANGELOG — Tutorial de Transferência: capturas reais (Jun/2026)
 **Aprimoramento:** o tutorial "Transferir um Aluno de uma Escola para Outra" (`/tutoriais/secretarios/transferencia`) passou a incluir 4 capturas de tela reais do sistema, inseridas em cada passo:
 - `transf-1-lista.png` — tela Alunos com escola selecionada (Editar)
