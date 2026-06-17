@@ -459,8 +459,22 @@ const DiarioAEE = () => {
 
   // === HANDLERS DE ATENDIMENTO ===
   const handleSaveAtendimento = async () => {
-    if (!atendimentoForm.plano_aee_id || !atendimentoForm.data || !atendimentoForm.atividade_realizada) {
-      showAlert('error', 'Preencha os campos obrigatórios');
+    // Validação client-side ALINHADA aos campos obrigatórios do backend
+    // (AtendimentoAEEBase), com mensagem CLARA indicando exatamente o que falta.
+    const faltando = [];
+    if (!atendimentoForm.plano_aee_id) faltando.push('Plano/Estudante');
+    if (!atendimentoForm.data) faltando.push('Data');
+    if (!atendimentoForm.horario_inicio) faltando.push('Horário Início');
+    if (!atendimentoForm.horario_fim) faltando.push('Horário Fim');
+    if (!atendimentoForm.objetivo_trabalhado?.trim()) faltando.push('Objetivo Trabalhado');
+    if (!atendimentoForm.atividade_realizada?.trim()) faltando.push('Atividade/Estratégia Realizada');
+    if (faltando.length > 0) {
+      showAlert('error', `Preencha os campos obrigatórios: ${faltando.join(', ')}.`);
+      return;
+    }
+    if (atendimentoForm.horario_inicio && atendimentoForm.horario_fim &&
+        atendimentoForm.horario_fim <= atendimentoForm.horario_inicio) {
+      showAlert('error', 'O "Horário Fim" deve ser posterior ao "Horário Início".');
       return;
     }
     
@@ -1328,7 +1342,7 @@ const DiarioAEE = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Horário Início</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Horário Início *</label>
               <input
                 type="time"
                 value={atendimentoForm.horario_inicio}
@@ -1337,7 +1351,7 @@ const DiarioAEE = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Horário Fim</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Horário Fim *</label>
               <input
                 type="time"
                 value={atendimentoForm.horario_fim}
