@@ -23,6 +23,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Fix: frequência divergindo do horário no sábado letivo (Jun/2026)
+**Sintoma:** ao lançar frequência num sábado letivo, aparecia "Nenhuma aula deste componente neste dia da semana" / "não há aulas previstas para esta data", mesmo o Horário de Aulas mostrando corretamente (ex.: "5º Sábado Letivo (Aulas de Sexta)").
+**Causa raiz:** o endpoint `GET /api/attendance/schedule-classes-count` (`routers/attendance.py`) retornava `count:0` para qualquer sábado, sem aplicar a rotação do sábado letivo (o horário aplicava; a frequência não → divergência).
+**Correção:** o endpoint agora detecta sábado letivo via `get_saturday_weekday_map` e conta os slots do componente no **dia da semana correspondente** (mesma rotação 1º=Seg…5º=Sex). Sábado não-letivo e domingo continuam com 0. Carga horária semanal agregada (linhas ~1408/1585) não muda (estimativa semanal, não por data).
+**Teste:** `tests/test_sabado_letivo.py::test_schedule_classes_count_sabado_letivo` (verde) — count = nº de aulas do dia correspondente. Total 3 testes verdes.
+**Deploy:** "Save to Github" (Coolify).
+
+
 ## CHANGELOG — Sábado Letivo tratado como dia letivo normal (Jun/2026)
 **Objetivo:** sábado marcado como `sabado_letivo` deve gerar aulas, frequência, carga horária, diário e relatórios como qualquer dia letivo.
 **Causa raiz:** o diário expandia a grade horária casando apenas `isoweekday`. Como a grade só tem Seg–Sex, o sábado (dia 6) nunca casava → nenhuma aula no sábado letivo (apesar da contagem de dias letivos já incluí-lo). A regra de rotação (1º sábado=Seg, 2º=Ter…) existia só na visualização da grade (`get_saturday_schedule`), não no diário/frequência/carga.

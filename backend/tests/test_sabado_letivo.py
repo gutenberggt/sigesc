@@ -148,7 +148,62 @@ def test_rotation_is_cyclic_mon_to_fri():
     print("✓ Rotação confirmada: " + " | ".join(f"{i+1}º→{DAY[w]}" for i, w in enumerate(seq)))
 
 
+def test_schedule_classes_count_sabado_letivo():
+    """schedule-classes-count deve aplicar a rotação no sábado letivo (frequência
+    bate com o horário). Antes retornava count=0 → 'Nenhuma aula deste componente'."""
+    DAY_ID = {1: "segunda", 2: "terca", 3: "quarta", 4: "quinta", 5: "sexta"}
+
+    async def _run():
+        db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+        tag = uuid.uuid4().hex[:8]
+        mant = f"MANT_CNT_{tag}"
+        class_id = f"CLS_CNT_{tag}"
+        course_id = f"CRS_CNT_{tag}"
+        target_sat = _first_saturdays(1)[0]
+        ev_id = str(uuid.uuid4())
+        try:
+            await db.classes.insert_one({"id": class_id, "name": f"T {tag}", "school_id": f"S_{tag}",
+                                         "academic_year": YEAR, "mantenedora_id": mant,
+                                         "education_level": "anos_finais"})
+            await db.courses.insert_one({"id": course_id, "name": f"História {tag}", "class_id": class_id})
+            await db.calendar_events.insert_one({"id": ev_id, "event_type": "sabado_letivo",
+                                                 "academic_year": YEAR, "mantenedora_id": mant, "is_school_day": True,
+                                                 "start_date": target_sat.isoformat(), "end_date": target_sat.isoformat()})
+            sat_map = await get_saturday_weekday_map(db, academic_year=YEAR, mantenedora_id=mant)
+            corr = sat_map.get(target_sat.isoformat())
+            day_id = DAY_ID[corr]
+            # 2 aulas do componente no dia correspondente
+            await db.class_schedules.insert_one({
+                "id": str(uuid.uuid4()), "class_id": class_id, "academic_year": YEAR,
+                "schedule_slots": [
+                    {"course_id": course_id, "day": day_id, "aula_numero": 1},
+                    {"course_id": course_id, "day": day_id, "aula_numero": 2},
+                ],
+            })
+            async with httpx.AsyncClient(base_url=API, timeout=40) as c:
+                lg = (await c.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PWD})).json()
+                h = {"Authorization": f"Bearer {lg['access_token']}"}
+                r = await c.get(
+                    f"/api/attendance/schedule-classes-count?class_id={class_id}&course_id={course_id}"
+                    f"&date={target_sat.isoformat()}&academic_year={YEAR}", headers=h)
+            return corr, day_id, r.status_code, (r.json() if r.status_code == 200 else r.text)
+        finally:
+            await db.classes.delete_one({"id": class_id})
+            await db.courses.delete_one({"id": course_id})
+            await db.calendar_events.delete_many({"id": ev_id})
+            await db.class_schedules.delete_many({"class_id": class_id})
+
+    corr, day_id, status, body = asyncio.run(_run())
+    assert status == 200, f"endpoint deve retornar 200: {body}"
+    assert body.get("has_schedule") is True, f"deveria ter horário: {body}"
+    assert body.get("count") == 2, (
+        f"Sábado letivo (rotação→{day_id}) deveria contar 2 aulas do componente, veio {body.get('count')}"
+    )
+    print(f"✓ schedule-classes-count no sábado letivo → dia {day_id}, count={body['count']} (bate com o horário)")
+
+
 if __name__ == "__main__":
     test_rotation_is_cyclic_mon_to_fri()
     test_sabado_letivo_rotation_and_diary()
+    test_schedule_classes_count_sabado_letivo()
     print("OK")

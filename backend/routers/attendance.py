@@ -1473,11 +1473,30 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         day_map = {0: 'segunda', 1: 'terca', 2: 'quarta', 3: 'quinta', 4: 'sexta', 5: 'sabado', 6: 'domingo'}
         try:
             d = dt.strptime(date, '%Y-%m-%d')
-            day_id = day_map.get(d.weekday(), '')
-        except:
+        except Exception:
             return {"count": 1, "has_schedule": False}
-        
-        if not day_id or day_id in ('sabado', 'domingo'):
+
+        if d.weekday() == 6:  # domingo nunca tem aulas
+            return {"count": 0, "has_schedule": True}
+
+        if d.weekday() == 5:
+            # SÁBADO LETIVO: segue a rotação (1º=segunda, 2º=terça, …), igual ao
+            # Horário de Aulas. Sem isso, a frequência divergia do horário.
+            from services.school_calendar_helper import get_saturday_weekday_map
+            klass = await current_db.classes.find_one({"id": class_id}, {"_id": 0, "mantenedora_id": 1})
+            sat_map = await get_saturday_weekday_map(
+                current_db, academic_year=academic_year,
+                mantenedora_id=(klass or {}).get('mantenedora_id'),
+            )
+            corr = sat_map.get(d.strftime('%Y-%m-%d'))
+            if not corr:
+                # Sábado comum (não letivo) → sem aulas.
+                return {"count": 0, "has_schedule": True}
+            day_id = {1: 'segunda', 2: 'terca', 3: 'quarta', 4: 'quinta', 5: 'sexta'}.get(corr, '')
+        else:
+            day_id = day_map.get(d.weekday(), '')
+
+        if not day_id:
             return {"count": 0, "has_schedule": True}
         
         schedule = await current_db.class_schedules.find_one(
