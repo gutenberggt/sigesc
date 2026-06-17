@@ -1,5 +1,32 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — FASE A (P0): Integridade do MODO OFFLINE de Frequência
+
+Auditoria completa do modo offline (salva em `/app/memory/AUDITORIA_OFFLINE.md`)
+identificou 3 bugs P0 de perda/duplicação/corrupção de dados. Fase A corrigiu:
+
+- **A1 — Gravação offline universal:** removido o gate `if (isOnline)` que impedia
+  o registro de frequência multi-aula (Anos Finais/EJA Final) sem internet. Agora a
+  internet é condição apenas de SINCRONIZAÇÃO, nunca de REGISTRO. (`Attendance.js`
+  `saveAttendance`/`persistAttendancePayload`).
+- **A2 — Motor canônico único:** o sync offline (`/api/sync/push`) de frequência NÃO
+  grava mais documento cru. Foi extraída `save_attendance_canonical` (módulo
+  `routers/attendance.py`), usada tanto pelo `POST /api/attendance` quanto pelo
+  sincronizador (`routers/sync.py::_sync_attendance_canonical`). Mesmo caminho =
+  upsert por chave natural, versionamento, Academic Event Lock, validação de
+  dependências e auditoria. Elimina duplicatas/divergência.
+- **A3 — Idempotência por chave natural:** fila de sync (`db/database.js`
+  `addToSyncQueue`) deduplica por `naturalKey` (turma|data|componente|período|aula);
+  N edições offline convergem para 1 item e o estado final. Conflito multi-dispositivo
+  é resolvido + auditado pelo motor (force_overwrite + change_note).
+- **Validação:** pytest backend 9/9 verdes (`tests/test_attendance_offline_sync_canonical.py`
+  + `tests/test_sync_tenant_isolation.py`); E2E offline 4/4 cenários (iteration_97) —
+  gravação → fila idempotente → persistência no reload → drain ao reconectar.
+- **Suporte QA:** `scripts/seed_professor_profile.py` (idempotente) cria staff +
+  teacher_assignments p/ professor.teste; data-testids nos botões P/F/J e Salvar.
+
+
+
 ## 2026-06 — CAUSA DEFINITIVA do "deploy não reflete": frontend/yarn.lock fora do repo (Coolify)
 
 - **Descoberta (via git.pdf do usuário):** a produção é implantada no **Coolify** a

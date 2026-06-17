@@ -106,6 +106,13 @@ só por clique manual. Abrir turma/data nova offline sem ter sincronizado antes 
 
 **Veredito:** o modo offline **NÃO pode ser considerado concluído** — bloqueado por P0-1, P0-2, P0-3 e P1-4/P1-5.
 
+> **ATUALIZAÇÃO Jun/2026 — FASE A CONCLUÍDA E VALIDADA (P0-1, P0-2, P0-3 corrigidos):**
+> - P0-1 ✅ Anos Finais/multi-aula agora grava offline (gate `if(isOnline)` removido).
+> - P0-2 ✅ Sync de frequência roteado pelo motor canônico único (`save_attendance_canonical`) — sem documento cru, sem duplicata.
+> - P0-3 ✅ Idempotência por chave natural na fila + upsert canônico (UPDATE/edições convergem para 1 doc).
+> - Validação: pytest 9/9 + E2E offline 4/4 (iteration_97).
+> - **PENDENTE Fase B (próxima rodada, após deploy):** P1-4 (conteúdo/diário offline), P1-5 (pré-cache automático de alunos/turmas), P1-6 (/api/sync/pull morto), P2 (notas idempotentes/sync canônico, alerta de itens `failed`).
+
 ---
 
 ## ✅ Pontos saudáveis
