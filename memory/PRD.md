@@ -23,6 +23,15 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Fix CORS de produção (origem do frontend não permitida) (Jun/2026)
+**Sintoma (produção real):** preflight CORS bloqueado em TODAS as rotas (`/api/mantenedora`, `/api/auth/login`) — "Response to preflight request ... does not have HTTP ok status" — origem `https://sigesc.aprenderdigital.top` chamando `https://api.sigesc.aprenderdigital.top`.
+**Causa raiz:** o backend de produção só tinha o domínio `api.` na whitelist (provavelmente via `REACT_APP_BACKEND_URL`). O domínio do FRONTEND (`sigesc.aprenderdigital.top`) não estava permitido → Starlette CORS retorna 400 no preflight de origem não permitida. (O preview usa ingress com CORS `*`, por isso o problema não aparecia lá.)
+**Correção (`server.py`):** derivação automática do domínio do frontend a partir do backend no padrão `api.<dominio>` → `<dominio>`. Assim, com apenas `REACT_APP_BACKEND_URL=https://api.sigesc.aprenderdigital.top`, o `https://sigesc.aprenderdigital.top` passa a ser whitelisted. (Validado em isolamento.)
+**Ação do usuário (uma das duas):**
+- IMEDIATO (sem redeploy de código): no Coolify do serviço BACKEND, definir `CORS_ORIGINS=https://sigesc.aprenderdigital.top` (ou `CORS_ORIGIN_REGEX=https://([a-z0-9-]+\.)?aprenderdigital\.top`) e reiniciar o container.
+- DEFINITIVO: "Save to Github" → Coolify pull (o fix de derivação resolve sem env extra).
+
+
 ## CHANGELOG — P1: Login universal + reset de estado (Jun/2026)
 **Sintoma:** após super_admin trocar de mantenedora e fazer logout, o login passava a falhar com "Erro ao fazer login" NO MESMO navegador, mas funcionava em aba anônima/outro navegador.
 **Causa raiz:** (1) o logout NÃO limpava `activeMantenedoraId` do localStorage; (2) o interceptor do axios injetava o header `X-Mantenedora-Id` em TODA request, inclusive no POST `/auth/login`; (3) `X-Mantenedora-Id` NÃO estava no CORS `allow_headers` do backend. Em produção (frontend ≠ backend), o preflight CORS do login falhava → "Erro ao fazer login". Aba anônima não tinha `activeMantenedoraId` → funcionava.

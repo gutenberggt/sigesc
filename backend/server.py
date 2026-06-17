@@ -786,6 +786,25 @@ _env_origins.update({
     'http://localhost:8001',
 })
 
+# [Jun/2026] Deriva automaticamente o domínio do FRONTEND a partir do backend
+# quando o padrão é `api.<dominio>` → `<dominio>` (ex.:
+# https://api.sigesc.aprenderdigital.top → https://sigesc.aprenderdigital.top).
+# Em produção, quando só REACT_APP_BACKEND_URL é informado, o domínio do frontend
+# ficava de fora da whitelist e o preflight CORS era bloqueado ("does not have
+# HTTP ok status"). Isso ADICIONA o domínio irmão — nunca remove nada.
+from urllib.parse import urlparse as _urlparse
+_derived_origins = set()
+for _o in list(_env_origins):
+    try:
+        _p = _urlparse(_o)
+        if _p.scheme and _p.hostname and _p.hostname.startswith('api.'):
+            _sibling = _p.hostname[4:]
+            _port = f":{_p.port}" if _p.port else ""
+            _derived_origins.add(f"{_p.scheme}://{_sibling}{_port}")
+    except Exception:
+        pass
+_env_origins.update(_derived_origins)
+
 # Regex opcional para múltiplos subdomínios em produção.
 # Ex.: CORS_ORIGIN_REGEX="https://.*\.aprenderdigital\.top"
 _cors_regex = (os.environ.get('CORS_ORIGIN_REGEX') or '').strip() or None
