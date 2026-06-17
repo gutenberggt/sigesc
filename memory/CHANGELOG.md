@@ -1,5 +1,32 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — ProgressModal global (infra reutilizável de progresso) + 4 fluxos
+
+Infra "construir uma vez, reutilizar" para tarefas longas (PDFs, e futuramente CSV,
+sync offline, lote SIE, fechamento de bimestre). Modelo de 3 estados HONESTO
+(sem números falsos), preparado para SSE (Nível 2).
+
+- **`contexts/ProgressContext.jsx`**: `ProgressProvider` + hook `useProgressTask`
+  (estado `{status: preparing|transferring|completed|error, progress, currentStep,
+  current, total, bytesLoaded, bytesTotal, message}`; métodos startTask/updateTask/
+  setTransferring/completeTask/failTask/closeTask). API pronta p/ SSE.
+- **`components/ProgressModal.jsx`**: modal global montado no `App.js`. Estados:
+  Preparando (sem %), Transferindo (% REAL via Content-Length + "X MB de Y MB"),
+  Concluído, Erro. data-testids completos.
+- **`utils/downloadBlob.js::downloadBlobWithProgress`**: fetch com leitura de stream
+  (`response.body.getReader()`) → % REAL de bytes; suporta GET e POST (injeta
+  X-CSRF-Token p/ métodos de escrita, pois fetch não passa pelo interceptor axios);
+  `openInNewTab`. Exportado `getCsrfToken` em `services/api.js`.
+- **Integrações (3 prioridades + Promotion):** MonthlyReports (P1, GET),
+  StudentsComplete relatório (P3, POST+CSRF, nova aba), BulletinViewer Boletim Oficial
+  (P2, job-based → preparing no job + transferring no download), Promotion Livro de
+  Promoção (modal local REMOVIDO — agora consome o provider com progresso REAL do backend).
+- **Validação E2E:** iter.98 P1 PASS + Promotion sem modal duplo; iter.99 P3 PASS
+  (POST+CSRF, sem 403). Ambos os caminhos do helper (GET e POST) provados. P2/Promotion
+  trigger não acionado por navegação de tenant/dados no preview (não é bug; code review OK).
+
+
+
 ## 2026-06 — P1.0: Motor canônico de Conteúdo/Diário (pré-migração)
 
 Decisão arquitetural: `content_entries` = fonte oficial; `learning_objects` = LEGADO.
