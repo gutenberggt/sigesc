@@ -9,6 +9,7 @@ Design simplificado e impressível:
   - Suporte a arrays de BarreiraAEE / ObjetivoAEE / RecursoAcessibilidade
 """
 import io
+import re
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -61,17 +62,35 @@ def _label(value, mapping):
     return mapping.get(value, value)
 
 
+_ISO_DATE_RE = re.compile(r'(\d{4})-(\d{2})-(\d{2})')
+
+
+def _br_dates(value):
+    """Converte toda data ISO (AAAA-MM-DD) presente no texto para dd/mm/aaaa.
+
+    Funciona tanto para campos de data única quanto para intervalos/textos
+    (ex.: 'Período Vigência' que pode conter duas datas).
+    """
+    if not value:
+        return value or '-'
+    return _ISO_DATE_RE.sub(
+        lambda m: f'{m.group(3)}/{m.group(2)}/{m.group(1)}', str(value)
+    )
+
+
 def _render_list_of_dicts(arr, style):
-    """Converte uma lista de dicts (barreiras/objetivos/recursos) em Paragraph multilinha."""
+    """Converte uma lista de dicts (barreiras/objetivos/recursos) em Paragraph multilinha.
+
+    Sem prefixo destacado de tipo/prazo (ex.: [Outra], [Medio], [Outro]) — exibe
+    apenas a descrição, evitando rótulos genéricos em espaços vagos.
+    """
     if not arr:
         return Paragraph('<i>(não informado)</i>', style)
     lines = []
     for idx, item in enumerate(arr, 1):
         if isinstance(item, dict):
-            tipo = item.get('tipo') or item.get('prazo')
             desc = item.get('descricao') or ''
-            tipo_str = f'<b>[{(tipo or "").capitalize()}]</b> ' if tipo else ''
-            lines.append(f'{idx}. {tipo_str}{desc}')
+            lines.append(f'{idx}. {desc}')
         else:
             lines.append(f'{idx}. {item}')
     return Paragraph('<br/>'.join(lines), style)
@@ -157,9 +176,9 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
          Paragraph('Status do Plano:', label),
          Paragraph((plano.get('status') or '-').title(), value_style)],
         [Paragraph('Data Elaboração:', label),
-         Paragraph(plano.get('data_elaboracao') or '-', value_style),
+         Paragraph(_br_dates(plano.get('data_elaboracao')), value_style),
          Paragraph('Período Vigência:', label),
-         Paragraph(plano.get('periodo_vigencia') or '-', value_style)],
+         Paragraph(_br_dates(plano.get('periodo_vigencia')), value_style)],
     ]
     ident_table = Table(ident_rows, colWidths=[3*cm, 6*cm, 3*cm, 6*cm])
     ident_table.setStyle(TableStyle([
@@ -294,7 +313,7 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
         [Paragraph('Critérios de Ajuste:', label),
          Paragraph(plano.get('criterios_ajuste') or '-', value_style)],
         [Paragraph('Próxima Revisão:', label),
-         Paragraph(plano.get('data_revisao') or '-', value_style)],
+         Paragraph(_br_dates(plano.get('data_revisao')), value_style)],
     ]
     monit_t = Table(monit, colWidths=[4*cm, 14*cm])
     monit_t.setStyle(TableStyle([
@@ -311,7 +330,7 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
     sign_style = ParagraphStyle('SignAEE', fontSize=8, alignment=1, fontName='Helvetica')
     sign = Table([
         [Paragraph('_______________________________<br/>Professor(a) AEE', sign_style),
-         Paragraph('_______________________________<br/>Direção da Escola', sign_style)]
+         Paragraph('_______________________________<br/>Coordenador(a)', sign_style)]
     ], colWidths=[9*cm, 9*cm])
     elements.append(sign)
 
