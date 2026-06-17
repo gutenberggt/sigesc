@@ -23,6 +23,18 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Sábado Letivo tratado como dia letivo normal (Jun/2026)
+**Objetivo:** sábado marcado como `sabado_letivo` deve gerar aulas, frequência, carga horária, diário e relatórios como qualquer dia letivo.
+**Causa raiz:** o diário expandia a grade horária casando apenas `isoweekday`. Como a grade só tem Seg–Sex, o sábado (dia 6) nunca casava → nenhuma aula no sábado letivo (apesar da contagem de dias letivos já incluí-lo). A regra de rotação (1º sábado=Seg, 2º=Ter…) existia só na visualização da grade (`get_saturday_schedule`), não no diário/frequência/carga.
+**Decisão do cliente:** opção (a) — manter a rotação automática e propagá-la a todas as áreas.
+**Correção:**
+- Novo helper `services/school_calendar_helper.get_saturday_weekday_map(db, academic_year, mantenedora_id, school_id)` → `{sabado_iso: isoweekday_correspondente (1-5)}`, indexando TODOS os sábados letivos do ano (estável p/ qualquer período). Ciclo Seg–Sex (`index % 5 + 1`).
+- Aplicado em `routers/calendar_diary_state.py` e `services/diary_snapshot_service.py`: `effective_wd = saturday_map.get(iso, day.isoweekday())` ao casar slots. Isso alimenta automaticamente diário, frequência (chamada habilitada no sábado), carga horária (`expected_slots`) e relatórios/dashboards (data-driven).
+- Áreas 2 (frequência) e 5 (relatórios) cobertas transitivamente: `attendance.py` já permitia chamada em sábado letivo; PDFs leem registros reais + contagem de dias já incluía sábados.
+**Testes:** `tests/test_sabado_letivo.py` (2 verdes) — rotação cíclica `[1,2,3,4,5,1]` e diary-state mostrando aulas no sábado letivo (controle: sábado comum = 0 aulas).
+**Deploy:** "Save to Github" (Coolify).
+
+
 ## CHANGELOG — Fix CORS de produção (origem do frontend não permitida) (Jun/2026)
 **Sintoma (produção real):** preflight CORS bloqueado em TODAS as rotas (`/api/mantenedora`, `/api/auth/login`) — "Response to preflight request ... does not have HTTP ok status" — origem `https://sigesc.aprenderdigital.top` chamando `https://api.sigesc.aprenderdigital.top`.
 **Causa raiz:** o backend de produção só tinha o domínio `api.` na whitelist (provavelmente via `REACT_APP_BACKEND_URL`). O domínio do FRONTEND (`sigesc.aprenderdigital.top`) não estava permitido → Starlette CORS retorna 400 no preflight de origem não permitida. (O preview usa ingress com CORS `*`, por isso o problema não aparecia lá.)

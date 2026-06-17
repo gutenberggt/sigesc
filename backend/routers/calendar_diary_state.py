@@ -220,6 +220,15 @@ def setup_calendar_diary_state_router(db):
             non_school_days: dict = school_cal["non_school_days"]
             explicit_school_days: dict = school_cal["explicit_school_days"]
 
+            # Sábado letivo: mapa data→dia-da-semana correspondente (rotação).
+            from services.school_calendar_helper import get_saturday_weekday_map
+            saturday_map = await get_saturday_weekday_map(
+                db,
+                academic_year=klass.get("academic_year"),
+                mantenedora_id=klass.get("mantenedora_id"),
+                school_id=klass.get("school_id"),
+            )
+
             # ---------------- Etapa 2: expandir slots esperados em memória ----------------
             expected_by_date: dict = {}
             for a in assignments:
@@ -231,10 +240,12 @@ def setup_calendar_diary_state_router(db):
                     for day in _daterange(d_from, d_to):
                         if not _is_assignment_active_on(a, day):
                             continue
-                        py_wd = day.isoweekday()
-                        if py_wd != wd:
-                            continue
                         iso = day.isoformat()
+                        # Sábado letivo segue a rotação (1º=Seg, 2º=Ter, …): casa
+                        # os slots da grade com o dia da semana correspondente.
+                        effective_wd = saturday_map.get(iso, day.isoweekday())
+                        if effective_wd != wd:
+                            continue
                         # Pula dias não-letivos (feriados/recessos) — vencidos
                         # APENAS por sábado letivo (que está em explicit).
                         if iso in non_school_days and iso not in explicit_school_days:

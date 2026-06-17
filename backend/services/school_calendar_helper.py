@@ -154,3 +154,45 @@ async def load_school_calendar(
         "non_school_days": non_school_days,
         "explicit_school_days": explicit_school_days,
     }
+
+
+async def get_saturday_weekday_map(
+    db, *, academic_year: int,
+    mantenedora_id: str | None = None,
+    school_id: str | None = None,
+) -> dict:
+    """Mapa {saturday_iso: isoweekday_correspondente (1-5)} para sábados letivos.
+
+    Regra de ROTAÇÃO (institucional, mantida do comportamento existente):
+      1º sábado letivo do ano → aulas de Segunda (isoweekday 1)
+      2º sábado letivo        → Terça (2)
+      ...
+      ciclo Seg–Sex (índice % 5), reiniciando a cada 5 sábados.
+
+    Indexa TODOS os sábados letivos do ANO LETIVO (ordenados por data), para que
+    o índice seja estável independente do período renderizado. Assim diário,
+    frequência, carga horária e relatórios usam a MESMA rotação.
+    """
+    query: dict = {"academic_year": academic_year, "event_type": "sabado_letivo"}
+    if mantenedora_id:
+        query["$or"] = [
+            {"mantenedora_id": mantenedora_id},
+            {"mantenedora_id": {"$exists": False}},
+            {"mantenedora_id": None},
+        ]
+    events = await db.calendar_events.find(
+        query, {"_id": 0, "start_date": 1, "end_date": 1}
+    ).to_list(2000)
+
+    sat_dates = set()
+    for ev in events:
+        for d_iso in _expand_event_dates(ev.get("start_date"), ev.get("end_date")):
+            try:
+                d = datetime.strptime(d_iso, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if d.weekday() == 5:  # apenas sábados (weekday 5 = sábado)
+                sat_dates.add(d_iso)
+
+    ordered = sorted(sat_dates)
+    return {iso: (idx % 5) + 1 for idx, iso in enumerate(ordered)}

@@ -202,6 +202,15 @@ async def consolidate_diary_payload(
     non_school_days: dict = school_cal["non_school_days"]
     explicit_school_days: dict = school_cal["explicit_school_days"]
 
+    # Sábado letivo: mapa data→dia-da-semana correspondente (rotação).
+    from services.school_calendar_helper import get_saturday_weekday_map
+    saturday_map = await get_saturday_weekday_map(
+        db,
+        academic_year=klass.get("academic_year"),
+        mantenedora_id=klass.get("mantenedora_id"),
+        school_id=klass.get("school_id"),
+    )
+
     expected_by_date: dict = {}
     for a in assignments:
         for slot in a.get("weekly_slots", []) or []:
@@ -212,9 +221,11 @@ async def consolidate_diary_payload(
             for day in _daterange(d_from, d_to):
                 if not _is_assignment_active_on(a, day):
                     continue
-                if day.isoweekday() != wd:
-                    continue
                 iso = day.isoformat()
+                # Sábado letivo segue a rotação (1º=Seg, 2º=Ter, …).
+                effective_wd = saturday_map.get(iso, day.isoweekday())
+                if effective_wd != wd:
+                    continue
                 # Pula dias não-letivos (exceto sábado letivo)
                 if iso in non_school_days and iso not in explicit_school_days:
                     continue
