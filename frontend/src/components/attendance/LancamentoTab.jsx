@@ -363,6 +363,7 @@ export const LancamentoTab = () => {
                                   {['P', 'F', 'J'].map(status => (
                                     <button
                                       key={status}
+                                      data-testid={`attendance-status-${student.id}-${aulaNum}-${status}`}
                                       onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status, aulaNum)}
                                       disabled={!canEdit || !dateCheck?.can_record}
                                       className={`w-8 h-8 rounded-lg font-bold text-xs transition-all
@@ -415,6 +416,7 @@ export const LancamentoTab = () => {
                               {['P', 'F', 'J'].map(status => (
                                 <button
                                   key={status}
+                                  data-testid={`attendance-status-${student.id}-${status}`}
                                   onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
                                   disabled={!canEdit || !dateCheck?.can_record}
                                   className={`w-10 h-10 rounded-lg font-bold transition-all
