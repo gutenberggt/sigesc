@@ -15,7 +15,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://multi-class-sync.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://multi-tenant-fixed.preview.emergentagent.com')
 
 SCHOOL_ID = "220d4022-ec5e-4fb6-86fc-9233112b87b2"
 REGULAR_CLASS_ID = "c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd"   # TURMA MULTI 1-2-3

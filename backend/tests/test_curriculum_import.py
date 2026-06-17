@@ -17,7 +17,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://multi-class-sync.preview.emergentagent.com",
+    "https://multi-tenant-fixed.preview.emergentagent.com",
 ).rstrip("/")
 SUPER_ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 DCM_PDF_URL = "https://customer-assets.emergentagent.com/job_38293ece-e844-49f2-b474-2b7e394f2ff0/artifacts/sylkc9p3_DOCUMENTO-CURRICULAR-DO-MUNICIPIO-DE-FLORESTA%20DO%20ARAGUAIA.pdf"

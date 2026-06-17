@@ -12,7 +12,7 @@ import requests
 import os
 from io import BytesIO
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://multi-class-sync.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://multi-tenant-fixed.preview.emergentagent.com')
 
 # Test credentials
 TEST_EMAIL = "gutenberg@sigesc.com"
