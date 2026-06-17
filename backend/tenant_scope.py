@@ -34,6 +34,13 @@ from __future__ import annotations
 from typing import Optional
 from fastapi import Request, HTTPException
 
+from tenant_audit import log_tenant_event
+
+# Sentinela de tenant inexistente. Usada no FAIL-CLOSED: quando um usuário
+# não-super_admin não possui mantenedora_id, o filtro passa a casar com NADA
+# (em vez de remover o filtro e expor TODOS os tenants).
+INVALID_TENANT_SENTINEL = "__INVALID_TENANT__"
+
 
 def get_user_mantenedora_id(user: dict) -> Optional[str]:
     if not user:
@@ -70,11 +77,30 @@ def get_mantenedora_scope(user: dict, request: Optional[Request] = None) -> Opti
 
 
 def apply_tenant_filter(base_query: dict, user: dict, request: Optional[Request] = None) -> dict:
-    """Retorna base_query acrescido de {'mantenedora_id': ...} quando aplicável."""
-    mid = get_mantenedora_scope(user, request)
-    if mid is None:
-        return base_query  # super_admin cross-tenant
+    """Retorna base_query acrescido de {'mantenedora_id': ...}.
+
+    Regra de segurança (FAIL-CLOSED) — padrão de toda a plataforma:
+      - super_admin SEM escopo (sem header/query) → cross-tenant (sem filtro).
+      - super_admin COM escopo → filtra pela mantenedora ativa.
+      - qualquer outro perfil → SEMPRE travado na própria mantenedora.
+      - qualquer outro perfil SEM mantenedora_id → filtro IMPOSSÍVEL
+        (`__INVALID_TENANT__`): sem tenant = NENHUM dado. Nunca todos.
+    """
     q = dict(base_query)
+    if is_super_admin(user):
+        mid = get_mantenedora_scope(user, request)
+        if mid is None:
+            return q  # cross-tenant intencional (super_admin)
+        q['mantenedora_id'] = mid
+        return q
+
+    # Não-super_admin: travado na própria mantenedora.
+    mid = get_user_mantenedora_id(user)
+    if not mid:
+        # FAIL-CLOSED + auditoria: sem tenant → nenhum dado.
+        log_tenant_event('missing_tenant', user, request)
+        q['mantenedora_id'] = INVALID_TENANT_SENTINEL
+        return q
     q['mantenedora_id'] = mid
     return q
 
@@ -88,6 +114,7 @@ def assert_same_tenant(doc: dict, user: dict, request: Optional[Request] = None)
     doc_mid = doc.get('mantenedora_id')
     user_mid = get_mantenedora_scope(user, request)
     if doc_mid and user_mid and doc_mid != user_mid:
+        log_tenant_event('cross_tenant_attempt', user, request, requested_mantenedora=doc_mid)
         raise HTTPException(status_code=403, detail="Registro pertence a outra mantenedora")
 
 
@@ -159,6 +186,15 @@ async def resolve_active_mantenedora(
         doc = await db.mantenedoras.find_one({"id": scope_id}, {"_id": 0})
         if doc:
             return doc
+        # Escopo aponta para tenant inexistente → não vaza para outro tenant.
+        return None
+    # scope_id None:
+    #  - super_admin sem header/query → pode usar fallback (cross-tenant).
+    #  - qualquer outro perfil → NUNCA cair na "primeira mantenedora" (vazamento).
+    #    Tenant ausente para não-super_admin = erro/sem dados.
+    if not is_super_admin(user):
+        log_tenant_event('missing_tenant', user, request, extra={'context': 'resolve_active_mantenedora'})
+        return None
     if fallback_to_first:
         return await db.mantenedoras.find_one({}, {"_id": 0})
     return None

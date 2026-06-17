@@ -38,18 +38,23 @@ def setup_router(db, audit_service, sandbox_db=None):
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
         
-        # Multi-tenancy: filtra por mantenedora ativa (mas super_admin é cross-tenant nato)
-        from tenant_scope import get_mantenedora_scope
+        # Multi-tenancy: filtra por mantenedora ativa (FAIL-CLOSED).
+        from tenant_scope import get_mantenedora_scope, is_super_admin, INVALID_TENANT_SENTINEL
+        from tenant_audit import log_tenant_event
         tenant_id = get_mantenedora_scope(current_user, request)
-        if tenant_id:
-            # Tenant específico: inclui os usuários da mantenedora + qualquer super_admin (nato)
-            filter_query = {'$or': [
-                {'mantenedora_id': tenant_id},
-                {'role': 'super_admin'}
+        if is_super_admin(current_user):
+            # super_admin: cross-tenant nato (sem seleção) ou tenant escolhido.
+            filter_query = {} if tenant_id is None else {'$or': [
+                {'mantenedora_id': tenant_id}, {'role': 'super_admin'}
             ]}
+        elif not tenant_id:
+            # Não-super_admin sem tenant → NENHUM dado (nunca todos).
+            log_tenant_event('missing_tenant', current_user, request)
+            filter_query = {'mantenedora_id': INVALID_TENANT_SENTINEL}
         else:
-            # Cross-tenant (super_admin sem seleção): todos os usuários
-            filter_query = {}
+            filter_query = {'$or': [
+                {'mantenedora_id': tenant_id}, {'role': 'super_admin'}
+            ]}
         
         cursor = current_db.users.find(filter_query, {"_id": 0})
         if skip:
@@ -74,12 +79,16 @@ def setup_router(db, audit_service, sandbox_db=None):
         )(request)
         current_db = get_db_for_user(current_user)
 
-        from tenant_scope import get_mantenedora_scope
+        from tenant_scope import get_mantenedora_scope, is_super_admin, INVALID_TENANT_SENTINEL
+        from tenant_audit import log_tenant_event
         tenant_id = get_mantenedora_scope(current_user, request)
-        if tenant_id:
-            filter_query = {'$or': [{'mantenedora_id': tenant_id}, {'role': 'super_admin'}]}
+        if is_super_admin(current_user):
+            filter_query = {} if tenant_id is None else {'$or': [{'mantenedora_id': tenant_id}, {'role': 'super_admin'}]}
+        elif not tenant_id:
+            log_tenant_event('missing_tenant', current_user, request)
+            filter_query = {'mantenedora_id': INVALID_TENANT_SENTINEL}
         else:
-            filter_query = {}
+            filter_query = {'$or': [{'mantenedora_id': tenant_id}, {'role': 'super_admin'}]}
 
         total = await current_db.users.count_documents(filter_query)
         total_active = await current_db.users.count_documents({**filter_query, 'status': 'active'})

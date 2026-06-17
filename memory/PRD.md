@@ -23,6 +23,20 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P0 CRÍTICO: Isolamento Multi-Tenant blindado (Jun/2026)
+**Vulnerabilidade:** gerentes (e qualquer não-super_admin) começavam corretos mas, após ~15min, passavam a ver dados de OUTRA mantenedora ("mudança de contexto").
+**Causa raiz (confirmada):** `POST /api/auth/refresh` (routers/auth.py) reconstruía o access token SEM o claim `mantenedora_id` (o `/login` incluía). Após o refresh, `get_current_user` lia `mantenedora_id=None` → `apply_tenant_filter` deixava de filtrar (via TUDO) e `resolve_active_mantenedora` caía na PRIMEIRA mantenedora.
+**Correções (todas aprovadas pelo cliente, P0):**
+1. **Raiz:** `/refresh` agora preserva `mantenedora_id` (+ role/school_ids), idêntico ao `/login`. (verificado via decode do token)
+2. **FAIL-CLOSED (padrão da plataforma):** `tenant_scope.apply_tenant_filter` — não-super_admin sem `mantenedora_id` recebe filtro impossível `mantenedora_id=__INVALID_TENANT__` (sem tenant = ZERO dados, nunca todos). Mesma blindagem aplicada em `routers/users.py` (list + count, que filtravam manualmente).
+3. **`resolve_active_mantenedora`:** nunca cai na "primeira mantenedora" para não-super_admin (só super_admin); escopo apontando a tenant inexistente → None.
+4. **Auditoria permanente:** novo `tenant_audit.py` + coleção `tenant_security_events`. Loga APENAS divergências: `missing_tenant`, `tenant_mismatch`, `cross_tenant_attempt`, `invalid_token` (JSON: user_id, role, user_mantenedora, requested_mantenedora, endpoint, método, timestamp). Log + persistência best-effort.
+5. **Testes automatizados:** `tests/test_multi_tenant_isolation.py` (cenário Mantenedora A/B: refresh preserva tenant; A só vê A, B só vê B; token sem tenant → 0 resultados). `tests/test_tenant_scope_resolver.py` atualizado para o comportamento seguro.
+**Arquivos:** routers/auth.py, tenant_scope.py, tenant_audit.py (novo), auth_middleware.py, routers/users.py.
+**Validação:** todos os testes de tenant relevantes verdes. Falhas remanescentes no harness (test_tenant_admin/phase2) são PRÉ-EXISTENTES (CSRF ausente no harness em POST e dado `nivel_ensino:'INFANTIL'`), não relacionadas. Smoke test da UI OK.
+**Deploy:** subir via "Save to Github" (Coolify) — correção P0, deploy imediato recomendado.
+
+
 ## CHANGELOG — Fix: células P/F/J em branco no PDF de Frequência (Jun/2026)
 **Bug:** no PDF "Controle de Frequência" por bimestre, um ou dois alunos ATIVOS apareciam com todas as células P/F/J em branco (ex.: aluna Eloah Botelho Ferreira, turma "Pré I A"), mesmo tendo frequência lançada na tela.
 **Causa raiz:** o recurso (Fev/2026) que apaga células a partir da `action_date` de alunos que SAÍRAM da turma (`student_history`: transferencia_saida/remanejamento/progressao/reclassificacao/desistencia/cancelamento) também atingia alunos que continuam ATIVOS na turma mas possuem um registro histórico ANTIGO para aquela turma — caso típico de aluno cancelado/remanejado e depois REMATRICULADO na mesma turma. Com a `action_date` antiga, todas as frequências posteriores eram omitidas.

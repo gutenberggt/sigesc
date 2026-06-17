@@ -87,9 +87,18 @@ async def test_super_admin_without_scope_no_fallback_returns_none(db, seeded):
 
 
 @pytest.mark.asyncio
-async def test_user_with_invalid_mantenedora_id_falls_back_to_first(db, seeded):
-    """Cenário do bug original: user.mantenedora_id aponta para tenant inexistente."""
+async def test_non_super_admin_with_invalid_mantenedora_id_never_falls_back(db, seeded):
+    """SEGURANÇA (P0): um perfil não-super_admin cujo mantenedora_id aponta para
+    um tenant inexistente NUNCA pode cair na 'primeira mantenedora' — isso seria
+    vazamento cross-tenant. Resultado esperado: None (sem dados / erro no caller)."""
     user = {"role": "admin", "mantenedora_id": "tenant_inexistente_xxx"}
     doc = await resolve_active_mantenedora(db, user, None, fallback_to_first=True)
-    assert doc is not None
-    assert doc.get("id")
+    assert doc is None, "VAZAMENTO: não-super_admin com tenant inválido caiu na primeira mantenedora"
+
+
+@pytest.mark.asyncio
+async def test_super_admin_without_scope_falls_back_to_first(db, seeded):
+    """super_admin SEM escopo PODE cair na primeira mantenedora (cross-tenant nato)."""
+    user = {"role": "super_admin"}
+    doc = await resolve_active_mantenedora(db, user, None, fallback_to_first=True)
+    assert doc is not None and doc.get("id")

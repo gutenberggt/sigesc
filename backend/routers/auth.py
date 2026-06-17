@@ -226,7 +226,11 @@ def setup_router(db, audit_service):
                 "sub": user.id,
                 "email": user.email,
                 "role": effective_role,
-                "school_ids": school_ids
+                "school_ids": school_ids,
+                # CRÍTICO (P0 multi-tenant): preservar a mantenedora no refresh,
+                # idêntico ao /login. Sem este claim, o escopo de tenant quebrava
+                # após ~15min, expondo dados de outras mantenedoras.
+                "mantenedora_id": getattr(user, 'mantenedora_id', None),
             }
             
             csrf_token = generate_csrf_token()

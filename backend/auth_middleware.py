@@ -2,6 +2,7 @@ from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional
 from auth_utils import decode_token, token_blacklist, ACCESS_COOKIE_NAME
+from tenant_audit import log_tenant_event
 import logging
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,10 @@ class AuthMiddleware:
             )
         
         if payload.get('type') != 'access':
+            log_tenant_event(
+                'invalid_token', {'id': payload.get('sub'), 'role': payload.get('role')}, request,
+                extra={'token_type': payload.get('type')}
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Tipo de token inválido',
