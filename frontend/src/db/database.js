@@ -119,20 +119,54 @@ export const SYNC_OPERATIONS = {
 };
 
 /**
- * Adiciona um item à fila de sincronização e registra Background Sync
+ * Adiciona um item à fila de sincronização e registra Background Sync.
+ *
+ * `naturalKey` (opcional): chave natural do registro (ex.: turma|data|componente|aula).
+ * Quando informada, a fila é IDEMPOTENTE: se já existir um item pendente com a
+ * mesma chave natural, ele é ATUALIZADO em vez de criar um novo. Isso garante que
+ * N edições offline do mesmo registro convirjam para 1 item de fila (estado final),
+ * evitando duplicatas e reenvios redundantes.
  */
-export async function addToSyncQueue(collection, operation, recordId, data = null) {
+export async function addToSyncQueue(collection, operation, recordId, data = null, naturalKey = null) {
+  const now = new Date().toISOString();
+
+  if (naturalKey) {
+    const pendings = await db.syncQueue.where('status').equals('pending').toArray();
+    const existing = pendings.find(
+      (it) => it.collection === collection && it.naturalKey === naturalKey
+    );
+    if (existing) {
+      await db.syncQueue.update(existing.id, {
+        operation,
+        recordId,
+        data,
+        timestamp: now,
+        retries: 0,
+        lastError: null,
+      });
+      await registerBackgroundSync();
+      return;
+    }
+  }
+
   await db.syncQueue.add({
     collection,
     operation,
     recordId,
     data,
-    timestamp: new Date().toISOString(),
+    naturalKey,
+    timestamp: now,
     status: 'pending',
     retries: 0
   });
-  
-  // Registra Background Sync para sincronizar quando voltar online
+
+  await registerBackgroundSync();
+}
+
+/**
+ * Registra Background Sync para sincronizar quando voltar online (quando suportado).
+ */
+async function registerBackgroundSync() {
   if ('serviceWorker' in navigator && 'sync' in window.SyncManager?.prototype) {
     try {
       const registration = await navigator.serviceWorker.ready;

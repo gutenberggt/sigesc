@@ -1,0 +1,40 @@
+{
+  "summary": "Teste E2E do modo offline de Frequência (FASE A) parcialmente bloqueado por falta de roster ativo no ambiente preview. Login + carga da página /admin/attendance OK. Foram exercitados os 4 cenários, mas nenhum dos 75 turmas (em 6 escolas) retornou alunos via GET /api/attendance/by-class/{id}/{date} em múltiplas datas de 2026 (testei 2026-02-15, 03-15, 04-15, 05-15, 06-17). Sem roster online, é impossível atingir hasChanges=true e clicar em data-testid=save-attendance-btn — portanto NÃO foi possível validar via UI o toast 'salva no aparelho', a gravação no syncQueue após save offline, e o drain ao reconectar. Validei via page.evaluate: (a) IndexedDB SigescOfflineDB v30 existe com store syncQueue e schema correto (collection/operation/natural_key/status='pending'); (b) write/read direto no syncQueue funciona; (c) seletores Escola/Turma/Componente Curricular respondem; (d) ramo by_component (Anos Finais) é acionado corretamente quando seleciona '6º ANO A' (education_level=fundamental_anos_finais).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/courses (Anos Finais)", "issue": "Retorna 500 quando carrega componentes da turma '6º ANO A' (Escola Teste Multisseriada). Console: 'Erro ao carregar componentes: AxiosError 500'. Bloqueia tanto teste online quanto offline do ramo multi-aula. Não é regressão do patch FASE A — pré-existente."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Carregar Frequência (todas as turmas)", "issue": "Nenhuma turma em 2026 retorna alunos via /api/attendance/by-class/{class_id}/{date}, embora student_count das turmas seja >0 em /api/classes. Provavelmente falta matrícula ativa em 2026. Bloqueia validação E2E do fluxo offline.", "affected_selectors": ["[data-testid=attendance-tbody]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/att_loaded.png",
+    "/app/test_reports/att_final.png"
+  ],
+  "action_items": [
+    "Semear (ou apontar) ao menos UMA turma de Anos Iniciais (daily) e UMA de Anos Finais (by_component) com 2+ matrículas ativas em 2026 e componente curricular vinculado, para que o testing agent consiga validar E2E o fluxo offline. Sugestão: script seed em /app/backend/scripts/ idempotente.",
+    "Investigar 500 em GET /api/courses ao listar componentes da turma 6º ANO A (id=3da4e569-6522-432c-9b42-1e344a2f0c69). Sem componente, ramo multi-aula nem online consegue salvar.",
+    "Após seed: rodar novamente este iteration para confirmar (1) toast 'salva no aparelho' em Diário e Multi-Aula offline, (2) syncQueue.push com natural_key e status=pending, (3) idempotência (mesma chave natural não duplica), (4) drain automático ao voltar online."
+  ],
+  "critical_code_review_comments": [
+    "Attendance.js:640-688 (persistAttendancePayload): correto — busca por [class_id+date] e filtra por (course_id, period, aula_numero) para detectar existingLocal, faz update OU insert com tempId, e enfileira via addToSyncQueue passando naturalKey. Ramo isMultiAula (linhas 698-745) agora salva offline E online sem o antigo `if(isOnline)` que causava P0-1. ✅",
+    "Confirmado em LancamentoTab.jsx:468 que data-testid='save-attendance-btn' existe e em :276 data-testid='attendance-tbody' existe. :225 data-testid='num-aulas-select' presente.",
+    "IndexedDB schema (v30) inclui campo natural_key no syncQueue conforme novo design. Write/read direto no store via page.evaluate confirmou compatibilidade.",
+    "Sugestão (não bloqueante): expor um helper em window (somente em DEV) para inserir um payload de attendance no IndexedDB sem precisar de roster online — facilitaria QA automatizado de cenários offline sem depender de matrículas ativas."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "infra OK; E2E offline NÃO validável neste ambiente sem seed"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin) — login funcionou normalmente.",
+  "seed_data_creation": "Nenhum seed criado. Tentei API direto (/api/attendance/by-class/{id}/{date}) em todas as 75 turmas × 5 datas (2026-02 a 2026-06): zero rosters.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "BLOCKER: ambiente preview não tem nenhuma turma com matrícula ativa em 2026 retornando roster por GET /api/attendance/by-class/{id}/{date}. Para retestar a FASE A, é OBRIGATÓRIO antes garantir pelo menos uma turma daily (Anos Iniciais) e uma by_component (Anos Finais) com 2+ alunos + componente vinculado. Os data-testids estão corretos: 'attendance-lancamento-tab', 'attendance-tbody', 'save-attendance-btn', 'num-aulas-select'. Selects são <select> nativos (não Radix) — usar select_option pelo VALUE (id da escola/turma). Para Anos Finais existe um 4º <select> de Componente Curricular. Para ir offline: page.context.set_offline(True) + page.evaluate(\"window.dispatchEvent(new Event('offline'))\"). Inspeção IndexedDB: indexedDB.open('SigescOfflineDB'), store 'syncQueue'. Schema confirmado: {collection, operation, recordId, natural_key, payload, status, attempts, created_at, updated_at}. Após salvar offline, esperar item com collection='attendance' status='pending' e natural_key no formato 'class_id|date|course_id|period|aula_numero'.",
+  "rca of the issue": "Não é bug do patch FASE A. Causa raiz da impossibilidade de validar E2E: dataset do ambiente preview não possui matrícula ativa para 2026 em nenhuma turma — `student_count` das turmas vem de /api/classes (provavelmente legado), mas o resolver de roster da frequência (que usa enrollments por academic_year + status='active') retorna lista vazia. Mitigação: criar/ativar matrículas 2026 para 2+ alunos em duas turmas específicas (uma daily, uma by_component) via script seed antes de retestar."
+}

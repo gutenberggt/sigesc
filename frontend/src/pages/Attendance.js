@@ -459,37 +459,77 @@ export const Attendance = () => {
           }
         }
       } else {
-        // Offline: busca do cache local
-        const localData = await db.attendance
+        // Offline: reconstrói a partir do cache local (IndexedDB)
+        const localDocs = await db.attendance
           .where('[class_id+date]')
           .equals([selectedClass, selectedDate])
-          .first();
-        
-        if (localData) {
-          setAttendanceData(localData);
-          showAlertMessage('info', 'Dados carregados do cache local (modo offline)');
-        } else {
-          // Tenta montar dados básicos com alunos do cache
+          .toArray();
+
+        // Fonte da lista de alunos: doc cacheado com lista OU cache de alunos da turma
+        const docWithStudents = localDocs.find(d => Array.isArray(d.students) && d.students.length > 0);
+        let studentsList = docWithStudents?.students || null;
+        if (!studentsList) {
           const localStudents = await db.students
             .where('class_id').equals(selectedClass)
             .toArray();
-          
-          if (localStudents.length > 0) {
-            setAttendanceData({
+          studentsList = localStudents.map(s => ({
+            id: s.id,
+            full_name: s.full_name,
+            enrollment_number: s.enrollment_number,
+            status: null
+          }));
+        }
+
+        const aulaDocs = localDocs.filter(d => d.aula_numero);
+
+        if (isMultiAula && aulaDocs.length > 0) {
+          // Multi-aula: reconstrói o mapa de status por aula a partir dos docs locais
+          const statusMap = {};
+          let maxAula = 1;
+          studentsList.forEach(s => { statusMap[s.id] = {}; });
+          aulaDocs.forEach(d => {
+            maxAula = Math.max(maxAula, d.aula_numero);
+            (d.records || []).forEach(r => {
+              if (!statusMap[r.student_id]) statusMap[r.student_id] = {};
+              statusMap[r.student_id][d.aula_numero] = r.status;
+            });
+          });
+          setNumberOfAulas(maxAula);
+          setAulaStatuses(statusMap);
+          setAttendanceData({
+            class_id: selectedClass,
+            class_name: turma?.name || 'Turma',
+            date: selectedDate,
+            students: studentsList,
+          });
+          showAlertMessage('info', 'Dados carregados do cache local (modo offline).');
+        } else if (localDocs.length > 0) {
+          // Diário: usa doc com lista (atualizado nas edições offline) ou
+          // reconstrói os status a partir dos records do doc local.
+          let data = docWithStudents;
+          if (!data) {
+            const recDoc = localDocs[0];
+            const statusBySid = {};
+            (recDoc.records || []).forEach(r => { statusBySid[r.student_id] = r.status; });
+            data = {
               class_id: selectedClass,
               class_name: turma?.name || 'Turma',
               date: selectedDate,
-              students: localStudents.map(s => ({
-                id: s.id,
-                full_name: s.full_name,
-                enrollment_number: s.enrollment_number,
-                status: null
-              }))
-            });
-            showAlertMessage('info', 'Lista de alunos carregada do cache. Nenhuma frequência registrada para esta data.');
-          } else {
-            showAlertMessage('error', 'Nenhum dado disponível offline. Sincronize quando houver conexão.');
+              students: studentsList.map(s => ({ ...s, status: statusBySid[s.id] ?? null })),
+            };
           }
+          setAttendanceData(data);
+          showAlertMessage('info', 'Dados carregados do cache local (modo offline).');
+        } else if (studentsList.length > 0) {
+          setAttendanceData({
+            class_id: selectedClass,
+            class_name: turma?.name || 'Turma',
+            date: selectedDate,
+            students: studentsList,
+          });
+          showAlertMessage('info', 'Lista de alunos carregada do cache. Nenhuma frequência registrada para esta data.');
+        } else {
+          showAlertMessage('error', 'Nenhum dado disponível offline. Sincronize quando houver conexão.');
         }
       }
       
@@ -593,6 +633,60 @@ export const Attendance = () => {
   };
   
   // Salva frequência (com suporte offline)
+  // Persiste UMA frequência (payload já montado).
+  // Online → motor canônico via API. Offline → IndexedDB + fila idempotente
+  // (chave natural). A internet é condição apenas de SINCRONIZAÇÃO, nunca de
+  // REGISTRO (Fase A — A1/A3).
+  const persistAttendancePayload = async (payload, displayDoc = null) => {
+    if (isOnline) {
+      await attendanceAPI.save(payload);
+      return;
+    }
+    const now = new Date().toISOString();
+    const naturalKey = `${payload.class_id}|${payload.date}|${payload.course_id || ''}|${payload.period || 'regular'}|${payload.aula_numero ?? ''}`;
+    const baseVersion = attendanceData?.version ?? null;
+
+    const candidates = await db.attendance
+      .where('[class_id+date]')
+      .equals([payload.class_id, payload.date])
+      .toArray();
+    const existingLocal = candidates.find(
+      (a) => (a.course_id || '') === (payload.course_id || '') &&
+             (a.period || 'regular') === (payload.period || 'regular') &&
+             (a.aula_numero ?? '') === (payload.aula_numero ?? '')
+    );
+
+    const localDoc = {
+      ...(displayDoc || {}),
+      class_id: payload.class_id,
+      date: payload.date,
+      course_id: payload.course_id || null,
+      period: payload.period || 'regular',
+      aula_numero: payload.aula_numero ?? null,
+      records: payload.records,
+      version: baseVersion,
+      base_version: baseVersion,
+      updated_at: now,
+      syncStatus: SYNC_STATUS.PENDING,
+    };
+
+    if (existingLocal) {
+      await db.attendance.update(existingLocal.localId, localDoc);
+    } else {
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await db.attendance.add({ ...localDoc, id: tempId });
+    }
+
+    // Fila IDEMPOTENTE por chave natural: N edições do mesmo registro = 1 item.
+    await addToSyncQueue(
+      'attendance',
+      SYNC_OPERATIONS.UPDATE,
+      `nk:${naturalKey}`,
+      { ...payload, base_version: baseVersion, updated_at: now },
+      naturalKey
+    );
+  };
+
   const saveAttendance = async () => {
     if (!attendanceData || !dateCheck?.can_record) return;
     
@@ -602,7 +696,7 @@ export const Attendance = () => {
       const attendanceType = getAttendanceType(turma?.education_level, selectedPeriod);
       
       if (isMultiAula) {
-        // Multi-aula: salvar cada aula separadamente
+        // Multi-aula (Anos Finais/EJA Final): salva cada aula — online E offline.
         let savedCount = 0;
         for (let aulaNum = 1; aulaNum <= numberOfAulas; aulaNum++) {
           const records = attendanceData.students
@@ -627,10 +721,11 @@ export const Attendance = () => {
             records
           };
           
-          if (isOnline) {
-            await attendanceAPI.save(payload);
-            savedCount++;
-          }
+          await persistAttendancePayload(payload, {
+            class_name: turma?.name || 'Turma',
+            students: attendanceData.students,
+          });
+          savedCount++;
         }
         
         if (savedCount === 0) {
@@ -639,14 +734,17 @@ export const Attendance = () => {
           return;
         }
         
-        showAlertMessage('success', `Frequência salva com sucesso! (${savedCount} aula${savedCount > 1 ? 's' : ''})`);
-        // Atualizar resumo
-        try {
-          const summary = await attendanceAPI.getAttendanceSummary(selectedClass, academicYear, selectedCourse);
-          setAttendanceSummary(summary);
-        } catch {}
+        if (isOnline) {
+          showAlertMessage('success', `Frequência salva com sucesso! (${savedCount} aula${savedCount > 1 ? 's' : ''})`);
+          try {
+            const summary = await attendanceAPI.getAttendanceSummary(selectedClass, academicYear, selectedCourse);
+            setAttendanceSummary(summary);
+          } catch {}
+        } else {
+          showAlertMessage('success', `Frequência salva no aparelho ✓ (${savedCount} aula${savedCount > 1 ? 's' : ''}) — será enviada automaticamente quando a internet voltar.`);
+        }
       } else {
-        // Diário: salvar uma vez
+        // Diário: salvar uma vez (online E offline).
         const records = attendanceData.students
           .filter(s => s.status)
           .map(s => ({
@@ -672,8 +770,12 @@ export const Attendance = () => {
           records
         };
         
+        await persistAttendancePayload(attendancePayload, {
+          class_name: turma?.name || 'Turma',
+          students: attendanceData.students,
+        });
+        
         if (isOnline) {
-          await attendanceAPI.save(attendancePayload);
           showAlertMessage('success', 'Frequência salva com sucesso!');
           try {
             const courseForSummary = isMultiAula ? selectedCourse : null;
@@ -681,28 +783,6 @@ export const Attendance = () => {
             setAttendanceSummary(summary);
           } catch {}
         } else {
-          // Offline
-          const now = new Date().toISOString();
-          const dataWithMeta = {
-            ...attendancePayload,
-            updated_at: now,
-            syncStatus: SYNC_STATUS.PENDING
-          };
-          
-          const existingLocal = await db.attendance
-            .where('[class_id+date]')
-            .equals([selectedClass, selectedDate])
-            .first();
-          
-          if (existingLocal) {
-            await db.attendance.update(existingLocal.localId, dataWithMeta);
-            await addToSyncQueue('attendance', SYNC_OPERATIONS.UPDATE, existingLocal.id || `temp_${Date.now()}`, dataWithMeta);
-          } else {
-            const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            await db.attendance.add({ ...dataWithMeta, id: tempId });
-            await addToSyncQueue('attendance', SYNC_OPERATIONS.CREATE, tempId, dataWithMeta);
-          }
-          
           showAlertMessage('success', 'Frequência salva no aparelho ✓ — será enviada automaticamente quando a internet voltar.');
         }
       }

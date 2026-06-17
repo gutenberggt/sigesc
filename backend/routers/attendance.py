@@ -61,6 +61,262 @@ def _block_if_changing_migrated_attendance(existing_records, new_records, user):
     return out, blocked
 
 
+async def save_attendance_canonical(current_db, current_user, request, attendance, audit_service):
+    """Motor canônico de gravação de frequência.
+
+    ÚNICO ponto de escrita de frequência no sistema. Usado tanto pelo endpoint
+    HTTP `POST /api/attendance` quanto pelo sincronizador offline (`/api/sync/push`),
+    garantindo que ambos percorram EXATAMENTE a mesma lógica: upsert por chave
+    natural (turma+data+componente+aula), optimistic locking, Academic Event Lock,
+    validação de dependências e auditoria. Idempotente por natureza — reenviar o
+    mesmo registro NÃO cria duplicata.
+    """
+    # Detectar se é anos finais para usar aula_numero
+    turma = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0})
+    education_level = turma.get('education_level', '') if turma else ''
+    is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
+
+    query = {"class_id": attendance.class_id, "date": attendance.date}
+    if attendance.course_id:
+        query["course_id"] = attendance.course_id
+    if attendance.period != "regular":
+        query["period"] = attendance.period
+
+    # Para anos finais: cada aula é um registro separado (usa aula_numero na query)
+    if is_anos_finais and attendance.aula_numero is not None:
+        query["aula_numero"] = attendance.aula_numero
+
+    existing = await current_db.attendance.find_one(query)
+
+    # Fase 2 — anti-spoof: valida coerência de dependency_id em CADA record
+    for r in attendance.records:
+        if r.dependency_id:
+            await validate_dependency_link(
+                db=current_db,
+                dependency_id=r.dependency_id,
+                student_id=r.student_id,
+                class_id=attendance.class_id,
+                course_id=attendance.course_id,
+                tenant_id=get_mantenedora_scope(current_user, request),
+            )
+
+    # Fase 3 — Academic Event Lock por aluno (a frequência tem `date` própria)
+    tenant_for_lens = get_mantenedora_scope(current_user, request)
+    for r in attendance.records:
+        ownership = await resolve_student_ownership(
+            current_db,
+            student_id=r.student_id,
+            class_id=attendance.class_id,
+            course_id=attendance.course_id,
+            target_date=attendance.date,  # frequência usa data da aula
+            mantenedora_id=tenant_for_lens,
+        )
+        if not ownership["editable"]:
+            await record_lock_audit(
+                current_db,
+                event_id=ownership.get("governing_event_id"),
+                action="attendance_create_blocked",
+                user_id=current_user.get("id"),
+                role=current_user.get("role"),
+                student_id=r.student_id,
+                class_id=attendance.class_id,
+                target_date=attendance.date,
+                target_resource="attendance",
+                reason_code=ownership["blocked_reason"],
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "ACADEMIC_EVENT_LOCK",
+                    "reason_code": ownership["blocked_reason"],
+                    "event_id": ownership.get("governing_event_id"),
+                    "student_id": r.student_id,
+                    "effective_date": ownership.get("governing_effective_date"),
+                    "message": "Frequência bloqueada por evento acadêmico para este aluno.",
+                },
+            )
+
+    records_data = [
+        {
+            "student_id": r.student_id,
+            "status": r.status,
+            **({"dependency_id": r.dependency_id} if r.dependency_id else {}),
+        }
+        for r in attendance.records
+    ]
+
+    if existing:
+        # ============= OPTIMISTIC LOCKING (Fase 1 — Mai/2026) =============
+        current_version = existing.get("version") or 1  # docs legados sem version contam como v1
+        ev = attendance.expected_version
+        change_kind = "update"
+        if ev is not None and ev != current_version:
+            if not attendance.force_overwrite:
+                last_modifier = None
+                last_modified_at = existing.get("updated_at") or existing.get("created_at")
+                last_uid = existing.get("updated_by") or existing.get("created_by")
+                if last_uid:
+                    u = await current_db.users.find_one(
+                        {"id": last_uid}, {"_id": 0, "name": 1, "full_name": 1, "email": 1, "role": 1}
+                    )
+                    if u:
+                        last_modifier = {
+                            "id": last_uid,
+                            "name": u.get("full_name") or u.get("name"),
+                            "email": u.get("email"),
+                            "role": u.get("role"),
+                        }
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "ATTENDANCE_VERSION_CONFLICT",
+                        "message": (
+                            "Esta frequência foi alterada por outro usuário "
+                            "desde que você carregou. Recarregue OU reenvie "
+                            "com force_overwrite=true e change_note='motivo'."
+                        ),
+                        "expected_version": ev,
+                        "current_version": current_version,
+                        "last_modified_by": last_modifier,
+                        "last_modified_at": last_modified_at,
+                        "attendance_id": existing.get("id"),
+                    },
+                )
+            if not (attendance.change_note and attendance.change_note.strip()):
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "OVERWRITE_REQUIRES_NOTE",
+                        "message": "Sobrescrita após conflito requer change_note (motivo) obrigatório.",
+                    },
+                )
+            change_kind = "overwrite_after_conflict"
+        # ===================================================================
+
+        records_data, blocked_sids = _block_if_changing_migrated_attendance(
+            existing.get('records') or [], records_data, current_user
+        )
+
+        new_version = current_version + 1
+        update_data = {
+            "records": records_data,
+            "observations": attendance.observations,
+            "number_of_classes": 1 if is_anos_finais else attendance.number_of_classes,
+            "updated_by": current_user['id'],
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "version": new_version,
+        }
+        if is_anos_finais and attendance.aula_numero is not None:
+            update_data["aula_numero"] = attendance.aula_numero
+
+        await current_db.attendance.update_one(
+            {"id": existing['id']},
+            {"$set": update_data}
+        )
+
+        from services.attendance_audit_diary import diff_records, build_diary_audit_extra
+        class_info = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
+        per_student = diff_records(existing.get('records') or [], records_data)
+        updated_doc = await current_db.attendance.find_one({"id": existing['id']}, {"_id": 0})
+        extra = await build_diary_audit_extra(
+            db=current_db,
+            attendance_doc=updated_doc,
+            class_info=class_info,
+            per_student_changes=per_student,
+            change_kind=change_kind,
+            expected_version=ev,
+            final_version=new_version,
+            change_note=attendance.change_note if change_kind == "overwrite_after_conflict" else None,
+        )
+        await audit_service.log(
+            action='update',
+            collection='attendance',
+            user=current_user,
+            request=request,
+            document_id=existing['id'],
+            description=(
+                f"Atualizou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date} "
+                f"({len(per_student)} aluno(s) alterado(s)"
+                + (f", SOBRESCRITA pós-conflito" if change_kind == "overwrite_after_conflict" else "")
+                + ")"
+            ),
+            old_value={"records": existing.get('records') or [], "version": current_version},
+            new_value={"records": records_data, "version": new_version},
+            school_id=class_info.get('school_id') if class_info else None,
+            extra_data=extra,
+        )
+
+        return updated_doc
+    else:
+        turma = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0})
+        education_level = turma.get('education_level', '') if turma else ''
+
+        attendance_type = 'daily' if education_level in ['fundamental_anos_iniciais', 'eja'] else 'by_course'
+
+        new_attendance = {
+            "id": str(uuid.uuid4()),
+            "class_id": attendance.class_id,
+            "date": attendance.date,
+            "course_id": attendance.course_id,
+            "period": attendance.period,
+            "attendance_type": attendance_type,
+            "records": records_data,
+            "observations": attendance.observations,
+            "number_of_classes": 1 if is_anos_finais else attendance.number_of_classes,
+            "academic_year": turma.get('academic_year', datetime.now().year) if turma else datetime.now().year,
+            "created_by": current_user['id'],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "version": 1,
+        }
+
+        if is_anos_finais:
+            if attendance.aula_numero is not None:
+                new_attendance["aula_numero"] = attendance.aula_numero
+            else:
+                count_query = {"class_id": attendance.class_id, "date": attendance.date}
+                if attendance.course_id:
+                    count_query["course_id"] = attendance.course_id
+                existing_count = await current_db.attendance.count_documents(count_query)
+                new_attendance["aula_numero"] = existing_count + 1
+
+        new_attendance['mantenedora_id'] = await resolve_tenant_id_for_create(
+            current_db, current_user, request, class_id=attendance.class_id
+        )
+
+        await current_db.attendance.insert_one(new_attendance)
+
+        class_info = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
+        from services.attendance_audit_diary import build_diary_audit_extra
+        extra = await build_diary_audit_extra(
+            db=current_db,
+            attendance_doc=new_attendance,
+            class_info=class_info,
+            per_student_changes=[
+                {"student_id": r["student_id"], "previous_status": None, "new_status": r.get("status")}
+                for r in records_data
+            ],
+            change_kind="create",
+            expected_version=None,
+            final_version=1,
+        )
+        await audit_service.log(
+            action='create',
+            collection='attendance',
+            user=current_user,
+            request=request,
+            document_id=new_attendance['id'],
+            description=f"Lançou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date}",
+            school_id=class_info.get('school_id') if class_info else None,
+            extra_data=extra,
+        )
+
+        return await current_db.attendance.find_one({"id": new_attendance['id']}, {"_id": 0})
+
+
+
+
 class AttendanceRecord(BaseModel):
     student_id: str
     status: str  # present, absent, justified, late - pipe-separated for multi-class: "P|F|P|J"
@@ -454,265 +710,10 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
 
     @router.post("")
     async def create_or_update_attendance(attendance: AttendanceCreate, request: Request):
-        """Cria ou atualiza frequência de uma turma"""
+        """Cria ou atualiza frequência de uma turma (motor canônico compartilhado com o sync offline)."""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
-        
-        # Detectar se é anos finais para usar aula_numero
-        turma = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0})
-        education_level = turma.get('education_level', '') if turma else ''
-        is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
-        
-        query = {"class_id": attendance.class_id, "date": attendance.date}
-        if attendance.course_id:
-            query["course_id"] = attendance.course_id
-        if attendance.period != "regular":
-            query["period"] = attendance.period
-        
-        # Para anos finais: cada aula é um registro separado (usa aula_numero na query)
-        if is_anos_finais and attendance.aula_numero is not None:
-            query["aula_numero"] = attendance.aula_numero
-        
-        existing = await current_db.attendance.find_one(query)
-
-        # Fase 2 — anti-spoof: valida coerência de dependency_id em CADA record
-        for r in attendance.records:
-            if r.dependency_id:
-                await validate_dependency_link(
-                    db=current_db,
-                    dependency_id=r.dependency_id,
-                    student_id=r.student_id,
-                    class_id=attendance.class_id,
-                    course_id=attendance.course_id,
-                    tenant_id=get_mantenedora_scope(current_user, request),
-                )
-
-        # Fase 3 — Academic Event Lock por aluno (a frequência tem `date` própria)
-        tenant_for_lens = get_mantenedora_scope(current_user, request)
-        for r in attendance.records:
-            ownership = await resolve_student_ownership(
-                current_db,
-                student_id=r.student_id,
-                class_id=attendance.class_id,
-                course_id=attendance.course_id,
-                target_date=attendance.date,  # frequência usa data da aula
-                mantenedora_id=tenant_for_lens,
-            )
-            if not ownership["editable"]:
-                await record_lock_audit(
-                    current_db,
-                    event_id=ownership.get("governing_event_id"),
-                    action="attendance_create_blocked",
-                    user_id=current_user.get("id"),
-                    role=current_user.get("role"),
-                    student_id=r.student_id,
-                    class_id=attendance.class_id,
-                    target_date=attendance.date,
-                    target_resource="attendance",
-                    reason_code=ownership["blocked_reason"],
-                    ip=request.client.host if request.client else None,
-                    user_agent=request.headers.get("user-agent"),
-                )
-                raise HTTPException(
-                    status_code=409,
-                    detail={
-                        "code": "ACADEMIC_EVENT_LOCK",
-                        "reason_code": ownership["blocked_reason"],
-                        "event_id": ownership.get("governing_event_id"),
-                        "student_id": r.student_id,
-                        "effective_date": ownership.get("governing_effective_date"),
-                        "message": "Frequência bloqueada por evento acadêmico para este aluno.",
-                    },
-                )
-
-        records_data = [
-            {
-                "student_id": r.student_id,
-                "status": r.status,
-                **({"dependency_id": r.dependency_id} if r.dependency_id else {}),
-            }
-            for r in attendance.records
-        ]
-
-        if existing:
-            # ============= OPTIMISTIC LOCKING (Fase 1 — Mai/2026) =============
-            # Se o frontend mandou expected_version, validamos contra o estado
-            # atual do servidor. Mismatch → 409 a menos que force_overwrite=True
-            # + change_note presente (sobrescrita autorizada com justificativa).
-            current_version = existing.get("version") or 1  # docs legados sem version contam como v1
-            ev = attendance.expected_version
-            change_kind = "update"
-            if ev is not None and ev != current_version:
-                if not attendance.force_overwrite:
-                    # 409 — frontend deve recarregar OU re-submeter com force_overwrite+change_note
-                    last_modifier = None
-                    last_modified_at = existing.get("updated_at") or existing.get("created_at")
-                    last_uid = existing.get("updated_by") or existing.get("created_by")
-                    if last_uid:
-                        u = await current_db.users.find_one(
-                            {"id": last_uid}, {"_id": 0, "name": 1, "full_name": 1, "email": 1, "role": 1}
-                        )
-                        if u:
-                            last_modifier = {
-                                "id": last_uid,
-                                "name": u.get("full_name") or u.get("name"),
-                                "email": u.get("email"),
-                                "role": u.get("role"),
-                            }
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "code": "ATTENDANCE_VERSION_CONFLICT",
-                            "message": (
-                                "Esta frequência foi alterada por outro usuário "
-                                "desde que você carregou. Recarregue OU reenvie "
-                                "com force_overwrite=true e change_note='motivo'."
-                            ),
-                            "expected_version": ev,
-                            "current_version": current_version,
-                            "last_modified_by": last_modifier,
-                            "last_modified_at": last_modified_at,
-                            "attendance_id": existing.get("id"),
-                        },
-                    )
-                # force_overwrite=True
-                if not (attendance.change_note and attendance.change_note.strip()):
-                    raise HTTPException(
-                        status_code=422,
-                        detail={
-                            "code": "OVERWRITE_REQUIRES_NOTE",
-                            "message": "Sobrescrita após conflito requer change_note (motivo) obrigatório.",
-                        },
-                    )
-                change_kind = "overwrite_after_conflict"
-            # ===================================================================
-
-            # Se há registros migrados (frequência copiada da turma origem),
-            # roles não-administrativas não podem alterar — preserva o status original.
-            records_data, blocked_sids = _block_if_changing_migrated_attendance(
-                existing.get('records') or [], records_data, current_user
-            )
-
-            new_version = current_version + 1
-            update_data = {
-                "records": records_data,
-                "observations": attendance.observations,
-                "number_of_classes": 1 if is_anos_finais else attendance.number_of_classes,
-                "updated_by": current_user['id'],
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "version": new_version,
-            }
-            if is_anos_finais and attendance.aula_numero is not None:
-                update_data["aula_numero"] = attendance.aula_numero
-
-            await current_db.attendance.update_one(
-                {"id": existing['id']},
-                {"$set": update_data}
-            )
-
-            # Auditoria pedagógica enriquecida (Fase 1).
-            from services.attendance_audit_diary import diff_records, build_diary_audit_extra
-            class_info = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
-            per_student = diff_records(existing.get('records') or [], records_data)
-            updated_doc = await current_db.attendance.find_one({"id": existing['id']}, {"_id": 0})
-            extra = await build_diary_audit_extra(
-                db=current_db,
-                attendance_doc=updated_doc,
-                class_info=class_info,
-                per_student_changes=per_student,
-                change_kind=change_kind,
-                expected_version=ev,
-                final_version=new_version,
-                change_note=attendance.change_note if change_kind == "overwrite_after_conflict" else None,
-            )
-            await audit_service.log(
-                action='update',
-                collection='attendance',
-                user=current_user,
-                request=request,
-                document_id=existing['id'],
-                description=(
-                    f"Atualizou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date} "
-                    f"({len(per_student)} aluno(s) alterado(s)"
-                    + (f", SOBRESCRITA pós-conflito" if change_kind == "overwrite_after_conflict" else "")
-                    + ")"
-                ),
-                old_value={"records": existing.get('records') or [], "version": current_version},
-                new_value={"records": records_data, "version": new_version},
-                school_id=class_info.get('school_id') if class_info else None,
-                extra_data=extra,
-            )
-
-            return updated_doc
-        else:
-            turma = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0})
-            education_level = turma.get('education_level', '') if turma else ''
-            
-            attendance_type = 'daily' if education_level in ['fundamental_anos_iniciais', 'eja'] else 'by_course'
-            
-            new_attendance = {
-                "id": str(uuid.uuid4()),
-                "class_id": attendance.class_id,
-                "date": attendance.date,
-                "course_id": attendance.course_id,
-                "period": attendance.period,
-                "attendance_type": attendance_type,
-                "records": records_data,
-                "observations": attendance.observations,
-                "number_of_classes": 1 if is_anos_finais else attendance.number_of_classes,
-                "academic_year": turma.get('academic_year', datetime.now().year) if turma else datetime.now().year,
-                "created_by": current_user['id'],
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                # Optimistic locking — todo doc nasce com version=1 (Fase 1 Rodada 1).
-                "version": 1,
-            }
-            
-            # Para anos finais: definir aula_numero automaticamente
-            if is_anos_finais:
-                if attendance.aula_numero is not None:
-                    new_attendance["aula_numero"] = attendance.aula_numero
-                else:
-                    # Auto-incrementar: contar quantas aulas já existem nesse dia/componente
-                    count_query = {"class_id": attendance.class_id, "date": attendance.date}
-                    if attendance.course_id:
-                        count_query["course_id"] = attendance.course_id
-                    existing_count = await current_db.attendance.count_documents(count_query)
-                    new_attendance["aula_numero"] = existing_count + 1
-            
-            # Multi-tenancy: injeta mantenedora_id derivada da turma
-            new_attendance['mantenedora_id'] = await resolve_tenant_id_for_create(
-                current_db, current_user, request, class_id=attendance.class_id
-            )
-            
-            await current_db.attendance.insert_one(new_attendance)
-
-            class_info = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
-            # Audit pedagógica enriquecida no create (Fase 1).
-            from services.attendance_audit_diary import build_diary_audit_extra
-            extra = await build_diary_audit_extra(
-                db=current_db,
-                attendance_doc=new_attendance,
-                class_info=class_info,
-                per_student_changes=[
-                    {"student_id": r["student_id"], "previous_status": None, "new_status": r.get("status")}
-                    for r in records_data
-                ],
-                change_kind="create",
-                expected_version=None,
-                final_version=1,
-            )
-            await audit_service.log(
-                action='create',
-                collection='attendance',
-                user=current_user,
-                request=request,
-                document_id=new_attendance['id'],
-                description=f"Lançou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date}",
-                school_id=class_info.get('school_id') if class_info else None,
-                extra_data=extra,
-            )
-
-            return await current_db.attendance.find_one({"id": new_attendance['id']}, {"_id": 0})
+        return await save_attendance_canonical(current_db, current_user, request, attendance, audit_service)
 
     # ============================================================
     # Fase 7 (Mai/2026) — Validação Institucional Pedagógica

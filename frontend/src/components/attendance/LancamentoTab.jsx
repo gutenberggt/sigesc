@@ -465,7 +465,7 @@ export const LancamentoTab = () => {
                   </Button>
                 )}
               </div>
-              <Button onClick={saveAttendance} disabled={saving || !hasChanges}>
+              <Button data-testid="save-attendance-btn" onClick={saveAttendance} disabled={saving || !hasChanges}>
                 {saving ? 'Salvando...' : 'Salvar Frequência'}
               </Button>
             </div>

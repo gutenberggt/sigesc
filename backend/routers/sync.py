@@ -300,7 +300,16 @@ async def process_sync_operation(db, user, op: SyncOperation, request: Request =
     operation = op.operation
     record_id = op.recordId
     data = op.data or {}
-    
+
+    # ===================== FREQUÊNCIA: MOTOR CANÔNICO (A2/A3) =====================
+    # A frequência NUNCA é gravada cru aqui. É roteada pelo MESMO motor do
+    # endpoint HTTP (save_attendance_canonical) → upsert por chave natural
+    # (turma+data+componente+aula), versionamento, locks e auditoria.
+    # Resultado: idempotente — reenviar a mesma chamada não cria duplicata e
+    # reaplicar N edições converge para o estado final (sem N documentos).
+    if collection_name == 'attendance':
+        return await _sync_attendance_canonical(db, user, request, record_id, data)
+
     # Mapeia nome da coleção para a collection do MongoDB
     collection_map = {
         'grades': db.grades,
@@ -408,6 +417,76 @@ async def process_sync_operation(db, user, op: SyncOperation, request: Request =
             success=False,
             error=str(e)
         )
+
+
+async def _sync_attendance_canonical(db, user, request, record_id: str, data: dict) -> SyncPushResult:
+    """Aplica uma frequência offline via motor canônico de frequência.
+
+    Reusa `save_attendance_canonical` (mesmo caminho do POST /api/attendance),
+    garantindo: upsert por chave natural, versionamento, Academic Event Lock,
+    validação de dependências e auditoria. Idempotente.
+
+    Conflito multi-dispositivo (Cenário 5): se o registro local foi baseado numa
+    versão (`base_version`) e o servidor já evoluiu, força a sobrescrita com nota
+    → o motor canônico audita como `overwrite_after_conflict` (decisão + auditoria
+    no motor, sem perder o dado offline).
+    """
+    # Import tardio para evitar qualquer ciclo de importação na carga do módulo.
+    from routers.attendance import (
+        AttendanceCreate,
+        AttendanceRecord,
+        save_attendance_canonical,
+    )
+    from audit_service import audit_service
+
+    try:
+        records_in = data.get('records') or []
+        records = [
+            AttendanceRecord(
+                student_id=r.get('student_id'),
+                status=r.get('status'),
+                dependency_id=r.get('dependency_id'),
+            )
+            for r in records_in
+            if r.get('student_id') and r.get('status')
+        ]
+        if not records:
+            return SyncPushResult(
+                recordId=record_id, success=False,
+                error="Frequência offline sem registros válidos.",
+            )
+
+        base_version = data.get('base_version')
+        ts = data.get('updated_at') or data.get('timestamp') or ''
+        attendance = AttendanceCreate(
+            class_id=data.get('class_id'),
+            date=data.get('date'),
+            records=records,
+            course_id=data.get('course_id'),
+            period=data.get('period') or 'regular',
+            observations=data.get('observations'),
+            number_of_classes=data.get('number_of_classes') or 1,
+            aula_numero=data.get('aula_numero'),
+            expected_version=base_version,
+            # Sincronização offline sempre prevalece como último estado do dispositivo;
+            # em conflito de versão, o motor canônico audita como sobrescrita.
+            force_overwrite=True,
+            change_note=f"[Sincronização offline] registrada no dispositivo em {ts}",
+        )
+
+        doc = await save_attendance_canonical(db, user, request, attendance, audit_service)
+        return SyncPushResult(
+            recordId=record_id,
+            success=True,
+            serverId=(doc or {}).get('id') if isinstance(doc, dict) else None,
+        )
+    except HTTPException as he:
+        detail = he.detail if isinstance(he.detail, str) else (he.detail or {}).get('message', str(he.detail))
+        return SyncPushResult(recordId=record_id, success=False, error=f"{he.status_code}: {detail}")
+    except Exception as e:
+        logger.error(f"[Sync] Erro ao aplicar frequência canônica {record_id}: {e}")
+        return SyncPushResult(recordId=record_id, success=False, error=str(e))
+
 
 
 def clean_sync_data(data: dict) -> dict:
