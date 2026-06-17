@@ -135,11 +135,17 @@ def test_rotation_is_cyclic_mon_to_fri():
             await db.calendar_events.delete_many({"id": {"$in": ids}})
 
     seq = asyncio.run(_seed_and_map())
-    # Consecutivo cíclico em 1..5: cada próximo = (anterior % 5) + 1
+    # AUDITORIA EXPLÍCITA (pedido do cliente):
+    #   1º sábado letivo → Segunda (isoweekday 1)
+    #   2º sábado letivo → Terça   (isoweekday 2)
+    DAY = {1: "Segunda", 2: "Terça", 3: "Quarta", 4: "Quinta", 5: "Sexta"}
+    assert seq[0] == 1, f"1º sábado deve ser Segunda(1), veio {DAY.get(seq[0], seq[0])}"
+    assert seq[1] == 2, f"2º sábado deve ser Terça(2), veio {DAY.get(seq[1], seq[1])}"
+    assert seq == [1, 2, 3, 4, 5, 1], f"Rotação esperada Seg→Sex→Seg, veio {[DAY.get(x) for x in seq]}"
+    # Consecutivo cíclico em 1..5
     for i in range(1, len(seq)):
         assert seq[i] == (seq[i - 1] % 5) + 1, f"Rotação não cíclica: {seq}"
-    assert seq[5] == seq[0], f"6º sábado deve repetir o 1º (ciclo de 5): {seq}"
-    print(f"✓ Rotação cíclica Seg–Sex validada: {seq}")
+    print("✓ Rotação confirmada: " + " | ".join(f"{i+1}º→{DAY[w]}" for i, w in enumerate(seq)))
 
 
 if __name__ == "__main__":
