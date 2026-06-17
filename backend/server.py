@@ -812,7 +812,7 @@ app.add_middleware(
     allow_origins=_allowed_origins,
     allow_origin_regex=_cors_regex,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With"],
+    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With", "X-Mantenedora-Id"],
 )
 
 @app.on_event("shutdown")

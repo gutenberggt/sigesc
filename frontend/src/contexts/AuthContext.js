@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { setCsrfToken, clearCsrfToken } from '@/services/api';
+import { setCsrfToken, clearApplicationState } from '@/services/api';
 
 const AuthContext = createContext(null);
 
@@ -177,6 +177,10 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use(
       (config) => {
+        // P1: endpoints de auth são pristinos (não herdam token anterior).
+        const url = config.url || '';
+        const isAuth = ['/auth/login', '/auth/register', '/auth/refresh'].some((p) => url.includes(p));
+        if (isAuth) return config;
         const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -323,6 +327,10 @@ export const AuthProvider = ({ children }) => {
         const response = await axios.post(`${API}/auth/login`, { email, password });
         const { access_token, refresh_token, csrf_token, user: userData } = response.data;
 
+        // P1: LOGIN UNIVERSAL — descarta QUALQUER estado anterior (tenant/escola/
+        // perfil/usuário) antes de reconstruir a sessão a partir do backend.
+        clearApplicationState();
+
         // Garante que userData tenha o email para validação offline
         const userDataWithEmail = userData ? { ...userData, email } : { email };
         
@@ -445,11 +453,9 @@ export const AuthProvider = ({ children }) => {
     setAccessToken(null);
     setRefreshToken(null);
     setIsOfflineSession(false);
-    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY);
-    clearCsrfToken();
-    // Mantém USER_DATA e LAST_LOGIN para permitir login offline futuro
+    // P1: reset TOTAL do estado local — volta ao estado de "primeira visita".
+    // Remove tokens, tenant ativo, contexto selecionado, CSRF e caches locais.
+    clearApplicationState();
   };
 
   // Logout completo (remove também dados offline)

@@ -53,8 +53,31 @@ function getCsrfToken() {
   return readCookie(CSRF_COOKIE_NAME);
 }
 
+// P1 (Jun/2026) — LOGIN UNIVERSAL. Endpoints de autenticação NUNCA podem
+// carregar estado anterior (token antigo, tenant anterior, CSRF). Isso evita:
+//  - preflight CORS quebrado quando `X-Mantenedora-Id` obsoleto é injetado;
+//  - contaminação de contexto entre usuários/mantenedoras.
+// O backend isenta esses endpoints de CSRF e não exige Authorization.
+const PRISTINE_AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
+function isPristineAuthRequest(config) {
+  const url = config.url || '';
+  return PRISTINE_AUTH_PATHS.some((p) => url.includes(p));
+}
+
+// P1 (Jun/2026) — Reset total do estado local da aplicação ("primeira visita").
+// Executar em: logout, erro de autenticação e troca de usuário.
+// Limpa tokens, tenant ativo, contexto selecionado, CSRF e quaisquer caches locais.
+export function clearApplicationState() {
+  try { localStorage.clear(); } catch { /* ignore */ }
+  try { sessionStorage.clear(); } catch { /* ignore */ }
+}
+
 axios.interceptors.request.use(
   (config) => {
+    // Requests de autenticação são pristinas: sem token/tenant/CSRF herdados.
+    if (isPristineAuthRequest(config)) {
+      return config;
+    }
     // Retrocompat: continua enviando Bearer se token em localStorage.
     // Backend lê cookie primeiro, fallback Bearer — migração gradual.
     const token = getToken();

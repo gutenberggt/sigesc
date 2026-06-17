@@ -23,6 +23,17 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P1: Login universal + reset de estado (Jun/2026)
+**Sintoma:** após super_admin trocar de mantenedora e fazer logout, o login passava a falhar com "Erro ao fazer login" NO MESMO navegador, mas funcionava em aba anônima/outro navegador.
+**Causa raiz:** (1) o logout NÃO limpava `activeMantenedoraId` do localStorage; (2) o interceptor do axios injetava o header `X-Mantenedora-Id` em TODA request, inclusive no POST `/auth/login`; (3) `X-Mantenedora-Id` NÃO estava no CORS `allow_headers` do backend. Em produção (frontend ≠ backend), o preflight CORS do login falhava → "Erro ao fazer login". Aba anônima não tinha `activeMantenedoraId` → funcionava.
+**Correções (arquitetura "login universal"):**
+1. **Backend CORS** (`server.py`): adicionado `X-Mantenedora-Id` ao `allow_headers`.
+2. **Login pristino** (`services/api.js` + `AuthContext.js`): requests para `/auth/login`, `/auth/register` e `/auth/refresh` NUNCA herdam token/tenant/CSRF anteriores.
+3. **`clearApplicationState()`** (`services/api.js`): reset total de localStorage+sessionStorage. Chamado no logout (estado de "primeira visita") e no login bem-sucedido (descarta contexto de usuário/tenant anterior → troca de usuário limpa).
+**Validação (browser, cenários do cliente):** (a) estado obsoleto injetado → login 200 + `activeMantenedoraId` limpo; (b) logout → localStorage vazio `[]` + redirect /login. Critérios de aceite 1–5 atendidos.
+**Deploy:** subir via "Save to Github" (Coolify).
+
+
 ## CHANGELOG — P0 CRÍTICO: Isolamento Multi-Tenant blindado (Jun/2026)
 **Vulnerabilidade:** gerentes (e qualquer não-super_admin) começavam corretos mas, após ~15min, passavam a ver dados de OUTRA mantenedora ("mudança de contexto").
 **Causa raiz (confirmada):** `POST /api/auth/refresh` (routers/auth.py) reconstruía o access token SEM o claim `mantenedora_id` (o `/login` incluía). Após o refresh, `get_current_user` lia `mantenedora_id=None` → `apply_tenant_filter` deixava de filtrar (via TUDO) e `resolve_active_mantenedora` caía na PRIMEIRA mantenedora.
