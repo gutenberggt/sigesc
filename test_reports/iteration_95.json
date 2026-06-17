@@ -1,0 +1,43 @@
+{
+  "summary": "BLOCKER reproduzível antes de iniciar o E2E offline da FASE A: a conta PROFESSOR (professor.teste@sigesc.com) NÃO possui registro de 'Perfil de professor' no backend. O endpoint que o UI usa para popular o dropdown Escola/Turma na tela /professor/frequencia — GET /api/professor/turmas?academic_year=2026 — responde 404 com {detail: 'Perfil de professor não encontrado'}. Como consequência, os <select> Escola e Turma ficam vazios e é impossível chegar até a lista de alunos para clicar em Presente/Falta e disparar saveAttendance. Os 4 cenários offline (gravação, idempotência, persistência ao reload, drain ao reconectar) NÃO puderam ser exercitados via UI. Login e carregamento da página /professor/frequencia funcionaram; selects nativos respondem; data-testids confirmados ('attendance-lancamento-tab', 'attendance-tbody', 'save-attendance-btn'). IndexedDB SigescOfflineDB inicializa OK ('[DB] Banco de dados aberto com sucesso'). Tentativa de contornar via Playwright page.route() para stubar /api/professor/turmas FALHOU porque o Service Worker (PWA) intercepta a chamada antes do handler do Playwright.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/professor/turmas?academic_year=2026", "issue": "Retorna 404 'Perfil de professor não encontrado' para a conta professor.teste@sigesc.com, embora o JWT já contenha school_ids (220d4022-...) e a conta tenha role=professor + vínculo SEMED. Bloqueia 100% do fluxo /professor/frequencia (escola/turma não aparecem). NÃO é regressão do patch FASE A — é falta de seed do registro 'professor profile' (provavelmente coleção `professores`). Mitigações possíveis: (1) script seed idempotente em /app/backend/scripts/ que cria o perfil de professor para professor.teste@sigesc.com vinculado a school_id 220d4022-... e às turmas alocadas; (2) alternativamente, alterar /api/professor/turmas para derivar a lista a partir das classes onde teacher_ids contém o user_id, sem exigir doc de profile (fail-soft).", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/mantenedora (não-admin)", "issue": "Retorna 404 'Not Found' logo após login do professor. Console: 'Erro ao buscar configuração'. Não-bloqueante para o fluxo, mas suja o console."},
+      {"endpoint": "WS /api/ws/<token>", "issue": "WebSocket connection warning ao logar (não-bloqueante)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Frequência (Professor)", "issue": "Sem retorno de /api/professor/turmas, schools[] e classes[] ficam vazios e não há como abrir o roster. O catch silencioso em loadSchools (Attendance.js:289) apenas loga 'Erro ao carregar escolas' — o usuário fica sem feedback visível além do select vazio.", "affected_selectors": ["select (escola)", "select (turma)"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/freq_loaded.png",
+    "/app/test_reports/freq_online.png"
+  ],
+  "action_items": [
+    "PRIORIDADE MÁXIMA: criar/seedar o 'Perfil de professor' para professor.teste@sigesc.com (coleção professores no Mongo). Após seed, /api/professor/turmas?academic_year=2026 deve devolver pelo menos a turma c09b8666-... ('Turma Multi 1-2-3') com school_id 220d4022-... e school_name 'ESCOLA TESTE MULTISSERIADA'. Idealmente, um script idempotente em /app/backend/scripts/seed_professor_profile.py.",
+    "Considerar fallback no endpoint /api/professor/turmas: se o profile não existir mas houver classes com user_id em teacher_ids, montar a resposta a partir delas — evita o fail-closed.",
+    "Considerar tornar o erro de loadSchools visível ao usuário (toast/alert) em vez de só console.error.",
+    "Após seed: rerodar este E2E para validar (1) toast 'Frequência salva no aparelho ✓ ...' offline, (2) item no IndexedDB store 'syncQueue' com collection='attendance', status='pending' e natural_key preenchido, (3) idempotência de save duplo (mesma natural_key não acumula), (4) persistência via cache local após reload, (5) drain da fila ao voltar ONLINE (POST /api/sync/push)."
+  ],
+  "critical_code_review_comments": [
+    "Attendance.js:260-292 (loadSchools): correto na lógica de derivar uniqueSchools de professorTurmas, mas o catch só faz console.error — quando o endpoint 404a, o usuário fica com selects vazios e sem mensagem. Sugestão: chamar showAlertMessage('error', 'Não foi possível carregar suas turmas. Contate o suporte.') no catch quando isProfessor.",
+    "Confirmados (sem alteração nesta iteração): patch FASE A em Attendance.js (persistAttendancePayload offline+online, addToSyncQueue com naturalKey) e schema v30 do SigescOfflineDB com syncQueue.natural_key — todos OK no código. Apenas não foi possível exercitá-los via UI nesta sessão por causa do BLOCKER acima.",
+    "Service Worker (PWA) intercepta requests ANTES de page.route() do Playwright, impedindo stubs de API no nível do navegador. Para QA automatizado de cenários onde o backend não tem seed, é mais robusto: (a) seedar o backend, OU (b) expor um helper window.__sigescTestSeed(...) em DEV para popular o IndexedDB diretamente."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request, mas /api/professor/turmas 404 detectado durante exploração)", "frontend": "BLOQUEADO antes do passo 3 (selecionar Escola/Turma) — 0/4 cenários offline exercitados via UI."},
+  "test_credentials": "professor.teste@sigesc.com / Professor@2026 (login OK, mas perfil de professor ausente no backend)",
+  "seed_data_creation": "Nenhum seed criado. Recomendado: script para criar professor profile vinculando user_id do professor.teste à turma c09b8666 e school 220d4022.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "ANTES de retestar: confirme via curl que GET /api/professor/turmas?academic_year=2026 (com token de professor.teste@sigesc.com) retorna 200 com ao menos 1 turma contendo school_id, school_name, education_level='fundamental_anos_iniciais'. Só então a UI conseguirá popular Escola/Turma. Demais data-testids OK: 'attendance-lancamento-tab', 'attendance-tbody', 'save-attendance-btn'. Selects são nativos <select> (não Radix) — use select_option(value=id). Não há 'Carregar Frequência' como botão obrigatório quando filtros já estão setados (auto-load), mas existe e funciona. Para ir offline use page.context.set_offline(True) e disparar event 'offline' via page.evaluate. Inspeção do syncQueue: indexedDB.open('SigescOfflineDB') store 'syncQueue', esperar item com collection='attendance' status='pending' natural_key formato 'class_id|date|course_id|period|aula_numero'. Texto de sucesso no save offline (diário): 'Frequência salva no aparelho ✓ — será enviada automaticamente quando a internet voltar.' (Attendance.js:786).",
+  "rca of the issue": "Causa raiz: GET /api/professor/turmas exige um documento de 'professor profile' (coleção `professores`) que faz join com classes para devolver as turmas alocadas ao professor logado. O usuário professor.teste@sigesc.com possui credencial válida (auth OK), role correto, school_ids no JWT e até roster funcional via /api/attendance/by-class — porém o doc de profile correspondente não foi seedado no banco do ambiente preview. Como o front (Attendance.js loadSchools) usa exclusivamente /api/professor/turmas para isProfessor=true, schools[] e classes[] ficam vazios e nenhuma seleção é possível, bloqueando 100% do E2E. Reprodução: curl -X POST /api/auth/login com creds do professor; usar o access_token em GET /api/professor/turmas?academic_year=2026 → 404 {detail:'Perfil de professor não encontrado'}. Mitigação imediata: seedar o profile; mitigação estrutural: tornar o endpoint fail-soft buscando classes por teacher_ids."
+}
