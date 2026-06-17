@@ -48,6 +48,11 @@
 - Mantenedora: SEMED (a991c1ac-56b1-46a8-b122-effedbe19b21)
 - Escola vinculada: ESCOLA TESTE MULTISSERIADA (220d4022-ec5e-4fb6-86fc-9233112b87b2)
 - Uso: validação do fluxo Diário AEE (criar Plano via modelo, salvar, gerar PDF).
+- QA OFFLINE (Fase A, Jun/2026): perfil de professor (staff + teacher_assignments)
+  semeado por `python backend/scripts/seed_professor_profile.py` (idempotente) →
+  GET /api/professor/turmas retorna 'Turma Multi 1-2-3' (id c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd,
+  Anos Iniciais/diário, 5 alunos ativos). Data com roster: 2026-06-15. Re-rodar o seed
+  em ambientes novos antes do E2E offline de Frequência.
 
 ## Professor (Ricleide)
 - Email: ricleidegoncalves@gmail.com
