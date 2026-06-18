@@ -23,7 +23,21 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
-## CHANGELOG — P0: Pré-cache de chunks lazy + recuperação de ChunkLoadError (Jun/2026)
+## CHANGELOG — P0 (correção definitiva): sessão offline apagada por "revogado" + deadlock de refresh (Jun/2026)
+**Sintoma persistente (pós-deploy v2.12.0):** mesmo com `userData` presente e login de 0 dias, o login offline retornava "Faça login online primeiro". Diagnóstico no dispositivo confirmou v2.12.0 no ar.
+**Causa raiz (dupla, descoberta com o cenário real de MÚLTIPLAS ABAS):**
+1. **Wipe por "revogado":** o `401` de qualquer request (ex.: `/api/mantenedora` na própria tela de login) dispara o interceptor → `refreshAccessToken`. Com várias abas, a ROTAÇÃO do refresh token gera corrida: uma aba rotaciona e revoga o jti antigo; a outra usa o antigo → backend responde "Refresh token revogado" (auth.py:199). O código então fazia `logout() → clearApplicationState() → localStorage.clear()`, apagando `userData`/`lastLoginTime`. → login offline falhava.
+2. **Deadlock de refresh:** o `401` do PRÓPRIO `/auth/refresh` era interceptado e, com `isRefreshing=true`, ficava aguardando (`addRefreshSubscriber`) um refresh que nunca completava → `loadUser` travava → tela presa em "Carregando...".
+**Correções (`contexts/AuthContext.js`) — conforme diretriz "SOMENTE logout MANUAL invalida a sessão local":**
+- `refreshAccessToken`: REMOVIDO o `logout()` automático em "revogado". Em qualquer falha, apenas retorna null (sessão offline preservada).
+- `loadUser`: REMOVIDO o ramo `explicitlyRevoked → logout()`. Qualquer falha de `/auth/me` preserva a sessão offline cacheada; nunca faz wipe.
+- Response interceptor: ISENTA `/auth/login|register|refresh` do retry-on-401 (evita o deadlock) e, quando o refresh falha, LIBERA todos os subscribers em espera (`cb(null)` → rejeitam) para não travar requests pendentes.
+- Diagnóstico adicionado no caminho de falha do login offline (distingue ausente vs expirado >7 dias no console).
+- SW bump v2.12.0→v2.12.1 (cache v14→v15) para forçar atualização e permitir confirmação por console.
+**Validação (Playwright, preview):** login online → forçar `/auth/me=401` e `/auth/refresh=401 "Refresh token revogado"` (onLine=true) → reload → **userData preservado + painel renderizado, sem travar**. PASS. (Antes: apagava tudo / travava em "Carregando".)
+**Deploy:** "Save to Github" → Coolify. No dispositivo, após o deploy: a nova versão (v2.12.1) assume; se necessário, 1x `reset.html` + login online para repovoar; depois o offline persiste.
+
+
 **Sintoma:** offline numa rota nunca aberta online → `Loading chunk 5692 failed`, quebrando o PWA.
 **Causa raiz:** o `sw.js` (install) só pré-cacheava `offline.html`, `manifest.json` e `index.html`. Os ~101 chunks JS das rotas `lazy()` só entravam no cache se a rota fosse visitada online antes.
 **Correção (Opção A aprovada pelo usuário):**

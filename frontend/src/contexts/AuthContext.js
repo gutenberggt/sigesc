@@ -153,16 +153,14 @@ export const AuthProvider = ({ children }) => {
       return access_token;
     } catch (error) {
       console.error('[Auth] Erro ao renovar token:', error);
-      
-      // PATCH 3.3: Se o token foi revogado, faz logout
-      if (error.response?.status === 401) {
-        const detail = error.response?.data?.detail || '';
-        if (detail.includes('revogado') || detail.includes('revoked')) {
-          console.log('[Auth] Token revogado, fazendo logout');
-          logout();
-        }
-      }
-      
+
+      // P0 (Jun/2026) — NUNCA fazer logout/wipe automático aqui. Mesmo que o backend
+      // responda "Refresh token revogado" (cenário comum: CORRIDA DE ROTAÇÃO entre
+      // múltiplas abas, onde uma aba rotaciona o token e revoga o jti antigo, e a
+      // outra aba usa o antigo), a sessão OFFLINE local (userData/lastLoginTime) DEVE
+      // ser preservada. Conforme diretriz do produto: SOMENTE logout MANUAL invalida
+      // a sessão local. Aqui apenas não renovamos; requests podem falhar até novo
+      // login online, mas o acesso offline continua disponível.
       return null;
     }
   }, [API, isUserIdle, updateActivity]);
@@ -199,13 +197,23 @@ export const AuthProvider = ({ children }) => {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
-        
-        // Se o erro for 401 e não for uma tentativa de retry
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        const reqUrl = originalRequest?.url || '';
+        // P0 (Jun/2026): NUNCA tentar refresh-on-401 para os PRÓPRIOS endpoints de
+        // auth. Caso contrário, um 401 do /auth/refresh entra aqui com isRefreshing=true
+        // e fica aguardando o refresh que falhou → DEADLOCK (app trava em "Carregando").
+        const isAuthEndpoint = ['/auth/login', '/auth/register', '/auth/refresh'].some((p) => reqUrl.includes(p));
+
+        // Se o erro for 401, não for retry e não for endpoint de auth
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
           // Se já está renovando, aguarda
           if (isRefreshing.current) {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
               addRefreshSubscriber((token) => {
+                if (!token) {
+                  // Refresh falhou: rejeita a request em espera (evita travamento).
+                  reject(error);
+                  return;
+                }
                 originalRequest.headers.Authorization = `Bearer ${token}`;
                 resolve(axios(originalRequest));
               });
@@ -224,6 +232,11 @@ export const AuthProvider = ({ children }) => {
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return axios(originalRequest);
           }
+
+          // Refresh falhou (rede/expirado/revogado): libera TODOS os subscribers em
+          // espera para que rejeitem em vez de travar indefinidamente.
+          refreshSubscribers.current.forEach((cb) => cb(null));
+          refreshSubscribers.current = [];
         }
         
         return Promise.reject(error);
@@ -315,24 +328,17 @@ export const AuthProvider = ({ children }) => {
             setIsOfflineSession(false);
           } catch (error) {
             const status = error.response?.status;
-            const detail = String(error.response?.data?.detail || '');
-            const explicitlyRevoked = status === 401 && /revog|revoked/i.test(detail);
-
-            if (explicitlyRevoked) {
-              // Ação DELIBERADA do servidor (token revogado / logout-all em outro
-              // dispositivo) → encerra a sessão de verdade.
-              console.warn('[Auth] Token revogado pelo servidor — encerrando sessão.');
-              logout();
-            } else if (cachedUser) {
-              // Rede instável, backend indisponível, timeout, Wi-Fi sem internet
-              // ou 401 por expiração SEM revogação → preserva a sessão offline.
-              // NÃO apaga o storage.
+            // P0 (Jun/2026) — NUNCA faz logout/wipe automático no bootstrap. QUALQUER
+            // falha (rede, timeout, backend fora, 401 expirado OU "revogado") preserva
+            // a sessão offline cacheada. Conforme diretriz: SOMENTE logout MANUAL
+            // invalida o estado local. Isso elimina o apagamento indevido de
+            // userData/lastLoginTime que gerava "Faça login online primeiro".
+            if (cachedUser) {
               console.warn('[Auth] /auth/me indisponível — mantendo sessão offline cacheada.', { status });
               setUser(cachedUser);
               setIsOfflineSession(true);
             } else {
-              // Sem cache para restaurar: apenas não autentica (sem wipe de storage).
-              console.warn('[Auth] Sem sessão cacheada para restaurar — exibindo login.');
+              console.warn('[Auth] Sem sessão cacheada para restaurar — exibindo login.', { status });
               setUser(null);
             }
           }
@@ -424,7 +430,14 @@ export const AuthProvider = ({ children }) => {
           };
         }
       } else {
-        console.log('[Auth Offline] Dados não encontrados no localStorage');
+        console.warn('[Auth Offline] Sessão offline ausente/expirada:', {
+          temUserData: !!localStorage.getItem(STORAGE_KEYS.USER_DATA),
+          temLastLogin: !!localStorage.getItem(STORAGE_KEYS.LAST_LOGIN),
+          lastLogin: localStorage.getItem(STORAGE_KEYS.LAST_LOGIN),
+          diasDesdeLogin: localStorage.getItem(STORAGE_KEYS.LAST_LOGIN)
+            ? ((Date.now() - Number(localStorage.getItem(STORAGE_KEYS.LAST_LOGIN))) / 86400000).toFixed(2)
+            : null,
+        });
         return {
           success: false,
           error: 'Sem conexão com a internet. Faça login online primeiro para habilitar o acesso offline.',
