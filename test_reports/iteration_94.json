@@ -19,7 +19,7 @@
   ],
   "action_items": [
     "Semear (ou apontar) ao menos UMA turma de Anos Iniciais (daily) e UMA de Anos Finais (by_component) com 2+ matrículas ativas em 2026 e componente curricular vinculado, para que o testing agent consiga validar E2E o fluxo offline. Sugestão: script seed em /app/backend/scripts/ idempotente.",
-    "Investigar 500 em GET /api/courses ao listar componentes da turma 6º ANO A (id=3da4e569-6522-432c-9b42-1e344a2f0c69). Sem componente, ramo multi-aula nem online consegue salvar.",
+    "Investigar 500 em GET /api/courses ao listar componentes da turma 6º ANO A (id=pwa-chunk-fix). Sem componente, ramo multi-aula nem online consegue salvar.",
     "Após seed: rodar novamente este iteration para confirmar (1) toast 'salva no aparelho' em Diário e Multi-Aula offline, (2) syncQueue.push com natural_key e status=pending, (3) idempotência (mesma chave natural não duplica), (4) drain automático ao voltar online."
   ],
   "critical_code_review_comments": [
