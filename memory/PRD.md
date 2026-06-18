@@ -23,6 +23,17 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P0: Pré-cache de chunks lazy + recuperação de ChunkLoadError (Jun/2026)
+**Sintoma:** offline numa rota nunca aberta online → `Loading chunk 5692 failed`, quebrando o PWA.
+**Causa raiz:** o `sw.js` (install) só pré-cacheava `offline.html`, `manifest.json` e `index.html`. Os ~101 chunks JS das rotas `lazy()` só entravam no cache se a rota fosse visitada online antes.
+**Correção (Opção A aprovada pelo usuário):**
+- `frontend/public/sw.js`: nova função `precacheBuildAssets(cache)` chamada no `install` — lê `/asset-manifest.json` do Webpack e pré-cacheia TODOS os `.js`/`.css` (exclui `.map`) com `cache.add` individual + `allSettled` (um 404 não aborta o install). Bump `CACHE_NAME` v13→v14 (invalida cache antigo no `activate`). Ciclo de vida revisado: `skipWaiting()` (install), `clients.claim()` + delete de caches != v14 (activate), reload único em `controllerchange` (OfflineContext). Tolerante: em dev (sem asset-manifest) apenas loga e pula.
+- `frontend/src/App.js`: wrapper `lazy()` com retry anti-loop — em `ChunkLoadError`/"Loading chunk X failed" recarrega a página UMA vez (guard de 10s em sessionStorage) para puxar o index/manifest novos após deploy.
+**Impacto de armazenamento:** ~4,53 MB (102 arquivos js+css; `.map` de 16,6 MB excluídos). Seguro (relatório em `/app/memory/RELATORIO_IMPACTO_CACHE_CHUNKS.md`).
+**Validação:** build de produção compila; `sw.js` sintaxe ok; filtro do precache seleciona 102 arquivos cobrindo os entrypoints; app dev (lazy wrapper) funciona. ⚠️ A navegação offline em rota nunca visitada só pode ser validada em runtime APÓS o deploy de produção (Coolify), pois o preview roda em modo dev (sem asset-manifest/chunks hasheados).
+**Deploy:** "Save to Github" (Coolify).
+
+
 ## CHANGELOG — P0: Preservação da sessão offline no bootstrap (Jun/2026)
 **Sintoma:** após logar online, ao reabrir o SIGESC sem internet (ou com Wi-Fi sem internet/backend fora), a sessão não era reconhecida e aparecia "Sem conexão... Faça login online primeiro". Logs mostravam `/api/auth/refresh → 401`.
 **Causa raiz (`contexts/AuthContext.js::loadUser`):** o bootstrap confiava em `navigator.onLine` (otimista — true em LAN sem internet). Ao falhar `GET /auth/me` ou `POST /auth/refresh` (401/erro de rede), o catch chamava `logout() → clearApplicationState() → localStorage.clear()`, **apagando `userData`/`lastLoginTime`/tokens** → sessão offline destruída.

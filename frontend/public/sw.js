@@ -8,7 +8,7 @@
 // [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
 // Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
 // (impedindo que bundles JS antigos quebrem o app após deploy).
-const CACHE_NAME = 'sigesc-cache-v13';
+const CACHE_NAME = 'sigesc-cache-v14';
 const OFFLINE_URL = '/offline.html';
 // Chave fixa onde o app shell (index.html) é cacheado dinamicamente a cada visita online.
 const APP_SHELL_URL = '/index.html';
@@ -160,7 +160,7 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.11.0...');
+  console.log('[SW] Instalando Service Worker v2.12.0...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -171,6 +171,9 @@ self.addEventListener('install', (event) => {
         // ocorre durante uma visita ONLINE, garante que o login offline esteja
         // disponível imediatamente na próxima navegação sem internet.
         await precacheAppShell(cache);
+        // P0 (Jun/2026): pré-cacheia TODOS os chunks JS/CSS do build (asset-manifest)
+        // para que QUALQUER rota lazy abra offline, mesmo nunca visitada online.
+        await precacheBuildAssets(cache);
       })
       .then(() => {
         console.log('[SW] Service Worker instalado');
@@ -181,6 +184,31 @@ self.addEventListener('install', (event) => {
       })
   );
 });
+
+// Pré-cacheia TODOS os chunks JS/CSS do build lendo o asset-manifest.json do Webpack.
+// Garante navegabilidade offline em QUALQUER rota lazy, mesmo nunca aberta online.
+// - Tolerante a falhas: usa `cache.add` individual + `allSettled` (um 404 não aborta o install).
+// - Source maps (.map) são propositalmente EXCLUÍDOS (não são carregados em runtime;
+//   inflariam o cache em ~16 MB sem benefício offline).
+// - Fetches iniciados pelo próprio SW NÃO passam pelo handler `fetch` → pega rede fresca.
+async function precacheBuildAssets(cache) {
+  try {
+    const res = await fetch('/asset-manifest.json', { cache: 'no-store' });
+    if (!res || !res.ok) {
+      console.warn('[SW] asset-manifest.json indisponível — pulando pré-cache de chunks');
+      return;
+    }
+    const manifest = await res.json();
+    const files = manifest && manifest.files ? Object.values(manifest.files) : [];
+    const assets = files.filter((f) => typeof f === 'string' && /\.(js|css)$/.test(f));
+    console.log(`[SW] Pré-cacheando ${assets.length} chunks do build (js/css)`);
+    const results = await Promise.allSettled(assets.map((url) => cache.add(url)));
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    console.log(`[SW] Pré-cache de chunks concluído: ${ok} ok, ${results.length - ok} falha(s)`);
+  } catch (e) {
+    console.warn('[SW] Falha ao pré-cachear chunks do build:', e.message);
+  }
+}
 
 // Busca o index.html fresco e o guarda sob a chave fixa do app shell.
 // Tolerante a falha: se estiver offline na instalação, não quebra o SW.
@@ -650,4 +678,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-console.log('[SW] Service Worker v2.11.0 carregado (login offline sempre via app shell + Background Sync)');
+console.log('[SW] Service Worker v2.12.0 carregado (login offline sempre via app shell + pré-cache de chunks + Background Sync)');

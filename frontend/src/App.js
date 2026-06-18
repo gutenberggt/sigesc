@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy as reactLazy, Suspense } from 'react';
 import { Toaster as SonnerToaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BrandingProvider } from '@/contexts/BrandingContext';
@@ -14,6 +14,48 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Login } from '@/pages/Login';
 import { Skeleton } from '@/components/ui/skeleton';
 import '@/App.css';
+
+// P0 (Jun/2026) — Recuperação automática de ChunkLoadError com proteção anti-loop.
+// Em deploys, os chunks antigos (hash diferente) deixam de existir; ao navegar para
+// uma rota lazy cujo chunk sumiu, o import dinâmico falha com "Loading chunk X failed".
+// Aqui envolvemos TODOS os `lazy()` num retry que, ao detectar esse erro, recarrega a
+// página UMA vez (puxando o index.html/manifest novos) — com guard de 10s em
+// sessionStorage para nunca entrar em loop de reload caso o chunk realmente não exista
+// (ex.: offline sem pré-cache). Com o pré-cache de chunks no sw.js, o caso offline já
+// não ocorre para rotas do build; este retry cobre o cenário de deploy/hash antigo.
+const CHUNK_RELOAD_KEY = 'sigesc_chunk_reload_ts';
+function isChunkLoadError(err) {
+  const msg = (err && err.message) || '';
+  return (
+    (err && err.name === 'ChunkLoadError') ||
+    /Loading chunk [\w-]+ failed/i.test(msg) ||
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /error loading dynamically imported module/i.test(msg)
+  );
+}
+function lazy(factory) {
+  return reactLazy(async () => {
+    try {
+      return await factory();
+    } catch (err) {
+      if (isChunkLoadError(err)) {
+        try {
+          const last = parseInt(window.sessionStorage.getItem(CHUNK_RELOAD_KEY) || '0', 10);
+          // Loop guard: só recarrega se o último reload por chunk foi há mais de 10s.
+          if (Date.now() - last > 10000) {
+            window.sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+            window.location.reload();
+            // Segura o render (nunca resolve) até o reload assumir.
+            return new Promise(() => {});
+          }
+        } catch (e) {
+          /* sessionStorage indisponível — cai no throw abaixo */
+        }
+      }
+      throw err;
+    }
+  });
+}
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
