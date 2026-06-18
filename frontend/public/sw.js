@@ -8,7 +8,7 @@
 // [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
 // Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
 // (impedindo que bundles JS antigos quebrem o app após deploy).
-const CACHE_NAME = 'sigesc-cache-v16';
+const CACHE_NAME = 'sigesc-cache-v17';
 const OFFLINE_URL = '/offline.html';
 // Chave fixa onde o app shell (index.html) é cacheado dinamicamente a cada visita online.
 const APP_SHELL_URL = '/index.html';
@@ -160,7 +160,7 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.12.2...');
+  console.log('[SW] Instalando Service Worker v2.12.3...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -678,4 +678,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-console.log('[SW] Service Worker v2.12.2 carregado (login offline + pré-cache de chunks + sessão à prova de revogação + diagnóstico visível)');
+console.log('[SW] Service Worker v2.12.3 carregado (login offline + pré-cache chunks + sessão à prova de revogação/reset + TTL 30d + diagnóstico visível)');

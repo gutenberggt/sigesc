@@ -97,8 +97,20 @@
             }
           }
 
-          // 3) Limpa storages que podem manter token/tenant inválido
-          try { localStorage.clear(); log('localStorage limpo'); } catch(e) { log('localStorage: ' + e.message); }
+          // 3) Limpa storages, MAS PRESERVA a sessão offline (zero perda de acesso
+          //    offline). O reset.html serve para trocar SW/cache quebrado — NÃO deve
+          //    destruir a sessão que habilita o login offline.
+          try {
+            var PRESERVE = ['userData','lastLoginTime','lastActivityTime','accessToken','refreshToken','sigesc_csrf_token','activeMantenedoraId'];
+            var saved = {};
+            for (var p = 0; p < PRESERVE.length; p++) {
+              var sv = localStorage.getItem(PRESERVE[p]);
+              if (sv !== null) saved[PRESERVE[p]] = sv;
+            }
+            localStorage.clear();
+            for (var sk in saved) { if (Object.prototype.hasOwnProperty.call(saved, sk)) localStorage.setItem(sk, saved[sk]); }
+            log('localStorage limpo (sessão offline preservada: ' + (Object.keys(saved).join(', ') || 'nenhuma') + ')');
+          } catch(e) { log('localStorage: ' + e.message); }
           try { sessionStorage.clear(); log('sessionStorage limpo'); } catch(e) { log('sessionStorage: ' + e.message); }
 
           // 4) IndexedDB (best-effort)

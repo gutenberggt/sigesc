@@ -135,20 +135,19 @@ export const Login = () => {
             </div>
           )}
 
-          {/* Diagnóstico VISÍVEL da sessão offline (somente offline) */}
-          {!isOnline && (
-            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-0.5" data-testid="offline-session-diag">
-              <p className="font-medium text-slate-700">Diagnóstico da sessão offline:</p>
-              <p>• Sessão salva neste dispositivo: <b>{offlineDiag.has ? 'SIM ✓' : 'NÃO ✗'}</b></p>
-              {offlineDiag.has && (
-                <>
-                  <p>• Último login: <b>{offlineDiag.dias != null ? `há ${offlineDiag.dias} dias` : 'sem data registrada'}</b></p>
-                  <p>• E-mail salvo: <b>{offlineDiag.savedEmail}</b></p>
-                </>
-              )}
-              <p className="text-[10px] text-slate-400 pt-1">build v2.12.2</p>
-            </div>
-          )}
+          {/* Diagnóstico VISÍVEL da sessão offline (sempre visível na tela de login) */}
+          <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-0.5" data-testid="offline-session-diag">
+            <p className="font-medium text-slate-700">Diagnóstico da sessão offline:</p>
+            <p>• Conexão: <b>{isOnline ? 'ONLINE' : 'OFFLINE'}</b></p>
+            <p>• Sessão salva neste dispositivo: <b>{offlineDiag.has ? 'SIM ✓' : 'NÃO ✗'}</b></p>
+            {offlineDiag.has && (
+              <>
+                <p>• Último login: <b>{offlineDiag.dias != null ? `há ${offlineDiag.dias} dias` : 'sem data registrada'}</b></p>
+                <p>• E-mail salvo: <b>{offlineDiag.savedEmail}</b></p>
+              </>
+            )}
+            <p className="text-[10px] text-slate-400 pt-1">build v2.12.3</p>
+          </div>
 
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start" data-testid="login-error">

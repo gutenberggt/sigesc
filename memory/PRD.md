@@ -23,6 +23,15 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P0 (robustez final): reset preserva sessão + TTL 30d + diagnóstico visível + correção do bug real (Jun/2026)
+**Verdade do dispositivo (log do usuário):** `[Auth Offline] {temUserData: false, temLastLogin: false}` rodando no bundle novo — ou seja, no momento do teste o `localStorage` estava VAZIO (não havia sessão salva). Confirmado que o login ONLINE persiste a sessão (painel mostra "Sessão salva: SIM" logo após login). A falha vinha de o `localStorage` ter sido esvaziado (uso do `reset.html`, que fazia `localStorage.clear()`) sem novo login online depois.
+**Mudanças:**
+- `public/reset.html`: agora **PRESERVA** as chaves da sessão offline (`userData`, `lastLoginTime`, `accessToken`, `refreshToken`, `sigesc_csrf_token`, `activeMantenedoraId`) ao limpar SW/caches. O reset deixa de destruir o acesso offline.
+- `AuthContext.js`: `MAX_OFFLINE_SESSION` 7 → **30 dias** (uso em campo).
+- `pages/Login.js`: painel **"Diagnóstico da sessão offline" sempre visível** (online e offline) mostrando Conexão, Sessão salva (SIM/NÃO), idade do último login, e-mail salvo e a versão do build — autodiagnóstico sem precisar de console.
+- SW bump v2.12.2 → **v2.12.3** (cache v17).
+**Validação (preview):** painel mostra "NÃO" sem sessão e "SIM ✓ / há 0.0 dias / e-mail" após login online. As correções anteriores (sem wipe automático em revogação/bootstrap, sem deadlock de refresh) seguem validadas.
+
 ## CHANGELOG — P0 (correção definitiva): sessão offline apagada por "revogado" + deadlock de refresh (Jun/2026)
 **Sintoma persistente (pós-deploy v2.12.0):** mesmo com `userData` presente e login de 0 dias, o login offline retornava "Faça login online primeiro". Diagnóstico no dispositivo confirmou v2.12.0 no ar.
 **Causa raiz (dupla, descoberta com o cenário real de MÚLTIPLAS ABAS):**
