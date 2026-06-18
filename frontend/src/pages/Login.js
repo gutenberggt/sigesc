@@ -17,6 +17,24 @@ export const Login = () => {
   const navigate = useNavigate();
   const { branding } = useTenantBranding();
 
+  // P0 (Jun/2026) — Diagnóstico VISÍVEL da sessão offline (sem precisar de console).
+  // Lê o localStorage e mostra na tela quando offline, para identificar rapidamente
+  // se a sessão salva existe, sua idade e o e-mail gravado. Também exibe a versão
+  // do build para confirmar que o código novo está em execução.
+  const offlineDiag = (() => {
+    try {
+      const ud = localStorage.getItem('userData');
+      const ll = localStorage.getItem('lastLoginTime');
+      if (!ud) return { has: false, hasLastLogin: !!ll };
+      let savedEmail = '?';
+      try { savedEmail = JSON.parse(ud).email || '(sem email no userData)'; } catch { savedEmail = '(json inválido)'; }
+      const dias = ll ? ((Date.now() - Number(ll)) / 86400000).toFixed(1) : null;
+      return { has: true, hasLastLogin: !!ll, savedEmail, dias };
+    } catch (e) {
+      return { has: false, hasLastLogin: false, err: e.message };
+    }
+  })();
+
   // Monitora status de conexão
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -114,6 +132,21 @@ export const Login = () => {
                   Se você já fez login antes neste dispositivo, pode acessar com o mesmo e-mail.
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Diagnóstico VISÍVEL da sessão offline (somente offline) */}
+          {!isOnline && (
+            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-0.5" data-testid="offline-session-diag">
+              <p className="font-medium text-slate-700">Diagnóstico da sessão offline:</p>
+              <p>• Sessão salva neste dispositivo: <b>{offlineDiag.has ? 'SIM ✓' : 'NÃO ✗'}</b></p>
+              {offlineDiag.has && (
+                <>
+                  <p>• Último login: <b>{offlineDiag.dias != null ? `há ${offlineDiag.dias} dias` : 'sem data registrada'}</b></p>
+                  <p>• E-mail salvo: <b>{offlineDiag.savedEmail}</b></p>
+                </>
+              )}
+              <p className="text-[10px] text-slate-400 pt-1">build v2.12.2</p>
             </div>
           )}
 
