@@ -23,6 +23,17 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P0: Preservação da sessão offline no bootstrap (Jun/2026)
+**Sintoma:** após logar online, ao reabrir o SIGESC sem internet (ou com Wi-Fi sem internet/backend fora), a sessão não era reconhecida e aparecia "Sem conexão... Faça login online primeiro". Logs mostravam `/api/auth/refresh → 401`.
+**Causa raiz (`contexts/AuthContext.js::loadUser`):** o bootstrap confiava em `navigator.onLine` (otimista — true em LAN sem internet). Ao falhar `GET /auth/me` ou `POST /auth/refresh` (401/erro de rede), o catch chamava `logout() → clearApplicationState() → localStorage.clear()`, **apagando `userData`/`lastLoginTime`/tokens** → sessão offline destruída.
+**Correção (frontend-only, auth):**
+- `loadUser` agora só faz logout real em **revogação explícita** do servidor (401 com `detail` contendo `revog/revoked`). Em erro de rede/timeout/backend fora/401 por expiração → **mantém a sessão offline cacheada** (`isOfflineSession=true`), sem wipe. Offline sem cache → apenas `setUser(null)` (sem wipe).
+- Recuperação automática offline→online: `refreshAccessToken` em sucesso faz `setIsOfflineSession(false)`; refresh proativo volta a rodar mesmo em modo offline transitório (só age `isOnline()`).
+- Revisados todos os logouts: os de `Layout/Vaccine/Associal` são manuais (mantidos); removidos os `logout()` automáticos do bootstrap; `localStorage.clear()` agora só ocorre em logout MANUAL ou login novo.
+**Validação (Playwright, preview):** (1) backend bloqueado com `onLine=true` → sessão preservada em /dashboard; (2) `set_offline(true)` → sessão offline restaurada. Ambos PASS.
+**Pendente:** P0 dos chunks/lazy loading (`sw.js` não pré-cacheia chunks do `asset-manifest.json`).
+
+
 ## CHANGELOG — Fix: frequência divergindo do horário no sábado letivo (Jun/2026)
 **Sintoma:** ao lançar frequência num sábado letivo, aparecia "Nenhuma aula deste componente neste dia da semana" / "não há aulas previstas para esta data", mesmo o Horário de Aulas mostrando corretamente (ex.: "5º Sábado Letivo (Aulas de Sexta)").
 **Causa raiz:** o endpoint `GET /api/attendance/schedule-classes-count` (`routers/attendance.py`) retornava `count:0` para qualquer sábado, sem aplicar a rotação do sábado letivo (o horário aplicava; a frequência não → divergência).

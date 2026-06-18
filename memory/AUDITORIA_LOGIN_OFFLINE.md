@@ -174,3 +174,38 @@ Todas as chamadas usam `.catch(() => [])` / `.catch(() => null)` → **nenhuma b
 5. `AuthContext.js:392-399` — sem dados (já apagados), `login()` offline emite a mensagem.
 
 **Próximo passo:** definir plano de correção a partir desta classificação (aguardando sua direção).
+
+---
+
+## ✅ CORREÇÃO P0 APLICADA E VALIDADA (Jun/2026)
+
+**Decisão do usuário:** implementar a+b+c; nenhuma `localStorage.clear()` em falhas de
+auth no bootstrap; somente logout MANUAL invalida a sessão local.
+
+**Mudanças (frontend, `contexts/AuthContext.js`):**
+1. **`loadUser` reescrito (P0-A/B/C):** ao falhar `/auth/me`/refresh no bootstrap,
+   classifica o erro:
+   - `401` com `detail` contendo `revog/revoked` → **logout real** (ação deliberada do servidor).
+   - Qualquer outro caso (erro de rede, timeout, backend fora, 401 por expiração SEM
+     revogação) → **mantém a sessão offline cacheada** (`setUser(cachedUser)` +
+     `isOfflineSession=true`). NUNCA chama `logout()`/`localStorage.clear()`.
+   - Offline sem cache → apenas `setUser(null)` (mostra login, sem wipe).
+2. **Recuperação automática offline→online:** `refreshAccessToken` em sucesso agora faz
+   `setIsOfflineSession(false)`; o refresh proativo voltou a rodar mesmo em modo offline
+   por falha transitória (só age quando `isOnline()`), promovendo a sessão de volta a
+   online quando a conectividade real retorna.
+
+**Revisão de todos os logouts automáticos:**
+- `Layout.js`, `VaccineDashboard.js`, `AssocialDashboard.js` → logout MANUAL (botão). Mantidos.
+- `AuthContext.js:157` (refreshAccessToken, só em revogação explícita) → mantido (correto).
+- `AuthContext.js` bootstrap (antigas linhas 303/313) → **removidos os logout() automáticos**.
+- `services/api.js` → só tem request interceptor; nenhum logout automático.
+
+**Validação (Playwright, preview):**
+- Cenário 1 (bug real): login online → bloquear `**/api/**` (backend fora, `onLine=true`)
+  → reload → **sessão preservada** (userData intacto, permaneceu em /dashboard). PASS.
+- Cenário 2: login online → `set_offline(True)` → reload → **sessão offline restaurada**
+  (banner "Você está offline", "Modo Offline"). PASS.
+
+**Pendente:** retomar investigação dos chunks/lazy loading (P0 original) — decisão em aberto:
+pré-cachear TODOS os chunks no install do `sw.js` vs apenas entrypoints.

@@ -140,7 +140,12 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         saveUserDataLocally(userData);
       }
-      
+
+      // P0 (Jun/2026): refresh OK = conectividade real + token válido →
+      // promove a sessão de volta para ONLINE (caso estivesse em modo offline
+      // por falha transitória anterior).
+      setIsOfflineSession(false);
+
       // PATCH 3.1: Atualiza timestamp de atividade ao renovar
       updateActivity();
       
@@ -258,9 +263,12 @@ export const AuthProvider = ({ children }) => {
     };
   }, [user, updateActivity]);
 
-  // PATCH 3.1: Refresh proativo do token enquanto usuário está ativo
+  // PATCH 3.1: Refresh proativo do token enquanto usuário está ativo.
+  // P0 (Jun/2026): também roda quando a sessão está em modo offline POR FALHA
+  // TRANSITÓRIA — assim, ao voltar a conectividade real, o refresh promove a
+  // sessão de volta para online automaticamente (checkAndRefresh só age online).
   useEffect(() => {
-    if (!user || !accessToken || isOfflineSession) return;
+    if (!user || !accessToken) return;
 
     // Função para verificar e renovar token
     const checkAndRefresh = async () => {
@@ -284,33 +292,59 @@ export const AuthProvider = ({ children }) => {
       }
       clearTimeout(initialRefresh);
     };
-  }, [user, accessToken, isOfflineSession, isUserIdle, refreshAccessToken]);
+  }, [user, accessToken, isUserIdle, refreshAccessToken]);
 
-  // Carrega usuário ao iniciar
+  // Carrega usuário ao iniciar.
+  // P0 (Jun/2026) — PRESERVAÇÃO DA SESSÃO OFFLINE: falhas de REDE/timeout/
+  // Wi-Fi-sem-internet/backend-fora ou um 401 SEM revogação explícita NUNCA
+  // destroem a sessão local. Nesses casos caímos para a sessão offline
+  // cacheada. Somente logout MANUAL (botão "Sair") ou revogação EXPLÍCITA do
+  // servidor invalidam o estado local. NUNCA chamamos logout()/localStorage.clear()
+  // aqui por falha temporária — isso apagava a sessão e gerava o erro
+  // "Faça login online primeiro".
   useEffect(() => {
     const loadUser = async () => {
       if (accessToken) {
+        const cachedUser = getLocalUserData();
         if (isOnline()) {
-          // Online: tenta validar token com servidor
+          // Online (segundo navigator.onLine, que é otimista): tenta validar.
           try {
             const response = await axios.get(`${API}/auth/me`);
             setUser(response.data);
             saveUserDataLocally(response.data);
             setIsOfflineSession(false);
           } catch (error) {
-            console.error('Erro ao carregar usuário:', error);
-            // Token inválido, limpa storage
-            logout();
+            const status = error.response?.status;
+            const detail = String(error.response?.data?.detail || '');
+            const explicitlyRevoked = status === 401 && /revog|revoked/i.test(detail);
+
+            if (explicitlyRevoked) {
+              // Ação DELIBERADA do servidor (token revogado / logout-all em outro
+              // dispositivo) → encerra a sessão de verdade.
+              console.warn('[Auth] Token revogado pelo servidor — encerrando sessão.');
+              logout();
+            } else if (cachedUser) {
+              // Rede instável, backend indisponível, timeout, Wi-Fi sem internet
+              // ou 401 por expiração SEM revogação → preserva a sessão offline.
+              // NÃO apaga o storage.
+              console.warn('[Auth] /auth/me indisponível — mantendo sessão offline cacheada.', { status });
+              setUser(cachedUser);
+              setIsOfflineSession(true);
+            } else {
+              // Sem cache para restaurar: apenas não autentica (sem wipe de storage).
+              console.warn('[Auth] Sem sessão cacheada para restaurar — exibindo login.');
+              setUser(null);
+            }
           }
         } else {
-          // Offline: usa dados em cache
-          const cachedUser = getLocalUserData();
+          // Offline real: usa dados em cache. Sem cache → mostra login (sem wipe).
           if (cachedUser) {
             setUser(cachedUser);
             setIsOfflineSession(true);
             console.log('[Auth] Sessão offline restaurada');
           } else {
-            logout();
+            console.warn('[Auth] Offline e sem sessão cacheada — exibindo login.');
+            setUser(null);
           }
         }
       }
