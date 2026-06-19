@@ -23,6 +23,12 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Ajuste: logout ("Sair") preserva a sessão offline (Jun/2026)
+**Pedido do usuário (refinamento):** "Sair (logout) não deve limpar a sessão offline".
+**Mudança (`AuthContext.logout`):** o logout agora encerra a sessão ONLINE (remove `accessToken`/`refreshToken`/CSRF/tenant/contexto e caches) mas **PRESERVA `userData` + `lastLoginTime`**, mantendo o "Entrar (Offline)" funcional sem internet. Para apagar tudo (inclusive o acesso offline) existe `logoutComplete()` (remove userData/lastLoginTime após o logout). Botão "Sair" (Layout) usa `logout()`.
+**Validação (preview):** login online → "Sair" → `userData`/`lastLogin` preservados, `accessToken` removido, painel mostra "Sessão salva: SIM ✓". PASS.
+**Status do P0 offline:** ✅ RESOLVIDO e confirmado pelo usuário no app instalado — offline, após fechar/reabrir: "Sessão salva: SIM ✓ / Armazenamento persistente: SIM ✓ / build v2.12.5". SW bump → v2.12.6.
+
 ## CHANGELOG — P0 (causa raiz FINAL): armazenamento não-persistente → navegador apaga sessão ao fechar (Jun/2026)
 **Teste A decisivo:** logo após login online (sem fechar o navegador), o painel mostra **"Sessão salva: SIM ✓ / build v2.12.4"** — gravação OK e código novo rodando. O "NÃO" só aparece **após fechar/reabrir o navegador**.
 **Causa raiz:** `navigator.storage.persisted()` = **false**. O armazenamento do site é "best-effort"; o navegador (Edge) faz **eviction/limpeza ao fechar**, apagando `localStorage` (userData/tokens) e quebrando a sessão offline. A API de login de produção foi testada via curl: 200 OK com token + user (backend OK).

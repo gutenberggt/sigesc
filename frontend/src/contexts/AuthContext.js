@@ -500,9 +500,16 @@ export const AuthProvider = ({ children }) => {
     setAccessToken(null);
     setRefreshToken(null);
     setIsOfflineSession(false);
-    // P1: reset TOTAL do estado local — volta ao estado de "primeira visita".
-    // Remove tokens, tenant ativo, contexto selecionado, CSRF e caches locais.
+    // P0 (Jun/2026) — A pedido do usuário, o LOGOUT ("Sair") NÃO destrói a sessão
+    // OFFLINE: encerra a sessão online (tokens, tenant ativo, contexto, CSRF e caches)
+    // mas PRESERVA userData/lastLoginTime, para que o "Entrar (Offline)" continue
+    // funcionando sem internet. Para apagar tudo (inclusive o acesso offline), use
+    // logoutComplete() ("Sair de todos os dispositivos").
+    const preservedUserData = localStorage.getItem(STORAGE_KEYS.USER_DATA);
+    const preservedLastLogin = localStorage.getItem(STORAGE_KEYS.LAST_LOGIN);
     clearApplicationState();
+    if (preservedUserData) localStorage.setItem(STORAGE_KEYS.USER_DATA, preservedUserData);
+    if (preservedLastLogin) localStorage.setItem(STORAGE_KEYS.LAST_LOGIN, preservedLastLogin);
   };
 
   // Logout completo (remove também dados offline)

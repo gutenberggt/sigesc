@@ -164,7 +164,7 @@ export const Login = () => {
               </>
             )}
             <p>• Armazenamento persistente: <b>{storagePersisted === null ? '—' : storagePersisted ? 'SIM ✓' : 'NÃO ⚠ (navegador pode apagar ao fechar)'}</b></p>
-            <p className="text-[10px] text-slate-400 pt-1">build v2.12.5</p>
+            <p className="text-[10px] text-slate-400 pt-1">build v2.12.6</p>
           </div>
 
           {error && (
