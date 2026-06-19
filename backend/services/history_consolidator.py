@@ -18,6 +18,8 @@ import logging
 import re
 from typing import Optional
 
+from utils.school_resolution import resolve_school_at
+
 logger = logging.getLogger(__name__)
 
 
@@ -180,7 +182,17 @@ async def build_consolidated_history(db, *, student_id: str,
         class_info = class_ids_cache[class_id]
         if not class_info:
             continue
-        school_id = class_info.get("school_id")
+        # [Fase 1.5] Atribuição TEMPORAL de escola por ano letivo. Se a turma
+        # sofreu re-homing institucional, `class_info.school_id` aponta para o
+        # DESTINO atual — atribuir anos passados a ela falsearia o Histórico
+        # Escolar (documento legal). Resolve via `school_history[]` tomando como
+        # referência o INÍCIO do ano letivo (escola onde o ano foi conduzido).
+        # Sem histórico → `school_id` atual (turma nunca transferida).
+        school_id = resolve_school_at(
+            class_info.get("school_history"),
+            f"{year}-01-01",
+            fallback_school_id=class_info.get("school_id"),
+        )
         if school_id and school_id not in school_cache:
             school_cache[school_id] = await db.schools.find_one(
                 {"id": school_id}, {"_id": 0}

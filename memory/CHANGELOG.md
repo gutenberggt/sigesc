@@ -1,5 +1,18 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-19 — Fase 1.5: Resolução Temporal de Escola (helpers canônicos) + Histórico Escolar ✅
+Pré-requisito aprovado antes do Rollback (Fase 2). Corrige a atribuição histórica de escola após re-homing.
+- **Confirmado:** `classes.school_history[]` já é gravado como **intervalos** `{school_id, start_date, end_date}` (não `changed_at`) — schema correto, sem migração.
+- **Novo `utils/school_resolution.py` (fonte canônica única):**
+  - `resolve_school_at(school_history, reference_date, fallback_school_id)` → escola dona da turma na data (intervalos `[start, end)`; antes do 1º início → origem; sem histórico → `school_id` atual).
+  - `resolve_school_period(school_history, start, end, fallback)` → segmentos por intervalo (p/ relatórios que cruzam o período da transferência).
+  - `resolve_school_for_class_at(db, class_id, ref_date, cache)` → conveniência async com cache.
+- **🔴 Item 1 — Histórico Escolar PDF corrigido:** `services/history_consolidator.py` passa a resolver a escola de cada ano via `school_history[]` (referência = início do ano letivo) em vez de `class_info.school_id` atual. Documento legal agora atribui o ano à escola onde foi conduzido, mesmo após re-homing.
+- **⚠️ Item 2 — Censo/INEP:** **não há módulo de exportação de Censo no código** (só comentários). O export de alunos (`/api/students/report/pdf`) é estado-atual (alunos ativos) → `school_id` atual correto. Risco mitigado no nível de dados (school_history + helpers). Aguardando confirmação do usuário sobre onde o Censo é gerado (provável processo externo lendo o BD).
+- **Testes:** `tests/test_school_resolution.py` (10 PASS): helpers (bordas/intervalos/fallback) + integração do Histórico atribuindo ano à ORIGEM apesar de `classes.school_id`=destino. Regressão Fase 1 (`test_school_transfer.py`) segue 6 PASS.
+- **Pendente (Fase 1.5 cont.):** 🔴 Frequência (analytics/diary), 🟠 Rendimento/Ranking SEMED. **Bloqueio mantido:** não avançar para Fase 2 (Rollback) até itens críticos validados pelo usuário.
+
+
 ## 2026-06-19 — Transferência Institucional de Turmas (Fase 1 — Backend) ✅
 **Epic:** Migração de turmas inteiras entre escolas (encerramento de unidade) via Re-homing (Opção A: muda `school_id`, preserva `class_id`).
 - Novo router `routers/school_transfer.py` (`/api/admin/school-transfer`, **super_admin only**), registrado em `server.py`.
