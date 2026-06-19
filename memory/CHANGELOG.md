@@ -1,5 +1,16 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-19 — Transferência Institucional de Turmas (Fase 1 — Backend) ✅
+**Epic:** Migração de turmas inteiras entre escolas (encerramento de unidade) via Re-homing (Opção A: muda `school_id`, preserva `class_id`).
+- Novo router `routers/school_transfer.py` (`/api/admin/school-transfer`, **super_admin only**), registrado em `server.py`.
+- `POST /dry-run`: contagens por coleção, validações bloqueantes (mesma mantenedora, destino ativo, turmas pertencem à origem, calendário do destino aberto, lock `transfer_in_progress`) + warnings (compatibilidade de etapa), gera `dry_run_token` (persistido com status `dry_run`, TTL 24h). **Sem mutação.**
+- `POST /execute`: 3 barreiras — re-autenticação por senha (`verify_password`, nunca armazenada/logada), justificativa obrigatória, frase `CONFIRMO A TRANSFERÊNCIA INSTITUCIONAL`. Motor canônico idempotente (`idempotency_key=dry_run_token`): re-homing em lote (classes→students→enrollments→attendance→grades→content_entries→student_dependencies→teacher_class_assignments + AEE/Bolsa Família por aluno), snapshot pré-transferência (chave `_id`), `classes.school_history[]`, `academic_events` (`event_type=transferencia_institucional`), protocolo `TRANSF-AAAA-NNNNNN`, encerra escola origem se ficou sem turmas, auditoria com IP/operador.
+- `GET /` e `GET /{protocol}`: histórico/detalhe.
+- **NÃO toca** (compliance): calendario_letivo, school_assignments, folha, users, documentos/auditorias imutáveis.
+- Testes: `tests/test_school_transfer.py` (6 cenários, todos PASS): dry-run+contagens, bloqueio cross-mantenedora, senha errada (401), frase errada (400), authz (401), re-homing+school_history+academic_events+auditoria+idempotência. Validação adicional via curl e2e + verificação MongoDB; ambiente revertido ao estado original.
+- Pendente: Fase 2 (Rollback — janela 7d / 1ª emissão de documento) e Fase 3 (Frontend wizard + recibo PDF).
+
+
 ## 2026-06 — ProgressModal global (infra reutilizável de progresso) + 4 fluxos
 
 Infra "construir uma vez, reutilizar" para tarefas longas (PDFs, e futuramente CSV,

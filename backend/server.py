@@ -117,6 +117,7 @@ from routers import tenant_admin as tenant_admin_mod
 from routers import snapshots as snapshots_mod
 from routers import verifiable_docs as verifiable_docs_mod
 from routers import school_documents as school_docs_mod
+from routers import school_transfer as school_transfer_mod
 from routers import monthly_reports as monthly_reports_mod
 from routers import content_review as content_review_mod
 from routers import text_improvement as text_improvement_mod
@@ -582,6 +583,7 @@ _vd_public, _vd_admin = verifiable_docs_mod.setup_router(db, limiter=limiter)
 app.include_router(_vd_public, prefix="/api")
 app.include_router(_vd_admin, prefix="/api")
 app.include_router(school_docs_mod.setup_router(db), prefix="/api")
+app.include_router(school_transfer_mod.setup_router(db, audit_service=audit_service), prefix="/api")
 app.include_router(monthly_reports_mod.setup_router(db), prefix="/api")
 app.include_router(content_review_mod.setup_router(db), prefix="/api")
 app.include_router(text_improvement_mod.setup_router(db), prefix="/api")
