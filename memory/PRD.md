@@ -23,6 +23,16 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P0 (causa raiz FINAL): armazenamento não-persistente → navegador apaga sessão ao fechar (Jun/2026)
+**Teste A decisivo:** logo após login online (sem fechar o navegador), o painel mostra **"Sessão salva: SIM ✓ / build v2.12.4"** — gravação OK e código novo rodando. O "NÃO" só aparece **após fechar/reabrir o navegador**.
+**Causa raiz:** `navigator.storage.persisted()` = **false**. O armazenamento do site é "best-effort"; o navegador (Edge) faz **eviction/limpeza ao fechar**, apagando `localStorage` (userData/tokens) e quebrando a sessão offline. A API de login de produção foi testada via curl: 200 OK com token + user (backend OK).
+**Correções (v2.12.5):**
+- `index.html` + `Login.js`: solicitam **armazenamento persistente** via `navigator.storage.persist()`.
+- `Login.js`: painel de diagnóstico agora exibe **"Armazenamento persistente: SIM/NÃO"** (autoexplicativo).
+- SW bump v2.12.4 → **v2.12.5** (cache v19).
+**Resolução operacional (chave):** o navegador só concede persistência de forma confiável quando o site é **INSTALADO como app (PWA)** (ou com engajamento/notificações). Ação do usuário: **Instalar o SIGESC como aplicativo** (Edge: ícone de instalar na barra de endereço / Menu → Aplicativos → Instalar). Após instalar, o painel passa a "Armazenamento persistente: SIM ✓" e a sessão sobrevive ao fechar → login offline funciona em cold-start. Alternativa: desativar no Edge "Limpar dados ao fechar" e/ou adicionar o site às exceções de cookies/dados.
+**Validação (preview):** painel exibe corretamente "Armazenamento persistente: NÃO ⚠" quando não concedido; persist() é solicitado em toda carga.
+
 ## CHANGELOG — P0 (cold-start offline): erro nativo ERR_INTERNET_DISCONNECTED ao reabrir o navegador offline (Jun/2026)
 **Sintoma:** ao FECHAR o navegador e reabrir OFFLINE, aparecia a página nativa do navegador "Parece que você não está conectado à Internet / ERR_INTERNET_DISCONNECTED" em vez do SIGESC.
 **Causa raiz:** quando NÃO há Service Worker ativo, a navegação offline vai direto à rede e falha. O `reset.html` **desregistrava o SW** (e o SW só re-registrava após uma carga ONLINE via OfflineContext). Se o usuário reabrisse offline sem ter recarregado online, ficava sem SW → erro nativo. (A `navigationStrategy` em si está correta: com SW ativo, serve o `/index.html` cacheado — validado.)

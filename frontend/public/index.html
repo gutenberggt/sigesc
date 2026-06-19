@@ -48,6 +48,14 @@
                     });
                 });
             }
+            // Solicita armazenamento PERSISTENTE para o navegador NÃO apagar a sessão
+            // offline (localStorage/IndexedDB) ao fechar/limpar — essencial p/ offline-first.
+            if (navigator.storage && navigator.storage.persist) {
+                navigator.storage.persisted().then(function (p) {
+                    if (!p) { navigator.storage.persist().then(function (g) { console.log('[Storage] persistente:', g); }); }
+                    else { console.log('[Storage] já persistente'); }
+                }).catch(function () {});
+            }
         </script>
         <!--
       Este código é progressivo e adaptável, está sendo adaptado continuadamente por Gutenberg Barroso.

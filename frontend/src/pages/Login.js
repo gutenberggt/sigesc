@@ -13,6 +13,7 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [exibirPreMatricula, setExibirPreMatricula] = useState(true);
+  const [storagePersisted, setStoragePersisted] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
   const { branding } = useTenantBranding();
@@ -34,6 +35,22 @@ export const Login = () => {
       return { has: false, hasLastLogin: false, err: e.message };
     }
   })();
+
+  // P0 (Jun/2026) — Verifica/solicita armazenamento PERSISTENTE. Sem isso, o
+  // navegador pode apagar localStorage/IndexedDB ao fechar (eviction "best-effort"),
+  // o que destrói a sessão offline. Mostramos o status no painel de diagnóstico.
+  useEffect(() => {
+    if (navigator.storage && navigator.storage.persisted) {
+      navigator.storage.persisted()
+        .then((p) => {
+          setStoragePersisted(p);
+          if (!p && navigator.storage.persist) {
+            navigator.storage.persist().then((granted) => setStoragePersisted(granted)).catch(() => {});
+          }
+        })
+        .catch(() => setStoragePersisted(null));
+    }
+  }, []);
 
   // Monitora status de conexão
   useEffect(() => {
@@ -146,7 +163,8 @@ export const Login = () => {
                 <p>• E-mail salvo: <b>{offlineDiag.savedEmail}</b></p>
               </>
             )}
-            <p className="text-[10px] text-slate-400 pt-1">build v2.12.4</p>
+            <p>• Armazenamento persistente: <b>{storagePersisted === null ? '—' : storagePersisted ? 'SIM ✓' : 'NÃO ⚠ (navegador pode apagar ao fechar)'}</b></p>
+            <p className="text-[10px] text-slate-400 pt-1">build v2.12.5</p>
           </div>
 
           {error && (
