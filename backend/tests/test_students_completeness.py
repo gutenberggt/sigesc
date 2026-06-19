@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pwa-chunk-fix.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://school-reorganize.preview.emergentagent.com").rstrip("/")
 SCHOOL_ID = "220d4022-ec5e-4fb6-86fc-9233112b87b2"  # Escola Teste Multisseriada
 
 ADMIN_EMAIL = "gutenberg@sigesc.com"
