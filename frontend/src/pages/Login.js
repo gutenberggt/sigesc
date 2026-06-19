@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Lock, AlertCircle, UserPlus, WifiOff, Info } from 'lucide-react';
+import { Mail, Lock, AlertCircle, UserPlus, WifiOff, Info, Smartphone, Download, X } from 'lucide-react';
 import { mantenedoraAPI } from '@/services/api';
 import useTenantBranding from '@/hooks/useTenantBranding';
 
@@ -14,6 +14,10 @@ export const Login = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [exibirPreMatricula, setExibirPreMatricula] = useState(true);
   const [storagePersisted, setStoragePersisted] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [appInstalled, setAppInstalled] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState(() => sessionStorage.getItem('sigesc_install_dismissed') === '1');
   const { login } = useAuth();
   const navigate = useNavigate();
   const { branding } = useTenantBranding();
@@ -51,6 +55,46 @@ export const Login = () => {
         .catch(() => setStoragePersisted(null));
     }
   }, []);
+
+  // P0 (Jun/2026) — Banner de instalação do PWA. Quando o app NÃO está instalado e
+  // o armazenamento não é persistente, o navegador pode apagar a sessão offline ao
+  // fechar. Instalar como app garante persistência. Captura o evento nativo
+  // `beforeinstallprompt` para oferecer instalação em 1 clique.
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    setIsStandalone(standalone);
+
+    const onBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    const onAppInstalled = () => {
+      setAppInstalled(true);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch (e) { /* ignore */ }
+    setDeferredPrompt(null);
+  };
+
+  const dismissInstallBanner = () => {
+    setInstallDismissed(true);
+    try { sessionStorage.setItem('sigesc_install_dismissed', '1'); } catch (e) { /* ignore */ }
+  };
+
+  // Mostra o banner quando NÃO está instalado, não foi dispensado e a persistência
+  // ainda não está garantida (storagePersisted !== true).
+  const showInstallBanner = !isStandalone && !appInstalled && !installDismissed && storagePersisted !== true;
 
   // Monitora status de conexão
   useEffect(() => {
@@ -139,6 +183,52 @@ export const Login = () => {
         <div className="bg-white rounded-lg shadow-xl p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Entrar no Sistema</h2>
 
+          {/* Banner: instalar como app (PWA) para garantir acesso offline */}
+          {showInstallBanner && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg" data-testid="install-pwa-banner">
+              <div className="flex items-start">
+                <Smartphone className="text-blue-600 mr-3 flex-shrink-0 mt-0.5" size={22} />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900">📲 Instale o SIGESC como aplicativo</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Garante o <b>acesso offline confiável</b> — a sessão não é apagada quando você fecha o navegador.
+                  </p>
+                  <div className="mt-3 flex items-center gap-3 flex-wrap">
+                    {deferredPrompt ? (
+                      <button
+                        type="button"
+                        onClick={handleInstallApp}
+                        data-testid="install-pwa-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
+                      >
+                        <Download size={16} /> Instalar app
+                      </button>
+                    ) : (
+                      <p className="text-xs text-blue-600">
+                        No menu do navegador (⋯) escolha <b>“Instalar este site como um aplicativo”</b>.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={dismissInstallBanner}
+                      data-testid="install-pwa-dismiss"
+                      className="text-xs text-blue-500 hover:text-blue-700 underline"
+                    >
+                      Agora não
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissInstallBanner}
+                  aria-label="Fechar"
+                  className="text-blue-400 hover:text-blue-600 ml-2 flex-shrink-0"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+          )}
           {/* Aviso de Offline */}
           {!isOnline && (
             <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start" data-testid="offline-warning">
@@ -164,7 +254,7 @@ export const Login = () => {
               </>
             )}
             <p>• Armazenamento persistente: <b>{storagePersisted === null ? '—' : storagePersisted ? 'SIM ✓' : 'NÃO ⚠ (navegador pode apagar ao fechar)'}</b></p>
-            <p className="text-[10px] text-slate-400 pt-1">build v2.12.6</p>
+            <p className="text-[10px] text-slate-400 pt-1">build v2.12.7</p>
           </div>
 
           {error && (

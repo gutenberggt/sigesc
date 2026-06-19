@@ -23,6 +23,11 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Banner "Instalar SIGESC como app" (PWA) (Jun/2026)
+**Objetivo:** elevar a confiabilidade offline sem depender de o usuário saber instalar o PWA manualmente.
+**Implementação (`pages/Login.js`):** banner azul "📲 Instale o SIGESC como aplicativo" exibido quando NÃO está em modo standalone, não foi dispensado e `storagePersisted !== true`. Captura `beforeinstallprompt` → botão **"Instalar app" (1 clique)** via `prompt()`; quando o evento não está disponível, mostra instrução manual (menu ⋯ → Instalar). Esconde via `appinstalled`, ao conceder persistência, ou ao dispensar (X / "Agora não", flag em sessionStorage). data-testids: `install-pwa-banner`, `install-pwa-button`, `install-pwa-dismiss`. SW bump → v2.12.7.
+**Validação (preview):** banner aparece (com fallback de instruções, pois a automação não dispara `beforeinstallprompt`) e o dismiss o remove. PASS. Em Edge/Chrome real, o botão de instalação em 1 clique aparece.
+
 ## CHANGELOG — Ajuste: logout ("Sair") preserva a sessão offline (Jun/2026)
 **Pedido do usuário (refinamento):** "Sair (logout) não deve limpar a sessão offline".
 **Mudança (`AuthContext.logout`):** o logout agora encerra a sessão ONLINE (remove `accessToken`/`refreshToken`/CSRF/tenant/contexto e caches) mas **PRESERVA `userData` + `lastLoginTime`**, mantendo o "Entrar (Offline)" funcional sem internet. Para apagar tudo (inclusive o acesso offline) existe `logoutComplete()` (remove userData/lastLoginTime após o logout). Botão "Sair" (Layout) usa `logout()`.
