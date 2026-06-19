@@ -194,7 +194,69 @@ Princípios (alinhados ao "motor canônico único" do projeto):
 ---
 
 ## Próximo passo
-Aguardando aprovação da estratégia (Opção A) e das decisões em aberto:
-- Mover ou não: lotação de servidores, folha, acessos de usuários, pré-matrículas.
-- Janela de rollback "1 clique" (em dias) e gatilho de expiração (1ª emissão de documento no destino?).
-- Tratar `calendario_letivo` do destino: exigir ano/bimestre abertos como pré-requisito.
+Plano de implementação detalhado abaixo (aguardando aprovação FINAL).
+
+---
+
+# PLANO DE IMPLEMENTAÇÃO (aprovação final pendente)
+
+## Decisões aprovadas pelo usuário (Jun/2026)
+- **Opção A (Re-homing)** confirmada.
+- Lotação/acessos de servidores: **NÃO mover**; gerar **pendência administrativa** listando professores vinculados às turmas movidas (RH/Secretaria decide depois).
+- Folha de pagamento: **manter na origem** (nunca migrar).
+- Pré-matrículas: **escolha no fluxo** (transferir / manter / encerrar); **padrão = transferir** ao destino.
+- `calendario_letivo`: **validação obrigatória bloqueante** (ano letivo + bimestre abertos + compatível no destino).
+- Registros existentes: **não reprocessar**; usar **`school_history[]`** (faixas de datas) na turma.
+- Rollback: **7 dias OU 1ª emissão de documento oficial** (boletim, histórico, declaração, ata, certificado, livro de resultados, doc com QR/validação), o que vier primeiro; depois só reversão administrativa especial com trilha.
+- Compatibilidade obrigatória no Dry Run: **etapa, modalidade, turno, AEE/Educação Especial, oferta curricular**.
+- **Dry Run obrigatório** + confirmação textual "Confirmo a transferência institucional da turma."
+
+## Modelo de dados (aditivo, sem migração destrutiva)
+- `classes.school_history: [{school_id, start_date, end_date|null}]` (append; entrada corrente fica com `end_date=null`).
+- Nova coleção **`school_transfer_audit`** (schema já especificado acima) + `status ∈ {dry_run, executed, rolled_back, admin_reverted}`, `idempotency_key`, `snapshot` (lista `{collection, id, old_school_id}`; se grande → GridFS `document_files`).
+- `academic_events`: novo `event_type = "transferencia_institucional"` por turma (origin/destination school).
+- `schools.status = "encerrada"` na origem (somente se TODAS as turmas saíram).
+- Índices novos: `school_transfer_audit`: `id` unique, `protocol` unique, `[mantenedora_id, executed_at]`; `classes`: índice em `school_history.school_id` (sparse) para reconstrução histórica.
+
+## Endpoints (router novo `routers/school_transfer.py`, prefixo `/api/admin/school-transfer`, **super_admin only**)
+1. `POST /dry-run` — body `{origin_school_id, destination_school_id, class_ids[], pre_matricula_action}`.
+   → Retorna: contagens (alunos, matrículas, frequências, notas, conteúdos, AEE, Bolsa Família),
+   validações (calendário destino, compatibilidade etapa/modalidade/turno/AEE/oferta), professores
+   com vínculo (pendência), disponibilidade de rollback. **Sem mutação.** Gera `dry_run_token`.
+2. `POST /execute` — body `{dry_run_token, reason, password, confirmation_text}`.
+   → Re-autentica (senha), revalida tudo, executa re-homing idempotente por lotes, grava snapshot +
+   `school_transfer_audit` + `school_history[]` + `academic_events`, marca turmas e (se aplicável) escola origem.
+   Protegido por `idempotency_key` (reexecução não duplica).
+3. `POST /{protocol}/rollback` — reverte dentro da janela (7d e sem documento oficial emitido no destino).
+4. `GET /` e `GET /{protocol}` — histórico e detalhe (protocolo, contagens, status, dry_run_report).
+
+## Motor canônico (idempotente) — ordem de UPDATE `school_id`
+classes → students → enrollments → attendance → grades → content_entries → student_dependencies →
+teacher_class_assignments → planos/atendimentos/evolucoes/articulacoes_aee → bolsa_familia_tracking →
+derivados (alerts/action_plans/monthly_*). **NÃO tocar:** calendario_letivo, school_assignments, folha,
+users, documentos/auditorias imutáveis.
+
+## Validações bloqueantes (Dry Run + Execute)
+- Mesma `mantenedora_id` (origem e destino).
+- Destino existe e ativo.
+- Calendário destino: ano letivo aberto + bimestre corrente aberto.
+- Compatibilidade: etapa/`nivel_ensino` da turma ofertada pelo destino; modalidade; turno; AEE.
+- Turmas pertencem mesmo à origem; não em outra transferência em andamento (`transfer_in_progress`).
+
+## Segurança
+- `super_admin` (checado no backend). Re-autenticação por senha. Justificativa obrigatória.
+- Protocolo único + `audit_logs` + `school_transfer_audit`. Lock `transfer_in_progress` durante a operação.
+
+## Frontend
+- Menu **Administração → Reorganização Escolar → Transferência Institucional**.
+- Wizard: origem → destino → turmas → **Dry Run (resumo + validações)** → confirmação (senha + justificativa
+  + frase "Confirmo a transferência institucional da turma.") → execução → recibo com protocolo.
+- Tela de **histórico/rollback** (lista protocolos, botão rollback dentro da janela).
+- `data-testid` em todos os elementos interativos.
+
+## Testes
+- `backend/tests/test_school_transfer.py`: dry-run (contagens corretas, validações bloqueiam), execute
+  (re-homing idempotente, snapshot, audit, school_history), rollback (restaura, respeita janela),
+  isolamento multi-tenant, compatibilidade de etapa.
+- Testing agent (E2E) para o wizard + Dry Run + execução + rollback.
+
