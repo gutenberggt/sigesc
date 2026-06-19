@@ -150,3 +150,117 @@ async def resolve_school_for_class_at(
         cls.get("school_history"), reference_date,
         fallback_school_id=cls.get("school_id"),
     )
+
+
+# ===========================================================================
+# ESCOPO DE ESCOLA POR PERÍODO (serviço central p/ relatórios/analytics)
+# ===========================================================================
+def _to_list(school_ids) -> List[str]:
+    if school_ids is None:
+        return []
+    return [school_ids] if isinstance(school_ids, str) else list(school_ids)
+
+
+async def get_school_scope_for_period(db, school_ids, start_date, end_date) -> Dict[str, Any]:
+    """Serviço CENTRAL de escopo temporal por período.
+
+    Retorna as turmas (e janelas de data) que pertenceram a `school_ids` durante
+    `[start_date, end_date]`, honrando `classes.school_history[]`. Usado por
+    relatórios com registros datados (ex.: frequência por `date`).
+
+    Retorno:
+        {
+          "fully_in":  [class_id, ...],                  # período inteiro na escola
+          "partial":   [{class_id, date_gte, date_lt}],  # apenas sub-janela na escola
+          "all_class_ids": [...],
+        }
+    """
+    schools = _to_list(school_ids)
+    school_set = set(schools)
+    candidates = await db.classes.find(
+        {"$or": [
+            {"school_id": {"$in": schools}},
+            {"school_history.school_id": {"$in": schools}},
+        ]},
+        {"_id": 0, "id": 1, "school_id": 1, "school_history": 1},
+    ).to_list(None)
+
+    ps = _parse(start_date)
+    pe = _parse(end_date)
+    fully_in: List[str] = []
+    partial: List[Dict] = []
+
+    for c in candidates:
+        hist = c.get("school_history")
+        if not hist:
+            if c.get("school_id") in school_set:
+                fully_in.append(c["id"])
+            continue
+        segs = [s for s in resolve_school_period(hist, start_date, end_date)
+                if s.get("school_id") in school_set]
+        if not segs:
+            continue
+        covers_full = False
+        if len(segs) == 1:
+            ss = _parse(segs[0].get("start_date"))
+            se = _parse(segs[0].get("end_date"))
+            starts_ok = ss is None or (ps is not None and ss <= ps)
+            ends_ok = se is None or (pe is not None and se >= pe)
+            covers_full = starts_ok and ends_ok
+        if covers_full:
+            fully_in.append(c["id"])
+        else:
+            for s in segs:
+                partial.append({"class_id": c["id"],
+                                "date_gte": s.get("start_date"),
+                                "date_lt": s.get("end_date")})
+
+    return {"fully_in": fully_in, "partial": partial,
+            "all_class_ids": fully_in + [p["class_id"] for p in partial]}
+
+
+def school_scope_to_date_match(scope: Dict[str, Any], date_field: str = "date") -> Dict:
+    """Converte o escopo em um `$match` Mongo para uma coleção com `class_id` +
+    campo de data string `YYYY-MM-DD` (ex.: attendance). Janelas parciais
+    aplicam restrição de data half-open `[gte, lt)`."""
+    ors: List[Dict] = []
+    if scope.get("fully_in"):
+        ors.append({"class_id": {"$in": scope["fully_in"]}})
+    for p in scope.get("partial", []):
+        clause: Dict[str, Any] = {"class_id": p["class_id"]}
+        rng: Dict[str, str] = {}
+        if p.get("date_gte"):
+            rng["$gte"] = str(p["date_gte"])[:10]
+        if p.get("date_lt"):
+            rng["$lt"] = str(p["date_lt"])[:10]
+        if rng:
+            clause[date_field] = rng
+        ors.append(clause)
+    if not ors:
+        return {"class_id": {"$in": ["__none__"]}}
+    return ors[0] if len(ors) == 1 else {"$or": ors}
+
+
+async def get_school_class_ids_at(
+    db, school_ids, reference_date, extra_class_filter: Optional[Dict] = None,
+) -> List[str]:
+    """`class_id`s cuja atribuição temporal (`school_history`) recai em
+    `school_ids` na `reference_date`. Para relatórios ANO-BASE (ex.: notas, que
+    têm `academic_year` mas não data fina por registro). Política recomendada:
+    `reference_date = f"{year}-01-01"` (escola onde o ano foi conduzido)."""
+    schools = _to_list(school_ids)
+    school_set = set(schools)
+    q: Dict[str, Any] = {"$or": [
+        {"school_id": {"$in": schools}},
+        {"school_history.school_id": {"$in": schools}},
+    ]}
+    if extra_class_filter:
+        q = {"$and": [q, extra_class_filter]}
+    out: List[str] = []
+    async for c in db.classes.find(
+        q, {"_id": 0, "id": 1, "school_id": 1, "school_history": 1}
+    ):
+        sid = resolve_school_at(c.get("school_history"), reference_date, c.get("school_id"))
+        if sid in school_set:
+            out.append(c["id"])
+    return out

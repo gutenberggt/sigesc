@@ -9,6 +9,10 @@ import unicodedata
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter
 from utils.grade_dependency_filters import regular_only_aggregate_match
+from utils.school_resolution import (
+    get_school_scope_for_period, school_scope_to_date_match, get_school_class_ids_at,
+    resolve_school_at,
+)
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -211,11 +215,15 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             attendance_match['class_id'] = class_id
         elif school_id or (not is_global and user_school_ids):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
-            att_classes = await current_db.classes.find(
-                {'school_id': {'$in': school_ids_to_filter}}, {'id': 1}
-            ).to_list(None)
-            att_class_ids = [c['id'] for c in att_classes]
-            attendance_match['class_id'] = {'$in': att_class_ids or ['__none__']}
+            # [Fase 1.5] Escopo TEMPORAL por escola: cada registro é atribuído à
+            # escola dona da turma NA DATA do registro (honra school_history).
+            scope = await get_school_scope_for_period(
+                current_db, school_ids_to_filter,
+                f"{academic_year}-01-01", f"{academic_year}-12-31",
+            )
+            attendance_match = {"$and": [
+                attendance_match, school_scope_to_date_match(scope, "date"),
+            ]}
 
         attendance_pipeline = [
             {'$match': attendance_match},
@@ -250,11 +258,11 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # Se tem filtro de escola, buscar turmas da escola primeiro
         if school_id or (not is_global and user_school_ids):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
-            classes_in_school = await current_db.classes.find(
-                {'school_id': {'$in': school_ids_to_filter}},
-                {'id': 1}
-            ).to_list(None)
-            class_ids = [c['id'] for c in classes_in_school]
+            # [Fase 1.5] Notas (ano-base): atribui a turma à escola do INÍCIO do
+            # ano letivo (escola onde o ano foi conduzido) via school_history.
+            class_ids = await get_school_class_ids_at(
+                current_db, school_ids_to_filter, f"{academic_year}-01-01"
+            )
             if class_ids:
                 grades_filter['class_id'] = {'$in': class_ids}
         
@@ -441,11 +449,16 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             match_filter['class_id'] = class_id
         elif school_id or (not is_global and user_school_ids):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
-            classes_in_school = await current_db.classes.find(
-                {'school_id': {'$in': school_ids_to_filter}}, {'id': 1}
-            ).to_list(None)
-            cls_ids = [c['id'] for c in classes_in_school]
-            match_filter['class_id'] = {'$in': cls_ids or ['__none__']}
+            # [Fase 1.5] Escopo TEMPORAL: frequência mensal atribui cada registro
+            # à escola dona da turma NA DATA (mês anterior à transferência fica na
+            # origem; mês posterior, no destino) — honra school_history.
+            scope = await get_school_scope_for_period(
+                current_db, school_ids_to_filter,
+                f"{academic_year}-01-01", f"{academic_year}-12-31",
+            )
+            match_filter = {"$and": [
+                match_filter, school_scope_to_date_match(scope, "date"),
+            ]}
         
         # Usa o mesmo helper de split (records[] com combos 'P|F') e a regra
         # de negócio: Frequência = P / total de aulas (J e F = ausência).
@@ -536,10 +549,17 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         class_filter = {'academic_year': year_filter(academic_year)}
         if class_id:
             class_filter['id'] = class_id
-        if school_id:
-            class_filter['school_id'] = school_id
-        elif not is_global and user_school_ids:
-            class_filter['school_id'] = {'$in': user_school_ids}
+        # [Fase 1.5] Notas (ano-base): resolve as turmas da escola pela atribuição
+        # temporal (school_history) no INÍCIO do ano letivo, não pelo school_id atual.
+        _rank_school_ids = ([school_id] if school_id else
+                            (user_school_ids if (not is_global and user_school_ids) else None))
+        if _rank_school_ids:
+            _temporal_ids = await get_school_class_ids_at(
+                current_db, _rank_school_ids, f"{academic_year}-01-01"
+            )
+            if class_id:
+                _temporal_ids = [c for c in _temporal_ids if c == class_id]
+            class_filter['id'] = {'$in': _temporal_ids or ['__none__']}
 
         eligible_classes = []
         async for cls in current_db.classes.find(
@@ -650,11 +670,10 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         if school_id or (not is_global and user_school_ids):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
-            classes_in_school = await current_db.classes.find(
-                {'school_id': {'$in': school_ids_to_filter}},
-                {'id': 1}
-            ).to_list(None)
-            class_ids = [c['id'] for c in classes_in_school]
+            # [Fase 1.5] Notas por período (ano-base): atribuição temporal no início do ano.
+            class_ids = await get_school_class_ids_at(
+                current_db, school_ids_to_filter, f"{academic_year}-01-01"
+            )
             if class_ids and not class_id:
                 match_filter['class_id'] = {'$in': class_ids}
         
@@ -798,55 +817,66 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         school_ids = list(schools.keys())
         
+        # [Fase 1.5] Mapa TEMPORAL turma→escola (ano-base): inclui turmas que
+        # entraram/saíram por re-homing institucional e atribui pela escola do
+        # INÍCIO do ano letivo (school_history). Usado por matrículas, frequência
+        # e notas — evita que o ranking de gestores seja distorcido pela transferência.
+        _school_set = set(school_ids)
+        classes_by_school = {}
+        async for cls in current_db.classes.find(
+            {'academic_year': year_filter(academic_year),
+             '$or': [{'school_id': {'$in': school_ids}},
+                     {'school_history.school_id': {'$in': school_ids}}]},
+            {'id': 1, 'school_id': 1, 'school_history': 1}
+        ):
+            _sid = resolve_school_at(cls.get('school_history'), f"{academic_year}-01-01", cls.get('school_id'))
+            if _sid in _school_set:
+                classes_by_school[cls['id']] = _sid
+        _scoped_class_ids = list(classes_by_school.keys())
+        
         # ============================================
         # 1. MATRÍCULAS E EVASÃO
         # ============================================
-        # Matrículas ativas (atuais)
+        # Matrículas ativas (atuais) — agrupadas por turma e mapeadas à escola temporal
         enrollment_pipeline = [
             {'$match': {
-                'school_id': {'$in': school_ids},
+                'class_id': {'$in': _scoped_class_ids},
                 'academic_year': year_filter(academic_year),
                 'status': {'$in': ['active', 'ativo', 'Ativo', None]}
             }},
             {'$group': {
-                '_id': '$school_id',
+                '_id': '$class_id',
                 'count': {'$sum': 1}
             }}
         ]
         async for doc in current_db.enrollments.aggregate(enrollment_pipeline):
-            if doc['_id'] in schools:
-                schools[doc['_id']]['enrollments_active'] = doc['count']
+            _sid = classes_by_school.get(doc['_id'])
+            if _sid in schools:
+                schools[_sid]['enrollments_active'] += doc['count']
         
         # Matrículas totais (início do ano) = ativas + transferidas + evasões
         enrollment_start_pipeline = [
             {'$match': {
-                'school_id': {'$in': school_ids},
+                'class_id': {'$in': _scoped_class_ids},
                 'academic_year': year_filter(academic_year)
             }},
             {'$group': {
-                '_id': {'school_id': '$school_id', 'status': '$status'},
+                '_id': {'class_id': '$class_id', 'status': '$status'},
                 'count': {'$sum': 1}
             }}
         ]
         async for doc in current_db.enrollments.aggregate(enrollment_start_pipeline):
-            school_id = doc['_id']['school_id']
+            _sid = classes_by_school.get(doc['_id']['class_id'])
             status = doc['_id']['status'] or 'active'
-            if school_id in schools:
-                schools[school_id]['enrollments_start'] += doc['count']
+            if _sid in schools:
+                schools[_sid]['enrollments_start'] += doc['count']
                 # Conta evasões/desistências (NÃO conta transferido e NÃO conta cancelado)
                 if status.lower() in ['dropout', 'desistente', 'desistencia', 'abandono']:
-                    schools[school_id]['dropouts'] += doc['count']
+                    schools[_sid]['dropouts'] += doc['count']
         
         # ============================================
         # 2. FREQUÊNCIA (P + J) / Total
         # ============================================
-        # Busca turmas por escola
-        classes_by_school = {}
-        async for cls in current_db.classes.find(
-            {'school_id': {'$in': school_ids}, 'academic_year': year_filter(academic_year)},
-            {'id': 1, 'school_id': 1}
-        ):
-            classes_by_school[cls['id']] = cls['school_id']
         
         # Frequência agregada por escola (records[] com P/F/J).
         # Regra: J e F contam como AUSÊNCIA; presença = somente 'P'.
@@ -1774,11 +1804,10 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             match_filter['class_id'] = class_id
         elif school_id or (not is_global and user_school_ids):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
-            classes_in_school = await current_db.classes.find(
-                {'school_id': {'$in': school_ids_to_filter}},
-                {'id': 1}
-            ).to_list(None)
-            class_ids = [c['id'] for c in classes_in_school]
+            # [Fase 1.5] Distribuição de notas (ano-base): atribuição temporal no início do ano.
+            class_ids = await get_school_class_ids_at(
+                current_db, school_ids_to_filter, f"{academic_year}-01-01"
+            )
             if class_ids:
                 match_filter['class_id'] = {'$in': class_ids}
         

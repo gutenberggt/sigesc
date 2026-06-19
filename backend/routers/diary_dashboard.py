@@ -7,6 +7,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from auth_middleware import AuthMiddleware
+from utils.school_resolution import get_school_scope_for_period, school_scope_to_date_match, get_school_class_ids_at
 import os
 import logging
 
@@ -45,13 +46,12 @@ def create_diary_dashboard_router():
             filter_query = {"academic_year": academic_year}
             
             if school_id:
-                # Buscar turmas da escola (inclui turmas sem status definido)
-                school_classes = await db.classes.find(
-                    {"school_id": school_id, "$or": [{"status": "active"}, {"status": {"$exists": False}}, {"status": None}]},
-                    {"id": 1}
-                ).to_list(1000)
-                class_ids = [c['id'] for c in school_classes]
-                filter_query["class_id"] = {"$in": class_ids}
+                # [Fase 1.5] Escopo TEMPORAL por escola (honra school_history).
+                scope = await get_school_scope_for_period(
+                    db, school_id, f"{academic_year}-01-01", f"{academic_year}-12-31"
+                )
+                class_ids = scope["all_class_ids"]
+                filter_query = {"$and": [filter_query, school_scope_to_date_match(scope, "date")]}
             
             if class_id:
                 filter_query["class_id"] = class_id
@@ -122,13 +122,9 @@ def create_diary_dashboard_router():
             filter_query = {"academic_year": academic_year}
             
             if school_id:
-                # Buscar turmas da escola (inclui turmas sem status definido)
-                school_classes = await db.classes.find(
-                    {"school_id": school_id, "$or": [{"status": "active"}, {"status": {"$exists": False}}, {"status": None}]},
-                    {"id": 1}
-                ).to_list(1000)
-                class_ids = [c['id'] for c in school_classes]
-                filter_query["class_id"] = {"$in": class_ids}
+                # [Fase 1.5] Notas (ano-base): atribuição temporal no início do ano (school_history).
+                class_ids = await get_school_class_ids_at(db, school_id, f"{academic_year}-01-01")
+                filter_query["class_id"] = {"$in": class_ids or ["__none__"]}
             
             if class_id:
                 filter_query["class_id"] = class_id

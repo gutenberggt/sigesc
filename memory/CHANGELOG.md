@@ -1,5 +1,19 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-19 — Fase 1.5 (cont.): Frequência + Rendimento/Ranking temporalizados ✅
+Serviço CENTRAL de escopo temporal por escola (em vez de correção por relatório).
+- **`utils/school_resolution.py` ampliado:**
+  - `get_school_scope_for_period(db, school_ids, start, end)` → turmas + janelas de data por escola no período (record-level).
+  - `school_scope_to_date_match(scope, date_field)` → `$match` Mongo (half-open `[gte,lt)`).
+  - `get_school_class_ids_at(db, school_ids, ref_date)` → class_ids ano-base (notas) por atribuição no início do ano.
+- **🔴 Item 3 — Frequência (record-level por `date`):** refatorados `analytics/overview` (bloco attendance), `analytics/attendance/monthly`, `diary-dashboard/attendance`. Cada registro é atribuído à escola dona da turma NA DATA → mês anterior à transferência fica na origem, posterior no destino.
+- **🟠 Item 4 — Rendimento/Ranking (ano-base):** refatorados `analytics/overview` (notas), `grades/by-subject`, `grades/by-period`, `distribution/grades`, `diary-dashboard/grades` e **`schools/ranking`** (mapa `classes_by_school` temporal + matrículas/frequência/notas reatribuídas) → ranking de gestores deixa de ser distorcido pela transferência.
+- **12 sites** do padrão escola→turmas→class_id agora consomem o serviço central.
+- **Testes:** `tests/test_school_transfer_reports.py` (3 PASS) — cenário de aceitação do usuário (A jan–jun, B jul–dez): frequência de maio→A, setembro→B; rendimento 2026→origem. Smoke 200 em 8 endpoints com dados reais. Regressão total: 19 PASS (3 reports + 10 helpers + 6 Fase 1).
+- **Gate do usuário atendido** (Histórico ✅, Frequência ✅, Rendimento/Ranking ✅, cenário antes/depois verde) ⇒ **Fase 2 (Rollback) desbloqueada**.
+- **Residual 🟠 (fora do gate):** `analytics/students/performance` e `analytics/teachers/performance` ainda usam school→classes atual (não refatorados — prioridade do usuário era Frequência/Rendimento).
+
+
 ## 2026-06-19 — Fase 1.5: Resolução Temporal de Escola (helpers canônicos) + Histórico Escolar ✅
 Pré-requisito aprovado antes do Rollback (Fase 2). Corrige a atribuição histórica de escola após re-homing.
 - **Confirmado:** `classes.school_history[]` já é gravado como **intervalos** `{school_id, start_date, end_date}` (não `changed_at`) — schema correto, sem migração.
