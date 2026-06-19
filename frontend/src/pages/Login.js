@@ -146,7 +146,7 @@ export const Login = () => {
                 <p>• E-mail salvo: <b>{offlineDiag.savedEmail}</b></p>
               </>
             )}
-            <p className="text-[10px] text-slate-400 pt-1">build v2.12.3</p>
+            <p className="text-[10px] text-slate-400 pt-1">build v2.12.4</p>
           </div>
 
           {error && (

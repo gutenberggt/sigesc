@@ -23,6 +23,16 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P0 (cold-start offline): erro nativo ERR_INTERNET_DISCONNECTED ao reabrir o navegador offline (Jun/2026)
+**Sintoma:** ao FECHAR o navegador e reabrir OFFLINE, aparecia a página nativa do navegador "Parece que você não está conectado à Internet / ERR_INTERNET_DISCONNECTED" em vez do SIGESC.
+**Causa raiz:** quando NÃO há Service Worker ativo, a navegação offline vai direto à rede e falha. O `reset.html` **desregistrava o SW** (e o SW só re-registrava após uma carga ONLINE via OfflineContext). Se o usuário reabrisse offline sem ter recarregado online, ficava sem SW → erro nativo. (A `navigationStrategy` em si está correta: com SW ativo, serve o `/index.html` cacheado — validado.)
+**Correções:**
+- `public/index.html`: **registro PRECOCE do SW** no `window.load` (toda carga online re-estabelece o SW, independente do React).
+- `public/reset.html`: após limpar SW/caches, **re-registra o `/sw.js`** antes de redirecionar — nunca deixa o dispositivo sem SW. (Já preservava a sessão offline desde v2.12.3.)
+- SW bump v2.12.3 → **v2.12.4** (cache v18).
+**Validação (preview):** SW ativo + offline → navegar para `/` serve o app shell do SIGESC (login offline + painel de diagnóstico), sem erro nativo. PASS.
+**Operacional:** após o deploy, basta **1 carga ONLINE** (registra SW + cacheia shell/chunks). Depois, fechar/reabrir offline funciona. **Não usar `reset.html`** no uso normal.
+
 ## CHANGELOG — P0 (robustez final): reset preserva sessão + TTL 30d + diagnóstico visível + correção do bug real (Jun/2026)
 **Verdade do dispositivo (log do usuário):** `[Auth Offline] {temUserData: false, temLastLogin: false}` rodando no bundle novo — ou seja, no momento do teste o `localStorage` estava VAZIO (não havia sessão salva). Confirmado que o login ONLINE persiste a sessão (painel mostra "Sessão salva: SIM" logo após login). A falha vinha de o `localStorage` ter sido esvaziado (uso do `reset.html`, que fazia `localStorage.clear()`) sem novo login online depois.
 **Mudanças:**

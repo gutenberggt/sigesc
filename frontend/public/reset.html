@@ -126,6 +126,16 @@
             } catch(e) { log('IndexedDB: ' + e.message); }
           }
 
+          // 5) Re-registra o Service Worker para NÃO deixar o dispositivo sem SW.
+          //    Sem isso, ao reabrir o navegador offline aparece o erro nativo
+          //    "ERR_INTERNET_DISCONNECTED" (sem SW, não há app shell para servir).
+          try {
+            if ('serviceWorker' in navigator) {
+              await navigator.serviceWorker.register('/sw.js');
+              log('Service Worker re-registrado (offline garantido após nova carga online)');
+            }
+          } catch(e) { log('SW re-register: ' + e.message); }
+
           statusEl.textContent = '✅ Pronto! Recarregando em 2 segundos...';
           statusEl.className = 'status ok';
           btn.style.display = 'inline-block';

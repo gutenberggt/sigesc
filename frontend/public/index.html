@@ -37,6 +37,18 @@
     <body>
         <noscript>Ops! O SIGESC precisa que o JavaScript esteja ativado para funcionar. Por favor, habilite o JavaScript no seu navegador.</noscript>
         <div id="root"></div>
+        <!-- Registro PRECOCE do Service Worker (robustez offline). Garante que toda
+             carga ONLINE re-estabeleça o SW (necessário para o cold-start offline
+             servir o app shell). Idempotente: o app também registra. -->
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function () {
+                    navigator.serviceWorker.register('/sw.js').catch(function (e) {
+                        console.warn('[SW] registro precoce falhou:', e && e.message);
+                    });
+                });
+            }
+        </script>
         <!--
       Este código é progressivo e adaptável, está sendo adaptado continuadamente por Gutenberg Barroso.
     -->
