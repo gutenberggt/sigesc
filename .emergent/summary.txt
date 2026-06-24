@@ -1,56 +1,57 @@
-<analysis>**original_problem_statement**: Solidificar arquitetura offline-first (PWA) e resolver bugs críticos de carregamento offline. **NOVO EPIC:** Desenvolver funcionalidade de Transferência Institucional (migração de turmas inteiras entre escolas por encerramento de unidade), garantindo preservação de histórico via re-homing (Opção A). PRODUCT REQUIREMENTS: Motor canônico, idempotência, segurança reforçada (re-autenticação para super_admin) e simulação via Dry Run.
+<analysis>**original_problem_statement**: Solidificar arquitetura offline-first (PWA) e resolver bugs críticos de carregamento offline. **NOVO EPIC:** Desenvolver funcionalidade de Transferência Institucional (migração de turmas inteiras entre escolas por encerramento de unidade), garantindo preservação de histórico via re-homing (Opção A). PRODUCT REQUIREMENTS: Motor canônico, idempotência, segurança reforçada (re-autenticação para super_admin) e simulação via Dry Run. Adicionado novo requisito prioritário (P0/P1): Monitor global de sessão para evitar perda de dados com avisos temporais e AutoSave em banco local (Dexie) para formulários críticos (Notas, Frequência, Conteúdo).
 
 **User's preferred language**: Portuguese (INSTRUCT NEXT AGENT: Responda SEMPRE em Português)
 
 **what currently exists?**: 
-- **Offline PWA:** O problema de  offline foi resolvido via pré-cache do  no . A sessão offline está persistente (não sofre mais wipes automáticos), sobrevive ao recarregamento e fechamento do navegador (via ), e possui banner nativo de instalação PWA.
-- **Transferência Institucional:** O banco de dados foi auditado. Foi decidido adotar a Opção A: alterar o  preservando o  em toda a árvore (students, attendance, grades, content_entries, etc). Existe um rascunho da arquitetura em . O backend já possui funções base para reautenticação ().
+- **Transferência Institucional (Fase 1 & 1.5):** Backend completo ( e ) validado. Helpers temporais canônicos (, etc.) implementados para garantir que relatórios (Frequência, Rendimento, Histórico PDF) utilizem o  em vez da escola atual, prevenindo falhas no histórico da turma pós-transferência. 
+- **Bug Correção (Notas):** O erro 403 no salvamento em lote de notas () gerado por notas migradas/bloqueadas (ícone de cadeado) foi resolvido. O lote agora pula os bloqueados e salva o restante com sucesso.
+- **Sessão (P0):**  global funcional. Avisa aos 5min e 1min, com opção de Continuar conectado. Ao expirar, abre modal bloqueando a tela com opções Entrar novamente ou Continuar offline (sem apagar sessão local). Possui modo de teste de homologação ativado via .
+- **AutoSave (P1 Parcial):** IndexedDB (Dexie) atualizado para v4 com tabela . Hook  e banner  criados e integrados nativamente nas telas de **Notas** () e **Frequência** (). 
 
 **Last working item**:
-    - Last item agent was working: Fase 1 (Backend) da Transferência Institucional. O agente concluiu a auditoria, mapeou os componentes de  para forçar a reautenticação da rota e estava no processo de planejar e criar o router .
+    - Last item agent was working: Fase P1 (AutoSave Dexie). O agente concluiu a integração do AutoSave nas Notas e Frequência, e realizou uma auditoria guiada para encontrar o terceiro módulo (Conteúdo/Diário regular). A auditoria identificou que a tela de Objetos de Conhecimento ( consumindo ) é o módulo principal a ser protegido. 
     - Status: IN PROGRESS
-    - Agent Testing Done: N
-    - Which testing method agent to use? backend testing agent / manual testing by curl
+    - Agent Testing Done: N (Auditoria apenas)
+    - Which testing method agent to use? manual testing by screenshot tool or frontend testing agent
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:  
-Nenhuma issue ou bug pendente com severidade alta da sessão anterior. O foco virou 100% features novas.
+Nenhuma issue ou bug pendente no momento. 
 
 **In progress Task List**:
-  Task 1: Fase 1 — Backend de Transferência Institucional (P0)
-     - Where to resume: Criar o router . Implementar os endpoints  (simulação e contagens exatas sem mutação) e  (re-homing idempotente em lote, snapshot, auditoria e  para tracking). Requer exigir re-autenticação do .
-     - What will be achieved with this? Permitir que o sistema backend mova de forma segura turmas de escolas extintas para novas escolas sem perder dependências.
+  Task 1: Fase P1 — AutoSave em Formulários Críticos (Módulo 3: Conteúdo)
+     - Where to resume: Integrar o hook  e o componente  na tela  (formulário de Objetos de Conhecimento do professor).
+     - What will be achieved with this? Concluir a proteção contra perda de dados offline nos três módulos pedagógicos mais importantes (Notas, Frequência e Conteúdo).
      - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? backend
-     - Blocked on something: None
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on something: None (Aguardando apenas iniciar o código com base na auditoria já realizada).
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - Fase 2 - Transferência Institucional (P0): Implementar lógica de Rollback (Janela de 7 dias ou bloqueio definitivo após primeira emissão oficial/histórico). Snapshot reverso.
-    - Fase 3 - Transferência Institucional (Frontend) (P1): Criar UI no menu Administração > Reorganização Escolar com wizard de seleção, simulação visual, e emissão de recibo PDF.
-    - Fase B - P1.1 a P1.6: Offline de Conteúdo/Diário (P1) (BLOCKED - Aguardando homologação em produção da Fase A).
-    - Fase B - P2: Pré-cache automático de alunos, horários e conteúdos recentes ao abrir turma (P1).
-    - Fase B - P3: Painel visual de sincronização offline (P1).
+    - P2 - Sessão (Frontend): Indicador permanente de status no cabeçalho (Online/Offline/Pendências/Expirado) e texto última sincronização há X min.
+    - P3 - Sessão (Frontend): Recuperação avançada de rascunhos e conflitos.
+    - Fase 2 - Transferência Institucional (P0): Implementar lógica de Rollback (Snapshot reverso). (Desbloqueado após conclusão da Fase 1.5).
+    - Fase 3 - Transferência Institucional (P1): Criar UI no menu Administração com wizard de seleção, simulação visual, e emissão de recibo PDF.
+    - Fase B - Offline de Conteúdo/Diário (P1).
+    - Fase B - Pré-cache automático de alunos, horários e conteúdos recentes (P1).
+    - Fase B - Painel visual de sincronização offline (P1).
     
     Future Tasks:
     - Fase 1 e 2 do Student Intelligence Engine (SIE).
     - Módulo BNCC independente e integrado com IA.
 
 **Completed work in this session**
-- Auditoria e relatório sobre o comportamento do Login Offline PWA (DONE)
-- Correção de bug P0 onde a sessão offline era destruída na ausência de rede (DONE)
-- Pre-cache completo de JS chunks para prevenir tela de erro no React Router offline (DONE)
-- Implantação de persistência do navegador () (DONE)
-- Botão Sair configurado para manter dados offline enquanto destrói tokens online (DONE)
-- Injeção de UI para Instalação Nativa PWA (DONE)
-- Auditoria técnica profunda (Opção A vs B) de impacto no BD para Transferência Institucional (DONE)
+- Fase 1 Backend de Transferência Institucional () (DONE)
+- Fase 1.5 Correção de vazamento de tempo em relatórios via  e criação do  (DONE)
+- Refatoração de 12 endpoints analíticos e de diário para usar resolução de escola temporal (DONE)
+- Correção de bug 403 em  onde uma nota migrada falhava a requisição do lote inteiro (DONE)
+- Simplificação UI de Login (Remoção do banner visual offline constante e ajuste de títulos) (DONE)
+- P0: SessionMonitor global com contagem regressiva e Continuar Offline (DONE)
+- Criação de interface de debug de sessão () para acelerar E2E manual (DONE)
+- P1 (Parcial): Upgrade Dexie DB v4 e AutoSave debounced funcional para Turmas/Notas e Frequência (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-   Issue 1: 401 Unauthorized silencioso em  durante o fluxo de login
-   - Debug checklist: A tela de login chama config da mantenedora e falha se não há token.
-   - Why to solve this issue and what will be achieved with this? Prevenir spam de logs no console.
-   - Should Test frontend/backend/both after fix: backend
-   - Is recurring issue? Y
+N/A
 
 **Known issue recurrence from previous fork**
   - Issue recurrence in previous fork: N/A
@@ -58,67 +59,75 @@ Nenhuma issue ou bug pendente com severidade alta da sessão anterior. O foco vi
   - Status: RESOLVED
 
 **Code Architecture**
-- Frontend: React PWA.  robusto com fallback offline para . Offline data em IndexedDB/LocalStorage.
+- Frontend: React PWA.  robusto com fallback offline para . Offline data via IndexedDB (Dexie). Hook-based state management with Context APIs (, ). 
 - Backend: FastAPI, motor MongoDB (AsyncIOMotorClient).
-- Padrão de Reautenticação: Usa validação da senha atual comparando hash, utilizando bibliotecas de segurança como  de .
 
 **Key Technical Concepts**
-- **Transferência Institucional (Re-homing)**: A âncora do modelo pedagógico é o  (UUID estável). O  é apenas uma desnormalização. A migração deve fazer um  massivo alterando o  nas coleções relacionadas (, , , , etc.) mantendo o mesmo .
-- **Coleções Imutáveis**: Documentos (), auditorias, lotação de funcionários, e folhas de pagamento pertencem à Escola e NÃO devem seguir a turma automaticamente.
+- **Transferência Institucional**: A âncora é o . Para relatórios temporais de Censo/Frequência/Rendimento, usa-se estritamente  ou  lendo a matriz .
+- **Offline AutoSave**: Os rascunhos ( table via Dexie) são gerados localmente e apagados APENAS após salvamento confirmado na API (). Eles **sobrevivem** ao logout e fechamento da aba.
+- **Sessão (Session Monitor)**: Baseia-se no TTL real do JWT (15min). O refresh automático online estende a sessão; interações resetam avisos. O App não faz logout automático agressivo para não destruir o armazenamento PWA do IndexedDB.
 
 **key DB schema**
-  - : {id, school_id, ...} -> Precisa receber campo 
-  - : Nova coleção para rastreabilidade {id, origin_school_id, destination_school_id, classes: [], executed_by, executed_at, ...}
+  - : contém campo vital temporal .
+  - Frontend Local DB (Dexie): Tabela  na versão 4.
 
 **changes in tech stack**
-  - Nenhuma.
+  - Adição e uso de hooks robustos vinculados ao Dexie () para a nova tabela .
 
 **All files of reference**
-  -  (Criado)
-  -  (Criado)
-  -  (Criado - Mapa principal para as regras de negócio da task atual)
-  -  (Modificado para robustez offline)
-  -  e  (Mecânica offline core)
-  -  e  (Visualizados para entender a lógica de reautenticação exigida pela Fase 1)
+  -  (Novo - Fase 1 Transferência)
+  -  (Novo - Fase 1.5 Lógica temporal de relatórios)
+  -  (Editado - Bug 403 lote corrigido)
+  -  (Novo - P0)
+  -  (Novo)
+  -  e  (Novos - P1 AutoSave)
+  -  (Dexie Schema V4 atualizado)
+  -  &  (P1 - Contextos de AutoSave)
+  -  (Destino pendente do P1 - Conteúdo)
 
 **Areas that need refactoring**: 
-Nenhuma no momento.
+- Teste E2E Visual no  via painel do AI é instável para rotas de  pois o **Service Worker** local da build corta as requisições mockadas e trava em . Testes de auth/sessão precisam ser homologados pelo usuário no próprio navegador (usar ).
 
 **key api endpoints**
+-  e 
 - 
-- 
--  (Para ser criado)
--  (Para ser criado)
+-  (Pendente AutoSave)
 
 **Critical Info for New Agent**
-- ATENÇÃO: O foco 100% atual é o backend da Transferência Institucional. **A arquitetura foi minuciosamente definida com o usuário**. Leia o arquivo  na íntegra antes de começar a codar.
-- A Opção aprovada foi Opção A: Modifica apenas a escola destino das turmas, **preservando o id da turma**.
-- É estritamente obrigatório que a API  exija Re-autenticação (senha do super_admin atual) para ser disparada. Siga a regra de usar  quando for trabalhar em regras de autenticação/validação de senha.
-- A ferramenta  será testada localmente com .
+- **AUTO-SAVE NO LOGOUT:** Dados armazenados no IndexedDB ( de Dexie) NÃO devem ser limpos durante a expiração de sessão ou logout temporário do P0. Isso é vital para escolas rurais.
+- O modo de validação rápida do Session Monitor é habilitado inserindo  na URL.
+- NÃO perca tempo auditando/procurando o formulário de Conteúdo do professor para finalizar o AutoSave (P1). A auditoria anterior já definiu estritamente o arquivo a ser trabalhado: . 
+- Continue implementando o AutoSave seguindo o padrão já utilizado em  e .
 
 **documents and test reports created in this job**
   - 
   - 
   - 
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *User*: Confirmou as respostas arquiteturais: Opção A (Re-homing), regras estritas de rollback, e modo Dry Run.
- - *User*: Aprovou a divisão em Fases e deu permissão para iniciar imediatamente a Fase 1 - Backend. Explicitou que só após validação do Backend as outras Fases seguirão. (LATEST)
+ - *User*: Confirmou a prioridade e requisições do Monitor de Sessão (P0) antes de AutoSave e exigiu modo de testes rápidos.
+ - *User*: Aprovou a entrega do P0 (SessionMonitor). Instruiu seguir para o P1.
+ - *Agent*: Implementou o P1 para Notas e Frequência; pediu confirmação de qual arquivo React era do módulo de Conteúdo/Diário.
+ - *User*: Exigiu auditoria de endpoints (, , etc.) para provar documentalmente onde vive a tela de Conteúdo do professor regular (ou a ausência dela), sem implementar código às cegas. (LATEST)
+ - *Agent*: Realizou a varredura e detectou que a tela é efetivamente . Preparado para prosseguir.
 
 **Project Health Check:**
-Healthy (PWA functionality restored)
+Healthy.
 
 **3rd Party Integrations**
-- Nenhuma requerida no momento atual, porém chame  se necessário para validar autenticação JWT.
+Nenhuma nova inserida.
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Apenas testes manuais visuais no PWA via screenshot).
+  - Testing agent used after significant changes: NO (User validou fluxos críticos de UI pessoalmente; testes backend Python Pytest e NodeJS unit tests massivamente usados).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
+  - Test files created: , , , 
   - Known regressions: None
 
 **Credentials to test flow:**
 Admin: gutenberg@sigesc.com / @Celta2007
+Coordenador: coordenador@sigesc.com / coordenador123
+(Consulte  para logins de professor).
 
 **What agent forgot to execute**
-O agente leu o código de re-autenticação em , mas não chegou a implementar a rota para a transferência escolar ( e ). O próximo agente deve iniciar focando no arquivo do novo router  de acordo com os requisitos documentados.</analysis>
+Nada foi esquecido, o agente pausou explicitamente a execução do P1 (Integração de AutoSave em Conteúdo) para aguardar e fornecer o relatório de auditoria exigido pelo usuário no seu último comando. O próximo passo lógico imediato é integrar o  na tela  para finalizar a Epic P1.</analysis>

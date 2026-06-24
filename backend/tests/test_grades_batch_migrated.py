@@ -23,7 +23,7 @@ from auth_utils import hash_password  # função de hash JÁ existente no app
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://school-reorganize.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://autosave-drafts.preview.emergentagent.com").rstrip("/")
 PROF_EMAIL = "professor.teste@sigesc.com"
 PROF_PASS = "professor123"
 _db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]

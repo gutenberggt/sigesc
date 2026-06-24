@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 BASE_URL = (
-    os.environ.get("REACT_APP_BACKEND_URL", "https://school-reorganize.preview.emergentagent.com")
+    os.environ.get("REACT_APP_BACKEND_URL", "https://autosave-drafts.preview.emergentagent.com")
     .rstrip("/")
 )
 EMAIL = "gutenberg@sigesc.com"

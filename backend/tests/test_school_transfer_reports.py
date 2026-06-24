@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://school-reorganize.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://autosave-drafts.preview.emergentagent.com").rstrip("/")
 EMAIL, PASSWORD = "gutenberg@sigesc.com", "@Celta2007"
 MANT = "a991c1ac-56b1-46a8-b122-effedbe19b21"
 TRANSFER_DATE = "2026-07-01T00:00:00+00:00"
