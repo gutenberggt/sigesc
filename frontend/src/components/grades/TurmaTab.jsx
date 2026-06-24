@@ -1,6 +1,7 @@
 import { Search, FileText, Users, BookOpen, Save } from 'lucide-react';
 import { GradesTable } from './GradesTable';
 import { useGrades } from '@/contexts/GradesContext';
+import { DraftRestoreBanner } from '@/components/session/DraftRestoreBanner';
 
 export const TurmaTab = () => {
   const {
@@ -21,6 +22,8 @@ export const TurmaTab = () => {
     // Handlers
     loadGradesByClass, saveGrades,
     setShowPdfModal,
+    // AutoSave (P1)
+    gradesDraft, restoreGradesDraft, discardGradesDraft,
   } = useGrades();
 
   return (
@@ -129,6 +132,14 @@ export const TurmaTab = () => {
               </div>
               )}
             </div>
+            
+            {/* Recuperação de rascunho (AutoSave P1) */}
+            <DraftRestoreBanner
+              draft={gradesDraft}
+              onRestore={restoreGradesDraft}
+              onDiscard={discardGradesDraft}
+              label="notas"
+            />
             
             {/* Tabela de Notas */}
             {loading ? (

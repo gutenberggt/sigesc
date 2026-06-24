@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EDUCATION_LEVEL_LABELS, inferEducationLevel } from '@/utils/educationLevel';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { DraftRestoreBanner } from '@/components/session/DraftRestoreBanner';
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -43,6 +44,7 @@ export const LancamentoTab = () => {
     hasActiveCertificate, getCertificateInfo,
     isStudentBlockedForProfessor, getBlockedMessage,
     medicalCertificates, setShowDeleteModal,
+    attendanceDraft, restoreAttendanceDraft, discardAttendanceDraft,
   } = useAttendance();
 
   return (
@@ -231,6 +233,14 @@ export const LancamentoTab = () => {
           </div>
         )}
       </div>
+
+      {/* Recuperação de rascunho (AutoSave P1) */}
+      <DraftRestoreBanner
+        draft={attendanceDraft}
+        onRestore={restoreAttendanceDraft}
+        onDiscard={discardAttendanceDraft}
+        label="frequência"
+      />
 
       {/* Tabela de Frequência */}
       {loading ? (

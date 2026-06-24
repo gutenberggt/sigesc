@@ -11,7 +11,7 @@ import Dexie from 'dexie';
  */
 
 // Versão atual do schema - incrementar quando houver mudanças
-const CURRENT_DB_VERSION = 3;
+const CURRENT_DB_VERSION = 4;
 
 class SigescDatabase extends Dexie {
   constructor() {
@@ -37,7 +37,11 @@ class SigescDatabase extends Dexie {
       syncQueue: '++id, collection, operation, recordId, timestamp, status, retries',
       
       // Metadados de sincronização
-      syncMeta: 'collection, lastSync, recordCount'
+      syncMeta: 'collection, lastSync, recordCount',
+
+      // AutoSave (P1): rascunhos de formulários em edição (não salvos no servidor).
+      // NUNCA são apagados no logout — sobrevivem para restauração após novo login.
+      drafts: 'formId, userId, route, updatedAt'
     });
 
     // Definir tabelas
@@ -49,6 +53,7 @@ class SigescDatabase extends Dexie {
     this.schools = this.table('schools');
     this.syncQueue = this.table('syncQueue');
     this.syncMeta = this.table('syncMeta');
+    this.drafts = this.table('drafts');
   }
 }
 
@@ -331,6 +336,52 @@ export async function isDatabaseAvailable() {
   } catch (error) {
     console.error('[DB] Banco de dados não disponível:', error);
     return false;
+  }
+}
+
+// ===========================================================================
+// AutoSave (P1) — rascunhos de formulários em edição
+// ===========================================================================
+
+/** Salva/atualiza um rascunho (idempotente por formId). */
+export async function saveDraft({ formId, userId, route, data }) {
+  if (!formId) return;
+  await db.drafts.put({
+    formId,
+    userId: userId || null,
+    route: route || null,
+    data,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/** Carrega um rascunho pelo formId. */
+export async function loadDraft(formId) {
+  if (!formId) return null;
+  try {
+    return (await db.drafts.get(formId)) || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Remove um rascunho (após salvar no servidor com sucesso, ou ao descartar). */
+export async function deleteDraft(formId) {
+  if (!formId) return;
+  try {
+    await db.drafts.delete(formId);
+  } catch {
+    /* noop */
+  }
+}
+
+/** Lista rascunhos do usuário (para o painel de recuperação — P2). */
+export async function listDrafts(userId) {
+  try {
+    const all = await db.drafts.toArray();
+    return userId ? all.filter((d) => !d.userId || d.userId === userId) : all;
+  } catch {
+    return [];
   }
 }
 

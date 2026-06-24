@@ -12,6 +12,7 @@ import { PainelSincronizacao } from '@/components/PainelSincronizacao';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import { GradesContext } from '@/contexts/GradesContext';
+import { useAutoSaveDraft } from '@/hooks/useAutoSaveDraft';
 const TurmaTab = lazy(() => import('@/components/grades/TurmaTab').then(m => ({ default: m.TurmaTab })));
 const AlunoTab = lazy(() => import('@/components/grades/AlunoTab').then(m => ({ default: m.AlunoTab })));
 import { 
@@ -78,6 +79,28 @@ export function Grades() {
   const [gradesData, setGradesData] = useState([]);
   const [studentGrades, setStudentGrades] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // AutoSave (P1): persiste as notas em edição no IndexedDB. formId só fica
+  // ativo quando turma+disciplina selecionadas (lançamento por turma).
+  const gradesFormId = useMemo(() => (
+    (activeTab === 'turma' && selectedClass && selectedCourse)
+      ? `grades:${selectedClass}:${selectedSeries || '-'}:${selectedCourse}:${academicYear}`
+      : null
+  ), [activeTab, selectedClass, selectedSeries, selectedCourse, academicYear]);
+  const {
+    draft: gradesDraft, clearDraft: clearGradesDraft, dismissDraft: dismissGradesDraft,
+  } = useAutoSaveDraft({
+    formId: gradesFormId, data: gradesData, enabled: hasChanges,
+    userId: user?.id, route: 'grades',
+  });
+  const restoreGradesDraft = useCallback(() => {
+    if (gradesDraft?.data && Array.isArray(gradesDraft.data)) {
+      setGradesData(gradesDraft.data);
+      setHasChanges(true);
+      dismissGradesDraft();
+    }
+  }, [gradesDraft, dismissGradesDraft]);
+  const discardGradesDraft = useCallback(() => { clearGradesDraft(); }, [clearGradesDraft]);
   
   // Alerta ao sair com alterações não salvas
   const { guardedNavigate } = useUnsavedChangesWarning(hasChanges, 'Há alterações de notas não salvas. Deseja sair sem salvar?');
@@ -586,6 +609,7 @@ export function Grades() {
       }
       
       setHasChanges(false);
+      clearGradesDraft();
       
       // Recarrega dados atualizados (se online)
       if (isOnline) {
@@ -674,6 +698,8 @@ export function Grades() {
     selectedStudent,
     handleSelectStudent, handleClearSearch,
     studentGrades, updateStudentGrade,
+    // AutoSave (P1)
+    gradesDraft, restoreGradesDraft, discardGradesDraft,
   }), [
     schools, filteredClasses, filteredCourses, availableSeries,
     selectedSchool, selectedClass, selectedSeries, selectedCourse,
@@ -690,6 +716,7 @@ export function Grades() {
     selectedStudent,
     handleSelectStudent, handleClearSearch,
     studentGrades, updateStudentGrade,
+    gradesDraft, restoreGradesDraft, discardGradesDraft,
   ]);
 
   return (

@@ -1,5 +1,16 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-24 — P1 (parcial): AutoSave em Dexie — Notas e Frequência ✅
+Objetivo: nenhum dado digitado é perdido se a sessão expirar, a internet cair ou o navegador fechar.
+- **Dexie v4**: nova tabela `drafts` (`formId, userId, route, updatedAt`) + helpers `saveDraft/loadDraft/deleteDraft/listDrafts` em `db/database.js`. **Rascunhos NÃO são apagados no logout** (sobrevivem p/ restauração — P2/P3). Upgrade de schema validado (DB abre OK em v4).
+- **Hook reutilizável** `hooks/useAutoSaveDraft.js`: auto-save debounced (1,2s) quando `enabled` (hasChanges) + carrega rascunho existente ao abrir o formulário.
+- **Banner** `components/session/DraftRestoreBanner.jsx`: "Rascunho não salvo encontrado (há X) — Restaurar/Descartar".
+- **Notas** (`pages/Grades.js` + `components/grades/TurmaTab.jsx`): formId `grades:{class}:{serie}:{course}:{year}`; restaura via `setGradesData`; limpa o rascunho ao salvar com sucesso.
+- **Frequência** (`pages/Attendance.js` + `components/attendance/LancamentoTab.jsx`): formId `attendance:{class}:{course}:{date}`; restaura via `setAttendanceData`; limpa ao salvar.
+- **Verificação:** compila sem erros; Dexie v4 abre com sucesso (tabela `drafts` criada). Fluxo visual de restauração a validar em produção.
+- **Pendente:** 3º módulo **Conteúdo/Diário** — não há, no frontend, formulário que chame `/content-entries`; aguardando o usuário indicar a tela exata.
+
+
 ## 2026-06-24 — P0.1: Modo de Homologação do SessionMonitor 🧪
 Pré-requisito da homologação do P0 (antes do P1). Reduz o teste de 15–20 min para <2 min.
 - Ativação: acesse qualquer página autenticada com **`?sessiondebug=1`** (persiste na aba via `sessionStorage`; desliga com `?sessiondebug=0`).

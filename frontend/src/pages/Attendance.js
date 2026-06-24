@@ -38,6 +38,7 @@ import { PainelSincronizacao } from '@/components/PainelSincronizacao';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
+import { useAutoSaveDraft } from '@/hooks/useAutoSaveDraft';
 import { AttendanceContext } from '@/contexts/AttendanceContext';
 const LancamentoTab = lazy(() => import('@/components/attendance/LancamentoTab').then(m => ({ default: m.LancamentoTab })));
 const RegistrosTab = lazy(() => import('@/components/attendance/RegistrosTab').then(m => ({ default: m.RegistrosTab })));
@@ -99,6 +100,27 @@ export const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState(null);
   const [dateCheck, setDateCheck] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // AutoSave (P1): persiste a frequência em edição no IndexedDB.
+  const attendanceFormId = useMemo(() => (
+    (selectedClass && selectedDate)
+      ? `attendance:${selectedClass}:${selectedCourse || '-'}:${selectedDate}`
+      : null
+  ), [selectedClass, selectedCourse, selectedDate]);
+  const {
+    draft: attendanceDraft, clearDraft: clearAttendanceDraft, dismissDraft: dismissAttendanceDraft,
+  } = useAutoSaveDraft({
+    formId: attendanceFormId, data: attendanceData, enabled: hasChanges,
+    userId: user?.id, route: 'attendance',
+  });
+  const restoreAttendanceDraft = useCallback(() => {
+    if (attendanceDraft?.data) {
+      setAttendanceData(attendanceDraft.data);
+      setHasChanges(true);
+      dismissAttendanceDraft();
+    }
+  }, [attendanceDraft, dismissAttendanceDraft]);
+  const discardAttendanceDraft = useCallback(() => { clearAttendanceDraft(); }, [clearAttendanceDraft]);
   
   // Status vacinal dos alunos (para indicador visual)
   const [vaccineStatuses, setVaccineStatuses] = useState({});
@@ -788,6 +810,7 @@ export const Attendance = () => {
       }
       
       setHasChanges(false);
+      clearAttendanceDraft();
       
       // Recarrega para atualizar os dados (se online)
       if (isOnline) {
@@ -1067,6 +1090,8 @@ export const Attendance = () => {
     infoSchool, setInfoSchool, infoClass, setInfoClass,
     infoClasses, infoLoading, infoStudents,
     loadAlerts, alertsData,
+    // AutoSave (P1)
+    attendanceDraft, restoreAttendanceDraft, discardAttendanceDraft,
   }), [
     academicYear, availableYears,
     schools, selectedSchool, classes, selectedClass,
@@ -1086,6 +1111,7 @@ export const Attendance = () => {
     reportCourseId, classReport, loadClassReport, generateBimestrePdf,
     infoSchool, infoClass, infoClasses, infoLoading, infoStudents,
     loadAlerts, alertsData,
+    attendanceDraft, restoreAttendanceDraft, discardAttendanceDraft,
   ]);
 
   return (
