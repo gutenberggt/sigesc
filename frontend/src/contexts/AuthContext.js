@@ -582,6 +582,18 @@ export const AuthProvider = ({ children }) => {
     return user.roles && user.roles.length > 0 ? user.roles : [user.role];
   };
 
+  // P0 (Jun/2026) — SessionMonitor: estende a sessão sob demanda (botão
+  // "Continuar conectado"). Força a renovação mesmo se houver baixa atividade.
+  const extendSession = useCallback(async () => {
+    return await refreshAccessToken(true);
+  }, [refreshAccessToken]);
+
+  // P0 (Jun/2026) — SessionMonitor: "Continuar offline" ao expirar a sessão
+  // online. Marca a sessão como offline (preserva dados/rascunhos locais).
+  const enterOfflineMode = useCallback(() => {
+    setIsOfflineSession(true);
+  }, []);
+
   const value = {
     user,
     loading,
@@ -591,6 +603,8 @@ export const AuthProvider = ({ children }) => {
     logoutComplete,
     switchRole,
     getAvailableRoles,
+    extendSession,
+    enterOfflineMode,
     isAuthenticated: !!user,
     accessToken,
     isOfflineSession,

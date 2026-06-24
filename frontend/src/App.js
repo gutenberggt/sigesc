@@ -9,6 +9,7 @@ import { MessagingProvider } from '@/contexts/MessagingContext';
 import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext';
 import { ProgressProvider } from '@/contexts/ProgressContext';
 import ProgressModal from '@/components/ProgressModal';
+import SessionMonitor from '@/components/session/SessionMonitor';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Login } from '@/pages/Login';
@@ -159,6 +160,7 @@ function App() {
         <UnsavedChangesProvider>
         <ProgressProvider>
         <ProgressModal />
+        <SessionMonitor />
         <SonnerToaster
           position="top-right"
           richColors

@@ -1,5 +1,15 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-24 — P0: SessionMonitor global (avisos de expiração + modal "Continuar offline") ✅
+Camada de UX sobre a sessão existente (não altera a lógica de auth do backend).
+- **`contexts/AuthContext.js`:** expõe `extendSession()` (renova o token sob demanda, force) e `enterOfflineMode()`. Atividade humana (digitação/teclado/mouse/scroll/navegação) já mantém a sessão viva via refresh proativo.
+- **`components/session/SessionMonitor.jsx`** (montado global em `App.js`, dentro do Router): contador baseado no `exp` real do access token (TTL 15 min). Avisa **aos ~5 min e ao 1 min** restantes via toast (sonner) com ação **"Continuar conectado"** (renova na hora e zera o contador). Ao expirar de fato (token vencido + renovação falha por ociosidade/sem internet), exibe **modal obrigatório** "Sua sessão online expirou" com **"Entrar novamente"** (logout preservando sessão offline/rascunhos → /login) e **"Continuar offline"** (entra em modo offline, nada é apagado). Em modo offline, o contador é suspenso.
+- **`utils/sessionToken.js`** (lógica pura testável): `getTokenExpMs`, `computeSessionState`.
+- **Testes:** lógica pura 12/12 (Node). Componente compila e monta sem quebrar (login renderiza normalmente com o monitor ativo).
+- **Pendente de homologação (P0):** fluxo visual 5min/1min/expiração em produção — o E2E automatizado foi bloqueado pelo Service Worker do app (intercepta `/api/auth/*` no harness Playwright), limitação do ambiente de teste, não do produto.
+- **Próximo:** P1 (AutoSave Dexie para Notas/Frequência/Conteúdo + restauração) após sua validação. P2: indicador permanente de status (🟢🟡🟠🔴) no cabeçalho + "última sincronização há X min".
+
+
 ## 2026-06-19 — Bugfix P0: "Erro ao salvar notas" (POST /api/grades/batch → 403) ✅
 - **Causa raiz:** no lançamento de notas em lote, `_ensure_can_edit_migrated_grade()` rodava por linha e lançava **403** ao encontrar uma nota MIGRADA (`migrated_from_class_id`, ícone de cadeado) quando o usuário era `professor`/`coordenador`. Isso **abortava o lote inteiro** — daí o relato "a partir da linha 11" (a 1ª nota migrada do lote bloqueava todos os alunos seguintes).
 - **Fix** (`routers/grades.py`, endpoint `/batch`): em vez de lançar 403, a nota migrada bloqueada é **pulada** e as demais são salvas; resposta agora inclui `skipped: [{student_id, reason}]`. Endpoints de edição individual (PUT) seguem lançando 403 (intenção explícita).
