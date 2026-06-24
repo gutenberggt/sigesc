@@ -23,6 +23,15 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Epic P1 CONCLUÍDA: AutoSave anti-perda de dados nos 3 módulos pedagógicos (Jun/2026)
+**Objetivo:** garantir que NADA digitado em formulários críticos seja perdido por expiração de sessão, queda de internet ou fechamento do navegador (escolas rurais).
+**Implementação:** hook `useAutoSaveDraft` + `DraftRestoreBanner` (Dexie/IndexedDB tabela `drafts`, v4). Integrado em:
+- **Notas** (`Grades.js`) e **Frequência** (`Attendance.js`) — já entregues em sessão anterior.
+- **Conteúdo / Objetos de Conhecimento** (`LearningObjects.js`) — ENTREGUE NESTA SESSÃO. Bloco AutoSave (`loFormId`, `loDraftData`, `restoreLoDraft`, `discardLoDraft`) declarado após as flags de nível (correção de TDZ). `formId` isola por turma/componente/data/modo: individual=`content:{classId}:ind:{courseId}:{date}`, multi=`content:{classId}:multi:{date}`. Rascunho preserva `formData` + `selectedCourses` (multi). `clearLoDraft()` no sucesso de `handleSave`/`handleDelete`.
+**Fix de regressão (backend):** `GET /api/courses` retornava 500 (Pydantic ResponseValidationError) por 1 course legado com `nivel_ensino='INFANTIL'`. Adicionado `field_validator _normalize_nivel_ensino` em `CourseBase` (coerce 'INFANTIL'→'educacao_infantil') + migração do dado no MongoDB.
+**Validação E2E (testing_agent iter_100→102):** 10/10 asserts PASS — modo individual e multi-seleção, restauração após reload, limpeza pós-save e isolamento por formId (4 sub-casos). `GET /api/courses` = 200.
+
+
 ## CHANGELOG — Banner "Instalar SIGESC como app" (PWA) (Jun/2026)
 **Objetivo:** elevar a confiabilidade offline sem depender de o usuário saber instalar o PWA manualmente.
 **Implementação (`pages/Login.js`):** banner azul "📲 Instale o SIGESC como aplicativo" exibido quando NÃO está em modo standalone, não foi dispensado e `storagePersisted !== true`. Captura `beforeinstallprompt` → botão **"Instalar app" (1 clique)** via `prompt()`; quando o evento não está disponível, mostra instrução manual (menu ⋯ → Instalar). Esconde via `appinstalled`, ao conceder persistência, ou ao dispensar (X / "Agora não", flag em sessionStorage). data-testids: `install-pwa-banner`, `install-pwa-button`, `install-pwa-dismiss`. SW bump → v2.12.7.

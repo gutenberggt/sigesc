@@ -49,7 +49,7 @@
 
 ## Professor (QA AEE)
 - Email: professor.teste@sigesc.com
-- Senha: Professor@2026
+- Senha: professor123  (NOTA Jun/2026: a senha válida via UI/login é `professor123`. O valor antigo `Professor@2026` NÃO autentica — corrigido após validação E2E do AutoSave P1.)
 - Role: professor (sem lotação override → role efetivo = professor)
 - Mantenedora: SEMED (a991c1ac-56b1-46a8-b122-effedbe19b21)
 - Escola vinculada: ESCOLA TESTE MULTISSERIADA (220d4022-ec5e-4fb6-86fc-9233112b87b2)
