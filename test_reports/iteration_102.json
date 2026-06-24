@@ -1,0 +1,26 @@
+{
+  "summary": "P1 AutoSave (Objetos de Conhecimento, Dexie/IndexedDB) — todos os 3 cenários restantes da iter_101 VALIDADOS via admin gutenberg@sigesc.com em /admin/learning-objects (Escola Teste Multisseriada / 6º ANO A & 9º ano / Matemática & Português). REGRESSÃO: a página carrega sem erro 500 (fix de nivel_ensino 'INFANTIL' funcionando — confirmado via curl GET /api/courses=200 com 23 registros e via UI). CENÁRIO A (individual): digitar conteúdo+prática → 2.5s → reload → reselecionar 6º/Matemática/dia 16 → banner [data-testid='draft-restore-banner'] APARECE → clicar [data-testid='draft-restore-button'] → textarea de Conteúdo e input de Práticas Pedagógicas restaurados com o texto exato (PASS). CENÁRIO B (limpeza após salvar): digitar+salvar dia 18 → reabrir dia 18 → banner NÃO aparece e nenhum draft com sufixo ':2026-06-18' permanece (PASS). CENÁRIO C (isolamento por formId, 4 sub-casos): rascunho criado em 6º ANO A/Matemática/dia 16 não vaza para (a) dia 17 mesma turma/componente, (b) dia 16 com Português (componente diferente), (c) dia 16 com 9º ano/Matemática (turma diferente). Ao voltar para 6º ANO A/Matemática/dia 16 o banner reaparece — confirmando que o key formId='content:{classId}:ind:{courseId}:{date}' isola corretamente (PASS).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "LearningObjects.js > 1700 linhas — segue grande candidato a split (sub-componentes para o calendário, o formulário e o modal de PDF/Cópia).",
+    "Campo 'Práticas Pedagógicas' é <input type=text> e não tem data-testid; campo 'Conteúdo/Objeto' tem data-testid='spellcheck-textarea'. Recomenda-se padronizar data-testids estáveis (ex.: lo-form-conteudo, lo-form-praticas-pedagogicas, lo-form-numero-aulas) para reduzir frágilidade de testes futuros.",
+    "Células do calendário usam <div onClick> em vez de <button> — acessibilidade pobre (sem keyboard/aria). Recomenda-se converter em <button> com aria-disabled para dias bloqueados, e adicionar data-testid={lo-day-AAAA-MM-DD}.",
+    "Validador Pydantic _normalize_nivel_ensino (CourseBase) está corretamente aplicado e a migração funcionou (GET /api/courses=200).",
+    "Fix de TDZ (loFormId/loDraftData declarados após flags de nível) está estável; nenhum ReferenceError observado em 5 navegações + 1 reload."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (regressão GET /api/courses)", "frontend": "100% — 10/10 asserts funcionais aprovados (A: banner+restore conteúdo+restore prática | B: draft limpo + sem banner pós-save | C: 4 isolamentos por formId, todos OK)" },
+  "test_credentials": "Admin gutenberg@sigesc.com / @Celta2007 funciona em /admin/learning-objects (bug 500 da iter_101 corrigido).",
+  "seed_data_creation": "Nenhuma seed criada. Foi salvo 1 registro de teste em 6º ANO A / Matemática / 2026-06-18 (Conteúdo='TEST_SAVE_B_2026 - Conteúdo a ser SALVO no servidor.', Práticas='TEST_PRATICA_B - Aula prática para salvar.', Número de Aulas=1) para validar o Cenário B. Drafts do IndexedDB foram limpos ao final do teste. Recomenda-se que main agent ou próximo testing agent delete este registro via UI (botão lixeira em Editar Registro) se quiser manter banco limpo.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Epic P1 AutoSave (Objetos de Conhecimento) totalmente validado em todos os modos (individual da iter_102 + multi-seleção da iter_101). Padrões úteis para próximos testes em /admin/learning-objects: (1) Login admin → goto /admin/learning-objects → select native <select> nth(0)=Escola, nth(1)=Turma, nth(2)=Componente, nth(3)=Ano. (2) Calendário usa <div class='cursor-pointer'> com <span> contendo o número do dia; clicar via JS no parent. (3) Conteúdo = textarea[data-testid=spellcheck-textarea]; Práticas = input[placeholder*='Aula expositiva']; Cancelar = button:has-text('Cancelar'); Salvar = button:has-text('Salvar'). (4) Aguardar 2-2.5s após digitar para o debounce de 1.2s do useAutoSaveDraft. (5) Banner: [data-testid='draft-restore-banner']; botão restaurar: [data-testid='draft-restore-button']; descartar: [data-testid='draft-discard-button']. (6) Para inspecionar o IDB Dexie, descobrir nome do DB via indexedDB.databases() — o nome usado no projeto não é 'sigesc-offline-db' (essa tentativa falhou). A validação funcional via banner+restore é mais confiável que ler o IDB direto.",
+  "rca of the issue": "N/A — feature funcionando conforme especificado. Único 'FAIL' no log é artefato do script de teste (nome de DB Dexie incorreto no evaluate); funcionalidade real validada end-to-end (banner+restore preservou conteúdo e práticas exatos após reload, e foi limpo após Salvar)."
+}

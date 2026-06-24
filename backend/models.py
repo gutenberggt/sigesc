@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict, EmailStr, model_validator
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, model_validator, field_validator
 from typing import List, Optional, Literal, Dict
 from datetime import datetime, timezone
 import uuid
@@ -830,6 +830,19 @@ class CourseBase(BaseModel):
     # Carga horária diferenciada por série (para componentes como Ciências, História, Geografia)
     # Ex: {"6º Ano": 80, "7º Ano": 120, "8º Ano": 80, "9º Ano": 80}
     carga_horaria_por_serie: Optional[Dict[str, int]] = None
+
+    @field_validator('nivel_ensino', mode='before')
+    @classmethod
+    def _normalize_nivel_ensino(cls, v):
+        # Normaliza valores legados (ex.: 'INFANTIL') para os literais canônicos.
+        if not isinstance(v, str):
+            return v
+        key = v.strip().lower()
+        legacy = {
+            'infantil': 'educacao_infantil',
+            'educacao infantil': 'educacao_infantil',
+        }
+        return legacy.get(key, key)
 
 class CourseCreate(CourseBase):
     pass
