@@ -181,7 +181,11 @@ export const Login = () => {
 
         {/* Card de Login */}
         <div className="bg-white rounded-lg shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Entrar no Sistema</h2>
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-bold text-gray-900">Bem-vindo de volta</h2>
+            <p className="text-base text-gray-700 mt-1">Acesse sua conta</p>
+            <p className="text-sm text-gray-500 mt-0.5">Entre com seu e-mail e senha</p>
+          </div>
 
           {/* Banner: instalar como app (PWA) para garantir acesso offline */}
           {showInstallBanner && (
@@ -242,20 +246,7 @@ export const Login = () => {
             </div>
           )}
 
-          {/* Diagnóstico VISÍVEL da sessão offline (sempre visível na tela de login) */}
-          <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-0.5" data-testid="offline-session-diag">
-            <p className="font-medium text-slate-700">Diagnóstico da sessão offline:</p>
-            <p>• Conexão: <b>{isOnline ? 'ONLINE' : 'OFFLINE'}</b></p>
-            <p>• Sessão salva neste dispositivo: <b>{offlineDiag.has ? 'SIM ✓' : 'NÃO ✗'}</b></p>
-            {offlineDiag.has && (
-              <>
-                <p>• Último login: <b>{offlineDiag.dias != null ? `há ${offlineDiag.dias} dias` : 'sem data registrada'}</b></p>
-                <p>• E-mail salvo: <b>{offlineDiag.savedEmail}</b></p>
-              </>
-            )}
-            <p>• Armazenamento persistente: <b>{storagePersisted === null ? '—' : storagePersisted ? 'SIM ✓' : 'NÃO ⚠ (navegador pode apagar ao fechar)'}</b></p>
-            <p className="text-[10px] text-slate-400 pt-1">build v2.12.7</p>
-          </div>
+          {/* Diagnóstico de sessão offline ocultado a pedido (UI mais limpa) */}
 
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start" data-testid="login-error">
