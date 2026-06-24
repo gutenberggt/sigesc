@@ -1,0 +1,26 @@
+{
+  "summary": "P2 — Indicador Permanente de Status (StatusIndicator) validado E2E como admin gutenberg@sigesc.com. 14/14 asserts PASS: pílula visível no header em /dashboard e /admin/learning-objects (e ao re-navegar), label inicial 'Sincronizado' (verde), popover abre com 'Última sincronização', seção Sessão mostrando 'Ativa (expira em 14min)' via [data-testid='status-session-state'], botão 'Sincronizar agora' DESABILITADO quando online + sem pendências (clique forçado não gera erro), transição offline→online correta ('Offline' cinza → 'Sincronizado' verde) via context.set_offline + window event, OfflineBanner ainda funcional ao perder conexão, FloatingStatusIndicator REMOVIDO (sem testid floating, sem botão flutuante no canto inferior direito além do link 'Aprender Digital'), e pílula visível em viewport mobile 390x844 (label='Sincronizado' continua presente). Sem erros de runtime/console relevantes (apenas WS warnings benignos e 401 do branding pré-login).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "components/OfflineStatus.jsx ainda EXPORTA FloatingStatusIndicator (linha export const FloatingStatusIndicator e re-export no objeto default). Embora não esteja mais sendo usado em Layout.js (confirmado: nenhum import/JSX no Layout), o código morto continua no bundle. Sugestão: remover a definição+export do FloatingStatusIndicator de OfflineStatus.jsx para evitar regressões futuras (alguém importando-o em outra tela reintroduziria o botão flutuante) e reduzir bundle size.",
+    "StatusIndicator.jsx (linhas 102-106): formato de tempo restante usa 'min' apenas; quando restingMs > 1h não aparece horas — para sessões longas (ex.: 60min de JWT) o texto 'Ativa (expira em 59min)' fica OK, mas se o backend aumentar TTL para >60min deveria formatar como '1h05min'. Não é bug atual, apenas observação preventiva.",
+    "useSessionStatus.js: tick de 15s é adequado, sem chamadas ao backend (atende critério de aceite 'sem re-render excessivo / sem chamadas extras'). Bom.",
+    "StatusIndicator não usa React.memo nem useMemo para o objeto 'view' — re-render do contexto (useOffline) ocasionará recálculo. Volume baixo (pílula simples), não bloqueante, mas vale considerar em ondas futuras de perf.",
+    "Acessibilidade do botão: tem aria-label dinâmico ('Status do sistema: {label}'). Bom. Sugestão: adicionar aria-haspopup='dialog' e aria-expanded ligado ao estado do Popover para leitor de tela."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100% — 14/14 asserts PASS (visibilidade desktop & mobile, popover, sessão Ativa, resync desabilitado, offline↔online, OfflineBanner, FloatingStatusIndicator removido, navegação multi-página)" },
+  "test_credentials": "Admin gutenberg@sigesc.com / @Celta2007 funcionou via login UI normalmente.",
+  "seed_data_creation": "Nenhuma seed criada. Nenhum dado de teste persistido. Toggle offline foi revertido para online ao final do script.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "P2 StatusIndicator funcionando em produção (preview env). Testids confirmados: status-indicator, status-indicator-popover, status-session-state, status-resync-button (status-relogin-button NÃO testado — só aparece quando sessão expirada; não é viável forçar em E2E sem manipular JWT direto, e o testing request explicitamente dispensou esse caso). Padrões úteis: (1) Para alterar estado online/offline use BOTH page.context.set_offline(True|False) + page.evaluate(\"window.dispatchEvent(new Event('offline'|'online'))\") para garantir que useOffline atualize. (2) A pílula esconde o texto via classe 'hidden sm:inline' em viewport <640px — mas mantém ícone+dot+aria-label, então is_visible() retorna True e text_content() ainda retorna o label (DOM presente, só não pintado). (3) Popover shadcn fecha com Escape. (4) Sessão JWT do admin tem TTL ~15min — 'Ativa (expira em 14min)' é o estado inicial esperado após login. Critérios de aceite todos atendidos.",
+  "rca of the issue": "N/A — feature P2 implementada corretamente. Não foram encontrados bugs."
+}

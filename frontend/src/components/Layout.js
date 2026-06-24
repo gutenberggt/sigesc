@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { useBranding } from '@/contexts/BrandingContext';
-import { ConnectionStatusBadge, OfflineBanner, FloatingStatusIndicator } from '@/components/OfflineStatus';
+import { OfflineBanner } from '@/components/OfflineStatus';
+import { StatusIndicator } from '@/components/session/StatusIndicator';
 import { useMessaging } from '@/contexts/MessagingContext';
 import { ChatBox } from '@/components/messaging';
 import { useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext';
@@ -113,8 +114,8 @@ export const Layout = ({ children }) => {
 
             {/* Notifications & User Info */}
             <div className="flex items-center space-x-2">
-              {/* Status de Conexão Offline */}
-              <ConnectionStatusBadge showDetails={false} />
+              {/* Status permanente do sistema (conexão + sync + sessão) — P2 */}
+              <StatusIndicator />
               
               {/* Modo Silencioso */}
               <SilentModeToggle />
@@ -197,9 +198,6 @@ export const Layout = ({ children }) => {
         </a>
       </footer>
       
-      {/* Indicador flutuante de status */}
-      <FloatingStatusIndicator />
-
       {/* Chat Box Global */}
       {activeChat && (
         <ChatBox
