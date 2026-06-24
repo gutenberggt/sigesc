@@ -126,44 +126,6 @@ export const LearningObjects = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const { guardedNavigate } = useUnsavedChangesWarning(hasChanges, 'Há alterações de conteúdo não salvas. Deseja sair sem salvar?');
 
-  // AutoSave (P1): persiste o registro de conteúdo em edição no IndexedDB.
-  // formId só fica ativo com o formulário aberto e turma+data definidas.
-  // Diferencia turma, componente (modo individual), data e modo (individual/multi),
-  // garantindo que rascunhos não vazem entre turmas/componentes distintos.
-  const loFormId = useMemo(() => {
-    if (!showForm || !selectedClass || !selectedDate) return null;
-    if (isMultiSelectMode) {
-      return `content:${selectedClass}:multi:${selectedDate}`;
-    }
-    const comp = formCourseId || selectedCourse;
-    if (!comp) return null;
-    return `content:${selectedClass}:ind:${comp}:${selectedDate}`;
-  }, [showForm, selectedClass, selectedDate, isMultiSelectMode, formCourseId, selectedCourse]);
-
-  const loDraftData = useMemo(() => ({
-    formData,
-    selectedCourses: isMultiSelectMode ? selectedCourses : undefined,
-    formCourseId: !isMultiSelectMode ? formCourseId : undefined,
-  }), [formData, selectedCourses, formCourseId, isMultiSelectMode]);
-
-  const {
-    draft: loDraft, clearDraft: clearLoDraft, dismissDraft: dismissLoDraft,
-  } = useAutoSaveDraft({
-    formId: loFormId, data: loDraftData, enabled: hasChanges && showForm,
-    userId: user?.id, route: 'content',
-  });
-
-  const restoreLoDraft = useCallback(() => {
-    if (loDraft?.data?.formData) {
-      setFormData(loDraft.data.formData);
-      if (Array.isArray(loDraft.data.selectedCourses)) setSelectedCourses(loDraft.data.selectedCourses);
-      if (loDraft.data.formCourseId) setFormCourseId(loDraft.data.formCourseId);
-      setHasChanges(true);
-      dismissLoDraft();
-    }
-  }, [loDraft, dismissLoDraft]);
-  const discardLoDraft = useCallback(() => { clearLoDraft(); }, [clearLoDraft]);
-
   // Alert
   const [alert, setAlert] = useState(null);
 
@@ -452,6 +414,45 @@ export const LearningObjects = () => {
     const level = inferEducationLevel(classInfo);
     return ['fundamental_anos_finais', 'eja_final'].includes(level);
   }, [selectedClass, classes]);
+
+  // AutoSave (P1): persiste o registro de conteúdo em edição no IndexedDB.
+  // Declarado APÓS as flags de nível (isMultiSelectMode etc.) para evitar TDZ.
+  // formId só fica ativo com o formulário aberto e turma+data definidas.
+  // Diferencia turma, componente (modo individual), data e modo (individual/multi),
+  // garantindo que rascunhos não vazem entre turmas/componentes distintos.
+  const loFormId = useMemo(() => {
+    if (!showForm || !selectedClass || !selectedDate) return null;
+    if (isMultiSelectMode) {
+      return `content:${selectedClass}:multi:${selectedDate}`;
+    }
+    const comp = formCourseId || selectedCourse;
+    if (!comp) return null;
+    return `content:${selectedClass}:ind:${comp}:${selectedDate}`;
+  }, [showForm, selectedClass, selectedDate, isMultiSelectMode, formCourseId, selectedCourse]);
+
+  const loDraftData = useMemo(() => ({
+    formData,
+    selectedCourses: isMultiSelectMode ? selectedCourses : undefined,
+    formCourseId: !isMultiSelectMode ? formCourseId : undefined,
+  }), [formData, selectedCourses, formCourseId, isMultiSelectMode]);
+
+  const {
+    draft: loDraft, clearDraft: clearLoDraft, dismissDraft: dismissLoDraft,
+  } = useAutoSaveDraft({
+    formId: loFormId, data: loDraftData, enabled: hasChanges && showForm,
+    userId: user?.id, route: 'content',
+  });
+
+  const restoreLoDraft = useCallback(() => {
+    if (loDraft?.data?.formData) {
+      setFormData(loDraft.data.formData);
+      if (Array.isArray(loDraft.data.selectedCourses)) setSelectedCourses(loDraft.data.selectedCourses);
+      if (loDraft.data.formCourseId) setFormCourseId(loDraft.data.formCourseId);
+      setHasChanges(true);
+      dismissLoDraft();
+    }
+  }, [loDraft, dismissLoDraft]);
+  const discardLoDraft = useCallback(() => { clearLoDraft(); }, [clearLoDraft]);
 
   // Determina o número padrão de aulas baseado no nível de ensino da turma
   const defaultNumberOfClasses = useMemo(() => {

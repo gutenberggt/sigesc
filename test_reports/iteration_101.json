@@ -1,0 +1,37 @@
+{
+  "summary": "AutoSave P1 (rascunhos de Objetos de Conhecimento via Dexie/IndexedDB) — TDZ corrigido e funcionalidade core VALIDADA com sucesso no modo multi-seleção (Anos Iniciais / Turma Multi 1-2-3 via professor.teste@sigesc.com / Professor@2026). Cenários testados e PASSARAM: (1) página renderiza sem ReferenceError, (2) autosave debounced 1.2s persiste em Dexie tabela 'drafts' com formId correto 'content:{classId}:multi:{date}', (3) selectedCourses preservados (2 componentes), (4) banner [data-testid='draft-restore-banner'] aparece após reload+reabrir mesmo formId, (5) [data-testid='draft-restore-button'] reidrata o textarea com o conteúdo original e o multi-select com os componentes, (6) [data-testid='draft-discard-button'] remove banner e zera a tabela 'drafts'. Cenários NÃO testados (bloqueados por bug de backend não relacionado): modo individual (Anos Finais/EJA), isolamento entre múltiplas turmas/componentes/datas, limpeza após Salvar.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/courses (coursesAPI.getAll)",
+        "issue": "ResponseValidationError do Pydantic: registro com nivel_ensino='INFANTIL' (maiúsculo) viola o Literal esperado ('educacao_infantil','fundamental_anos_iniciais',...,'global'). Retorna HTTP 500 ao logar como admin/super_admin, bloqueando carregamento de Schools/Classes/Courses em /admin/learning-objects. Stack trace em /var/log/supervisor/backend.err.log.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Normalizar/migrar valor 'INFANTIL' do campo nivel_ensino para 'educacao_infantil' (e demais inconsistências) na coleção de courses do MongoDB. Alternativa: aceitar/coercer no Pydantic via validator. Esse bug impede admin/super_admin de usar /admin/learning-objects e provavelmente outras telas que chamam coursesAPI.getAll().",
+    "Re-testar (com qualquer professor com múltiplas turmas) o cenário de isolamento entre formIds (turmas/componentes/datas distintas) e o cenário de 'limpeza após salvar' — não foi possível esgotar porque a conta professor.teste@sigesc.com tem apenas 1 turma e o admin estava bloqueado pelo 500 do coursesAPI.",
+    "Considerar testar modo individual (formId 'content:{classId}:ind:{courseId}:{date}') com uma turma de Anos Finais/EJA após o fix do backend."
+  ],
+  "critical_code_review_comments": [
+    "TDZ confirmadamente corrigido: loFormId/loDraftData agora declarados APÓS isMultiSelectMode/isDiasLevel/isAnosFinais. Página renderiza limpa.",
+    "useAutoSaveDraft está corretamente integrado: enabled=hasChanges && showForm; loFormId=null quando form fechado (evita salvar lixo); clearLoDraft chamado em handleSave/handleDelete no caminho de sucesso; discardLoDraft chama clearLoDraft (persiste no IDB). DraftRestoreBanner com os 3 data-testid esperados.",
+    "Sugerido (mantido da iter_100): adicionar ESLint no-use-before-define ao projeto para prevenir regressões TDZ; arquivo LearningObjects.js segue >1500 linhas, candidato a split em subcomponentes/hooks."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped — backend issue surfaced incidentalmente)", "frontend": "100% nos cenários multi-select testados (5/8 cenários do briefing). 3/8 cenários NÃO testáveis sem mais turmas/componentes."},
+  "test_credentials": "Professor: professor.teste@sigesc.com / Professor@2026 → FALHOU. Senha que funcionou: professor123. ATENÇÃO: /app/memory/test_credentials.md lista 'Professor@2026' (linha 52) que NÃO funciona via UI; 'professor123' (linha 25) funciona. Recomenda-se ressincronizar.",
+  "seed_data_creation": "Nenhuma seed criada. Rascunhos de teste criados e descartados no IndexedDB do navegador (não persistem entre sessions de teste).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fix #1 prioritário: backend bug nivel_ensino='INFANTIL' em GET /api/courses (500). Após isso, validar como admin os 3 cenários restantes: (a) modo individual (Anos Finais/EJA: formId 'content:{cls}:ind:{course}:{date}'), (b) isolamento entre turmas/componentes/datas (verificar que rascunho de Turma A não aparece em Turma B mesmo na mesma data), (c) limpeza pós-Save (digitar, clicar Salvar com sucesso, reabrir mesma data → banner NÃO aparece). Como professor.teste só tem 1 turma multisseriada, este último cenário pode ser parcialmente testado salvando e reabrindo a mesma data. Senhas: usar professor123 para professor.teste@sigesc.com (não Professor@2026).",
+  "rca of the issue": "Backend bug RCA: alguns documentos de 'courses' no MongoDB têm nivel_ensino com valor legado 'INFANTIL' (uppercase) que não combina com o Literal pydantic atual. Reprodução: login admin/super_admin → /admin/learning-objects → console mostra 500 'Erro ao carregar dados'. Stack: fastapi ResponseValidationError no índice 20 do array → indica que pelo menos o 21º course tem o valor inválido. Mitigação: script de migração ou validator com fallback ('INFANTIL'→'educacao_infantil')."
+}
