@@ -44,6 +44,8 @@ STUDENT_ANCHORED = [
 ]
 
 CONFIRMATION_PHRASE = "CONFIRMO A TRANSFERÊNCIA INSTITUCIONAL"
+ROLLBACK_CONFIRMATION_PHRASE = "CONFIRMO A REVERSÃO DA TRANSFERÊNCIA"
+ROLLBACK_WINDOW_DAYS = 7
 DRY_RUN_TTL_HOURS = 24
 MIN_REASON_LEN = 10
 
@@ -61,6 +63,12 @@ class DryRunRequest(BaseModel):
 
 class ExecuteRequest(BaseModel):
     dry_run_token: str
+    password: str
+    reason: str = Field(..., min_length=MIN_REASON_LEN)
+    confirmation_text: str
+
+
+class RollbackRequest(BaseModel):
     password: str
     reason: str = Field(..., min_length=MIN_REASON_LEN)
     confirmation_text: str
@@ -453,5 +461,230 @@ def setup_router(db, audit_service=None):
         if not doc:
             raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
         return doc
+
+    # ----------------------------------------------------- ROLLBACK (Fase 2)
+    async def _official_doc_emitted_after(class_ids: List[str], student_ids: List[str], executed_at_iso: str):
+        """Detecta a PRIMEIRA emissão de documento oficial (school_documents_log)
+        referente às turmas/alunos movidos, posterior à execução da transferência.
+        Fecha a janela de reversão (criterio 1)."""
+        if not executed_at_iso:
+            return None
+        or_clauses = []
+        if class_ids:
+            or_clauses.append({"class_id": {"$in": class_ids}})
+        if student_ids:
+            or_clauses.append({"student_id": {"$in": student_ids}})
+        if not or_clauses:
+            return None
+        return await db.school_documents_log.find_one(
+            {"emitted_at": {"$gt": executed_at_iso}, "$or": or_clauses},
+            {"_id": 0, "code": 1, "emitted_at": 1, "doc_type": 1, "student_id": 1, "class_id": 1},
+        )
+
+    async def _rollback_eligibility(audit: dict) -> dict:
+        """Avalia se uma transferência executada pode ser revertida.
+        Bloqueia após 7 dias OU após a primeira emissão de documento oficial."""
+        reasons: List[dict] = []
+        status = audit.get("status")
+        if status == "rolled_back":
+            return {"eligible": False, "already_rolled_back": True, "reasons": [], "window_deadline": None}
+        if status != "executed":
+            reasons.append({"code": "NOT_EXECUTED", "label": "Transferência não está no estado 'executada'", "detail": {"status": status}})
+
+        executed_at = audit.get("executed_at")
+        deadline_iso = None
+        if executed_at:
+            deadline = datetime.fromisoformat(executed_at) + timedelta(days=ROLLBACK_WINDOW_DAYS)
+            deadline_iso = deadline.isoformat()
+            if datetime.now(timezone.utc) > deadline:
+                reasons.append({"code": "WINDOW_EXPIRED", "label": f"Janela de {ROLLBACK_WINDOW_DAYS} dias para reversão expirada",
+                                "detail": {"executed_at": executed_at, "deadline": deadline_iso}})
+        else:
+            reasons.append({"code": "NO_EXECUTED_AT", "label": "Transferência sem data de execução"})
+
+        doc = await _official_doc_emitted_after(audit.get("class_ids") or [], audit.get("student_ids") or [], executed_at or "")
+        if doc:
+            reasons.append({"code": "OFFICIAL_DOCUMENT_EMITTED",
+                            "label": "Documento oficial já emitido após a transferência — reversão bloqueada",
+                            "detail": doc})
+
+        if not audit.get("snapshot"):
+            reasons.append({"code": "NO_SNAPSHOT", "label": "Transferência sem snapshot de reversão"})
+
+        return {"eligible": len(reasons) == 0, "reasons": reasons, "window_deadline": deadline_iso}
+
+    @router.get("/{protocol}/rollback-eligibility")
+    async def rollback_eligibility(protocol: str, request: Request):
+        await _require_super_admin(request)
+        audit = await db.school_transfer_audit.find_one({"protocol": protocol}, {"_id": 0, "snapshot": 0})
+        if not audit:
+            raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+        # snapshot foi projetado fora; recoloca a flag de existência
+        snap_count = await db.school_transfer_audit.count_documents({"protocol": protocol, "snapshot.0": {"$exists": True}})
+        audit_for_check = {**audit, "snapshot": [1] if snap_count else []}
+        elig = await _rollback_eligibility(audit_for_check)
+        return {
+            "protocol": protocol,
+            "status": audit.get("status"),
+            "executed_at": audit.get("executed_at"),
+            "rollback_confirmation_phrase": ROLLBACK_CONFIRMATION_PHRASE,
+            "window_days": ROLLBACK_WINDOW_DAYS,
+            **elig,
+        }
+
+    @router.post("/{protocol}/rollback")
+    async def rollback(protocol: str, payload: RollbackRequest, request: Request):
+        user = await _require_super_admin(request)
+
+        # 1) Frase de confirmação textual
+        if (payload.confirmation_text or "").strip() != ROLLBACK_CONFIRMATION_PHRASE:
+            raise HTTPException(status_code=400, detail=f"Frase de confirmação incorreta. Digite exatamente: {ROLLBACK_CONFIRMATION_PHRASE}")
+
+        # 2) Re-autenticação por senha
+        user_doc = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 1})
+        if not user_doc or not verify_password(payload.password, user_doc.get("password_hash", "")):
+            raise HTTPException(status_code=401, detail="Senha incorreta. Re-autenticação falhou.")
+
+        audit = await db.school_transfer_audit.find_one({"protocol": protocol}, {"_id": 0})
+        if not audit:
+            raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+
+        # 3) Idempotência: já revertido → retorna o MESMO protocolo/estado
+        if audit.get("status") == "rolled_back":
+            rb = audit.get("rollback") or {}
+            return {
+                "already_rolled_back": True,
+                "rollback_protocol": rb.get("protocol"),
+                "original_protocol": protocol,
+                "origin_reopened": rb.get("origin_reopened", False),
+                "reverted_counts": rb.get("reverted_counts", {}),
+                "rolled_back_at": rb.get("rolled_back_at"),
+            }
+
+        # 4) Elegibilidade (janela + documento oficial + snapshot)
+        elig = await _rollback_eligibility(audit)
+        if not elig["eligible"]:
+            raise HTTPException(status_code=409, detail={"code": "ROLLBACK_NOT_ALLOWED", "reasons": elig["reasons"]})
+
+        class_ids = audit.get("class_ids") or []
+        snapshot = audit.get("snapshot") or []
+        origin_id = audit.get("origin_school_id")
+        dest_id = audit.get("destination_school_id")
+        tenant = audit.get("mantenedora_id")
+        now = _now_iso()
+
+        # 5) Lock das turmas durante a reversão
+        await db.classes.update_many({"id": {"$in": class_ids}}, {"$set": {"transfer_in_progress": True}})
+
+        reverted: dict = {}
+        try:
+            # 6) Reversão por documento (idempotente: re-setar mesmo valor não tem efeito colateral)
+            for entry in snapshot:
+                coll = entry["collection"]
+                key = entry.get("key")
+                dk = entry.get("doc_key")
+                set_fields = {"school_id": entry.get("old_school_id")}
+                if coll == "classes":
+                    # Restaura school_history EXATO → sem sobreposição e sem lacunas temporais
+                    set_fields["school_history"] = entry.get("old_school_history")
+                    await db.classes.update_one(
+                        {"id": dk},
+                        {"$set": set_fields, "$unset": {"transfer_in_progress": ""}},
+                    )
+                else:
+                    filt = {"_id": ObjectId(dk)} if key == "_id" else {key: dk}
+                    await db[coll].update_one(filt, {"$set": set_fields})
+                reverted[coll] = reverted.get(coll, 0) + 1
+        except Exception as exc:
+            # Falha parcial: NÃO marca rolled_back (pode reexecutar — idempotente). Apenas libera lock.
+            await db.classes.update_many({"id": {"$in": class_ids}}, {"$unset": {"transfer_in_progress": ""}})
+            logger.exception("[school-transfer] falha no rollback")
+            raise HTTPException(status_code=500, detail=f"Falha no rollback: {exc}")
+
+        # Garante limpeza do lock
+        await db.classes.update_many({"id": {"$in": class_ids}}, {"$unset": {"transfer_in_progress": ""}})
+
+        # 7) Reabre a escola origem se foi encerrada exclusivamente por esta transferência
+        origin_reopened = False
+        if audit.get("origin_closed"):
+            sch = await db.schools.find_one({"id": origin_id}, {"_id": 0, "status": 1})
+            if sch and sch.get("status") == "encerrada":
+                await db.schools.update_one(
+                    {"id": origin_id},
+                    {"$set": {"status": "active"}, "$unset": {"encerrada_em": ""}},
+                )
+                origin_reopened = True
+
+        # 8) Protocolo de reversão
+        year = datetime.now().year
+        seq = await db.school_transfer_audit.count_documents({"rollback.protocol": {"$regex": f"^ROLLBACK-{year}-"}}) + 1
+        rb_protocol = f"ROLLBACK-{year}-{seq:06d}"
+
+        # 9) academic_events de reversão (append-only — auditoria imutável; eventos originais permanecem)
+        for cid in class_ids:
+            await db.academic_events.insert_one({
+                "id": str(uuid.uuid4()),
+                "event_type": "reversao_transferencia_institucional",
+                "effective_date": now[:10],
+                "student_id": None,
+                "origin_class_id": cid,
+                "destination_class_id": cid,
+                "origin_school_id": dest_id,       # invertido: volta do destino para a origem
+                "destination_school_id": origin_id,
+                "mantenedora_id": tenant,
+                "rationale": payload.reason,
+                "approval_required": False,
+                "approval_status": "approved",
+                "approved_by_user_id": user.get("id"),
+                "approved_at": now,
+                "created_by_user_id": user.get("id"),
+                "created_at": now,
+                "protocol": rb_protocol,
+                "reverts_protocol": protocol,
+                "supersedes_event_id": None,
+                "superseded_by_event_id": None,
+                "audit_trail": [{"action": "reverted_institutional_transfer", "by_user_id": user.get("id"), "at": now}],
+            })
+
+        # 10) Auditoria imutável da reversão
+        ip = request.client.host if request.client else None
+        ua = request.headers.get("user-agent", "")[:200]
+        rollback_doc = {
+            "protocol": rb_protocol,
+            "rolled_back_by": {"id": user.get("id"), "email": user.get("email")},
+            "rolled_back_at": now,
+            "reason": payload.reason,
+            "original_protocol": protocol,
+            "ip": ip,
+            "user_agent": ua,
+            "reverted_counts": reverted,
+            "origin_reopened": origin_reopened,
+        }
+        await db.school_transfer_audit.update_one(
+            {"id": audit["id"]},
+            {"$set": {"status": "rolled_back", "rollback": rollback_doc}},
+        )
+
+        if audit_service:
+            try:
+                await audit_service.log(
+                    action="update", collection="school_transfer_audit", user=user, request=request,
+                    document_id=audit["id"], school_id=origin_id,
+                    description=f"Reversão de transferência institucional ({rb_protocol}) revertendo {protocol}: {len(class_ids)} turma(s) {dest_id} → {origin_id}",
+                    extra_data={"rollback_protocol": rb_protocol, "original_protocol": protocol,
+                                "reverted_counts": reverted, "origin_reopened": origin_reopened,
+                                "reason": payload.reason},
+                )
+            except Exception:
+                pass
+
+        return {
+            "success": True,
+            "rollback_protocol": rb_protocol,
+            "original_protocol": protocol,
+            "origin_reopened": origin_reopened,
+            "reverted_counts": reverted,
+            "rolled_back_at": now,
+        }
 
     return router

@@ -23,6 +23,19 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Fase 2 CONCLUÍDA (backend): Rollback da Transferência Institucional (Jun/2026)
+**Objetivo:** reversão segura (controle de risco) ANTES de expor a UI da transferência aos gestores.
+**Implementação (`routers/school_transfer.py`):**
+- **`GET /admin/school-transfer/{protocol}/rollback-eligibility`** — informa se a reversão é permitida (para a futura UI/Fase 3).
+- **`POST /admin/school-transfer/{protocol}/rollback`** — super_admin + re-auth por senha + frase `CONFIRMO A REVERSÃO DA TRANSFERÊNCIA`.
+- **Janela de reversão:** 7 dias a partir de `executed_at` OU primeira emissão de documento oficial (detectada em `school_documents_log` por `class_id`/`student_id` com `emitted_at > executed_at`). Bloqueio automático (409 `WINDOW_EXPIRED` / `OFFICIAL_DOCUMENT_EMITTED`).
+- **Reversão completa** usando o `snapshot` já capturado no execute (old_school_id por doc; old_school_history por turma): restaura `classes` (school_id + school_history EXATO → sem sobreposição/lacunas), `students/enrollments/attendance/grades/content_entries/teacher_class_assignments/student_dependencies` e AEE/Bolsa Família.
+- **Idempotente:** re-setar o mesmo valor não gera efeito colateral; 2ª chamada retorna o MESMO `rollback_protocol` (status `rolled_back`). Falha parcial NÃO marca rolled_back (re-execução conclui) e libera o lock.
+- **Reabertura automática** da escola origem se foi encerrada exclusivamente por essa transferência (`origin_closed`).
+- **Auditoria imutável:** quem/quando/justificativa/IP/protocolo original/resultado em `school_transfer_audit.rollback`; evento `reversao_transferencia_institucional` append-only (protocolo `ROLLBACK-{ano}-{seq}`), preservando o evento original.
+**Validação:** `tests/test_school_transfer_rollback.py` — 9/9 PASS cobrindo Execute→Rollback, Rollback×2 (idempotência), fora da janela, pós-documento oficial, falha parcial→recuperação, múltiplas turmas, escola inteira (reabertura), segurança (senha/frase/super_admin) e endpoint de elegibilidade. Regressão Fase 1 (`test_school_transfer.py` + `test_school_resolution.py`) 16/16 PASS. NOTA: backend-only — sem UI ainda (Fase 3).
+
+
 ## CHANGELOG — P2 CONCLUÍDO: Indicador Permanente de Status no header (Jun/2026)
 **Objetivo:** uma única fonte de verdade, sempre visível, do estado do sistema para o professor (conexão + fila de sincronização + sessão), evitando o risco "achei que estava salvo mas há N registros que falharam".
 **Implementação:**
