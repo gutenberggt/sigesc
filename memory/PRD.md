@@ -23,6 +23,16 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — P2 CONCLUÍDO: Indicador Permanente de Status no header (Jun/2026)
+**Objetivo:** uma única fonte de verdade, sempre visível, do estado do sistema para o professor (conexão + fila de sincronização + sessão), evitando o risco "achei que estava salvo mas há N registros que falharam".
+**Implementação:**
+- **Novo hook `hooks/useSessionStatus.js`** (read-only): deriva `sessionState` (active/warn5/warn1/expired) + `remainingMs` do JWT via `getTokenExpMs`/`computeSessionState` (sessionToken.js). Tick de 15s, sem chamadas ao backend. SessionMonitor (P0) intacto.
+- **Novo componente `components/session/StatusIndicator.jsx`**: pílula permanente no header com prioridade por risco pedagógico: 1) 🔴 Sessão expirada, 2) 🔴 Falhas, 3) 🟠 Pendências (com contador), 4) ⚫ Offline, 5) 🔵 Sincronizando, 6) 🟢 Sincronizado. Popover (shadcn) com estado/tempo de sessão, última sincronização, pendências/falhas por categoria, botão "Sincronizar agora" e "Entrar novamente" (quando expirada). data-testids: `status-indicator`, `status-indicator-popover`, `status-session-state`, `status-resync-button`, `status-relogin-button`.
+- **`Layout.js`**: `ConnectionStatusBadge` → `StatusIndicator`; `FloatingStatusIndicator` removido (import, JSX e **definição/exports** apagados de `OfflineStatus.jsx` — sem código morto). `OfflineBanner` mantido como alerta forte de perda de conexão.
+**Arquitetura final de indicadores:** OfflineBanner (evento crítico) · StatusIndicator (estado permanente + ações) · SessionMonitor (avisos/expiração). FloatingStatusIndicator ❌ removido.
+**Validação E2E (testing_agent iter_103):** 14/14 asserts PASS — visível desktop+mobile e em múltiplas páginas, popover com sessão "Ativa (expira em 14min)", resync desabilitado sem pendências, transição offline↔online, OfflineBanner ok, FloatingStatusIndicator ausente. Sem chamadas extras ao backend (tick 15s).
+
+
 ## CHANGELOG — Epic P1 CONCLUÍDA: AutoSave anti-perda de dados nos 3 módulos pedagógicos (Jun/2026)
 **Objetivo:** garantir que NADA digitado em formulários críticos seja perdido por expiração de sessão, queda de internet ou fechamento do navegador (escolas rurais).
 **Implementação:** hook `useAutoSaveDraft` + `DraftRestoreBanner` (Dexie/IndexedDB tabela `drafts`, v4). Integrado em:
