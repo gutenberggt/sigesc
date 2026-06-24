@@ -624,6 +624,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         
         results = []
         audit_changes = []
+        skipped = []
         
         for grade_data in grades:
             # Fase 2 — anti-spoof: valida dependency_id antes de gravar
@@ -646,7 +647,17 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
             }, {"_id": 0})
             
             if existing:
-                _ensure_can_edit_migrated_grade(existing, current_user)
+                # [Fix] Notas migradas (ícone de cadeado) são imutáveis para
+                # professor/coordenador. Antes, a 1ª nota migrada do lote lançava
+                # 403 e ABORTAVA o salvamento de TODOS os alunos seguintes. Agora
+                # apenas PULAMOS a nota bloqueada e seguimos salvando as demais.
+                if existing.get('migrated_from_class_id') and user_role not in ROLES_CAN_EDIT_MIGRATED:
+                    skipped.append({
+                        'student_id': grade_data['student_id'],
+                        'grade_id': existing.get('id'),
+                        'reason': 'migrated_grade_locked'
+                    })
+                    continue
                 grade_keys = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery', 'observations']
                 update_fields = {k: v for k, v in grade_data.items() if k in grade_keys}
                 update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
@@ -728,7 +739,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 extra_data={'changes': audit_changes[:10]}
             )
         
-        return {"updated": len(results), "grades": results}
+        return {"updated": len(results), "grades": results, "skipped": skipped}
 
     @router.delete("/{grade_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_grade(grade_id: str, request: Request):

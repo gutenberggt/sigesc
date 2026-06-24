@@ -20,6 +20,12 @@
 - Email: secretario@sigesc.com
 - Senha: secretario123
 
+## Professor (teste — usado em test_grades_batch_migrated.py)
+- Email: professor.teste@sigesc.com
+- Senha: professor123
+- Role: professor
+- Observação: senha definida via teste (hash_password do app). Usada para validar o fix do 403 em /api/grades/batch (notas migradas).
+
 ## Agente de Vacinas
 - Email: vacinas@sigesc.com
 - Senha: vacinas123

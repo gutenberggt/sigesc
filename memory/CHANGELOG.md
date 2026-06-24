@@ -1,5 +1,12 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-19 — Bugfix P0: "Erro ao salvar notas" (POST /api/grades/batch → 403) ✅
+- **Causa raiz:** no lançamento de notas em lote, `_ensure_can_edit_migrated_grade()` rodava por linha e lançava **403** ao encontrar uma nota MIGRADA (`migrated_from_class_id`, ícone de cadeado) quando o usuário era `professor`/`coordenador`. Isso **abortava o lote inteiro** — daí o relato "a partir da linha 11" (a 1ª nota migrada do lote bloqueava todos os alunos seguintes).
+- **Fix** (`routers/grades.py`, endpoint `/batch`): em vez de lançar 403, a nota migrada bloqueada é **pulada** e as demais são salvas; resposta agora inclui `skipped: [{student_id, reason}]`. Endpoints de edição individual (PUT) seguem lançando 403 (intenção explícita).
+- **Teste:** `tests/test_grades_batch_migrated.py` (PASS) — professor envia lote com nota migrada (1ª) + nota normal: HTTP 200, `updated=1`, migrada em `skipped`, nota migrada intacta, nota normal salva.
+- Credencial de teste adicionada: `professor.teste@sigesc.com / professor123`.
+
+
 ## 2026-06-19 — Fase 1.5 (cont.): Frequência + Rendimento/Ranking temporalizados ✅
 Serviço CENTRAL de escopo temporal por escola (em vez de correção por relatório).
 - **`utils/school_resolution.py` ampliado:**
