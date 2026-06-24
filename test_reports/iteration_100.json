@@ -1,0 +1,47 @@
+{
+  "summary": "AutoSave P1 em Objetos de Conhecimento (LearningObjects.js) NÃO PODE SER TESTADO — a página crasha imediatamente no render com ReferenceError (TDZ) capturado pelo ErrorBoundary. Nenhum dos cenários (salvar rascunho, restaurar, limpar, descartar, isolamento por formId, modo multi-seleção) pode ser validado até o bug ser corrigido.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "LearningObjects.js",
+        "issue": "CRASH: ReferenceError: Cannot access 'isMultiSelectMode' before initialization. O useMemo `loFormId` (linha 133-141) e `loDraftData` (linha 143-147) referenciam `isMultiSelectMode`, que só é declarado na linha 433 (useMemo). Como `const` tem TDZ, a primeira leitura durante o render lança ReferenceError e o ErrorBoundary captura mostrando 'Algo deu errado nesta tela'. A rota /admin/learning-objects (e provavelmente /professor/objetos-conhecimento) fica inacessível.",
+        "selector": "/admin/learning-objects (e /professor/objetos-conhecimento)",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "AutoSave em Objetos de Conhecimento",
+        "issue": "Impossível validar autosave/restauração/limpeza/descarte/isolamento por formId — a página inteira não renderiza devido ao TDZ. Bloqueia todos os 8 cenários do briefing.",
+        "affected_selectors": ["draft-restore-banner", "draft-restore-button", "draft-discard-button"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX CRÍTICO em /app/frontend/src/pages/LearningObjects.js: reordenar declarações para que `isMultiSelectMode` (e idealmente também `isDiasLevel`, `isAnosFinais`, `isInfantilLevel`, `hasValidSelection`, `selectedClassInfo`, `isAnosFinaisOrEja`, `defaultNumberOfClasses`) seja(m) declarado(s) ANTES dos useMemo `loFormId` e `loDraftData`. Recomendação: mover o bloco AutoSave (linhas ~129-165) para LOGO APÓS o bloco de flags por nível de ensino (linhas ~424-471), ou inversamente, mover as flags para antes do AutoSave. Após mover, validar com ESLint (`no-use-before-define`) — atualmente reporta 12 erros incluindo também `showAlert` (linhas 194/226/232/243/247) e `loadRecords` (476/484), que felizmente só são executados em handlers/effects, mas devem ser corrigidos para evitar regressões.",
+    "Re-testar TODOS os 8 cenários de AutoSave após o fix: (1) salvar debounced ~1.2s, (2) reload + banner de restauração, (3) clique em Restaurar reidrata formData/selectedCourses/formCourseId, (4) clique em Descartar limpa, (5) Salvar limpa rascunho, (6) isolamento entre turma/componente/data (formId distinto), (7) modo individual (Anos Finais/EJA), (8) modo multi-seleção (Infantil/Anos Iniciais) preservando selectedCourses.",
+    "Considerar adicionar a regra ESLint `no-use-before-define` ao config do projeto para prevenir esta classe de bug em produção."
+  ],
+  "critical_code_review_comments": [
+    "TDZ bloqueante: `loFormId` (L133) lê `isMultiSelectMode` antes da declaração (L433). Como `const` está em TDZ até a linha de declaração, a primeira execução do callback do useMemo no render lança ReferenceError. Esse padrão já estava funcionando em Grades.js e Attendance.js (referências do briefing) provavelmente porque lá a ordem de declarações está correta. Comparar diff com Grades.js linhas 83-103 e ajustar a ordem em LearningObjects.js.",
+    "Arquivo grande (>1500 linhas) — sugerir extração de subcomponentes (Calendário, FormularioConteudo, ModalCopiar, ModalPdf) e hooks (useLearningObjectsData) para reduzir acoplamento.",
+    "ESLint mostra 12 violações `no-use-before-define` no arquivo. Além das 5 críticas do isMultiSelectMode, há `showAlert` (5x) e `loadRecords` (2x) — esses são chamados dentro de funções, então passam em runtime, mas indicam fragilidade.",
+    "Em handleSave (L904) chama clearLoDraft() somente no caminho de sucesso, mas o catch deixa o rascunho — comportamento correto. OK.",
+    "discardLoDraft (L165) chama clearLoDraft() — correto, persiste a remoção no IndexedDB.",
+    "loFormId retorna null quando showForm=false → o hook useAutoSaveDraft fica inativo, evitando salvar lixo antes do formulário abrir. OK conceitualmente, mas precisa o componente renderizar primeiro."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "0% — página crasha antes de qualquer interação"},
+  "test_credentials": "Admin gutenberg@sigesc.com / @Celta2007 funcionou. Professor professor.teste@sigesc.com falhou com ambas as senhas listadas (professor123 e Professor@2026 → 'Email ou senha incorretos'). Recomenda-se ressincronizar credenciais do professor em /app/memory/test_credentials.md.",
+  "seed_data_creation": "Nenhuma seed criada — bloqueio total antes de poder semear/testar.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Após o main agent reordenar as declarações para corrigir o TDZ, repetir o fluxo: login (admin via /admin/learning-objects ou professor via /professor/objetos-conhecimento), selecionar Escola → Turma → Componente, clicar num dia letivo (verde/clicável), digitar conteúdo + práticas pedagógicas, aguardar 2s, page.reload(), navegar de volta ao mesmo formId e verificar banner [data-testid='draft-restore-banner']. Repetir para: (a) Restaurar, (b) Descartar, (c) Salvar → não deve restaurar, (d) Mudar turma/componente/data → não deve restaurar (formId diferente), (e) Turma de Educação Infantil/Anos Iniciais para validar preservação de selectedCourses no modo multi. Senhas do professor podem precisar ser revalidadas — usar admin como fallback.",
+  "rca of the issue": "Root cause: ordem de declaração de variáveis no componente funcional LearningObjects. O useMemo `loFormId` (L133-141) é declarado ANTES de `isMultiSelectMode` (L433). Como `const` em JS tem Temporal Dead Zone (TDZ) do início do escopo até a linha de declaração, o callback do useMemo, ao ser executado pela primeira vez durante o render inicial, lê `isMultiSelectMode` que ainda está em TDZ → lança ReferenceError. O React Error Boundary captura e exibe 'Algo deu errado nesta tela'. Reprodução: acessar /admin/learning-objects logado como admin (gutenberg@sigesc.com / @Celta2007). Mitigação: mover o bloco de AutoSave (loFormId, loDraftData, useAutoSaveDraft, restoreLoDraft, discardLoDraft — linhas 129-165) para depois das declarações de flags por nível (linhas 424-471), assim como já é feito corretamente em Grades.js e Attendance.js. ESLint com `no-use-before-define` detecta isso (12 erros no arquivo)."
+}
