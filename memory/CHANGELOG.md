@@ -1,5 +1,19 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-24 — P0.1: Modo de Homologação do SessionMonitor 🧪
+Pré-requisito da homologação do P0 (antes do P1). Reduz o teste de 15–20 min para <2 min.
+- Ativação: acesse qualquer página autenticada com **`?sessiondebug=1`** (persiste na aba via `sessionStorage`; desliga com `?sessiondebug=0`).
+- Painel flutuante (canto inferior direito, `data-testid="session-debug-panel"`) com botões:
+  - **Aviso 5 min** → dispara o toast de 5 min (com "Continuar conectado").
+  - **Aviso 1 min** → dispara o toast de 1 min.
+  - **Expira 30s** → expira de fato em 30s e abre o modal (sem renovar silenciosamente).
+  - **Forçar modal** → abre o modal de expiração imediatamente.
+  - **Resetar contador** → limpa o override e volta ao token real.
+- "Continuar conectado" renova de verdade (limpa o override → contador reinicia no token real de 15 min).
+- Não altera o comportamento de produção para usuários finais (painel só aparece com a flag explícita).
+- **Verificação:** compila sem erros; lógica pura 12/12. ⚠️ E2E visual no preview foi bloqueado pelo Service Worker do app (reinicia o SPA e ignora interceptação de `/api` no harness Playwright) — limitação do ambiente de teste, não do produto. Homologação deve ser feita em produção com a flag.
+
+
 ## 2026-06-24 — P0: SessionMonitor global (avisos de expiração + modal "Continuar offline") ✅
 Camada de UX sobre a sessão existente (não altera a lógica de auth do backend).
 - **`contexts/AuthContext.js`:** expõe `extendSession()` (renova o token sob demanda, force) e `enterOfflineMode()`. Atividade humana (digitação/teclado/mouse/scroll/navegação) já mantém a sessão viva via refresh proativo.
