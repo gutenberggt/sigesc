@@ -31,24 +31,40 @@ router = APIRouter(prefix="/grades", tags=["Notas"])
 # compatibilidade administrativa).
 ROLES_CAN_EDIT_MIGRATED = ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']
 
+# Campos que podem ter vindo migrados da turma de origem (frozen por bimestre).
+_MIGRATABLE_GRADE_FIELDS = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery']
 
-def _ensure_can_edit_migrated_grade(grade: dict, user: dict) -> None:
-    """Bloqueia edição de notas migradas para profissionais sem permissão.
 
-    Se a grade tem `migrated_from_class_id`, o registro foi copiado da turma
-    origem em uma ação (remanejar/progredir/reclassificar). Apenas roles
-    administrativas podem alterar; o professor regular precisa solicitar
-    revisão pela secretaria.
+def _frozen_fields_of_migrated_grade(grade: dict) -> set:
+    """Campos congelados de uma nota MIGRADA (turma de DESTINO).
+
+    Jun/2026 — Granularidade por bimestre: na turma de destino, apenas os
+    bimestres que de fato foram MIGRADOS da origem (valor não-nulo) ficam
+    congelados (somente leitura para professor). Os demais bimestres — lançados
+    APÓS a data da ação (remanejo/transferência/progressão/reclassificação) —
+    permanecem editáveis pela professora da turma de destino.
     """
-    if grade and grade.get('migrated_from_class_id'):
-        if user.get('role') not in ROLES_CAN_EDIT_MIGRATED:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    'Esta nota foi migrada da turma de origem do aluno. '
-                    'A edição é restrita a secretário, gerente ou super administrador.'
-                )
-            )
+    if not (grade and grade.get('migrated_from_class_id')):
+        return set()
+    return {k for k in _MIGRATABLE_GRADE_FIELDS if grade.get(k) is not None}
+
+
+def _migrated_bimesters(grade: dict) -> list:
+    """Lista de bimestres [1..4] congelados (migrados) numa nota de destino."""
+    frozen = _frozen_fields_of_migrated_grade(grade)
+    return [b for b in (1, 2, 3, 4) if f'b{b}' in frozen]
+
+
+def _strip_frozen_grade_fields(update_fields: dict, existing: dict, user_role: str) -> dict:
+    """Remove do payload os campos congelados (migrados) quando o usuário não
+    tem papel administrativo. Preserva os valores migrados intactos e mantém
+    editáveis os bimestres posteriores à ação. Não muta o dict original."""
+    if user_role in ROLES_CAN_EDIT_MIGRATED:
+        return dict(update_fields)
+    frozen = _frozen_fields_of_migrated_grade(existing)
+    if not frozen:
+        return dict(update_fields)
+    return {k: v for k, v in update_fields.items() if k not in frozen}
 
 
 async def calculate_and_update_grade(db, grade_id: str):
@@ -364,6 +380,9 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'enrollment_date': enroll_dt,
                 'blocked_before_enrollment': blocked_before,
                 'blocked_after_action': blocked_after,
+                # Jun/2026 — Bimestres MIGRADOS (congelados) na turma de DESTINO:
+                # somente leitura p/ professor; os demais (pós-ação) ficam editáveis.
+                'migrated_bimesters': _migrated_bimesters(grades_map.get(student['id'])),
                 # Fase 2 — Dependência de Estudos
                 'is_dependency': False,
                 'dependency_id': None,
@@ -428,6 +447,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                         'enrollment_date': '',
                         'blocked_before_enrollment': [],
                         'blocked_after_action': [],
+                        'migrated_bimesters': [],
                         # Fase 2 — Dependência
                         'is_dependency': True,
                         'dependency_id': dep.get('id'),
@@ -478,6 +498,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         """Cria ou atualiza nota de um aluno"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
+        user_role = current_user.get('role', '')
 
         # Fase 2 — anti-spoof: valida coerência do dependency_id (se presente).
         if grade_data.dependency_id:
@@ -535,8 +556,10 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         }, {"_id": 0})
         
         if existing:
-            _ensure_can_edit_migrated_grade(existing, current_user)
             update_data = grade_data.model_dump(exclude_unset=True, exclude={'student_id', 'class_id', 'course_id', 'academic_year'})
+            # Jun/2026 — Granular: preserva bimestres migrados (congelados) e
+            # aplica apenas os campos editáveis (bimestres pós-ação) p/ professor.
+            update_data = _strip_frozen_grade_fields(update_data, existing, user_role)
             update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
             
             await current_db.grades.update_one(
@@ -571,13 +594,15 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         """Atualiza notas de um aluno"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
+        user_role = current_user.get('role', '')
         
         grade = await current_db.grades.find_one({"id": grade_id}, {"_id": 0})
         if not grade:
             raise HTTPException(status_code=404, detail="Nota não encontrada")
-        _ensure_can_edit_migrated_grade(grade, current_user)
 
         update_data = grade_update.model_dump(exclude_unset=True)
+        # Jun/2026 — Granular: bimestres migrados ficam congelados; demais editáveis.
+        update_data = _strip_frozen_grade_fields(update_data, grade, user_role)
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
         await current_db.grades.update_one(
@@ -647,19 +672,25 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
             }, {"_id": 0})
             
             if existing:
-                # [Fix] Notas migradas (ícone de cadeado) são imutáveis para
-                # professor/coordenador. Antes, a 1ª nota migrada do lote lançava
-                # 403 e ABORTAVA o salvamento de TODOS os alunos seguintes. Agora
-                # apenas PULAMOS a nota bloqueada e seguimos salvando as demais.
-                if existing.get('migrated_from_class_id') and user_role not in ROLES_CAN_EDIT_MIGRATED:
-                    skipped.append({
-                        'student_id': grade_data['student_id'],
-                        'grade_id': existing.get('id'),
-                        'reason': 'migrated_grade_locked'
-                    })
-                    continue
                 grade_keys = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery', 'observations']
                 update_fields = {k: v for k, v in grade_data.items() if k in grade_keys}
+
+                # Jun/2026 — Granular: na turma de DESTINO, os bimestres MIGRADOS
+                # (congelados) permanecem somente leitura para professor/coordenador,
+                # mas os DEMAIS bimestres (lançados após a data da ação) são editáveis.
+                # Antes, o doc migrado inteiro era pulado, impedindo o lançamento dos
+                # bimestres posteriores ao remanejo/transferência.
+                if existing.get('migrated_from_class_id') and user_role not in ROLES_CAN_EDIT_MIGRATED:
+                    frozen = _frozen_fields_of_migrated_grade(existing)
+                    update_fields = {k: v for k, v in update_fields.items() if k not in frozen}
+                    if not update_fields:
+                        skipped.append({
+                            'student_id': grade_data['student_id'],
+                            'grade_id': existing.get('id'),
+                            'reason': 'migrated_grade_locked'
+                        })
+                        continue
+
                 update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
                 
                 old_values = {k: existing.get(k) for k in update_fields.keys() if k != 'updated_at'}

@@ -201,9 +201,14 @@ export function Grades() {
         return false;
       }
     }
-    // Feb 2026: registro migrado da turma origem → só admin/secretário/gerente/super_admin
+    // Jun/2026 — Granular: registro migrado da turma origem → na turma de DESTINO
+    // apenas os bimestres MIGRADOS (congelados) ficam somente leitura para professor.
+    // Os demais bimestres (lançados após a data da ação) permanecem editáveis.
     if (gradeRecord && gradeRecord.migrated_from_class_id && !isAdminOrSecretary) {
-      return false;
+      const frozen = student.migrated_bimesters || [];
+      if (frozen.includes(bimestre)) {
+        return false;
+      }
     }
     return canEditField(bimestre);
   }, [isStudentBlockedForProfessor, canEditField, isAdminOrSecretary]);

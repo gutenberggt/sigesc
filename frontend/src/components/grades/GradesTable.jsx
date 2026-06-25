@@ -80,8 +80,8 @@ export const GradesTable = () => {
       
       // Tooltip para campos bloqueados por data de matrícula
       const getBlockTooltip = (bim) => {
-        if (isMigratedGrade && !hasRole(user, ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'])) {
-          return 'Nota migrada da turma de origem — apenas secretário, gerente ou super administrador podem editar';
+        if (isMigratedGrade && (item.student.migrated_bimesters || []).includes(bim) && !hasRole(user, ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'])) {
+          return 'Nota/conceito migrado da turma de origem — somente leitura. Os demais bimestres (após a data da ação) podem ser editados.';
         }
         if (item.student.blocked_after_action && item.student.blocked_after_action.includes(bim)) {
           return `${item.student.action_label || 'Movimentado'} - bimestre bloqueado`;

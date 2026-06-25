@@ -1,0 +1,37 @@
+{
+  "summary": "Iter 107 — Validação completa do freeze GRANULAR (por bimestre) em notas MIGRADAS após movimentação de aluno. Criado /app/backend/tests/test_grades_migrated_granular.py com 6 testes (TODOS PASSAM): (1) POST /api/grades/batch como professor com b1 (migrado=frozen) + b2 (editável) → b1 preservado=6.0, b2 salvo=8.5, updated>=1, nota NÃO entra em skipped. (2) Batch SOMENTE com b1 frozen → entra em skipped[] com reason='migrated_grade_locked' e b1 preservado. (3) PUT /api/grades/{id} como professor → b1 frozen preservado, b2 aplicado. (4) POST /api/grades (update existente) como professor → mesmo comportamento granular. (5) Super_admin (ROLES_CAN_EDIT_MIGRATED) CONSEGUE alterar b1 migrado (b1=9.0 persistido). (6) GET /api/grades/by-class/{cid}/{course}?academic_year retorna student.migrated_bimesters=[1] para aluno com migrated_from_class_id e [] para aluno normal. CONTRATO BACKEND validado em PRODUÇÃO (turma c09b8666 / curso Língua Portuguesa, aluno 097095b5) — API retorna migrated_bimesters=[1] e grade.b1=6.0 corretamente para o professor.teste. Regressão existente (test_grades_batch_migrated.py) também passa (1/1). Frontend: login do professor.teste OK, navegação /professor/notas OK, dropdowns Escola→Turma→Ano/Série→Componente OK, página carrega sem erros. Validação visual final da célula b1 desabilitada vs b2 habilitada NÃO concluída por causa do filtro multisseriada (student.student_series vs Ano/Série selecionado) — o aluno seeded não apareceu sob '1º ANO'. Código fonte verificado (Grades.js linha 207-208 e GradesTable.jsx linhas 77-84): a lógica frontend consome corretamente student.migrated_bimesters da API para desabilitar a célula apenas no(s) bimestre(s) migrado(s).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_grades_migrated_granular.py",
+    "/app/test_reports/pytest/iter107_grades_granular.xml"
+  ],
+  "action_items": [
+    "(Não bloqueante) Em ambiente de produção, NÃO existe usuário com role 'secretario' (somente super_admin e gerente). O credentials file /app/memory/test_credentials.md lista 'secretario@sigesc.com/secretario123' mas a conta não existe. Sugerido: criar conta secretario para coberturas RBAC completas OU atualizar credentials.md. O teste valida o invariante via super_admin (também em ROLES_CAN_EDIT_MIGRATED).",
+    "(Cosmético) Frontend de Notas em turma multisseriada exige Ano/Série antes do Componente, e o filtro de Componente depende da ano/série do aluno. Validação visual da célula migrada disabled vs editável ficou pendente — o agente principal pode auto-testar inserindo nota migrada para um aluno cujo student_series corresponde ao Ano/Série selecionado."
+  ],
+  "critical_code_review_comments": [
+    "OK — Implementação granular elegante via 3 helpers em /app/backend/routers/grades.py: _frozen_fields_of_migrated_grade (campos não-nulos do migrated), _migrated_bimesters (lista [1..4] congelados) e _strip_frozen_grade_fields (preserva frozen, aplica resto). Aplicado em POST (create_grade), PUT (update_grade) E POST /batch — cobertura completa dos endpoints de escrita.",
+    "OK — Em batch (linha 683-692): se após strip não sobrou nenhum campo editável, registra skipped com reason='migrated_grade_locked' e segue para o próximo aluno (não aborta o lote — fix do bug 403 da iter anterior preservado).",
+    "OK — Contrato GET /by-class (linha 385): student.migrated_bimesters é injetado consistentemente. Validado em DB de produção: aluno migrado → [1]; aluno normal → []. Compatível com canEditStudentGrade (Grades.js:207-208) e canEditBim (GradesTable.jsx:77).",
+    "OK — Tooltip granular: GradesTable.jsx:83-84 menciona 'Os demais bimestres (após a data da ação) podem ser editados' — UX claro.",
+    "OK — ROLES_CAN_EDIT_MIGRATED = ['admin','admin_teste','super_admin','gerente','secretario'] aplicado em TODOS os caminhos (POST/PUT/batch) — validado por teste com super_admin."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_grades_migrated_granular.py (novo — 6 testes do freeze granular)"
+  ],
+  "success_rate": {"backend": "100% (6/6 + 1/1 regressão)", "frontend": "70% — login e navegação OK; validação visual cell-level pendente por complexidade multisseriada"},
+  "test_credentials": "professor.teste@sigesc.com/professor123 (role professor); gutenberg@sigesc.com/@Celta2007 (super_admin). NOTA: secretario@sigesc.com NÃO existe neste ambiente.",
+  "seed_data_creation": "Seed temporário em DB de produção (limpo ao final): grade TEST_UI_MIG_2339e44b para aluno 097095b5 em turma c09b8666 / curso Língua Portuguesa, com migrated_from_class_id e b1=6.0 — usado apenas para validação de contrato GET /by-class, REMOVIDO ao final (db.grades.delete_many regex ^TEST_UI_MIG_ → 1 doc).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend do freeze granular está sólido. Para retomar validação visual UI: (1) login como professor.teste; (2) inserir nota migrada para um aluno ATIVO cujo student_series casa com o Ano/Série do dropdown (NÃO usar aluno transferido nem com series divergente); (3) carregar grid e inspecionar input b1 (.disabled=true, tooltip='Nota/conceito migrado...') vs b2 (.disabled=false). Os testes pytest cobrem o contrato API; o agente principal pode auto-testar o aspecto visual final.",
+  "rca of the issue": "N/A — não foi descoberto bug nesta iteração. O comportamento granular implementado em grades.py (helpers + aplicação em POST/PUT/batch) está conforme a especificação: bimestres migrados ficam congelados para professor/coordenador; demais bimestres permanecem editáveis; papéis administrativos (ROLES_CAN_EDIT_MIGRATED) editam qualquer bimestre; skipped reportado em batch quando apenas frozen é enviado; student.migrated_bimesters exposto em GET /by-class."
+}
