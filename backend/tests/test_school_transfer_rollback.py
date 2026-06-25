@@ -333,6 +333,26 @@ def test_rollback_partial_failure_then_recovers(auth, world):
     assert _db.classes.find_one({"id": cid})["school_id"] == world["origin"]
 
 
+# ---------------------------------------------------------------- RECEIPT PDF
+def test_receipt_pdf_executed_and_after_rollback(auth, world):
+    protocol = _execute(auth, world)
+    r = auth.get(f"{BASE_URL}/api/admin/school-transfer/{protocol}/receipt", timeout=40)
+    assert r.status_code == 200, r.text[:300]
+    assert r.headers.get("content-type", "").startswith("application/pdf")
+    assert r.content[:4] == b"%PDF"
+    aud = _db.school_transfer_audit.find_one({"protocol": protocol})
+    assert aud.get("receipt", {}).get("token")
+    vdoc = _db.verifiable_documents.find_one({"verification_token": aud["receipt"]["token"]})
+    assert vdoc and vdoc["type"] == "recibo_transferencia_institucional"
+    # recibo NÃO fecha a janela de rollback (não grava school_documents_log)
+    assert _db.school_documents_log.count_documents({"class_id": world["class_ids"][0]}) == 0
+    rb = _rollback(auth, protocol)
+    assert rb.status_code == 200
+    r2 = auth.get(f"{BASE_URL}/api/admin/school-transfer/{protocol}/receipt", timeout=40)
+    assert r2.status_code == 200 and r2.content[:4] == b"%PDF"
+    _db.verifiable_documents.delete_many({"entity_type": "school_transfer", "entity_id": protocol})
+
+
 # ---------------------------------------------------------------- MULTI-CLASS
 def test_rollback_multiple_classes(auth, world_multi):
     protocol = _execute(auth, world_multi)

@@ -1478,3 +1478,22 @@ export const studentDependenciesAPI = {
   delete: async (id) =>
     (await axios.delete(`${API}/student-dependencies/${id}`)).data,
 };
+
+// ============= TRANSFERÊNCIA INSTITUCIONAL (Re-homing) — Fase 3 UI =============
+// Backend: /app/backend/routers/school_transfer.py (super_admin only)
+export const schoolTransferAPI = {
+  dryRun: async (data) =>
+    (await axios.post(`${API}/admin/school-transfer/dry-run`, data)).data,
+  execute: async (data) =>
+    (await axios.post(`${API}/admin/school-transfer/execute`, data)).data,
+  list: async (params = {}) =>
+    (await axios.get(`${API}/admin/school-transfer`, { params })).data,
+  get: async (protocol) =>
+    (await axios.get(`${API}/admin/school-transfer/${protocol}`)).data,
+  rollbackEligibility: async (protocol) =>
+    (await axios.get(`${API}/admin/school-transfer/${protocol}/rollback-eligibility`)).data,
+  rollback: async (protocol, data) =>
+    (await axios.post(`${API}/admin/school-transfer/${protocol}/rollback`, data)).data,
+  receiptBlob: async (protocol) =>
+    (await axios.get(`${API}/admin/school-transfer/${protocol}/receipt`, { responseType: 'blob' })).data,
+};

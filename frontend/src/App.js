@@ -125,6 +125,8 @@ const HRPayroll = lazy(() => import('@/pages/HRPayroll'));
 const MECIntegration = lazy(() => import('@/pages/MECIntegration'));
 const BolsaFamilia = lazy(() => import('@/pages/BolsaFamilia'));
 const BuscaAtivaDashboard = lazy(() => import('@/pages/BuscaAtivaDashboard'));
+const SchoolTransfers = lazy(() => import('@/pages/SchoolTransfers'));
+const SchoolTransferWizard = lazy(() => import('@/pages/SchoolTransferWizard'));
 
 // Loading fallback
 function PageLoader() {
@@ -803,6 +805,24 @@ function App() {
             }
           />
           
+          {/* Transferência Institucional (Fase 3) — Painel + Wizard (super_admin) */}
+          <Route
+            path="/admin/transferencias"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <SchoolTransfers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/transferencias/nova"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <SchoolTransferWizard />
+              </ProtectedRoute>
+            }
+          />
+
           {/* 404 - Rota não encontrada */}
           <Route
             path="*"

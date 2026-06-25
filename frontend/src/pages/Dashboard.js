@@ -33,6 +33,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Revisão de Conteúdo', icon: ClipboardCheck, color: 'blue', route: '/admin/content-review', testId: 'nav-content-review-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('admin_teste') },
       { label: 'Higienização Textual', icon: Sparkles, color: 'violet', route: '/admin/text-improvement', testId: 'nav-text-improvement-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('admin_teste') },
       { label: 'Multi-Tenant', icon: ShieldCheck, color: 'emerald', route: '/admin/tenant', testId: 'nav-tenant-admin-button', visible: c => c.isSuperAdmin },
+      { label: 'Transferências Institucionais', icon: Building2, color: 'blue', route: '/admin/transferencias', testId: 'nav-school-transfers-button', visible: c => c.isSuperAdmin },
     ],
   },
   {

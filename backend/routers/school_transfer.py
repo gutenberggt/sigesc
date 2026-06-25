@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+import hashlib
+import json
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from bson import ObjectId
@@ -28,6 +30,8 @@ from bson import ObjectId
 from auth_middleware import AuthMiddleware
 from auth_utils import verify_password
 from tenant_scope import is_super_admin
+from pdf.transfer_receipt import build_transfer_receipt_pdf
+from services.verifiable_docs_service import create_verifiable_document
 
 logger = logging.getLogger(__name__)
 
@@ -686,5 +690,59 @@ def setup_router(db, audit_service=None):
             "reverted_counts": reverted,
             "rolled_back_at": now,
         }
+
+    # ----------------------------------------------------- RECIBO PDF (Fase 3)
+    @router.get("/{protocol}/receipt")
+    async def receipt(protocol: str, request: Request):
+        user = await _require_super_admin(request)
+        audit = await db.school_transfer_audit.find_one({"protocol": protocol}, {"_id": 0})
+        if not audit:
+            raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+        if audit.get("status") not in ("executed", "rolled_back"):
+            raise HTTPException(status_code=409, detail="Recibo disponível apenas para transferências executadas ou revertidas.")
+
+        origin = await db.schools.find_one({"id": audit.get("origin_school_id")}, {"_id": 0, "id": 1, "name": 1})
+        destination = await db.schools.find_one({"id": audit.get("destination_school_id")}, {"_id": 0, "id": 1, "name": 1})
+
+        # Documento verificável do recibo (reutiliza se já emitido). NÃO grava em
+        # school_documents_log — não é documento de aluno e não fecha a janela de rollback.
+        receipt_meta = audit.get("receipt") or {}
+        code = receipt_meta.get("code")
+        token = receipt_meta.get("token")
+        if not (code and token):
+            canonical = json.dumps({
+                "protocol": protocol,
+                "status": audit.get("status"),
+                "origin": audit.get("origin_school_id"),
+                "destination": audit.get("destination_school_id"),
+                "class_ids": sorted(audit.get("class_ids") or []),
+                "executed_at": audit.get("executed_at"),
+            }, sort_keys=True, ensure_ascii=False)
+            public_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+            vdoc = await create_verifiable_document(
+                db,
+                type="recibo_transferencia_institucional",
+                public_hash=public_hash,
+                server_signature=None,
+                mantenedora_id=audit.get("mantenedora_id"),
+                entity_type="school_transfer",
+                entity_id=protocol,
+                school_id=audit.get("destination_school_id"),
+                issued_by={"id": user.get("id"), "email": user.get("email")},
+                scope_label=f"Transferência {protocol}",
+            )
+            code, token = vdoc["code"], vdoc["verification_token"]
+            await db.school_transfer_audit.update_one(
+                {"protocol": protocol},
+                {"$set": {"receipt": {"code": code, "token": token, "created_at": _now_iso()}}},
+            )
+
+        pdf_bytes = build_transfer_receipt_pdf(
+            audit=audit, origin=origin, destination=destination, code=code, token=token)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename=recibo-{protocol}.pdf"},
+        )
 
     return router
