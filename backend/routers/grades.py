@@ -914,6 +914,8 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         
         try:
             grade_level = student_series or class_info.get('grade_level', '')
+            from services.class_teachers import get_multi_teacher_names_for_pdf
+            teacher_names = await get_multi_teacher_names_for_pdf(current_db, class_info, academic_year)
             buffer = generate_grades_report_pdf(
                 school=school,
                 class_info=class_info,
@@ -922,7 +924,8 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 bimestres=bimestres_list,
                 academic_year=academic_year,
                 grade_level=grade_level,
-                mantenedora=mantenedora
+                mantenedora=mantenedora,
+                teacher_names=teacher_names
             )
             
             class_name = class_info.get('name', 'turma').replace(' ', '_')

@@ -4979,3 +4979,12 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
 - Backend `routers/grades.py`: helpers `_frozen_fields_of_migrated_grade`, `_migrated_bimesters`, `_strip_frozen_grade_fields`; aplicados em POST/PUT/POST batch; GET /by-class agora expõe `student.migrated_bimesters`.
 - Frontend `Grades.js` (canEditStudentGrade) + `GradesTable.jsx` (tooltip) usam `migrated_bimesters` para bloquear só as células migradas.
 - Cobre NOTAS e CONCEITOS (mesma coleção grades). Testado (iteration_107): backend 6/6 + regressão; contrato validado em DB real (migrated_bimesters=[1]).
+
+
+---
+## [Jun/2026] FEATURE: Múltiplos professores nos PDFs (Educação Infantil e Fundamental - Anos Iniciais)
+- Regra: exclusivamente nesses dois níveis, quando a TURMA tem mais de um professor vinculado (distinto), os PDFs de Notas, Frequência e Objetos de Conhecimento passam a exibir "Professores(as): Nome1, Nome2" no cabeçalho/infos E ganham UMA linha extra de assinatura. Turmas com um único professor mantêm o comportamento atual.
+- Novo serviço `services/class_teachers.py` (get_class_teacher_names / get_multi_teacher_names_for_pdf) — lê teacher_assignments (status ativo) + staff (nome/full_name), com fallback de ano letivo.
+- Novo helper `pdf/utils.build_signature_table` (distribui rótulos de assinatura em 2 colunas, permite linha extra).
+- Geradores `pdf/notas.py`, `pdf/frequencia.py`, `pdf/objetos.py` aceitam `teacher_names` e renderizam nomes + assinatura extra; endpoints `grades.py /pdf`, `attendance_ext.py` (frequência) e `learning_objects.py` buscam e repassam os nomes.
+- Verificado: extração de texto dos 3 PDFs (nomes + 2 assinaturas) e E2E HTTP real do PDF de Notas (200, application/pdf, nomes presentes). Seed de teste removido.

@@ -8,7 +8,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade
+from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade, build_signature_table
 
 def generate_relatorio_frequencia_bimestre_pdf(
     school: Dict[str, Any],
@@ -23,7 +23,8 @@ def generate_relatorio_frequencia_bimestre_pdf(
     aulas_previstas: int = 0,
     aulas_ministradas: int = 0,
     teacher_name: str = "",
-    mantenedora: Dict[str, Any] = None
+    mantenedora: Dict[str, Any] = None,
+    teacher_names: List[str] = None
 ) -> BytesIO:
     """
     Gera o PDF do Relatório de Frequência por Bimestre
@@ -218,6 +219,10 @@ def generate_relatorio_frequencia_bimestre_pdf(
     
     # === INFORMAÇÕES DA TURMA (4 colunas x 2 linhas) ===
     col_w = (page_width - 2*cm) / 4
+    if teacher_names:
+        prof_freq_label, prof_freq_value = 'PROFESSORES(AS)', ', '.join(teacher_names)
+    else:
+        prof_freq_label, prof_freq_value = 'PROFESSOR(A)', teacher_name
     
     if is_anos_finais:
         info_data = [
@@ -230,7 +235,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
             [
                 Paragraph(f"<b>NÍVEL:</b> {nivel}", small_text_left),
                 Paragraph(f"<b>{label_previstas}:</b> {aulas_previstas}", small_text_left),
-                Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text_left),
+                Paragraph(f"<b>{prof_freq_label}:</b> {prof_freq_value}", small_text_left),
                 Paragraph(f"<b>{label_ministradas}:</b> {aulas_ministradas}", small_text_left),
             ]
         ]
@@ -244,7 +249,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
             ],
             [
                 Paragraph(f"<b>{label_previstas}:</b> {aulas_previstas}", small_text_left),
-                Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text_left),
+                Paragraph(f"<b>{prof_freq_label}:</b> {prof_freq_value}", small_text_left),
                 Paragraph(f"<b>{label_ministradas}:</b> {aulas_ministradas}", small_text_left),
                 '',
             ]
@@ -394,17 +399,10 @@ def generate_relatorio_frequencia_bimestre_pdf(
     elements.append(Spacer(1, 20))
     
     # Assinaturas
-    assinatura_data = [
-        ['_' * 40, '_' * 40],
-        ['Assinatura do(a) Professor(a)', 'Assinatura do(a) Coordenador(a)']
-    ]
-    assinatura_table = Table(assinatura_data, colWidths=[12*cm, 12*cm])
-    assinatura_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 1), (-1, 1), 5),
-    ]))
-    elements.append(assinatura_table)
+    sig_labels = ['Assinatura do(a) Professor(a)', 'Assinatura do(a) Coordenador(a)']
+    if teacher_names:
+        sig_labels = ['Assinatura do(a) Professor(a)', 'Assinatura do(a) Professor(a)', 'Assinatura do(a) Coordenador(a)']
+    elements.append(build_signature_table(page_width - 2*cm, sig_labels, line_len=40))
     
     doc.build(elements)
     buffer.seek(0)

@@ -10,7 +10,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as canvas_module
-from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade
+from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade, build_signature_table
 
 def generate_learning_objects_pdf(
     school: Dict[str, Any],
@@ -22,7 +22,8 @@ def generate_learning_objects_pdf(
     period_end: str,
     teacher_name: str = "",
     mantenedora: Dict[str, Any] = None,
-    dias_previstos: int = 0
+    dias_previstos: int = 0,
+    teacher_names: List[str] = None
 ) -> BytesIO:
     """Gera PDF do relatório de Objetos de Conhecimento por bimestre"""
     from reportlab.pdfgen import canvas as canvas_module
@@ -154,6 +155,10 @@ def generate_learning_objects_pdf(
     
     # === INFORMAÇÕES DA TURMA ===
     col_w = page_width / 4
+    if teacher_names:
+        prof_field = Paragraph(f"<b>Professores(as):</b> {safe(', '.join(teacher_names))}", info_style)
+    else:
+        prof_field = Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style)
     if is_dias:
         # Anos Iniciais / Ed. Infantil: "Dias Previstos" e "Dias Registrados"
         info_data = [
@@ -164,7 +169,7 @@ def generate_learning_objects_pdf(
                 Paragraph(f"<b>Nível:</b> {safe(nivel)}", info_style),
             ],
             [
-                Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style),
+                prof_field,
                 '',
                 Paragraph(f"<b>Dias Previstos:</b> {dias_previstos}", info_style),
                 Paragraph(f"<b>Dias Registrados:</b> {dias_registrados}", info_style),
@@ -180,7 +185,7 @@ def generate_learning_objects_pdf(
                 Paragraph(f"<b>Nível:</b> {safe(nivel)}", info_style),
             ],
             [
-                Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style),
+                prof_field,
                 '',
                 Paragraph(f"<b>Total de Registros:</b> {total_registros}", info_style),
                 Paragraph(f"<b>Total de Aulas:</b> {total_aulas}", info_style),
@@ -333,20 +338,10 @@ def generate_learning_objects_pdf(
     ))
     elements.append(Spacer(1, 30))
     
-    sig_data = [
-        ['_' * 45, '_' * 45],
-        [
-            Paragraph('Professor(a)', small_center),
-            Paragraph('Coordenador(a) Pedagógico(a)', small_center)
-        ]
-    ]
-    sig_table = Table(sig_data, colWidths=[page_width / 2] * 2)
-    sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 1), (-1, 1), 4),
-    ]))
-    elements.append(sig_table)
+    sig_labels = ['Professor(a)', 'Coordenador(a) Pedagógico(a)']
+    if teacher_names:
+        sig_labels = ['Professor(a)', 'Professor(a)', 'Coordenador(a) Pedagógico(a)']
+    elements.append(build_signature_table(page_width, sig_labels))
     
     # Ajuste #10: Numeração de página "Página X de Y"
     class NumberedCanvas(canvas_module.Canvas):

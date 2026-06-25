@@ -651,6 +651,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Gerar PDF
         try:
+            from services.class_teachers import get_multi_teacher_names_for_pdf
+            teacher_names = await get_multi_teacher_names_for_pdf(db, turma, academic_year)
             pdf_buffer = generate_relatorio_frequencia_bimestre_pdf(
                 school=school,
                 class_info=turma,
@@ -664,7 +666,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 aulas_previstas=aulas_previstas_bimestre,
                 aulas_ministradas=aulas_ministradas_total,
                 teacher_name=teacher_name,
-                mantenedora=mantenedora
+                mantenedora=mantenedora,
+                teacher_names=teacher_names
             )
 
             filename = f"frequencia_{turma.get('name', 'turma')}_{bimestre}bim_{academic_year}.pdf"

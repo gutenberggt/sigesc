@@ -9,7 +9,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as canvas_module
-from pdf.utils import get_logo_image, format_date_pt, get_styles
+from pdf.utils import get_logo_image, format_date_pt, get_styles, build_signature_table
 
 def generate_grades_report_pdf(
     school: Dict[str, Any],
@@ -19,7 +19,8 @@ def generate_grades_report_pdf(
     bimestres: List[int],
     academic_year: int,
     grade_level: str = "",
-    mantenedora: Dict[str, Any] = None
+    mantenedora: Dict[str, Any] = None,
+    teacher_names: List[str] = None
 ) -> BytesIO:
     """Gera PDF do relatório de notas por turma e componente"""
     from reportlab.pdfgen import canvas as canvas_module
@@ -148,6 +149,10 @@ def generate_grades_report_pdf(
         ('SPAN', (0, 1), (1, 1)),
     ]))
     elements.append(info_table)
+    if teacher_names:
+        prof_line_style = ParagraphStyle('GRProfLine', fontSize=8, leading=11, alignment=0)
+        elements.append(Spacer(1, 4))
+        elements.append(Paragraph(f"<b>Professores(as):</b> {', '.join(teacher_names)}", prof_line_style))
     elements.append(Spacer(1, 12))
 
     # === TABELA DE NOTAS ===
@@ -262,18 +267,11 @@ def generate_grades_report_pdf(
     ))
     elements.append(Spacer(1, 30))
 
-    sig_center = ParagraphStyle('GRSigCenter', fontSize=8, leading=10, alignment=1)
-    sig_data = [
-        ['_' * 45, '_' * 45],
-        [Paragraph('Professor(a)', sig_center), Paragraph('Coordenador(a) Pedagógico(a)', sig_center)]
-    ]
-    sig_table = Table(sig_data, colWidths=[page_width / 2] * 2)
-    sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 1), (-1, 1), 4),
-    ]))
-    elements.append(sig_table)
+    sig_labels = ['Professor(a)', 'Coordenador(a) Pedagógico(a)']
+    if teacher_names:
+        # Turma com mais de um professor (Infantil/Anos Iniciais): linha extra de assinatura.
+        sig_labels = ['Professor(a)', 'Professor(a)', 'Coordenador(a) Pedagógico(a)']
+    elements.append(build_signature_table(page_width, sig_labels))
 
     # Numeração de página
     class NumberedCanvas(canvas_module.Canvas):

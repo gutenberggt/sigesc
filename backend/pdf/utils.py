@@ -444,3 +444,37 @@ def inferir_nivel_ensino(class_info, enrollment=None):
         else:
             nivel_ensino = 'fundamental_anos_iniciais'
     return nivel_ensino
+
+
+def build_signature_table(total_width, labels, line_len=45, fontsize=8):
+    """Monta uma tabela de assinaturas a partir de uma lista de rótulos.
+
+    Distribui em 2 colunas por linha; cada bloco tem a linha (underscores) e o
+    rótulo logo abaixo. Permite inserir linha(s) extra(s) de assinatura — por
+    exemplo, quando a turma (Educação Infantil / Anos Iniciais) tem mais de um
+    professor vinculado.
+    """
+    sig_center = ParagraphStyle('SigBuilderCenter', fontSize=fontsize, leading=fontsize + 2, alignment=TA_CENTER)
+    rows = []
+    label_row_idxs = []
+    for i in range(0, len(labels), 2):
+        chunk = labels[i:i + 2]
+        line_cells = ['_' * line_len for _ in chunk]
+        label_cells = [Paragraph(l, sig_center) for l in chunk]
+        if len(chunk) == 1:
+            line_cells.append('')
+            label_cells.append('')
+        rows.append(line_cells)
+        rows.append(label_cells)
+        label_row_idxs.append(len(rows) - 1)
+    t = Table(rows, colWidths=[total_width / 2.0, total_width / 2.0])
+    style = [
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTSIZE', (0, 0), (-1, -1), fontsize),
+    ]
+    for idx in label_row_idxs:
+        style.append(('TOPPADDING', (0, idx), (-1, idx), 4))
+        if idx + 1 < len(rows):  # espaço antes da próxima fileira de linhas
+            style.append(('BOTTOMPADDING', (0, idx), (-1, idx), 20))
+    t.setStyle(TableStyle(style))
+    return t

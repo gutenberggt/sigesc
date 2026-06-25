@@ -520,6 +520,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 pass
 
         try:
+            from services.class_teachers import get_multi_teacher_names_for_pdf
+            teacher_names = await get_multi_teacher_names_for_pdf(db, turma, academic_year)
             pdf_buffer = generate_learning_objects_pdf(
                 school=school,
                 class_info=turma,
@@ -530,7 +532,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 period_end=period_end,
                 teacher_name=teacher_name,
                 mantenedora=mantenedora,
-                dias_previstos=dias_previstos
+                dias_previstos=dias_previstos,
+                teacher_names=teacher_names
             )
 
             course_name_part = ""
