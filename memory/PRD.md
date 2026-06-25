@@ -4961,3 +4961,12 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
   retorna mais alunos errados).
 
 ### Status: ✅ RESOLVIDO
+
+
+---
+## [Jun/2026] UI: Reconstrução de Histórico Pedagógico (P1 concluída)
+- Nova página `/app/frontend/src/pages/HistoryReconstruction.jsx` (rota `/admin/reconstrucao-historico`, super_admin) consumindo `/api/admin/history-reconstruction` (dry-run -> execute -> recibo PDF).
+- Fluxo: seleção de escopo (aluno/turma/escola) + escola/turma/aluno + ano letivo opcional; simulação (dry-run, não altera dados); modal de confirmação com justificativa (min 10) e frase "CONFIRMO A RECONSTRUCAO"; execução idempotente e download de recibo verificável (QR/token).
+- Serviço `historyReconstructionAPI` em `services/api.js`; item de menu `nav-history-reconstruction-button` no grupo Gestão Institucional do Dashboard.
+- Testado (iteration_106): backend 100% (dry-run + idempotência + 403 RBAC); frontend E2E (login -> menu -> dry-run escola/aluno -> validações do modal). Bug corrigido: studentsAPI.getAll retorna dict paginado (extração defensiva aplicada).
+- Status: PENDENTE HOMOLOGAÇÃO DO USUÁRIO.

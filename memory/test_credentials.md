@@ -7,6 +7,7 @@
 ## Coordenador
 - Email: coordenador@sigesc.com
 - Senha: coordenador123
+- NOTA (Jun/2026): esta conta NÃO autentica no ambiente de preview atual. Para testes de RBAC como não super_admin, use a conta REAL `kledbyaschenkel@sigesc.com / 856567` (abaixo).
 
 ## Coordenador (PROD — usado em validação STEP 3 deploy Sprint 1.1, Fev/2026)
 - Email: kledbyaschenkel@sigesc.com
