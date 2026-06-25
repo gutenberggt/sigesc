@@ -20,6 +20,7 @@ import logging
 import uuid
 import hashlib
 import json
+import copy
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -308,7 +309,9 @@ def setup_router(db, audit_service=None):
         for c in classes_docs:
             snapshot.append({"collection": "classes", "key": "id", "doc_key": c["id"],
                              "old_school_id": c.get("school_id"),
-                             "old_school_history": c.get("school_history")})
+                             # deep copy: a lista é mutada in-place no re-homing (passo 8);
+                             # sem a cópia, o snapshot guardaria o histórico PÓS-execução.
+                             "old_school_history": copy.deepcopy(c.get("school_history"))})
         for coll in CLASS_ANCHORED:
             async for d in db[coll].find({"class_id": {"$in": class_ids}}, {"_id": 1, "school_id": 1}):
                 snapshot.append({"collection": coll, "key": "_id", "doc_key": str(d["_id"]),

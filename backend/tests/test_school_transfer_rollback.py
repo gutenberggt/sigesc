@@ -354,6 +354,25 @@ def test_receipt_pdf_executed_and_after_rollback(auth, world):
 
 
 # ---------------------------------------------------------------- MULTI-CLASS
+# ------------------------------------------------ SCHOOL_HISTORY EXACT REVERSAL
+def test_rollback_restores_preexisting_school_history_exactly(auth, world):
+    """Regressão: turma COM school_history pré-existente deve ter o histórico
+    restaurado EXATAMENTE (bug de aliasing — snapshot guardava referência mutada)."""
+    cid = world["class_ids"][0]
+    baseline_history = [{"school_id": world["origin"], "start_date": "2025-01-01", "end_date": None}]
+    _db.classes.update_one({"id": cid}, {"$set": {"school_history": baseline_history}})
+
+    protocol = _execute(auth, world)
+    # pós-execute: 2 segmentos (origem fechado + destino aberto)
+    after_exec = _db.classes.find_one({"id": cid})["school_history"]
+    assert len(after_exec) == 2 and after_exec[-1]["school_id"] == world["dest"] and after_exec[-1]["end_date"] is None
+
+    r = _rollback(auth, protocol)
+    assert r.status_code == 200
+    restored = _db.classes.find_one({"id": cid})["school_history"]
+    assert restored == baseline_history, f"school_history não restaurado: {restored}"
+
+
 def test_rollback_multiple_classes(auth, world_multi):
     protocol = _execute(auth, world_multi)
     for cid in world_multi["class_ids"]:

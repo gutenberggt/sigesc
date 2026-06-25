@@ -23,6 +23,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Homologação Assistida (sandbox isolado) + BUGFIX crítico de rollback (Jun/2026)
+**Entregue (sem novas features — foco em comprovar transferência+rollback em ciclo real):**
+- **Harness de sandbox ISOLADO** `backend/scripts/homolog_transfer_sandbox.py` (subcomandos `seed`/`baseline`/`validate --expect dest|origin`/`teardown`): cria mantenedora + 2 escolas + calendário + turmas + alunos + amostras de TODOS os domínios (frequência, notas, conteúdo, AEE, Bolsa Família), tudo marcado `homolog_sandbox:true` (zero contato com dados reais; teardown idempotente).
+- **Runbook guiado** `memory/HOMOLOGACAO_ASSISTIDA_GUIADA.md` (ciclo dry-run→execute→validate(dest)→receipt→rollback→revalidate(origin) com 7 GATES de decisão humana + critérios de aprovação + contingência) e roteiro completo `memory/HOMOLOGACAO_TRANSFERENCIA_INSTITUCIONAL.md`.
+- **🐞 BUGFIX CRÍTICO (rollback):** o snapshot guardava uma *referência* ao `school_history` da turma, que é mutado in-place no re-homing → a reversão NÃO restaurava o histórico de turmas que já possuíam `school_history` (o segmento do destino permanecia aberto). Corrigido com `copy.deepcopy` na captura do snapshot (`routers/school_transfer.py`). O pytest anterior não pegou porque turmas criadas via API não tinham `school_history`; o harness (dados realistas) expôs.
+- **Regressão:** novo teste `test_rollback_restores_preexisting_school_history_exactly`. Suíte `test_school_transfer_rollback.py` **11/11 PASS**. Ensaio interno do ciclo completo no sandbox: validate(dest) e validate(origin) **TUDO OK**, recibo PDF 200, rollback idempotente + origem reaberta, teardown limpo.
+
+
 ## CHANGELOG — Fase 3 CONCLUÍDA: UI da Transferência Institucional (Wizard + Painel + Recibo PDF/QR) (Jun/2026)
 **Escopo entregue (super_admin):**
 - **Recibo PDF oficial com QR verificável** (backend): `GET /admin/school-transfer/{protocol}/receipt` → PDF (reportlab) com protocolo, origem/destino, turmas, alunos, operador, justificativa, data/hora + rodapé de verificação pública (código + QR → `/v/{token}`). Cria/reutiliza `verifiable_documents` (tipo `recibo_transferencia_institucional`); **não grava em `school_documents_log`** (não fecha a janela de rollback). Builder em `pdf/transfer_receipt.py`.
