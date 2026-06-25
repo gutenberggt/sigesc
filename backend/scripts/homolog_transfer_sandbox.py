@@ -31,11 +31,14 @@ import argparse
 from pathlib import Path
 from datetime import datetime, timezone
 
+import requests
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv(Path(__file__).resolve().parents[2] / "frontend" / ".env")
 db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+API_BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "http://localhost:8001").rstrip("/")
 
 TAG = {"homolog_sandbox": True}
 PFX = "HMLSBX-"
@@ -51,6 +54,9 @@ CLASS_ANCHORED = ["students", "enrollments", "attendance", "grades", "content_en
                   "student_dependencies", "teacher_class_assignments"]
 STUDENT_ANCHORED = ["planos_aee", "atendimentos_aee", "evolucoes_aee", "articulacoes_aee",
                     "bolsa_familia_tracking"]
+
+EXEC_PHRASE = "CONFIRMO A TRANSFERÊNCIA INSTITUCIONAL"
+ROLLBACK_PHRASE = "CONFIRMO A REVERSÃO DA TRANSFERÊNCIA"
 
 GREEN, RED, YEL, RST = "\033[92m", "\033[91m", "\033[93m", "\033[0m"
 
@@ -68,7 +74,7 @@ def student_ids():
 
 
 # --------------------------------------------------------------------- SEED
-def seed():
+def _build_sandbox():
     teardown(silent=True)  # garante estado limpo e idempotente
 
     db.mantenedoras.insert_one({**TAG, "id": MANT_ID, "nome": "MANTENEDORA HOMOLOG SANDBOX",
@@ -122,6 +128,21 @@ def seed():
     print(f"  Ano letivo  : {YEAR}  | Turmas: {N_CLASSES} | Alunos: {N_CLASSES*N_STUDENTS_PER_CLASS}")
     print()
     baseline()
+
+
+def seed():
+    _build_sandbox()
+    print(f"{GREEN}Sandbox criado.{RST}")
+    print(f"  Mantenedora : {MANT_ID}")
+    print(f"  Origem      : {ORIGIN_ID}  (ESCOLA ORIGEM (HOMOLOG))")
+    print(f"  Destino     : {DEST_ID}  (ESCOLA DESTINO (HOMOLOG))")
+    print(f"  Ano letivo  : {YEAR}  | Turmas: {N_CLASSES} | Alunos: {N_CLASSES*N_STUDENTS_PER_CLASS}")
+    print()
+    baseline()
+
+
+def seed_silent():
+    _build_sandbox()
 
 
 # ----------------------------------------------------------------- BASELINE
@@ -237,10 +258,117 @@ def teardown(silent=False):
         print(f"{YEL}Teardown concluído.{RST} Removidos: {removed or 'nada (já limpo)'}")
 
 
+# ------------------------------------------------------------------- CYCLE
+# Smoke test de REGRESSÃO, não-interativo. IMPORTANTE: NÃO certifica o sistema —
+# apenas detecta regressões no ciclo dry-run→execute→validate→receipt→rollback→revalidate.
+def _login(email, password):
+    r = requests.post(f"{API_BASE}/api/auth/login", json={"email": email, "password": password}, timeout=30)
+    r.raise_for_status()
+    d = r.json()
+    s = requests.Session()
+    s.headers.update({"Authorization": f"Bearer {d.get('access_token') or d.get('token')}",
+                      "X-CSRF-Token": d.get("csrf_token") or "", "Content-Type": "application/json"})
+    return s
+
+
+def cycle(email, password):
+    if not password:
+        print(f"{RED}Senha do admin não informada.{RST} Use --password ou a env HOMOLOG_ADMIN_PASSWORD.")
+        return False
+
+    print("=" * 70)
+    print("SMOKE TEST DE REGRESSÃO — Transferência Institucional (sandbox isolado)")
+    print(f"{YEL}AVISO: este teste NÃO certifica o sistema. Ele apenas detecta")
+    print(f"regressões no ciclo automatizado. A certificação exige a homologação")
+    print(f"assistida guiada (com gates de decisão humana) e aprovação formal.{RST}")
+    print("=" * 70)
+
+    steps = []  # (label, ok)
+
+    def step(label, ok, detail=""):
+        steps.append((label, bool(ok)))
+        print(f"  [{GREEN+'PASS'+RST if ok else RED+'FAIL'+RST}] {label} {detail}")
+        return ok
+
+    try:
+        teardown(silent=True)
+        seed_silent()
+        base = _counts()
+        cids = class_ids()
+        s = _login(email, password)
+        B = f"{API_BASE}/api/admin/school-transfer"
+
+        # 1) DRY RUN
+        dr = s.post(f"{B}/dry-run", json={"origin_school_id": ORIGIN_ID, "destination_school_id": DEST_ID,
+                                          "class_ids": cids}, timeout=40)
+        drj = dr.json() if dr.status_code == 200 else {}
+        counts_match = all(drj.get("counts", {}).get(k) == base.get(k)
+                           for k in ["classes", "enrollments", "attendance", "grades", "content_entries",
+                                     "planos_aee", "bolsa_familia_tracking"])
+        step("Dry Run can_execute=true", dr.status_code == 200 and drj.get("can_execute") is True,
+             f"(http={dr.status_code})")
+        step("Dry Run contagens == baseline", counts_match)
+
+        # 2) EXECUTE
+        ex = s.post(f"{B}/execute", json={"dry_run_token": drj.get("dry_run_token"), "password": password,
+                                          "reason": "Smoke test regressao ciclo", "confirmation_text": EXEC_PHRASE}, timeout=60)
+        exj = ex.json() if ex.status_code == 200 else {}
+        proto = exj.get("protocol")
+        step("Execute concluído + origem encerrada", ex.status_code == 200 and exj.get("origin_closed") is True,
+             f"(proto={proto})")
+
+        # 3) VALIDATE DEST
+        print("  --- validate(dest) ---")
+        step("Validação pós-transferência (destino)", validate("dest"))
+
+        # 4) RECEIPT
+        rc = s.get(f"{B}/{proto}/receipt", timeout=40)
+        step("Recibo PDF (200 + %PDF + QR/verificável)",
+             rc.status_code == 200 and rc.content[:4] == b"%PDF")
+
+        # 5) ROLLBACK
+        rb = s.post(f"{B}/{proto}/rollback", json={"password": password, "reason": "Smoke test reversao ciclo",
+                                                   "confirmation_text": ROLLBACK_PHRASE}, timeout=60)
+        rbj = rb.json() if rb.status_code == 200 else {}
+        rb_proto = rbj.get("rollback_protocol")
+        step("Rollback concluído + origem reaberta", rb.status_code == 200 and rbj.get("origin_reopened") is True,
+             f"(proto={rb_proto})")
+
+        # 6) IDEMPOTÊNCIA
+        rb2 = s.post(f"{B}/{proto}/rollback", json={"password": password, "reason": "Smoke test reversao ciclo",
+                                                    "confirmation_text": ROLLBACK_PHRASE}, timeout=60)
+        rb2j = rb2.json() if rb2.status_code == 200 else {}
+        step("Rollback idempotente (mesmo protocolo)",
+             rb2.status_code == 200 and rb2j.get("already_rolled_back") is True and rb2j.get("rollback_protocol") == rb_proto)
+
+        # 7) VALIDATE ORIGIN (inclui school_history restaurado exatamente)
+        print("  --- validate(origin) ---")
+        step("Revalidação pós-rollback (origem)", validate("origin"))
+
+    except Exception as exc:
+        step(f"Exceção inesperada: {exc}", False)
+    finally:
+        teardown(silent=True)
+
+    ok_all = all(ok for _, ok in steps)
+    failed = [lbl for lbl, ok in steps if not ok]
+    print("-" * 70)
+    if ok_all:
+        print(f"{GREEN}NENHUMA REGRESSÃO DETECTADA{RST} ({len(steps)} verificações).")
+    else:
+        print(f"{RED}REGRESSÃO DETECTADA{RST} — falhas: {failed}")
+    print(f"{YEL}Lembrete: resultado verde NÃO certifica o sistema; apenas indica")
+    print(f"ausência de regressões nas verificações automatizadas.{RST}")
+    print("-" * 70)
+    return ok_all
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("command", choices=["seed", "baseline", "validate", "teardown"])
+    p.add_argument("command", choices=["seed", "baseline", "validate", "teardown", "cycle"])
     p.add_argument("--expect", choices=["dest", "origin"], default="dest")
+    p.add_argument("--email", default="gutenberg@sigesc.com")
+    p.add_argument("--password", default=os.environ.get("HOMOLOG_ADMIN_PASSWORD"))
     a = p.parse_args()
     if a.command == "seed":
         seed()
@@ -250,3 +378,5 @@ if __name__ == "__main__":
         sys.exit(0 if validate(a.expect) else 1)
     elif a.command == "teardown":
         teardown()
+    elif a.command == "cycle":
+        sys.exit(0 if cycle(a.email, a.password) else 1)

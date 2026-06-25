@@ -152,6 +152,24 @@ Liberar **somente se TODOS** forem verdadeiros:
 
 ---
 
+## 🔁 Smoke test de REGRESSÃO (não-interativo)
+```bash
+cd /app/backend
+python scripts/homolog_transfer_sandbox.py cycle --password '<senha_super_admin>'
+# ou: HOMOLOG_ADMIN_PASSWORD='<senha>' python scripts/homolog_transfer_sandbox.py cycle
+```
+Roda sozinho o ciclo completo (seed → dry-run → execute → validate(dest) → receipt → rollback →
+idempotência → validate(origin) → teardown) e imprime **NENHUMA REGRESSÃO DETECTADA** ou
+**REGRESSÃO DETECTADA** com a lista de falhas. Exit code 0 = sem regressão; 1 = regressão.
+
+> ⚠️ **REGRA:** o `cycle` **NÃO certifica o sistema** — ele **apenas detecta regressões** nas
+> verificações automatizadas. A **certificação** para liberar aos Super Admins exige a
+> **homologação assistida guiada** (este runbook, com os 7 gates de decisão humana) e a
+> **aprovação formal por escrito** do responsável. Use o `cycle` como guarda de regressão
+> antes de cada release da transferência, nunca como substituto da homologação.
+
+---
+
 ## 📌 Resultado do ensaio interno (automatizado, antes da entrega deste runbook)
 - Ciclo completo executado no sandbox isolado: dry-run → execute → validate(dest) **TUDO OK** → recibo PDF (HTTP 200, `%PDF`) → rollback (idempotente, origem reaberta) → validate(origin) **TUDO OK** → teardown limpo.
 - **Bug encontrado e corrigido durante o ensaio:** o snapshot de rollback guardava uma *referência* ao `school_history` (mutado in-place no re-homing), fazendo a reversão **não restaurar** o histórico de turmas que já possuíam `school_history`. Corrigido com `deepcopy` na captura do snapshot. Teste de regressão adicionado (`test_rollback_restores_preexisting_school_history_exactly`). Suíte: **11/11 PASS**.
