@@ -79,14 +79,33 @@ text-clear-pending: ## Remove itens pending da fila de formatação
 
 # ------------------------------------------------------------
 # GATE de regressão — Transferência Institucional (sandbox isolado)
+# Gate DURO em DUAS camadas formais, com falha global imediata (fail-fast):
+#   Camada 1: smoke E2E do ciclo (cycle)
+#   Camada 2: suíte de 27 testes (transfer + resolution + rollback), estado isolado
+# NÃO certifica o sistema — apenas barra regressões. Liberação = homologação humana.
 # ------------------------------------------------------------
-.PHONY: regression
-regression: ## GATE DURO: smoke test de regressão do ciclo de Transferência (cycle). Exit 1 bloqueia.
-	@echo "============================================================"
-	@echo "GATE DE REGRESSÃO — Transferência Institucional"
-	@echo "Detecta regressões. NÃO certifica o sistema nem libera produção."
-	@echo "Liberação exige homologação assistida (gates humanos) + aprovação formal."
-	@echo "============================================================"
+.PHONY: regression-e2e
+regression-e2e: ## Camada 1: smoke E2E do ciclo (cycle, sandbox isolado)
 	@cd $(BACKEND_DIR) && $(PYTHON) scripts/homolog_transfer_sandbox.py cycle \
 		--email "$${HOMOLOG_ADMIN_EMAIL:-gutenberg@sigesc.com}" \
 		--password "$${HOMOLOG_ADMIN_PASSWORD}"
+
+.PHONY: regression-suite
+regression-suite: ## Camada 2: 27 testes (transfer + resolution + rollback), -x (falha imediata)
+	@cd $(BACKEND_DIR) && $(PYTHON) -m pytest -x -q \
+		tests/test_school_transfer.py \
+		tests/test_school_resolution.py \
+		tests/test_school_transfer_rollback.py
+
+.PHONY: regression
+regression: ## GATE DURO (2 camadas, fail-fast global). Exit 1 bloqueia merge/deploy.
+	@echo "============================================================"
+	@echo "GATE DE REGRESSÃO — Transferência Institucional (2 camadas)"
+	@echo "Detecta regressões. NÃO certifica o sistema nem libera produção."
+	@echo "Liberação exige homologação assistida (gates humanos) + aprovação formal."
+	@echo "============================================================"
+	@echo ">> Camada 1/2: smoke E2E (cycle)"
+	@$(MAKE) --no-print-directory regression-e2e
+	@echo ">> Camada 2/2: suíte de 27 testes"
+	@$(MAKE) --no-print-directory regression-suite
+	@echo "GATE OK — nenhuma regressão (NÃO é certificação de liberação)."

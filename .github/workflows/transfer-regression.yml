@@ -76,11 +76,15 @@ jobs:
           done
           echo "Backend não subiu. Logs:"; tail -n 60 /tmp/backend.log; exit 1
 
-      - name: GATE - make regression (cycle)
+      - name: GATE - make regression (2 camadas, fail-fast)
         working-directory: .
         env:
           HOMOLOG_ADMIN_EMAIL: ${{ env.CI_ADMIN_EMAIL }}
           HOMOLOG_ADMIN_PASSWORD: ${{ env.CI_ADMIN_PASSWORD }}
+          # Camada 2 (suíte 27 testes): self-seed de estado isolado + credenciais do admin de CI
+          CI_SEED_TRANSFER: "1"
+          TRANSFER_TEST_EMAIL: ${{ env.CI_ADMIN_EMAIL }}
+          TRANSFER_TEST_PASSWORD: ${{ env.CI_ADMIN_PASSWORD }}
         run: make regression
 
       - name: Aviso de não-certificação (em caso de PASS)

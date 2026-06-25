@@ -34,8 +34,8 @@ BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL", "https://autosave-drafts.preview.emergentagent.com")
     .rstrip("/")
 )
-EMAIL = "gutenberg@sigesc.com"
-PASSWORD = "@Celta2007"
+EMAIL = os.environ.get("TRANSFER_TEST_EMAIL", "gutenberg@sigesc.com")
+PASSWORD = os.environ.get("TRANSFER_TEST_PASSWORD", "@Celta2007")
 PHRASE = "CONFIRMO A TRANSFERÊNCIA INSTITUCIONAL"
 ROLLBACK_PHRASE = "CONFIRMO A REVERSÃO DA TRANSFERÊNCIA"
 
