@@ -167,13 +167,11 @@ export const Login = () => {
             onError={(e) => { e.target.src = "https://aprenderdigital.top/imagens/logotipo/logosigesc.png"; }}
           />
           <h1
-            className="text-3xl font-bold"
-            style={{ color: branding.primary_color || '#111827' }}
+            className="sr-only"
             data-testid="login-tenant-name"
           >
             {branding.name || 'SIGESC'}
           </h1>
-          <p className="text-gray-600 mt-2">{branding.slogan || 'Sistema Integrado de Gestão Escolar'}</p>
           {branding.secretaria && (
             <p className="text-xs text-gray-500 mt-1">{branding.secretaria}</p>
           )}
@@ -182,9 +180,8 @@ export const Login = () => {
         {/* Card de Login */}
         <div className="bg-white rounded-lg shadow-xl p-8">
           <div className="mb-6 text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Bem-vindo de volta</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Olá! Que bom ter você aqui!</h2>
             <p className="text-base text-gray-700 mt-1">Acesse sua conta</p>
-            <p className="text-sm text-gray-500 mt-0.5">Entre com seu e-mail e senha</p>
           </div>
 
           {/* Banner: instalar como app (PWA) para garantir acesso offline */}
@@ -344,9 +341,11 @@ export const Login = () => {
                 <UserPlus size={20} />
                 Pré-Matrícula
               </Link>
-              <p className="text-xs text-gray-500 text-center mt-2">
-                {isOnline ? 'Realize a pré-matrícula de novos alunos' : 'Pré-matrícula requer conexão com internet'}
-              </p>
+              {!isOnline && (
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  Pré-matrícula requer conexão com internet
+                </p>
+              )}
             </>
           )}
 
