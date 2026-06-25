@@ -23,6 +23,16 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — Fase 3 CONCLUÍDA: UI da Transferência Institucional (Wizard + Painel + Recibo PDF/QR) (Jun/2026)
+**Escopo entregue (super_admin):**
+- **Recibo PDF oficial com QR verificável** (backend): `GET /admin/school-transfer/{protocol}/receipt` → PDF (reportlab) com protocolo, origem/destino, turmas, alunos, operador, justificativa, data/hora + rodapé de verificação pública (código + QR → `/v/{token}`). Cria/reutiliza `verifiable_documents` (tipo `recibo_transferencia_institucional`); **não grava em `school_documents_log`** (não fecha a janela de rollback). Builder em `pdf/transfer_receipt.py`.
+- **Wizard de 5 etapas** (`pages/SchoolTransferWizard.jsx`, rota `/admin/transferencias/nova`): Etapa 1 Origem/Destino (destino filtrado pela mesma mantenedora + resumo de turmas); Etapa 2 Seleção (escola inteira ou turmas específicas + impacto previsto); Etapa 3 Dry Run obrigatório (contagens + validações 🟢🟡🔴, avanço bloqueado sem `can_execute`); Etapa 4 Confirmação forte (senha + justificativa ≥10 + frase exata + resumo); Etapa 5 Resultado (protocolo, data/hora, prazo de reversão).
+- **Painel administrativo** (`pages/SchoolTransfers.jsx`, rota `/admin/transferencias`): tabela com protocolo, origem, destino, data, operador, status, reversível (dias restantes) e ações Visualizar / Gerar recibo / Reverter (modal com re-auth + frase). Card de acesso no Dashboard (`nav-school-transfers-button`).
+- **Frontend API** `schoolTransferAPI` em `services/api.js`.
+**Validação:** testing_agent iter_104 — **29/29 PASS** (wizard etapas 1→4 + painel; execução real NÃO disparada por ser destrutiva). Recibo PDF/QP e rollback validados no backend via pytest (`test_school_transfer_rollback.py` 11/11, incl. recibo). Painel sem linhas na preview (estado de dados, não bug).
+**Pendência conhecida:** ações do painel (view/receipt/rollback) não exercitadas via UI por ausência de transferência `executed` persistida na preview — cobertas no nível de API (pytest). Itens adiados por decisão do usuário: integração StatusIndicator↔transferências, notificações, dashboard de métricas, Censo.
+
+
 ## CHANGELOG — Fase 2 CONCLUÍDA (backend): Rollback da Transferência Institucional (Jun/2026)
 **Objetivo:** reversão segura (controle de risco) ANTES de expor a UI da transferência aos gestores.
 **Implementação (`routers/school_transfer.py`):**
