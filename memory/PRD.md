@@ -23,6 +23,15 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## AUDITORIA (Jun/2026) — Movimentação de Alunos (sem implementação): `memory/AUDITORIA_MOVIMENTACAO_ALUNOS.md`
+Evidência real (código + execução em banco isolado `scripts/_audit_student_movement.py`). Conclusões:
+- Mecanismo canônico **EXISTE**: `copy-data` (copia notas+frequência origem→destino) + `build_consolidated_history` (Histórico Escolar; notas agregadas por student+ano+curso, independente da turma atual; escola via `school_history[]`).
+- **Remanejamento/Progressão/Reclassificação** = mesmo caminho (`PUT /students/{id}` + `copy-data` frontend). Origem preservada; notas/frequência duplicadas (idempotente no retorno); AEE e Bolsa Família intactos (ancorados em student_id).
+- **Transferência entre escolas** = motor próprio (class-anchored), mais íntegro, inclui `content_entries`, sem duplicação, com rollback.
+- **LACUNAS/RISCOS:** (1) `content_entries` NÃO copiado em remanej/progr/reclass; (2) Histórico **duplica o ano/série** (1 linha por turma cursada no ano) → risco legal; (3) `copy-data` é frontend-triggered e **fail-silent** (perda silenciosa se falhar); (4) nova matrícula usa `now().year` em vez do ano da turma; (5) risco de dupla contagem de frequência em agregações por aluno×ano.
+- **Decisão recomendada:** corrigir fluxos (P0: consolidação no backend, incluir conteúdo, dedup do histórico, herdar ano da turma) + criar ferramenta P1 "Reconstrução de Histórico Pedagógico" para dados legados. **Aguardando aprovação do usuário antes de implementar.**
+
+
 ## CHANGELOG — GATE de regressão em CI (gate duro automático + gate humano final) (Jun/2026)
 **Arquitetura aprovada:** `cycle` = gate DURO automático (detecta regressão, bloqueia merge/deploy) · homologação assistida = gate HUMANO final (7 gates + aprovação formal) · produção só libera com os dois. CI **não** substitui os gates humanos.
 - **`make regression`** (Makefile): GATE DURO em **2 camadas formais, fail-fast global**. Camada 1 = smoke E2E (`cycle`, sandbox isolado, 8 verificações). Camada 2 = **suíte de 27 testes** (`test_school_transfer.py` 6 + `test_school_resolution.py` 10 + `test_school_transfer_rollback.py` 11) com `pytest -x` (falha imediata). Se qualquer camada falhar, o gate aborta com exit 1 (bloqueia merge/deploy). Banner reforça "NÃO certifica o sistema".
