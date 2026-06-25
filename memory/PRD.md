@@ -4970,3 +4970,12 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
 - Serviço `historyReconstructionAPI` em `services/api.js`; item de menu `nav-history-reconstruction-button` no grupo Gestão Institucional do Dashboard.
 - Testado (iteration_106): backend 100% (dry-run + idempotência + 403 RBAC); frontend E2E (login -> menu -> dry-run escola/aluno -> validações do modal). Bug corrigido: studentsAPI.getAll retorna dict paginado (extração defensiva aplicada).
 - Status: PENDENTE HOMOLOGAÇÃO DO USUÁRIO.
+
+
+---
+## [Jun/2026] FIX: Freeze GRANULAR por bimestre de notas/conceitos migrados (movimentação de aluno)
+- Bug: na turma de DESTINO o controle temporal não estava por bimestre — a nota migrada (1º bim) e os demais bimestres eram tratados de forma errada (doc migrado inteiro era bloqueado para o professor, impedindo lançar bimestres pós-ação).
+- Regra implementada: na turma de destino, apenas os bimestres MIGRADOS da origem ficam SOMENTE LEITURA para professor/coordenador; os bimestres lançados APÓS a data da ação (remanejo/transferência/progressão/reclassificação) ficam EDITÁVEIS. Papéis administrativos (admin/secretario/gerente/super_admin) editam qualquer bimestre.
+- Backend `routers/grades.py`: helpers `_frozen_fields_of_migrated_grade`, `_migrated_bimesters`, `_strip_frozen_grade_fields`; aplicados em POST/PUT/POST batch; GET /by-class agora expõe `student.migrated_bimesters`.
+- Frontend `Grades.js` (canEditStudentGrade) + `GradesTable.jsx` (tooltip) usam `migrated_bimesters` para bloquear só as células migradas.
+- Cobre NOTAS e CONCEITOS (mesma coleção grades). Testado (iteration_107): backend 6/6 + regressão; contrato validado em DB real (migrated_bimesters=[1]).
