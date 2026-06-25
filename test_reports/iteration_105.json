@@ -1,0 +1,32 @@
+{
+  "summary": "Backend-only validation (P0) — Consolidação pedagógica no BACKEND na movimentação de alunos + Reconstrução de Histórico. Executei tests/test_student_movement_consolidation.py de forma independente contra a URL pública (REACT_APP_BACKEND_URL): 5/5 PASS. Também verifiquei via curl que a proteção de super_admin nos endpoints de reconstrução está ativa (401 sem auth com body válido). Todos os critérios de aceite do usuário foram validados: (1) origem preservada após PUT /api/students/{id} com action_hint='remanejamento'; (2) destino recebe automaticamente attendance + grades + content_entries SEM /copy-data do front; (3) idempotência confirmada (repetir PUT e POST /copy-data não duplica); (4) histórico consolidado deduplica (1 registro por ano/série, frequência 50% sem dupla contagem); (5) dry-run conta divergências sem alterar; (6) execute retorna protocolo RECON-AAAA-NNNNNN e applied_counts e reaplica idempotente; (7) recibo PDF (%PDF, 200) servido; (8) endpoints exigem super_admin (401 sem auth).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/history-reconstruction/execute", "issue": "Sem token, body inválido (ex.: reason curto) retorna 422 ao invés de 401 — Pydantic valida antes do dep de auth. Com body válido retorna 401 corretamente. Cosmético; idealmente mover dependência de auth para antes da validação do body."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_student_movement_consolidation.py",
+    "/app/test_reports/pytest/movement_consolidation.xml"
+  ],
+  "action_items": [
+    "(Opcional/cosmético) Reordenar dependências em /api/admin/history-reconstruction/execute para que require_super_admin seja avaliado antes do parse do body (401 em vez de 422 quando o body está malformado sem auth).",
+    "(Não relacionado a este PR) Regressões pré-existentes: test_rematricula_transferido_regression.py (3) usa class_id 'repro_cls_c_*' que não existe (422 'Turma inexistente') e test_freeze_origin_and_migration.py/test_freeze_migration_extra.py (3) chamam endpoints sem header X-CSRF-Token (403 'CSRF token inválido ou ausente'). Esses testes precisam ser atualizados ao novo contrato (CSRF obrigatório + fixtures de turma)."
+  ],
+  "critical_code_review_comments": [
+    "consolidate_student_movement chamado dentro do PUT students sem fail-silent — corretíssimo: erro de consolidação propaga 500 ao cliente (auditável).",
+    "build_consolidated_history aplica DEDUP por (ano_letivo, série) usando MAX da frequência — evita dupla-contagem mesmo se múltiplas turmas no mesmo ano existirem. Confirmado via test_historico_dedup_single_record (frequência = 50% pós-fusão).",
+    "Idempotência garantida tanto pelo PUT (no-op em B->B) quanto pelo /copy-data (verifica e não duplica content_entries/grades).",
+    "Recibo PDF inclui %PDF magic bytes — OK. Não validei conteúdo do QR neste run (fora do escopo P0)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5 PR-scope)", "frontend": "n/a (skipped por solicitação)"},
+  "test_credentials": "super_admin gutenberg@sigesc.com / @Celta2007 (de /app/memory/test_credentials.md)",
+  "seed_data_creation": "Sandbox MOVTEST-* (mantenedora/escola/calendário/curso/2 turmas/aluno/matrícula/grade/2 attendance/1 content_entry) criado e removido automaticamente pela fixture 'world' (self-teardown). Sem efeito em dados de produção.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Suite oficial: pytest backend/tests/test_student_movement_consolidation.py -v. Endpoints chave: PUT /api/students/{id} com {class_id, action_hint:'remanejamento'} (consolida no backend); POST /api/students/{id}/copy-data (idempotente, delega ao serviço); POST /api/admin/history-reconstruction/dry-run|execute, GET /api/admin/history-reconstruction/{protocol}/receipt (super_admin). Pré-existentes não relacionados: 6 testes legados (rematricula_transferido, freeze_origin/extra) falham por CSRF/fixture — não bloqueiam este PR.",
+  "rca of the issue": "n/a — feature aprovada. Único achado menor: ordem de avaliação de auth vs validação Pydantic no /execute (422 antes de 401 quando body inválido sem token)."
+}

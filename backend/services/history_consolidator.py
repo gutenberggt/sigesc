@@ -238,8 +238,44 @@ async def build_consolidated_history(db, *, student_id: str,
             "_consolidated": True,
             "_class_id": class_id,
             "_school_id": school_id,
+            "_active": (enr.get("status") or "") in ("active", "Ativo"),
         })
         years_covered.add(year)
+
+    # 2.1) DEDUP por (ano_letivo, série): troca de turma no mesmo ano gera UM único
+    # registro (documento legal não pode repetir a série). Une as notas de todas as
+    # turmas do ano e usa a MAIOR frequência (cópias idênticas entre turmas) — evita
+    # dupla contagem. Mantém rastreabilidade em `_merged_class_ids`.
+    from collections import OrderedDict
+    _grouped = OrderedDict()
+    for r in records:
+        _grouped.setdefault((r["ano_letivo"], r["serie"]), []).append(r)
+
+    def _merge_year_serie(recs):
+        if len(recs) == 1:
+            recs[0]["_merged_class_ids"] = [recs[0]["_class_id"]]
+            return recs[0]
+        # base: matrícula ativa, senão a com mais notas
+        best = max(recs, key=lambda r: (1 if r.get("_active") else 0, len(r.get("grades") or {})))
+        merged = dict(best)
+        g = {}
+        for r in recs:
+            g.update(r.get("grades") or {})
+        merged["grades"] = g
+        freqs = [r["frequencia"] for r in recs if isinstance(r["frequencia"], (int, float))]
+        if freqs:
+            merged["frequencia"] = max(freqs)
+        if g:
+            merged_avg = round(sum(g.values()) / len(g), 1)
+            merged["resultado"] = _classify_resultado(
+                enrollment_status="active" if any(r.get("_active") for r in recs) else "",
+                grade_avg=merged_avg, freq_pct=(merged["frequencia"] if isinstance(merged["frequencia"], (int, float)) else None),
+                media_aprovacao=media_aprovacao,
+            )
+        merged["_merged_class_ids"] = [r["_class_id"] for r in recs]
+        return merged
+
+    records = [_merge_year_serie(v) for v in _grouped.values()]
 
     # 3) Junta com registros manuais (escolas anteriores fora do SIGESC).
     manual = await db.student_history.find_one(

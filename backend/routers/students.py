@@ -25,6 +25,7 @@ from models import Student, StudentCreate, StudentUpdate
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 from utils.serie_canonical import canonicalize_serie, UNRECOGNIZED_KEY
+from services.pedagogical_consolidation import consolidate_student_movement
 
 router = APIRouter(prefix="/students", tags=["Alunos"])
 
@@ -1614,7 +1615,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 action_type = 'remanejamento'
                 enrollment_inactive_status = 'relocated'
             
-            academic_year = datetime.now().year
+            # Ano letivo herdado da TURMA destino (corrige fragmentação por now().year).
+            _dest_cls = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "academic_year": 1})
+            academic_year = (_dest_cls or {}).get("academic_year") or datetime.now().year
             
             # Lê a matrícula ativa de ORIGEM antes de qualquer mutação.
             old_enrollment = await current_db.enrollments.find_one(
@@ -1663,6 +1666,23 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Este aluno já possui matrícula ativa na turma de destino."
+                )
+
+            # CONSOLIDAÇÃO PEDAGÓGICA (backend, idempotente): leva frequência, notas
+            # e CONTEÚDO da origem para o destino. Não depende mais do frontend.
+            # Falha aqui é VISÍVEL (não silenciosa); como é idempotente, pode reexecutar.
+            try:
+                consolidation_result = await consolidate_student_movement(
+                    current_db, student_id=student_id,
+                    source_class_id=old_class_id, target_class_id=new_class_id,
+                    academic_year=academic_year,
+                )
+            except Exception:
+                logger.exception("[movement] falha na consolidação pedagógica")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Movimentação registrada, mas a consolidação pedagógica falhou. "
+                           "Reexecute a ação ou use Reconstrução de Histórico Pedagógico."
                 )
             
             new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
@@ -2228,94 +2248,22 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 detail="Aluno não encontrado"
             )
 
-        migrated_at_iso = datetime.now(timezone.utc).isoformat()
-        copied_data = {"attendance_records": 0, "grades_records": 0}
-
-        # ============== Frequência ==============
-        attendances = await current_db.attendance.find({
-            "class_id": source_class_id,
-            "academic_year": academic_year,
-            "records.student_id": student_id
-        }, {"_id": 0}).to_list(1000)
-
-        for att in attendances:
-            existing = await current_db.attendance.find_one({
-                "class_id": target_class_id,
-                "date": att['date'],
-                "academic_year": academic_year
-            })
-
-            student_record = None
-            for rec in att.get('records', []):
-                if rec['student_id'] == student_id:
-                    student_record = dict(rec)  # copia para não mutar origem
-                    break
-
-            if not student_record:
-                continue
-
-            # Marca como migrado
-            student_record['migrated_from_class_id'] = source_class_id
-            student_record['migrated_at'] = migrated_at_iso
-
-            if existing:
-                existing_records = [r for r in existing.get('records', []) if r['student_id'] != student_id]
-                existing_records.append(student_record)
-                await current_db.attendance.update_one(
-                    {"id": existing['id']},
-                    {"$set": {"records": existing_records}}
-                )
-            else:
-                new_attendance = {
-                    "id": str(uuid.uuid4()),
-                    "class_id": target_class_id,
-                    "date": att['date'],
-                    "academic_year": academic_year,
-                    "records": [student_record],
-                    "period": att.get('period', 'regular'),
-                    "course_id": att.get('course_id'),
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await current_db.attendance.insert_one(new_attendance)
-
-            copied_data["attendance_records"] += 1
-
-        # ============== Notas ==============
-        # Regra Feb 2026: copia notas em TODAS as 4 ações (antes era só remanejamento)
-        grades = await current_db.grades.find({
-            "class_id": source_class_id,
-            "student_id": student_id,
-            "academic_year": academic_year
-        }, {"_id": 0}).to_list(200)
-
-        for grade in grades:
-            existing_grade = await current_db.grades.find_one({
-                "class_id": target_class_id,
-                "student_id": student_id,
-                "course_id": grade.get('course_id'),
-                "academic_year": academic_year
-            })
-
-            if existing_grade:
-                continue  # idempotente — não sobrescreve nota já existente no destino
-
-            new_grade = {
-                **grade,
-                "id": str(uuid.uuid4()),
-                "class_id": target_class_id,
-                "migrated_from_class_id": source_class_id,
-                "migrated_at": migrated_at_iso,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            await current_db.grades.insert_one(new_grade)
-            copied_data["grades_records"] += 1
-
+        # Delega ao serviço canônico idempotente (frequência + notas + CONTEÚDO).
+        result = await consolidate_student_movement(
+            current_db, student_id=student_id,
+            source_class_id=source_class_id, target_class_id=target_class_id,
+            academic_year=academic_year,
+        )
         return {
-            "message": f"Dados copiados com sucesso ({copy_type})",
+            "message": f"Dados consolidados com sucesso ({copy_type})",
             "student_id": student_id,
             "source_class_id": source_class_id,
             "target_class_id": target_class_id,
-            "copied_data": copied_data
+            "copied_data": {
+                "attendance_records": result.get("attendance", 0),
+                "grades_records": result.get("grades", 0),
+                "content_records": result.get("content_entries", 0),
+            },
         }
 
     # ============= CPF VALIDATION =============
