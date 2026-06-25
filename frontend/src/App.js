@@ -126,6 +126,7 @@ const MECIntegration = lazy(() => import('@/pages/MECIntegration'));
 const BolsaFamilia = lazy(() => import('@/pages/BolsaFamilia'));
 const BuscaAtivaDashboard = lazy(() => import('@/pages/BuscaAtivaDashboard'));
 const SchoolTransfers = lazy(() => import('@/pages/SchoolTransfers'));
+const HistoryReconstruction = lazy(() => import('@/pages/HistoryReconstruction'));
 const SchoolTransferWizard = lazy(() => import('@/pages/SchoolTransferWizard'));
 
 // Loading fallback
@@ -819,6 +820,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin']}>
                 <SchoolTransferWizard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reconstrucao-historico"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <HistoryReconstruction />
               </ProtectedRoute>
             }
           />

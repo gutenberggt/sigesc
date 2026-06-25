@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 106 — Frontend E2E + backend security validation for the new UI 'Reconstrução de Histórico Pedagógico' at /admin/reconstrucao-historico. Backend tests (4/4 PASS) cover super_admin dry-run + idempotency and 403 forbidden for coordenador on dry-run/execute/receipt. Frontend E2E confirmed: login → Dashboard menu item (nav-history-reconstruction-button, grupo Gestão Institucional) → page loads (history-reconstruction-page) → scope buttons render → school dry-run on 'Escola Demo Portal' returns 0 movements with proper empty-state message. CRITICAL BUG FOUND AND FIXED during testing: ao selecionar escopo 'Aluno' a página crashava com 'students.map is not a function' (ErrorBoundary). studentsAPI.getAll retorna dict paginado {students:[...]} mas a página tratava como array. Após fix (extrair array de s.students || s.items), dry-run com escopo aluno funciona: para Aluno Teste Duplicidade (097095b5) em Escola Teste Multisseriada -> mov=2, freq=9, notas=1, conteúdo=0 (total to consolidate=10) e botão 'Executar reconstrução' aparece. Validações do modal de confirmação testadas via UI: botão Confirmar fica disabled com reason<10 chars OU phrase != 'CONFIRMO A RECONSTRUCAO', habilita quando ambos válidos.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/history-reconstruction/execute", "issue": "Pre-existente (iter105): sem token + body inválido devolve 422 antes de 401. Cosmético."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "HistoryReconstruction.jsx (escopo Aluno)",
+        "issue": "Ao selecionar escopo 'Aluno' e uma escola, a página crashava com 'TypeError: students.map is not a function' (caída no ErrorBoundary). studentsAPI.getAll retorna dict paginado {students:[...]} e a tela tratava o retorno como array.",
+        "selector": "[data-testid='recon-student-select']",
+        "priority": "CRITICAL",
+        "status": "FIXED por T1 nesta iteração — extraído array com Array.isArray(s) ? s : (s?.students || s?.items || [])"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_recon_ui_backend_iter106.py",
+    "/app/test_reports/pytest/iter106_recon_ui.xml"
+  ],
+  "action_items": [
+    "(Verificar) Confirmar a correção em HistoryReconstruction.jsx (linha ~60 — branch scope === 'student'): extração defensiva students = Array.isArray(s) ? s : (s?.students || s?.items || []).",
+    "(Cobertura adicional sugerida — opcional) Adicionar pytest backend que faça execute + receipt num escopo 'student' sandbox para garantir RECON-AAAA-NNNNNN + PDF 200/application/pdf. Já coberto em iter105 (test_student_movement_consolidation.py); este iter validou apenas dry-run + segurança no novo endpoint.",
+    "(Não bloqueante) O fluxo E2E completo execute+receipt+idempotência via UI não foi finalizado por timing de navegação na 2ª passada do Playwright. O cenário foi reproduzido até a tela de confirmação (botão Confirmar habilitado corretamente). Backend já validado em iter105."
+  ],
+  "critical_code_review_comments": [
+    "BUG (FIXED): HistoryReconstruction.jsx tratava studentsAPI.getAll como array — quebrava render. Padrão recorrente em outras telas SIGESC: vale auditar consumos de studentsAPI.getAll para garantir extração defensiva.",
+    "Validações de confirmação no modal estão sólidas: min 10 chars + phrase EXATA 'CONFIRMO A RECONSTRUCAO' habilitam o botão somente quando ambos OK.",
+    "Empty-state está bem tratado: quando movements_detected==0 mostra 'Nenhuma movimentação a reconstruir neste escopo. Os históricos já estão consolidados.' (azul); quando movements>0 e total_to_consolidate==0 mostra mensagem verde idempotente.",
+    "CSRF middleware exige X-CSRF-Token em POSTs com Bearer auth (extraído do claim 'csrf' do JWT). Axios do frontend já injeta — verificado funcionando no login. Para futuros pytest, sempre extrair csrf do JWT (helper _csrf_from_jwt incluído no test_recon_ui_backend_iter106.py)."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/HistoryReconstruction.jsx (fix: students = Array.isArray(s) ? s : (s.students||s.items||[]))",
+    "/app/backend/tests/test_recon_ui_backend_iter106.py (novo)"
+  ],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "90% — fluxo principal e fix validados; execute+receipt+idempotência via UI parcialmente exercitados (cobertos em iter105 no backend)"},
+  "test_credentials": "super_admin gutenberg@sigesc.com / @Celta2007; coordenador kledbyaschenkel@sigesc.com / 856567 (coordenador@sigesc.com/coordenador123 NÃO autentica neste env — credencial em /app/memory/test_credentials.md desatualizada para este ambiente)",
+  "seed_data_creation": "Nenhum dado novo. Cenário com movimentações usou Escola Teste Multisseriada (220d4022-...) e Aluno Teste Duplicidade (097095b5-...).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Para re-testar o E2E completo execute+receipt: usar SCHOOL_ID=220d4022-ec5e-4fb6-86fc-9233112b87b2 e STUDENT_ID=097095b5-2153-4be4-bdc2-695b96164f0d (Aluno Teste Duplicidade) - escopo pequeno (10 registros). NOTA: o Ana Oliveira (cba6986b) tem 290 registros - evitar. Para idempotência: após 1ª execute, dry-run repetido deve mostrar 0 a consolidar (ou movimentos>0 com total_to_consolidate=0 e mensagem verde). Credencial coordenador VÁLIDA: kledbyaschenkel@sigesc.com/856567.",
+  "rca of the issue": "BUG students.map: studentsAPI.getAll() retorna response.data direto, que é {students:[], total:N} (paginado). A página HistoryReconstruction.jsx tratava como array via setStudents(s||[]), resultando em setStudents({students:[...],total:N}) e students.map crashando o React. Fix: Array.isArray(s) ? s : (s?.students || s?.items || []). Reprodução: login super_admin → /admin/reconstrucao-historico → escopo 'Aluno' (default) → selecionar qualquer escola → crash → ErrorBoundary engole a tela."
+}

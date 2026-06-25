@@ -31,7 +31,7 @@ load_dotenv("/app/backend/.env")
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://autosave-drafts.preview.emergentagent.com",
+    "https://history-rebuild-2.preview.emergentagent.com",
 ).rstrip("/")
 SUPER_ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 

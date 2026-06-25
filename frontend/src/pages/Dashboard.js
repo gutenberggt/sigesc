@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search, Trophy, Zap, ShieldCheck, ScrollText, Sparkles } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search, Trophy, Zap, ShieldCheck, ScrollText, Sparkles, History } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI, permissionOverridesAPI } from '@/services/api';
@@ -34,6 +34,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Higienização Textual', icon: Sparkles, color: 'violet', route: '/admin/text-improvement', testId: 'nav-text-improvement-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('admin_teste') },
       { label: 'Multi-Tenant', icon: ShieldCheck, color: 'emerald', route: '/admin/tenant', testId: 'nav-tenant-admin-button', visible: c => c.isSuperAdmin },
       { label: 'Transferências Institucionais', icon: Building2, color: 'blue', route: '/admin/transferencias', testId: 'nav-school-transfers-button', visible: c => c.isSuperAdmin },
+      { label: 'Reconstrução de Histórico', icon: History, color: 'purple', route: '/admin/reconstrucao-historico', testId: 'nav-history-reconstruction-button', visible: c => c.isSuperAdmin },
     ],
   },
   {

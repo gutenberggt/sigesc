@@ -1497,3 +1497,12 @@ export const schoolTransferAPI = {
   receiptBlob: async (protocol) =>
     (await axios.get(`${API}/admin/school-transfer/${protocol}/receipt`, { responseType: 'blob' })).data,
 };
+
+export const historyReconstructionAPI = {
+  dryRun: async (data) =>
+    (await axios.post(`${API}/admin/history-reconstruction/dry-run`, data)).data,
+  execute: async (data) =>
+    (await axios.post(`${API}/admin/history-reconstruction/execute`, data)).data,
+  receiptBlob: async (protocol) =>
+    (await axios.get(`${API}/admin/history-reconstruction/${protocol}/receipt`, { responseType: 'blob' })).data,
+};
