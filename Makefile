@@ -76,3 +76,17 @@ text-scan: ## Enfileira sugestões em text_improvement_queue (admin revisa em /a
 .PHONY: text-clear-pending
 text-clear-pending: ## Remove itens pending da fila de formatação
 	@cd $(BACKEND_DIR) && $(PYTHON) scripts/text_improvement.py --clear-pending
+
+# ------------------------------------------------------------
+# GATE de regressão — Transferência Institucional (sandbox isolado)
+# ------------------------------------------------------------
+.PHONY: regression
+regression: ## GATE DURO: smoke test de regressão do ciclo de Transferência (cycle). Exit 1 bloqueia.
+	@echo "============================================================"
+	@echo "GATE DE REGRESSÃO — Transferência Institucional"
+	@echo "Detecta regressões. NÃO certifica o sistema nem libera produção."
+	@echo "Liberação exige homologação assistida (gates humanos) + aprovação formal."
+	@echo "============================================================"
+	@cd $(BACKEND_DIR) && $(PYTHON) scripts/homolog_transfer_sandbox.py cycle \
+		--email "$${HOMOLOG_ADMIN_EMAIL:-gutenberg@sigesc.com}" \
+		--password "$${HOMOLOG_ADMIN_PASSWORD}"

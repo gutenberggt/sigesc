@@ -1,0 +1,96 @@
+name: Gate - Transferência (Regressão)
+
+# GATE DURO automático: roda o smoke test de regressão do ciclo de Transferência
+# Institucional (dry-run → execute → validate → receipt → rollback → revalidate)
+# em sandbox ISOLADO. Bloqueia merge/deploy se detectar regressão (exit 1).
+#
+# ⚠️ Este gate NÃO certifica o sistema — apenas impede que uma regressão óbvia
+# chegue à homologação. A liberação aos Super Admins exige a HOMOLOGAÇÃO ASSISTIDA
+# (gates de decisão humana) + APROVAÇÃO FORMAL. Ver memory/HOMOLOGACAO_ASSISTIDA_GUIADA.md
+#
+# Para ser efetivamente bloqueante, marque este job como "Required status check"
+# na proteção da branch `main`. O único bypass é override explícito de um admin
+# do repositório (auditado pelo GitHub) ou a label `regression-bypass` no PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  transfer-regression-gate:
+    name: GATE - Regressão Transferência
+    runs-on: ubuntu-latest
+    # Bypass explícito (auditável): label `regression-bypass` no PR. Em push é sempre executado.
+    if: ${{ github.event_name == 'push' || !contains(github.event.pull_request.labels.*.name, 'regression-bypass') }}
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: sigesc_ci
+      JWT_SECRET_KEY: ci-regression-secret-not-for-prod
+      CORS_ORIGINS: http://localhost:8001
+      REACT_APP_BACKEND_URL: http://localhost:8001
+      DISABLE_RENDER_WORKER: "true"
+      CI: "true"
+      CI_ADMIN_EMAIL: ci-admin@sigesc.local
+      CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD || 'CiRegress!2026' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Wait for MongoDB
+        run: |
+          for i in $(seq 1 30); do
+            if python -c "from pymongo import MongoClient; MongoClient('$MONGO_URL', serverSelectionTimeoutMS=1000).admin.command('ping')" 2>/dev/null; then
+              echo "MongoDB pronto"; exit 0
+            fi
+            sleep 1
+          done
+          echo "MongoDB não respondeu"; exit 1
+
+      - name: Bootstrap super_admin de CI (banco efêmero)
+        run: python scripts/ci_bootstrap_admin.py
+
+      - name: Start backend (uvicorn)
+        run: |
+          nohup uvicorn server:app --host 0.0.0.0 --port 8001 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/api/ || true)
+            if [ "$code" = "200" ]; then echo "Backend pronto"; exit 0; fi
+            sleep 1
+          done
+          echo "Backend não subiu. Logs:"; tail -n 60 /tmp/backend.log; exit 1
+
+      - name: GATE - make regression (cycle)
+        working-directory: .
+        env:
+          HOMOLOG_ADMIN_EMAIL: ${{ env.CI_ADMIN_EMAIL }}
+          HOMOLOG_ADMIN_PASSWORD: ${{ env.CI_ADMIN_PASSWORD }}
+        run: make regression
+
+      - name: Aviso de não-certificação (em caso de PASS)
+        if: success()
+        run: |
+          echo "::warning title=Gate de Regressão::PASS (NÃO é certificação de liberação)."
+          echo "Ausência de regressão técnica != aprovação para produção."
+          echo "Liberação exige homologação assistida (gates humanos) + aprovação formal."
+
+      - name: Logs do backend em caso de falha
+        if: failure()
+        working-directory: .
+        run: tail -n 80 /tmp/backend.log || true

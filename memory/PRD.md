@@ -23,6 +23,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## User's preferred language: Portuguese
 
+## CHANGELOG — GATE de regressão em CI (gate duro automático + gate humano final) (Jun/2026)
+**Arquitetura aprovada:** `cycle` = gate DURO automático (detecta regressão, bloqueia merge/deploy) · homologação assistida = gate HUMANO final (7 gates + aprovação formal) · produção só libera com os dois. CI **não** substitui os gates humanos.
+- **`make regression`** (Makefile): roda `homolog_transfer_sandbox.py cycle` (sandbox isolado). Exit 1 = regressão → bloqueia. Banner reforça "NÃO certifica o sistema".
+- **Workflow bloqueante** `.github/workflows/transfer-regression.yml`: roda em `pull_request`→main e `push`→main. Sobe MongoDB efêmero + backend (uvicorn) + bootstrap de super_admin de CI, executa `make regression`. Em PASS emite `::warning` "PASS (NÃO é certificação de liberação)". Para ser efetivo, marcar como **Required status check** na proteção da branch `main` (único bypass: override explícito de admin do GitHub OU label `regression-bypass` no PR — auditável).
+- **`scripts/ci_bootstrap_admin.py`**: upsert idempotente de super_admin para CI (banco efêmero). Marca `ci_bootstrap:true` e **recusa** rodar contra banco real com usuários quando `CI!='true'`.
+- **Verificado:** `make regression` → 8/8 PASS contra o backend; bootstrap testado em DB descartável (login super_admin válido), depois dropado. Nenhum resíduo.
+
+
 ## CHANGELOG — Homologação Assistida (sandbox isolado) + BUGFIX crítico de rollback (Jun/2026)
 **Entregue (sem novas features — foco em comprovar transferência+rollback em ciclo real):**
 - **Harness de sandbox ISOLADO** `backend/scripts/homolog_transfer_sandbox.py` (subcomandos `seed`/`baseline`/`validate --expect dest|origin`/`teardown`): cria mantenedora + 2 escolas + calendário + turmas + alunos + amostras de TODOS os domínios (frequência, notas, conteúdo, AEE, Bolsa Família), tudo marcado `homolog_sandbox:true` (zero contato com dados reais; teardown idempotente).
