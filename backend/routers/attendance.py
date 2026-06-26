@@ -431,7 +431,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         settings = await current_db.attendance_settings.find_one({"academic_year": year}, {"_id": 0})
         allow_future = settings.get("allow_future_dates", False) if settings else False
         
-        can_use_future = current_user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'] and allow_future
+        can_use_future = current_user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario', 'professor'] and allow_future
         
         # Verifica eventos do calendário
         events = await current_db.calendar_events.find({

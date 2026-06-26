@@ -5021,3 +5021,11 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
 - Causa: a analytics do PME lia o campo legado 'cor_raca' (vazio); o dado real esta em 'color_race' (mesmo campo usado por GET /students -> race_counts).
 - Fix em routers/pme_anos_finais.py: helper _race(stu) = color_race or cor_raca or 'nao_informada', aplicado na distribuicao de cor/raca e no rendimento por cor/raca; projecao inclui color_race. Frontend COR_RACA_LABEL passou a mapear 'nao_informada'.
 - Verificado (iteration_109): backend 14/14 (3 testes de regressao), frontend exibe Branca/Parda/Preta corretamente; consistencia cross-endpoint com /api/students confirmada.
+
+
+---
+## [Jun/2026] AJUSTE Frequencia: lancamento em datas futuras expandido a PROFESSORES
+- A configuracao "Permitir lancamento em datas futuras" passou a valer tambem para professores (antes: apenas admin/admin_teste/super_admin/gerente/secretario).
+- Backend routers/attendance.py (check-date, ~linha 434): adicionado 'professor' a can_use_future (so libera quando allow_future_dates=True).
+- Frontend Attendance.js: texto da configuracao atualizado para "administradores, secretarios e professores".
+- Verificado E2E: config ON -> professor can_record=True em data futura util; config OFF -> bloqueado ('Data futura nao permitida'). Toggle continua sendo configurado por admin/secretario.

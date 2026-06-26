@@ -1228,7 +1228,7 @@ export const Attendance = () => {
                 <div>
                   <div className="font-medium">Permitir lançamento em datas futuras</div>
                   <div className="text-sm text-gray-500">
-                    Quando ativado, administradores e secretários podem lançar frequência em datas futuras.
+                    Quando ativado, administradores, secretários e professores podem lançar frequência em datas futuras.
                   </div>
                 </div>
               </label>
