@@ -382,8 +382,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         Restrito a perfis administrativos/secretaria. Tenant/escola-aware.
         """
         current_user = await AuthMiddleware.require_roles(
-            ['super_admin', 'admin', 'admin_teste', 'gerente', 'semed',
-             'semed1', 'semed2', 'semed3', 'secretario']
+            ['super_admin', 'admin', 'admin_teste', 'gerente']
         )(request)
         current_db = get_db_for_user(current_user)
 
@@ -479,8 +478,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         from utils.enrollment import generate_enrollment_number
 
         current_user = await AuthMiddleware.require_roles(
-            ['super_admin', 'admin', 'admin_teste', 'gerente', 'semed',
-             'semed1', 'semed2', 'semed3', 'secretario']
+            ['super_admin', 'admin', 'admin_teste', 'gerente']
         )(request)
         current_db = get_db_for_user(current_user)
 

@@ -604,7 +604,7 @@ function App() {
           <Route
             path="/admin/auditoria-matriculas"
             element={
-              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3', 'secretario']}>
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente']}>
                 <EnrollmentAudit />
               </ProtectedRoute>
             }
