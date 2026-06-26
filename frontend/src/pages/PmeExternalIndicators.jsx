@@ -154,10 +154,10 @@ export default function PmeExternalIndicators() {
                 </div>
                 {(form.evolucao || []).map((row, i) => (
                   <div key={i} className="grid grid-cols-5 gap-2 mb-2 items-center">
-                    <input type="number" placeholder="Ano" className={inputCls} value={row.year} onChange={(e) => updRow('evolucao', i, { year: e.target.value })} />
-                    <input type="number" step="0.1" placeholder="IDEB" className={inputCls} value={row.ideb} onChange={(e) => updRow('evolucao', i, { ideb: e.target.value })} />
-                    <input type="number" step="0.1" placeholder="LP" className={inputCls} value={row.lp} onChange={(e) => updRow('evolucao', i, { lp: e.target.value })} />
-                    <input type="number" step="0.1" placeholder="Mat" className={inputCls} value={row.mat} onChange={(e) => updRow('evolucao', i, { mat: e.target.value })} />
+                    <input type="number" placeholder="Ano" className={inputCls} value={row.year ?? ''} onChange={(e) => updRow('evolucao', i, { year: e.target.value })} />
+                    <input type="number" step="0.1" placeholder="IDEB" className={inputCls} value={row.ideb ?? ''} onChange={(e) => updRow('evolucao', i, { ideb: e.target.value })} />
+                    <input type="number" step="0.1" placeholder="LP" className={inputCls} value={row.lp ?? ''} onChange={(e) => updRow('evolucao', i, { lp: e.target.value })} />
+                    <input type="number" step="0.1" placeholder="Mat" className={inputCls} value={row.mat ?? ''} onChange={(e) => updRow('evolucao', i, { mat: e.target.value })} />
                     <Button size="icon" variant="ghost" onClick={() => delRow('evolucao', i)}><Trash2 size={16} className="text-red-500" /></Button>
                   </div>
                 ))}
@@ -177,8 +177,8 @@ export default function PmeExternalIndicators() {
               </div>
               {(form.bncc_descritores || []).map((row, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-center">
-                  <input placeholder="Descritor (ex.: D12 - LP)" className={`${inputCls} col-span-7`} value={row.descritor} onChange={(e) => updRow('bncc_descritores', i, { descritor: e.target.value })} />
-                  <input type="number" step="0.1" placeholder="% defasagem" className={`${inputCls} col-span-4`} value={row.nivel_defasagem_pct} onChange={(e) => updRow('bncc_descritores', i, { nivel_defasagem_pct: e.target.value })} />
+                  <input placeholder="Descritor (ex.: D12 - LP)" className={`${inputCls} col-span-7`} value={row.descritor ?? ''} onChange={(e) => updRow('bncc_descritores', i, { descritor: e.target.value })} />
+                  <input type="number" step="0.1" placeholder="% defasagem" className={`${inputCls} col-span-4`} value={row.nivel_defasagem_pct ?? ''} onChange={(e) => updRow('bncc_descritores', i, { nivel_defasagem_pct: e.target.value })} />
                   <Button size="icon" variant="ghost" onClick={() => delRow('bncc_descritores', i)}><Trash2 size={16} className="text-red-500" /></Button>
                 </div>
               ))}

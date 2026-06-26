@@ -4988,3 +4988,20 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
 - Novo helper `pdf/utils.build_signature_table` (distribui rótulos de assinatura em 2 colunas, permite linha extra).
 - Geradores `pdf/notas.py`, `pdf/frequencia.py`, `pdf/objetos.py` aceitam `teacher_names` e renderizam nomes + assinatura extra; endpoints `grades.py /pdf`, `attendance_ext.py` (frequência) e `learning_objects.py` buscam e repassam os nomes.
 - Verificado: extração de texto dos 3 PDFs (nomes + 2 assinaturas) e E2E HTTP real do PDF de Notas (200, application/pdf, nomes presentes). Seed de teste removido.
+
+
+---
+## [Jun/2026] FEATURE: Painel de Análise dos ANOS FINAIS para o Plano Municipal de Educação (PME)
+- Duas páginas novas (acesso: super_admin, admin/admin_teste, gerente, SEMED; escopo município/mantenedora com filtros de escola/zona/ano):
+  - `/pme/anos-finais` (PmeAnosFinais.jsx): painel com KPIs + gráficos recharts (matrículas por escola, cor/raça, rendimento geral e por série, distorção idade-série, NIS), "Descrição resumida" automática e exportação PDF (html2canvas+jsPDF) e Excel (XLSX). Combina dados calculados do SIGESC com os indicadores externos informados.
+  - `/pme/anos-finais/indicadores` (PmeExternalIndicators.jsx): formulário por ano letivo para IDEB/SAEB, evolução histórica, 
+
+---
+## [Jun/2026] FEATURE: Painel de Análise dos ANOS FINAIS para o Plano Municipal de Educação (PME)
+- Duas páginas novas (acesso: super_admin, admin/admin_teste, gerente, SEMED; escopo município/mantenedora com filtros de escola/zona/ano):
+  - /pme/anos-finais (PmeAnosFinais.jsx): painel com KPIs + graficos recharts (matriculas por escola, cor/raca, rendimento geral e por serie, distorcao idade-serie, NIS), "Descricao resumida" automatica e exportacao PDF (html2canvas+jsPDF) e Excel (XLSX). Combina dados calculados do SIGESC com indicadores externos informados.
+  - /pme/anos-finais/indicadores (PmeExternalIndicators.jsx): formulario por ano letivo para IDEB/SAEB, evolucao historica, % populacao IBGE, descritores BNCC, infraestrutura, transporte e politicas docentes.
+- Backend routers/pme_anos_finais.py: GET /analytics (classes fundamental_anos_finais + enrollments + students + teacher_assignments/staff: escolas urbano/rural, matriculas, multisseriadas, % deficiencia, cor/raca, rendimento por serie/zona/raca via status de matricula, distorcao idade-serie via birth_date, evasao/abandono, socioeconomico via NIS, perfil docente) e GET/PUT /external-indicators (colecao pme_external_indicators, chave mantenedora_id+academic_year, upsert idempotente + auditoria). RBAC uniforme; PUT exige X-CSRF-Token.
+- Registrado em server.py; menu nav-pme-anos-finais-button; servico pmeAnosFinaisAPI em api.js; rotas em App.js.
+- Testado (iteration_108): backend 11/11 pytest; frontend 100% (nav, painel com 26 graficos, exports XLSX/PDF, salvar+persistir indicadores externos, RBAC professor 403 front+back). Warning cosmetico de input null corrigido.
+- NOTA: motivos detalhados de Busca Ativa permanecem no modulo proprio; reprovacao depende de processamento de fim de ano (atualmente derivada de status). Metricas indisponiveis no SIGESC ficam na Pagina 2 (manual).
