@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_ROLES = ['super_admin', 'admin', 'admin_teste', 'gerente',
                  'semed', 'semed1', 'semed2', 'semed3']
+# Inserir/editar Indicadores Externos é permitido apenas a estes perfis.
+EDIT_EXTERNAL_ROLES = ['super_admin', 'admin', 'admin_teste', 'gerente']
 AF_LEVEL = 'fundamental_anos_finais'
 
 # Idade esperada (em anos completos no ano letivo) por ano/série dos Anos Finais.
@@ -331,6 +333,10 @@ def setup_router(db):
     @router.put("/external-indicators")
     async def upsert_external(payload: ExternalIndicators, request: Request):
         user = await _auth(request)
+        if user.get('role') not in EDIT_EXTERNAL_ROLES:
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas Super Administrador, Administrador e Gerente podem inserir os Indicadores Externos.")
         tenant = get_mantenedora_scope(user, request)
         q = {"academic_year": payload.academic_year}
         if tenant:

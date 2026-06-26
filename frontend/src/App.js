@@ -844,7 +844,7 @@ function App() {
           <Route
             path="/pme/anos-finais/indicadores"
             element={
-              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']}>
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente']}>
                 <PmeExternalIndicators />
               </ProtectedRoute>
             }

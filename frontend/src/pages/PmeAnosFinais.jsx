@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { schoolsAPI, pmeAnosFinaisAPI } from '@/services/api';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell,
@@ -48,6 +49,7 @@ const Block = ({ title, children, icon: Icon }) => (
 
 export default function PmeAnosFinais() {
   const navigate = useNavigate();
+  const { isAdmin } = usePermissions();
   const reportRef = useRef(null);
   const [year, setYear] = useState(new Date().getFullYear());
   const [schoolId, setSchoolId] = useState('');
@@ -129,7 +131,9 @@ export default function PmeAnosFinais() {
             <Button variant="outline" size="icon" onClick={load} data-testid="pme-refresh"><RefreshCw size={16} /></Button>
             <Button variant="outline" onClick={exportExcel} data-testid="pme-export-excel"><FileSpreadsheet size={16} className="mr-2" /> Excel</Button>
             <Button variant="outline" onClick={exportPDF} data-testid="pme-export-pdf"><FileText size={16} className="mr-2" /> PDF</Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate('/pme/anos-finais/indicadores')} data-testid="pme-go-external"><ClipboardList size={16} className="mr-2" /> Indicadores Externos</Button>
+            {isAdmin && (
+              <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate('/pme/anos-finais/indicadores')} data-testid="pme-go-external"><ClipboardList size={16} className="mr-2" /> Indicadores Externos</Button>
+            )}
           </div>
         </div>
 
@@ -208,7 +212,7 @@ export default function PmeAnosFinais() {
             <h2 className="text-lg font-semibold text-gray-800 pt-2 flex items-center gap-2"><ClipboardList size={18} className="text-indigo-600" /> Indicadores Externos (informados)</h2>
             {(!external || external.exists === false) ? (
               <Card><CardContent className="p-5 text-sm text-gray-500">
-                Nenhum indicador externo informado para {year}. <button onClick={() => navigate('/pme/anos-finais/indicadores')} className="text-indigo-600 underline">Informar agora</button>.
+                Nenhum indicador externo informado para {year}.{isAdmin && <> <button onClick={() => navigate('/pme/anos-finais/indicadores')} className="text-indigo-600 underline">Informar agora</button>.</>}
               </CardContent></Card>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

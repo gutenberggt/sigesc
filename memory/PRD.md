@@ -5005,3 +5005,12 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
 - Registrado em server.py; menu nav-pme-anos-finais-button; servico pmeAnosFinaisAPI em api.js; rotas em App.js.
 - Testado (iteration_108): backend 11/11 pytest; frontend 100% (nav, painel com 26 graficos, exports XLSX/PDF, salvar+persistir indicadores externos, RBAC professor 403 front+back). Warning cosmetico de input null corrigido.
 - NOTA: motivos detalhados de Busca Ativa permanecem no modulo proprio; reprovacao depende de processamento de fim de ano (atualmente derivada de status). Metricas indisponiveis no SIGESC ficam na Pagina 2 (manual).
+
+
+---
+## [Jun/2026] AJUSTE PME: acesso SEMED ao painel + restricao de edicao dos Indicadores Externos
+- Botao atalho "Anos Finais - Analise PME" disponivel no dashboard para todos os perfis SEMED (semed/semed1/semed2/semed3) alem de Super Admin/Admin/Gerente.
+- Inserir/editar "Indicadores Externos (PME)" agora e permitido APENAS a Super Administrador, Administrador e Gerente. SEMED apenas visualiza o painel.
+- Backend: PUT /api/pme/anos-finais/external-indicators restrito por EDIT_EXTERNAL_ROLES=['super_admin','admin','admin_teste','gerente'] (403 para SEMED); GET analytics/external seguem liberados para SEMED.
+- Frontend: rota /pme/anos-finais/indicadores restrita aos perfis de edicao; botao "Indicadores Externos" e link "Informar agora" ocultos para SEMED (isAdmin).
+- Verificado E2E: SEMED GET analytics/external=200, PUT=403; admin PUT=200.
