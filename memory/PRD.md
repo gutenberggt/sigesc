@@ -5014,3 +5014,10 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
 - Backend: PUT /api/pme/anos-finais/external-indicators restrito por EDIT_EXTERNAL_ROLES=['super_admin','admin','admin_teste','gerente'] (403 para SEMED); GET analytics/external seguem liberados para SEMED.
 - Frontend: rota /pme/anos-finais/indicadores restrita aos perfis de edicao; botao "Indicadores Externos" e link "Informar agora" ocultos para SEMED (isAdmin).
 - Verificado E2E: SEMED GET analytics/external=200, PUT=403; admin PUT=200.
+
+
+---
+## [Jun/2026] FIX: Cor/Raca no Painel PME mostrava tudo como "Nao declarado"
+- Causa: a analytics do PME lia o campo legado 'cor_raca' (vazio); o dado real esta em 'color_race' (mesmo campo usado por GET /students -> race_counts).
+- Fix em routers/pme_anos_finais.py: helper _race(stu) = color_race or cor_raca or 'nao_informada', aplicado na distribuicao de cor/raca e no rendimento por cor/raca; projecao inclui color_race. Frontend COR_RACA_LABEL passou a mapear 'nao_informada'.
+- Verificado (iteration_109): backend 14/14 (3 testes de regressao), frontend exibe Branca/Parda/Preta corretamente; consistencia cross-endpoint com /api/students confirmada.
