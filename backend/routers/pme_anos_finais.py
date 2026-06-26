@@ -161,10 +161,13 @@ def setup_router(db):
         student_ids = sorted({e["student_id"] for e in enrollments if e.get("student_id")})
         students = await db.students.find(
             {"id": {"$in": student_ids}},
-            {"_id": 0, "id": 1, "cor_raca": 1, "disabilities": 1, "birth_date": 1,
-             "nis": 1, "student_series": 1}
+            {"_id": 0, "id": 1, "color_race": 1, "cor_raca": 1, "disabilities": 1,
+             "birth_date": 1, "nis": 1, "student_series": 1}
         ).to_list(100000) if student_ids else []
         student_map = {s["id"]: s for s in students}
+
+        def _race(stu):
+            return (stu.get("color_race") or stu.get("cor_raca") or "nao_informada")
 
         # série por turma (para turmas não-multi usa grade_level; multi usa série da matrícula/aluno)
         class_map = {c["id"]: c for c in classes}
@@ -199,7 +202,7 @@ def setup_router(db):
         ativos_unique = sorted(set(ativos_ids))
         for sid in ativos_unique:
             stu = student_map.get(sid, {})
-            cr = stu.get("cor_raca") or "nao_declarado"
+            cr = _race(stu)
             cor_raca_dist[cr] = cor_raca_dist.get(cr, 0) + 1
             if stu.get("disabilities"):
                 com_deficiencia += 1
@@ -230,7 +233,7 @@ def setup_router(db):
             z = school_map.get(cls.get("school_id"), {}).get("zona_localizacao") or "nao_informado"
             rend_por_zona.setdefault(z, {}).setdefault(out, 0)
             rend_por_zona[z][out] += 1
-            cr = student_map.get(e["student_id"], {}).get("cor_raca") or "nao_declarado"
+            cr = _race(student_map.get(e["student_id"], {}))
             rend_por_raca.setdefault(cr, {}).setdefault(out, 0)
             rend_por_raca[cr][out] += 1
 

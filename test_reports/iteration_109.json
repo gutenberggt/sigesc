@@ -1,0 +1,30 @@
+{
+  "summary": "Iter 109 — Validação do bug fix 'Cor/Raça' no painel PME Anos Finais (/pme/anos-finais). Backend (14/14 pytest passam em /app/backend/tests/test_pme_anos_finais.py, +3 novos testes de regressão): GET /api/pme/anos-finais/analytics?academic_year=2026 retorna cor_raca={'preta':1,'branca':1,'parda':1} (e NÃO {'nao_declarado':3}); chaves reais (branca/parda/preta) presentes com pelo menos 1 cada; sum(nao_declarado+nao_informada) < total — bug curado. Consistência cross-endpoint validada: PME analytics e GET /api/students (race_counts) leem ambos do campo 'color_race' — race_counts >= cor_raca para cada chave. rendimento.por_cor_raca usa chaves reais de color_race (sem 'nao_declarado' como única chave). REGRESSÃO: todos os 11 testes originais (analytics 2026 estrutura completa, 2024/2025 vazios sem erro, zona filter, default year, external indicators CRUD c/ persistência via GET, CSRF rejection sem X-CSRF-Token, RBAC professor 403 em GET/PUT analytics+external, no-auth 401) continuam passando. Frontend (super_admin gutenberg@sigesc.com / @Celta2007): login OK, /pme/anos-finais renderiza pme-dashboard-page com ano=2026, bloco 'Cor/Raça (alunos ativos)' exibe um PieChart com 3 fatias coloridas (Branca / Parda / Preta) com legenda correta e valores '1' em cada — NENHUMA fatia 'Não declarado'. Fetch direto no browser confirmou a payload {'preta':1,'branca':1,'parda':1}. Demais KPIs/charts do painel renderizam normalmente (Matrículas por escola, Rendimento situação de matrícula, Rendimento por série 6º–9º).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pme_anos_finais.py",
+    "/app/test_reports/pytest/iter109_pme_anos_finais.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OK — Fix correto e mínimo em /app/backend/routers/pme_anos_finais.py: helper _race(stu) = stu.get('color_race') or stu.get('cor_raca') or 'nao_informada' (linhas 169-170). Projeção students inclui ambos color_race e cor_raca (linha 164), garantindo fallback resiliente para registros legados.",
+    "OK — Fonte de verdade alinhada com /app/backend/routers/students.py (race_pipeline em $color_race) — ambos endpoints leem o mesmo campo, prevenindo divergência futura entre Indicadores da Rede e Painel PME.",
+    "OK — COR_RACA_LABEL no frontend (/app/frontend/src/pages/PmeAnosFinais.jsx:23) já mapeia todas as chaves possíveis (branca/preta/parda/amarela/indigena/nao_informada/nao_declarado), portanto qualquer chave que vier do backend é renderizada com label PT-BR adequado.",
+    "Sugestão (não-bloqueante): documentar em comentário a precedência color_race > cor_raca para futuras migrações que possam consolidar para um único campo canônico."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pme_anos_finais.py (adicionados 3 testes: test_analytics_cor_raca_uses_color_race_field, test_pme_cor_raca_matches_students_race_counts, test_rendimento_por_cor_raca_keys)"
+  ],
+  "success_rate": {"backend": "100% (14/14 — incluindo 3 testes de regressão do bug)", "frontend": "100% — gráfico Cor/Raça exibe Branca/Parda/Preta corretamente, sem 'Não declarado'"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "seed_data_creation": "Nenhuma criada por este iteration; foram usados os 3 alunos já semeados pelo main agent (Maria=branca, Ana=parda, Joao=preta) em Anos Finais 2026.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug 'Cor/Raça mostrava tudo como Não declarado' está RESOLVIDO. Testes de regressão pytest em /app/backend/tests/test_pme_anos_finais.py (classe TestAnalytics, 3 novos métodos). Para validar no futuro: rodar `pytest /app/backend/tests/test_pme_anos_finais.py::TestAnalytics::test_analytics_cor_raca_uses_color_race_field -v`. Frontend: bloco PieChart no /pme/anos-finais renderiza recharts-legend-item-text com labels Branca/Parda/Preta a partir de COR_RACA_LABEL[k]. Importante: o campo canônico em MongoDB é 'color_race' (inglês); 'cor_raca' é fallback legado.",
+  "rca of the issue": "RCA: A analytics do PME (/api/pme/anos-finais/analytics) lia stu.get('cor_raca'), campo legado vazio nos documentos atuais de students. O endpoint canônico GET /api/students já agregava por '$color_race' (campo real preenchido). Reprodução: antes do fix, cor_raca={'nao_declarado':3}; após fix, cor_raca={'branca':1,'parda':1,'preta':1}. Mitigação aplicada por E1 em /app/backend/routers/pme_anos_finais.py: helper _race(stu) = stu.get('color_race') or stu.get('cor_raca') or 'nao_informada'; projeção MongoDB inclui ambos campos. Validação: 3 testes de regressão adicionados garantem (a) não-concentração em 'nao_declarado/nao_informada', (b) presença das chaves semeadas (branca/parda/preta) e (c) consistência cross-endpoint com /api/students race_counts."
+}

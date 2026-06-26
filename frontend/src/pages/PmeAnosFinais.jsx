@@ -20,7 +20,7 @@ import html2canvas from 'html2canvas';
 
 const YEARS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 const PALETTE = ['#4f46e5', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899'];
-const COR_RACA_LABEL = { branca: 'Branca', preta: 'Preta', parda: 'Parda', amarela: 'Amarela', indigena: 'Indígena', nao_declarado: 'Não declarado' };
+const COR_RACA_LABEL = { branca: 'Branca', preta: 'Preta', parda: 'Parda', amarela: 'Amarela', indigena: 'Indígena', nao_informada: 'Não informada', nao_declarado: 'Não declarado' };
 const REND_LABEL = { aprovado: 'Aprovado/Promovido', abandono: 'Abandono', transferido: 'Transferido', cursando: 'Cursando', cancelado: 'Cancelado', inativo: 'Inativo' };
 const REND_COLOR = { aprovado: '#22c55e', abandono: '#ef4444', transferido: '#f59e0b', cursando: '#0ea5e9', cancelado: '#9ca3af', inativo: '#6b7280' };
 

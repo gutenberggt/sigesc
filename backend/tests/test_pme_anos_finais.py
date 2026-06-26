@@ -88,6 +88,57 @@ class TestAnalytics:
         r = requests.get(f"{API}/pme/anos-finais/analytics", headers=admin_headers, timeout=60)
         assert r.status_code == 200
 
+    # ---- Regressão BUG iter109: cor_raca deve refletir color_race (não tudo 'nao_declarado') ----
+    def test_analytics_cor_raca_uses_color_race_field(self, admin_headers):
+        """BUG: PME lia 'cor_raca' (vazio). Fix: agora lê 'color_race' (fallback cor_raca).
+        Com seed Maria=branca, Ana=parda, Joao=preta, esperamos múltiplas chaves preenchidas
+        e NÃO tudo concentrado em 'nao_declarado' / 'nao_informada'."""
+        r = requests.get(f"{API}/pme/anos-finais/analytics?academic_year=2026",
+                         headers=admin_headers, timeout=60)
+        assert r.status_code == 200, r.text[:300]
+        d = r.json()
+        cor = d.get("cor_raca") or {}
+        assert isinstance(cor, dict) and cor, f"cor_raca vazio: {cor}"
+        total = sum(int(v) for v in cor.values() if isinstance(v, (int, float)))
+        nao_decl = int(cor.get("nao_declarado", 0)) + int(cor.get("nao_informada", 0))
+        # Deve existir pelo menos uma chave real (branca/parda/preta/amarela/indigena)
+        keys_reais = {"branca", "parda", "preta", "amarela", "indigena"} & set(cor.keys())
+        assert keys_reais, f"esperava cor/raça real declarada, veio: {cor}"
+        # Não pode ser TUDO 'não declarado'
+        assert nao_decl < total, f"cor_raca está tudo como não declarado: {cor}"
+        # Conferir as 3 chaves semeadas (branca/parda/preta)
+        for k in ("branca", "parda", "preta"):
+            assert int(cor.get(k, 0)) >= 1, f"esperava ao menos 1 em '{k}', veio {cor}"
+
+    def test_pme_cor_raca_matches_students_race_counts(self, admin_headers):
+        """Consistência entre PME (color_race) e GET /students race_counts (também color_race)."""
+        # PME analytics
+        rp = requests.get(f"{API}/pme/anos-finais/analytics?academic_year=2026",
+                          headers=admin_headers, timeout=60)
+        assert rp.status_code == 200
+        pme_cor = rp.json().get("cor_raca") or {}
+        # Students endpoint (race_counts)
+        rs = requests.get(f"{API}/students?limit=1", headers=admin_headers, timeout=30)
+        assert rs.status_code == 200, rs.text[:200]
+        body = rs.json()
+        rc = (body.get("race_counts") or body.get("raceCounts") or {})
+        # Para as chaves semeadas, race_counts deve refletir pelo menos os mesmos alunos
+        for k in ("branca", "parda", "preta"):
+            assert int(rc.get(k, 0)) >= int(pme_cor.get(k, 0)), \
+                f"inconsistência em '{k}': pme={pme_cor.get(k)} students={rc.get(k)}"
+
+    def test_rendimento_por_cor_raca_keys(self, admin_headers):
+        """rendimento.por_cor_raca deve usar chaves reais de color_race (ao menos 1 não-'nao_declarado')."""
+        r = requests.get(f"{API}/pme/anos-finais/analytics?academic_year=2026",
+                         headers=admin_headers, timeout=60)
+        assert r.status_code == 200
+        rend = r.json().get("rendimento", {}).get("por_cor_raca", {})
+        assert isinstance(rend, dict)
+        if rend:
+            keys = set(rend.keys())
+            keys_reais = {"branca", "parda", "preta", "amarela", "indigena"} & keys
+            assert keys_reais, f"rend.por_cor_raca sem chave real: {keys}"
+
 
 # -------- External Indicators --------
 class TestExternalIndicators:
