@@ -127,6 +127,8 @@ const BolsaFamilia = lazy(() => import('@/pages/BolsaFamilia'));
 const BuscaAtivaDashboard = lazy(() => import('@/pages/BuscaAtivaDashboard'));
 const SchoolTransfers = lazy(() => import('@/pages/SchoolTransfers'));
 const HistoryReconstruction = lazy(() => import('@/pages/HistoryReconstruction'));
+const PmeAnosFinais = lazy(() => import('@/pages/PmeAnosFinais'));
+const PmeExternalIndicators = lazy(() => import('@/pages/PmeExternalIndicators'));
 const SchoolTransferWizard = lazy(() => import('@/pages/SchoolTransferWizard'));
 
 // Loading fallback
@@ -828,6 +830,22 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin']}>
                 <HistoryReconstruction />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pme/anos-finais"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']}>
+                <PmeAnosFinais />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pme/anos-finais/indicadores"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']}>
+                <PmeExternalIndicators />
               </ProtectedRoute>
             }
           />

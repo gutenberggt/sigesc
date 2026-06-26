@@ -1,0 +1,36 @@
+{
+  "summary": "Iter 108 — Validação completa da feature PME Anos Finais (Painel + Indicadores Externos + RBAC). Backend: 11/11 pytest passam em /app/backend/tests/test_pme_anos_finais.py — analytics 2026 (1 escola, 5 matrículas, estrutura completa: escolas/matriculas/multisseriadas/deficiencia/cor_raca/rendimento{geral,por_serie,por_zona,por_cor_raca}/distorcao_idade_serie/evasao/socioeconomico/docentes), analytics 2024/2025 (vazios sem erro), filtro zona=urbana, default year, GET external 2026 (IDEB 4.2 persistido), PUT external 2025 com create+GET-verify persistência (ideb 3.9/4.7, pop 91.0, evolucao[1], bncc[1]), PUT sem X-CSRF-Token rejeitado (400/401/403), RBAC professor 403 em GET/PUT analytics e external. Frontend: login super_admin OK; nav-pme-anos-finais-button presente no Dashboard (Menu de Administração) e clica navegando para /pme/anos-finais; pme-dashboard-page renderiza com 26 recharts svg, todos os testids encontrados (pme-year/school/zona/resumo/export-excel/export-pdf/go-external), trocar ano 2024<->2026 não quebra; Excel download OK (PME_AnosFinais_2026.xlsx); PDF download OK (PME_AnosFinais_2026.pdf, html2canvas concluído em ~45s); go-external navega para /pme/anos-finais/indicadores; pme-external-page renderiza com todos os campos (pme-ext-year/ideb-atual/ideb-meta/add-evolucao/add-bncc/ext-save); salvar IDEB 4.0/4.8 + 1 evolucao + 1 bncc para 2025 → toast de sucesso visível → após reload os valores persistem (ideb_atual=4.0, ideb_meta=4.8). RBAC frontend: professor.teste NÃO vê o item nav-pme-anos-finais-button; acesso direto a /pme/anos-finais exibe 'Acesso Negado'. Apenas 1 warning de console não-crítico ('value prop on input should not be null').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PmeExternalIndicators (página de Indicadores Externos)", "issues": ["Console React warning: 'value prop on input should not be null. Consider using an empty string or undefined for uncontrolled components.' — algum input está recebendo value={null}; usar `value={x ?? ''}` nos inputs numéricos."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pme_anos_finais.py",
+    "/app/test_reports/pytest/iter108_pme_anos_finais.xml"
+  ],
+  "action_items": [
+    "(Cosmético) Em /app/frontend/src/pages/PmeExternalIndicators.jsx, garantir `value={field ?? ''}` em inputs numéricos (IDEB/SAEB/IBGE/infra/transporte) para eliminar o warning React 'value prop on input should not be null'. Não bloqueia funcionalmente."
+  ],
+  "critical_code_review_comments": [
+    "OK — Backend: contrato analytics consistente (chaves escolas/matriculas/multisseriadas/deficiencia/cor_raca/rendimento/distorcao_idade_serie/evasao/socioeconomico/docentes) e sub-estruturas (rendimento.geral/por_serie/por_zona/por_cor_raca) presentes. Tenant scope aplicado via get_mantenedora_scope; filtro de zona/escola validado.",
+    "OK — RBAC implementado uniformemente em _auth() para os 3 endpoints; ALLOWED_ROLES=['super_admin','admin','admin_teste','gerente','semed','semed1','semed2','semed3']; professor recebe 403 limpo com mensagem em PT-BR.",
+    "OK — CSRF: PUT sem X-CSRF-Token é rejeitado pelo middleware global (validado por teste). claim 'csrf' do JWT é usado como header — comportamento padrão da app.",
+    "OK — Upsert idempotente em pme_external_indicators com chave (mantenedora_id, academic_year) e auditoria (updated_at + updated_by{id,email}).",
+    "OK — Frontend Painel: 26 recharts wrappers renderizados, exports XLSX e PDF disparam download; html2canvas leva ~45s mas funciona em produção.",
+    "OK — ProtectedRoute do React redireciona professor para 'Acesso Negado'; menu lateral filtra com base em allowedRoles (visible function)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pme_anos_finais.py (novo — 11 testes pytest cobrindo analytics, external CRUD, CSRF e RBAC)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% — todos os fluxos críticos validados (nav, painel, charts, exports XLSX/PDF, salvar indicadores externos com persistência, RBAC professor frontend+backend)"},
+  "test_credentials": "gutenberg@sigesc.com/@Celta2007 (super_admin); professor.teste@sigesc.com/professor123 (professor — usado para validar RBAC 403)",
+  "seed_data_creation": "PUT /api/pme/anos-finais/external-indicators academic_year=2025 com IDEB 3.9/4.7, pop_11_14_pct=91.0, evolucao=[{year:2021,ideb:3.5,...}], bncc=[{descritor:'TEST_D12',...}] — preservado conforme nota do main agent ('pode salvar indicadores de teste para 2025 e deixar'). Adicionalmente o teste frontend persistiu IDEB 4.0/4.8 para 2025 (último write).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature PME Anos Finais está sólida em backend e frontend. Para retests rápidos: pytest /app/backend/tests/test_pme_anos_finais.py -v cobre o contrato completo (analytics + external + CSRF + RBAC). Frontend: todos os data-testid existem e funcionam (nav-pme-anos-finais-button, pme-dashboard-page, pme-year/school/zona/resumo/export-excel/export-pdf/go-external, pme-external-page, pme-ext-year/ideb-atual/ideb-meta/add-evolucao/add-bncc/ext-save). Único action item é cosmético (warning React de input value=null em PmeExternalIndicators).",
+  "rca of the issue": "N/A — nenhum bug encontrado. Apenas 1 warning não-bloqueante em PmeExternalIndicators.jsx (inputs com value={null} → usar value={x ?? ''})."
+}

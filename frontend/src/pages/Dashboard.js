@@ -35,6 +35,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Multi-Tenant', icon: ShieldCheck, color: 'emerald', route: '/admin/tenant', testId: 'nav-tenant-admin-button', visible: c => c.isSuperAdmin },
       { label: 'Transferências Institucionais', icon: Building2, color: 'blue', route: '/admin/transferencias', testId: 'nav-school-transfers-button', visible: c => c.isSuperAdmin },
       { label: 'Reconstrução de Histórico', icon: History, color: 'purple', route: '/admin/reconstrucao-historico', testId: 'nav-history-reconstruction-button', visible: c => c.isSuperAdmin },
+      { label: 'Anos Finais — Análise PME', icon: BarChart3, color: 'indigo', route: '/pme/anos-finais', testId: 'nav-pme-anos-finais-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('gerente') || c.isSemed },
     ],
   },
   {

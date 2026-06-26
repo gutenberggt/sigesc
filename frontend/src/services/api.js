@@ -1506,3 +1506,12 @@ export const historyReconstructionAPI = {
   receiptBlob: async (protocol) =>
     (await axios.get(`${API}/admin/history-reconstruction/${protocol}/receipt`, { responseType: 'blob' })).data,
 };
+
+export const pmeAnosFinaisAPI = {
+  analytics: async (params = {}) =>
+    (await axios.get(`${API}/pme/anos-finais/analytics`, { params })).data,
+  getExternal: async (academicYear) =>
+    (await axios.get(`${API}/pme/anos-finais/external-indicators`, { params: { academic_year: academicYear } })).data,
+  saveExternal: async (data) =>
+    (await axios.put(`${API}/pme/anos-finais/external-indicators`, data)).data,
+};
