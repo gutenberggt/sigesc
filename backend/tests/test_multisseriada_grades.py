@@ -23,6 +23,43 @@ COURSE_ID = "TST_JUA_COURSE"
 ACADEMIC_YEAR = 2026
 
 
+@pytest.fixture(scope="module", autouse=True)
+def seed_data():
+    """Semeia (e remove ao final) o cenário multisseriado usado nos testes.
+    Mantém o teste autossuficiente e o banco limpo (sem turma fake na UI)."""
+    from pymongo import MongoClient
+    cli = MongoClient(os.environ.get("MONGO_URL", "mongodb://localhost:27017"))
+    db = cli[os.environ.get("DB_NAME", "sigesc")]
+    sch = db.schools.find_one({}, {"_id": 0, "id": 1, "mantenedora_id": 1}) or {}
+    sid = sch.get("id"); mant = sch.get("mantenedora_id")
+    db.classes.delete_many({"id": CLASS_ID})
+    db.courses.delete_many({"id": COURSE_ID})
+    db.students.delete_many({"id": {"$in": ["TST_JUA_S1", "TST_JUA_S2", "TST_JUA_S3"]}})
+    db.enrollments.delete_many({"class_id": CLASS_ID})
+    db.classes.insert_one({"id": CLASS_ID, "name": "SALA UNIFICADA TST - 1º A 4º ANO", "school_id": sid,
+                           "mantenedora_id": mant, "education_level": "fundamental_anos_iniciais",
+                           "grade_level": "1º ANO", "is_multi_grade": True, "academic_year": ACADEMIC_YEAR,
+                           "series": ["1º ANO", "2º ANO"]})
+    db.courses.insert_one({"id": COURSE_ID, "name": "Língua Portuguesa", "class_id": CLASS_ID,
+                           "academic_year": ACADEMIC_YEAR, "grade_levels": ["1º ANO", "2º ANO"]})
+    studs = [("TST_JUA_S1", "Aluno Primeiro Ano A", None), ("TST_JUA_S2", "Aluno Primeiro Ano B", None),
+             ("TST_JUA_S3", "Aluno Segundo Ano", " 2º ANO")]
+    for i, (sidd, nm, serie) in enumerate(studs):
+        db.students.insert_one({"id": sidd, "full_name": nm, "status": "active", "school_id": sid,
+                                "class_id": CLASS_ID, "student_series": (serie.strip() if serie else None)})
+        enr = {"id": "ENR_" + sidd, "student_id": sidd, "class_id": CLASS_ID, "status": "active",
+               "academic_year": ACADEMIC_YEAR, "enrollment_number": "2026" + str(100 + i)}
+        if serie:
+            enr["student_series"] = serie
+        db.enrollments.insert_one(enr)
+    yield
+    db.classes.delete_many({"id": CLASS_ID})
+    db.courses.delete_many({"id": COURSE_ID})
+    db.students.delete_many({"id": {"$in": ["TST_JUA_S1", "TST_JUA_S2", "TST_JUA_S3"]}})
+    db.enrollments.delete_many({"class_id": CLASS_ID})
+    cli.close()
+
+
 @pytest.fixture(scope="module")
 def token():
     r = requests.post(

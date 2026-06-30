@@ -5029,3 +5029,11 @@ que carrega o valor atual do debounce. Variável `termLower` não usada removida
 - Backend routers/attendance.py (check-date, ~linha 434): adicionado 'professor' a can_use_future (so libera quando allow_future_dates=True).
 - Frontend Attendance.js: texto da configuracao atualizado para "administradores, secretarios e professores".
 - Verificado E2E: config ON -> professor can_record=True em data futura util; config OFF -> bloqueado ('Data futura nao permitida'). Toggle continua sendo configurado por admin/secretario.
+
+
+---
+## [Jun/2026] FIX: Turma MULTISSERIADA - serie 1o ano listava VAZIO em Notas
+- Causa raiz: inconsistencia de fallback de serie entre endpoints. /api/classes/{id}/details (dropdown de series) caia para class.grade_level quando a matricula nao tinha serie; ja /api/grades/by-class (grid) retornava student_series='' nesse caso. Como o 1o ano e o grade_level da turma, o dropdown criava a opcao '1o ANO' mas o grid nao tinha alunos com essa serie -> filtro nao casava -> lista vazia (so o 1o ano afetado).
+- Fix backend (routers/grades.py get_grades_by_class): busca class_grade_level e student_series do grid passa a usar enrollment.student_series OR student.student_series OR class.grade_level (mesma cadeia do class_details), inclusive no bloco de dependencia.
+- Fix frontend (Grades.js _normSerie): normalizacao robusta (remove acentos via NFD, descarta o/o/a ordinais e nao-alfanumericos, lowercase) para tolerar variacoes como ' 2o ANO' com espaco.
+- Verificado (iteration_110): backend 7/7 pytest (tests/test_multisseriada_grades.py, agora autossuficiente: fixture semeia e limpa) + regressao turma nao-multi; frontend mostra 2 alunos no 1o ANO (antes vazio). Dados de teste removidos do banco.
