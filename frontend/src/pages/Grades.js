@@ -430,7 +430,7 @@ export function Grades() {
         const data = await gradesAPI.getByClass(selectedClass, selectedCourse, academicYear);
         // Para turmas multisseriadas, filtra apenas alunos da série selecionada
         // (comparação normalizada para evitar sumiço por divergência de case/espaços)
-        const _normSerie = (v) => (v || '').toString().trim().toLowerCase();
+        const _normSerie = (v) => (v || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[º°ª]/g, '').replace(/[^a-z0-9]/g, '');
         const filteredData = (isMultiGrade && selectedSeries)
           ? data.filter(item => _normSerie(item.student?.student_series) === _normSerie(selectedSeries))
           : data;

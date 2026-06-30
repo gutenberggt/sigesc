@@ -1,0 +1,30 @@
+{
+  "summary": "Iter 110 — Validação do bug fix MULTISSERIADA: no painel Lançamento de Notas, série '1º ANO' listava VAZIO porque o grid (/api/grades/by-class) retornava student_series='' para matrículas sem série, enquanto o dropdown (/api/classes/{id}/details) já caía para class.grade_level. BACKEND (7/7 pytest passam em /app/backend/tests/test_multisseriada_grades.py): (a) GET /api/grades/by-class/TST_JUA_CLASS/TST_JUA_COURSE?academic_year=2026 retorna 3 alunos; (b) TST_JUA_S1 e TST_JUA_S2 (matrícula SEM série) vêm com student_series='1º ANO' (fallback ao class.grade_level); (c) TST_JUA_S3 mantém ' 2º ANO' (com espaço proposital); (d) filtro client-side (normalização: remove acentos, º/°/ª, espaços, lowercase) por '1º ANO' rende 2 alunos (S1+S2); (e) por '2º ANO' rende 1 aluno (S3); (f) GET /api/classes/TST_JUA_CLASS/details lista exatamente '1º ANO' e '2º ANO' no dropdown; (g) consistência cross-endpoint: as séries do dropdown == séries do grid (normalizadas). FRONTEND (super_admin gutenberg@sigesc.com / @Celta2007 em /admin/grades): selecionando Escola Teste Multisseriada → SALA UNIFICADA TST-1º A 4º ANO → Ano/Série '1º ANO' → Língua Portuguesa (TST_JUA_COURSE) → 'Carregar Notas', a tabela exibe EXATAMENTE 2 linhas: 'Aluno Primeiro Ano A' (2026100) e 'Aluno Primeiro Ano B' (2026101), com colunas 1º/2º/3º/4º BIM e status 'Cursando' — bug curado (antes do fix vinha vazio). 'Aluno Segundo Ano' NÃO aparece em 1º ANO (filtro correto). REGRESSÃO: turma não-multisseriada 6º ANO A (3da4e569…) + Língua Portuguesa retorna 3 alunos normalmente via grid, todos com student_series='6º ANO'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_multisseriada_grades.py",
+    "/app/test_reports/pytest/iter110_multisseriada.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OK — Fix correto e simétrico em /app/backend/routers/grades.py (get_grades_by_class): student_series = enrollment.student_series OR student.student_series OR class.grade_level. Mesmo fallback de /app/backend/routers/class_details.py garante coerência entre dropdown e grid.",
+    "OK — _normSerie no frontend (/app/frontend/src/pages/Grades.js ~linha 433) robusto: remove acentos via NFD, descarta º/°/ª e não-alfanuméricos, lowercase. Tolera o valor com espaço proposital (' 2º ANO') que vem da seed.",
+    "Sugestão (não-bloqueante): considerar normalizar/trim no backend ao persistir/expor student_series para evitar valores com espaço inicial em dados futuros (a normalização atual já protege o filtro, mas o valor cru com espaço aparece no <option> visível).",
+    "Sugestão (não-bloqueante): adicionar data-testid nos selects de Escola/Turma/Ano-Série/Componente em /app/frontend/src/components/grades/TurmaTab.jsx para tornar o seletor mais resiliente (atualmente os testes dependem de nth=index)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_multisseriada_grades.py (criado — 7 testes cobrindo fallback de série no grid + dropdown + filtro normalizado + consistência cross-endpoint)"
+  ],
+  "success_rate": {"backend": "100% (7/7 pytest novos + regressão validada via curl em turma 6º ANO)", "frontend": "100% no cenário do bug (1º ANO mostra 2 alunos, não-vazio)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "seed_data_creation": "Nenhum dado novo semeado por este iteration; usei o cenário já semeado pelo main agent: class TST_JUA_CLASS (multisseriada, grade_level '1º ANO', escola 220d4022-ec5e-4fb6-86fc-9233112b87b2), course TST_JUA_COURSE (Língua Portuguesa), students TST_JUA_S1/S2/S3.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug 'turma multisseriada — série 1º ANO listava vazio em Notas' está RESOLVIDO. Pytest regression em /app/backend/tests/test_multisseriada_grades.py (classes TestGradesByClassFallback + TestClassDetailsDropdown). Para re-rodar: pytest /app/backend/tests/test_multisseriada_grades.py -v. UI: a rota correta é /admin/grades (NÃO /grades — esta retorna 404). Selects nativos HTML <select>: nth=0=Ano Letivo, nth=1=Escola, nth=2=Turma, nth=3=Ano/Série (só aparece para multisseriada), nth=4=Componente. Componente é filtrado por course.grade_levels.includes(selectedSeries) (ver Grades.js ~linha 397) — se um curso não inclui a série selecionada, ele desaparece do dropdown (comportamento esperado, não bug). Importante: o botão 'Carregar Notas' precisa ser CLICADO após selecionar tudo; não há auto-load.",
+  "rca of the issue": "RCA: A inconsistência estava entre dois endpoints que deveriam usar o mesmo critério de série do aluno na turma. /api/classes/{id}/details (fonte do dropdown de série) já fazia fallback para class.grade_level quando enrollment.student_series era vazio. Já /api/grades/by-class/{class_id}/{course_id} (fonte do grid de notas) retornava student_series='' nesse mesmo caso. Reprodução: turma TST_JUA_CLASS (grade_level='1º ANO'), alunos S1 e S2 com matrícula sem série. ANTES do fix: dropdown criava opção '1º ANO' (vinda do grade_level), mas grid retornava student_series='' para S1/S2; o filtro _normSerie('1º ANO') !== _normSerie('') ⇒ lista vazia. APÓS o fix: grid passa a usar enrollment.student_series OR student.student_series OR class.grade_level (mesma cadeia do dropdown), retornando student_series='1º ANO' para S1/S2; filtro casa e a lista mostra 2 alunos. Mitigação extra: _normSerie no frontend tornou-se tolerante a variações (acentos, º/°/ª, espaços) — necessário porque S3 tem ' 2º ANO' com espaço inicial proposital. Validação pytest (7/7) + UI manual (screenshot grades_1ano_loaded.png confirma 2 linhas exatas)."
+}

@@ -199,7 +199,14 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         if not academic_year:
             academic_year = datetime.now().year
         
-        # Busca alunos matriculados - usando múltiplas fontes para maior robustez
+        # [Fix Jun/2026] Série da turma para fallback consistente com class-details.
+        # Em turmas MULTISSERIADAS, alunos sem série na matrícula/cadastro caem para
+        # o grade_level da turma — igual ao dropdown de séries (get_class_details).
+        # Sem isso, o 1º ano (grade_level) ficava sem alunos no filtro do grid.
+        class_doc_gl = await current_db.classes.find_one(
+            {"id": class_id}, {"_id": 0, "grade_level": 1}
+        ) or {}
+        class_grade_level = class_doc_gl.get('grade_level') or ''
         # Estratégia 1: Busca na coleção enrollments (matrícula formal)
         enrollments = await current_db.enrollments.find(
             {"class_id": class_id, "status": "active"},
@@ -372,7 +379,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'full_name': student['full_name'],
                 'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
                 'student_status': student.get('status', 'active'),
-                'student_series': enrollment_series.get(student['id']) or student.get('student_series', ''),
+                'student_series': enrollment_series.get(student['id']) or student.get('student_series') or class_grade_level,
                 'current_class_id': student.get('class_id'),
                 'is_transferred_from_class': student.get('class_id') and student.get('class_id') != class_id,
                 'action_label': action_label,
@@ -439,7 +446,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                         'full_name': stu.get('full_name', ''),
                         'enrollment_number': stu.get('enrollment_number'),
                         'student_status': stu.get('status', 'active'),
-                        'student_series': '',
+                        'student_series': stu.get('student_series') or class_grade_level,
                         'current_class_id': None,
                         'is_transferred_from_class': False,
                         'action_label': '',
