@@ -1510,8 +1510,10 @@ export const historyReconstructionAPI = {
 export const pmeAnosFinaisAPI = {
   analytics: async (params = {}) =>
     (await axios.get(`${API}/pme/anos-finais/analytics`, { params })).data,
-  getExternal: async (academicYear) =>
-    (await axios.get(`${API}/pme/anos-finais/external-indicators`, { params: { academic_year: academicYear } })).data,
+  schoolsByLevel: async (params = {}) =>
+    (await axios.get(`${API}/pme/anos-finais/schools`, { params })).data,
+  getExternal: async (academicYear, level) =>
+    (await axios.get(`${API}/pme/anos-finais/external-indicators`, { params: { academic_year: academicYear, level } })).data,
   saveExternal: async (data) =>
     (await axios.put(`${API}/pme/anos-finais/external-indicators`, data)).data,
 };

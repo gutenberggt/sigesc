@@ -25,14 +25,37 @@ ALLOWED_ROLES = ['super_admin', 'admin', 'admin_teste', 'gerente',
                  'semed', 'semed1', 'semed2', 'semed3']
 # Inserir/editar Indicadores Externos é permitido apenas a estes perfis.
 EDIT_EXTERNAL_ROLES = ['super_admin', 'admin', 'admin_teste', 'gerente']
-AF_LEVEL = 'fundamental_anos_finais'
 
-# Idade esperada (em anos completos no ano letivo) por ano/série dos Anos Finais.
-EXPECTED_AGE = {6: 11, 7: 12, 8: 13, 9: 14}
+# Níveis de ensino suportados. Cada nível mapeia para os valores de
+# education_level aceitos (inclui aliases legados) e a idade esperada por
+# série (para distorção idade-série; vazio = não se aplica ao nível).
+LEVELS = {
+    'educacao_infantil': {
+        'label': 'Educação Infantil',
+        'edu_values': ['educacao_infantil', 'INFANTIL', 'infantil'],
+        'expected_age': {},
+    },
+    'fundamental_anos_iniciais': {
+        'label': 'Anos Iniciais',
+        'edu_values': ['fundamental_anos_iniciais'],
+        'expected_age': {1: 6, 2: 7, 3: 8, 4: 9, 5: 10},
+    },
+    'fundamental_anos_finais': {
+        'label': 'Anos Finais',
+        'edu_values': ['fundamental_anos_finais'],
+        'expected_age': {6: 11, 7: 12, 8: 13, 9: 14},
+    },
+    'eja': {
+        'label': 'EJA',
+        'edu_values': ['eja', 'EJA', 'eja_inicial', 'eja_final', 'eja_fundamental', 'eja_medio'],
+        'expected_age': {},
+    },
+}
+DEFAULT_LEVEL = 'fundamental_anos_finais'
 
 
 def _serie_num(serie: str) -> Optional[int]:
-    """Extrai o número da série (6,7,8,9) de um texto como '6º Ano'."""
+    """Extrai o número da série (1..9) de um texto como '6º Ano'."""
     if not serie:
         return None
     import re
@@ -40,7 +63,7 @@ def _serie_num(serie: str) -> Optional[int]:
     if not m:
         return None
     n = int(m.group(1))
-    return n if n in (6, 7, 8, 9) else None
+    return n if 1 <= n <= 9 else None
 
 
 def _age_at_year(birth_date: str, ref_year: int) -> Optional[int]:
@@ -67,6 +90,7 @@ def _age_at_year(birth_date: str, ref_year: int) -> Optional[int]:
 
 class ExternalIndicators(BaseModel):
     academic_year: int
+    level: str = DEFAULT_LEVEL
     ideb_atual: Optional[float] = None
     ideb_meta: Optional[float] = None
     saeb_lp_9: Optional[float] = None
@@ -102,13 +126,16 @@ def setup_router(db):
 
     @router.get("/analytics")
     async def analytics(request: Request, academic_year: Optional[int] = None,
+                        level: Optional[str] = None,
                         school_id: Optional[str] = None, zona: Optional[str] = None):
         user = await _auth(request)
         if not academic_year:
             academic_year = datetime.now().year
+        if level not in LEVELS:
+            level = DEFAULT_LEVEL
         tenant = get_mantenedora_scope(user, request)
 
-        cq = {"education_level": AF_LEVEL, "academic_year": academic_year}
+        cq = {"education_level": {"$in": LEVELS[level]['edu_values']}, "academic_year": academic_year}
         if tenant:
             cq["mantenedora_id"] = tenant
         if school_id:
@@ -238,6 +265,7 @@ def setup_router(db):
             rend_por_raca[cr][out] += 1
 
         # ---- Distorção idade-série (2+ anos de atraso) ----
+        expected_age = LEVELS[level]['expected_age']
         distorcao_por_serie = {}
         for sid in ativos_unique:
             stu = student_map.get(sid, {})
@@ -248,12 +276,12 @@ def setup_router(db):
                 enr = next((e for e in enrollments if e["student_id"] == sid and e.get("status") in active_statuses), None)
                 if enr:
                     ser = _serie_num(class_map.get(enr["class_id"], {}).get("grade_level", ""))
-            if not ser:
+            if not ser or ser not in expected_age:
                 continue
             age = _age_at_year(stu.get("birth_date"), academic_year)
             d = distorcao_por_serie.setdefault(ser, {"total": 0, "distorcidos": 0})
             d["total"] += 1
-            if age is not None and (age - EXPECTED_AGE[ser]) >= 2:
+            if age is not None and (age - expected_age[ser]) >= 2:
                 d["distorcidos"] += 1
 
         # ---- Evasão/abandono (índice) ----
@@ -277,7 +305,9 @@ def setup_router(db):
 
         return {
             "academic_year": academic_year,
-            "filters": {"school_id": school_id, "zona": zona},
+            "level": level,
+            "level_label": LEVELS[level]['label'],
+            "filters": {"school_id": school_id, "zona": zona, "level": level},
             "escolas": {
                 "total": len(school_ids),
                 "por_zona": zona_counts,
@@ -321,17 +351,41 @@ def setup_router(db):
             },
         }
 
-    @router.get("/external-indicators")
-    async def get_external(request: Request, academic_year: Optional[int] = None):
+    @router.get("/schools")
+    async def schools_by_level(request: Request, academic_year: Optional[int] = None,
+                               level: Optional[str] = None):
+        """Lista as escolas que oferecem o nível selecionado no ano letivo."""
         user = await _auth(request)
         if not academic_year:
             academic_year = datetime.now().year
+        if level not in LEVELS:
+            level = DEFAULT_LEVEL
         tenant = get_mantenedora_scope(user, request)
-        q = {"academic_year": academic_year}
+        cq = {"education_level": {"$in": LEVELS[level]['edu_values']}, "academic_year": academic_year}
+        if tenant:
+            cq["mantenedora_id"] = tenant
+        classes = await db.classes.find(cq, {"_id": 0, "school_id": 1}).to_list(10000)
+        sids = sorted({c.get("school_id") for c in classes if c.get("school_id")})
+        schools = await db.schools.find(
+            {"id": {"$in": sids}}, {"_id": 0, "id": 1, "name": 1, "zona_localizacao": 1}
+        ).to_list(10000) if sids else []
+        schools.sort(key=lambda s: (s.get("name") or "").lower())
+        return {"level": level, "academic_year": academic_year, "schools": schools}
+
+    @router.get("/external-indicators")
+    async def get_external(request: Request, academic_year: Optional[int] = None,
+                           level: Optional[str] = None):
+        user = await _auth(request)
+        if not academic_year:
+            academic_year = datetime.now().year
+        if level not in LEVELS:
+            level = DEFAULT_LEVEL
+        tenant = get_mantenedora_scope(user, request)
+        q = {"academic_year": academic_year, "level": level}
         if tenant:
             q["mantenedora_id"] = tenant
         doc = await db.pme_external_indicators.find_one(q, {"_id": 0})
-        return doc or {"academic_year": academic_year, "exists": False}
+        return doc or {"academic_year": academic_year, "level": level, "exists": False}
 
     @router.put("/external-indicators")
     async def upsert_external(payload: ExternalIndicators, request: Request):
@@ -341,14 +395,16 @@ def setup_router(db):
                 status_code=403,
                 detail="Apenas Super Administrador, Administrador e Gerente podem inserir os Indicadores Externos.")
         tenant = get_mantenedora_scope(user, request)
-        q = {"academic_year": payload.academic_year}
+        lvl = payload.level if payload.level in LEVELS else DEFAULT_LEVEL
+        q = {"academic_year": payload.academic_year, "level": lvl}
         if tenant:
             q["mantenedora_id"] = tenant
         data = payload.model_dump()
+        data["level"] = lvl
         data["mantenedora_id"] = tenant
         data["updated_at"] = datetime.now(timezone.utc).isoformat()
         data["updated_by"] = {"id": user.get("id"), "email": user.get("email")}
         await db.pme_external_indicators.update_one(q, {"$set": data}, upsert=True)
-        return {"success": True, "academic_year": payload.academic_year}
+        return {"success": True, "academic_year": payload.academic_year, "level": lvl}
 
     return router

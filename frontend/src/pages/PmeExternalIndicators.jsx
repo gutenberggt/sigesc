@@ -10,6 +10,12 @@ import {
 } from 'lucide-react';
 
 const YEARS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
+const LEVELS = [
+  { value: 'educacao_infantil', label: 'Educação Infantil' },
+  { value: 'fundamental_anos_iniciais', label: 'Anos Iniciais' },
+  { value: 'fundamental_anos_finais', label: 'Anos Finais' },
+  { value: 'eja', label: 'EJA' },
+];
 
 const numOrNull = (v) => (v === '' || v === null || v === undefined ? null : parseFloat(v));
 
@@ -37,20 +43,22 @@ const inputCls = "w-full px-3 py-2 border rounded-lg";
 export default function PmeExternalIndicators() {
   const navigate = useNavigate();
   const [year, setYear] = useState(new Date().getFullYear());
+  const [level, setLevel] = useState('fundamental_anos_finais');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const load = useCallback(async (yr) => {
+  const load = useCallback(async (yr, lvl) => {
     setLoading(true);
     try {
-      const data = await pmeAnosFinaisAPI.getExternal(yr);
+      const data = await pmeAnosFinaisAPI.getExternal(yr, lvl);
       setForm({
         evolucao: [], bncc_descritores: [],
         ...data,
         academic_year: yr,
+        level: lvl,
       });
     } catch (e) {
       toast.error('Falha ao carregar indicadores.');
@@ -59,13 +67,14 @@ export default function PmeExternalIndicators() {
     }
   }, []);
 
-  useEffect(() => { load(year); }, [year, load]);
+  useEffect(() => { load(year, level); }, [year, level, load]);
 
   const save = async () => {
     setSaving(true);
     try {
       const payload = {
         academic_year: year,
+        level,
         ideb_atual: numOrNull(form.ideb_atual),
         ideb_meta: numOrNull(form.ideb_meta),
         saeb_lp_9: numOrNull(form.saeb_lp_9),
@@ -114,13 +123,16 @@ export default function PmeExternalIndicators() {
               <Home size={20} /><span>Início</span>
             </button>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <ClipboardList className="text-indigo-600" /> Indicadores Externos (PME) — Anos Finais
+              <ClipboardList className="text-indigo-600" /> Indicadores Externos (PME)
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => navigate('/pme/anos-finais')} data-testid="pme-ext-go-dashboard">
               <BarChart3 size={16} className="mr-2" /> Ver Painel
             </Button>
+            <select value={level} onChange={(e) => setLevel(e.target.value)} className="px-3 py-2 border rounded-lg bg-white" data-testid="pme-ext-level">
+              {LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </select>
             <select value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))} className="px-3 py-2 border rounded-lg bg-white" data-testid="pme-ext-year">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -131,8 +143,8 @@ export default function PmeExternalIndicators() {
         </div>
 
         <p className="text-sm text-gray-500">
-          Informe aqui os dados que o SIGESC não possui (IDEB/SAEB, IBGE, infraestrutura, transporte e políticas).
-          Eles aparecem automaticamente no Painel dos Anos Finais.
+          Informe aqui os dados que o SIGESC não possui (IDEB/SAEB, IBGE, infraestrutura, transporte e políticas), por nível de ensino.
+          Eles aparecem automaticamente no painel da Análise PME.
         </p>
 
         {loading ? (

@@ -4,7 +4,8 @@ import { Layout } from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { schoolsAPI, pmeAnosFinaisAPI } from '@/services/api';
+import { pmeAnosFinaisAPI } from '@/services/api';
+
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -19,6 +20,12 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const YEARS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
+const LEVELS = [
+  { value: 'educacao_infantil', label: 'Educação Infantil' },
+  { value: 'fundamental_anos_iniciais', label: 'Anos Iniciais' },
+  { value: 'fundamental_anos_finais', label: 'Anos Finais' },
+  { value: 'eja', label: 'EJA' },
+];
 const PALETTE = ['#4f46e5', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899'];
 const COR_RACA_LABEL = { branca: 'Branca', preta: 'Preta', parda: 'Parda', amarela: 'Amarela', indigena: 'Indígena', nao_informada: 'Não informada', nao_declarado: 'Não declarado' };
 const REND_LABEL = { aprovado: 'Aprovado/Promovido', abandono: 'Abandono', transferido: 'Transferido', cursando: 'Cursando', cancelado: 'Cancelado', inativo: 'Inativo' };
@@ -52,6 +59,7 @@ export default function PmeAnosFinais() {
   const { isAdmin } = usePermissions();
   const reportRef = useRef(null);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [level, setLevel] = useState('fundamental_anos_finais');
   const [schoolId, setSchoolId] = useState('');
   const [zona, setZona] = useState('');
   const [schools, setSchools] = useState([]);
@@ -59,20 +67,25 @@ export default function PmeAnosFinais() {
   const [external, setExternal] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { schoolsAPI.getAll().then((s) => setSchools(s || [])).catch(() => {}); }, []);
+  // Escolas que oferecem o nível selecionado (no ano letivo).
+  useEffect(() => {
+    setSchoolId('');
+    pmeAnosFinaisAPI.schoolsByLevel({ academic_year: year, level })
+      .then((r) => setSchools(r.schools || [])).catch(() => setSchools([]));
+  }, [level, year]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [a, e] = await Promise.all([
-        pmeAnosFinaisAPI.analytics({ academic_year: year, school_id: schoolId || undefined, zona: zona || undefined }),
-        pmeAnosFinaisAPI.getExternal(year),
+        pmeAnosFinaisAPI.analytics({ academic_year: year, level, school_id: schoolId || undefined, zona: zona || undefined }),
+        pmeAnosFinaisAPI.getExternal(year, level),
       ]);
       setData(a); setExternal(e);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Falha ao carregar o painel.');
     } finally { setLoading(false); }
-  }, [year, schoolId, zona]);
+  }, [year, level, schoolId, zona]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -122,10 +135,11 @@ export default function PmeAnosFinais() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-gray-500 hover:text-indigo-600" data-testid="pme-home"><Home size={20} /><span>Início</span></button>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="text-indigo-600" /> Anos Finais — Análise PME</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="text-indigo-600" /> Análise PME</h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <select value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))} className="px-3 py-2 border rounded-lg bg-white" data-testid="pme-year">{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+            <select value={level} onChange={(e) => setLevel(e.target.value)} className="px-3 py-2 border rounded-lg bg-white" data-testid="pme-level">{LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}</select>
             <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className="px-3 py-2 border rounded-lg bg-white max-w-[200px]" data-testid="pme-school"><option value="">Todas as escolas</option>{schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
             <select value={zona} onChange={(e) => setZona(e.target.value)} className="px-3 py-2 border rounded-lg bg-white" data-testid="pme-zona"><option value="">Todas as zonas</option><option value="urbana">Urbana</option><option value="rural">Rural</option></select>
             <Button variant="outline" size="icon" onClick={load} data-testid="pme-refresh"><RefreshCw size={16} /></Button>
@@ -271,7 +285,8 @@ const ExtMini = ({ label, value, icon: Icon }) => (
 function buildResumo(d, ext, year) {
   const esc = d.escolas || {}; const m = d.matriculas || {};
   const parts = [];
-  parts.push(`No ano letivo de ${year}, a rede possui ${esc.total || 0} escola(s) que atendem os Anos Finais (${esc.por_zona?.urbana || 0} na zona urbana e ${esc.por_zona?.rural || 0} na rural), com ${m.total || 0} matrícula(s) (${m.ativos || 0} ativas).`);
+  const lvlLabel = d.level_label || 'o nível selecionado';
+  parts.push(`No ano letivo de ${year}, a rede possui ${esc.total || 0} escola(s) que atendem ${lvlLabel} (${esc.por_zona?.urbana || 0} na zona urbana e ${esc.por_zona?.rural || 0} na rural), com ${m.total || 0} matrícula(s) (${m.ativos || 0} ativas).`);
   if (d.multisseriadas?.total) parts.push(`Há ${d.multisseriadas.total} turma(s) multisseriada(s) de um total de ${d.multisseriadas.total_turmas_af}.`);
   parts.push(`${d.deficiencia?.percentual || 0}% dos alunos ativos possuem deficiência/transtorno; ${d.socioeconomico?.percentual || 0}% têm NIS (Cadastro Único).`);
   parts.push(`A taxa de abandono é de ${d.evasao?.taxa_abandono_pct || 0}% (${d.evasao?.abandono_total || 0} aluno(s)), com ${d.evasao?.transferidos || 0} transferência(s).`);
@@ -280,7 +295,7 @@ function buildResumo(d, ext, year) {
     const tot = dist.reduce((a, [, o]) => a + o.total, 0); const dd = dist.reduce((a, [, o]) => a + o.distorcidos, 0);
     parts.push(`A distorção idade-série atinge ${tot ? Math.round(1000 * dd / tot) / 10 : 0}% dos alunos (2+ anos de atraso).`);
   }
-  parts.push(`Dos ${d.docentes?.total || 0} docentes vinculados aos Anos Finais, ${d.docentes?.perc_com_formacao || 0}% têm formação registrada.`);
+  parts.push(`Dos ${d.docentes?.total || 0} docentes vinculados a ${lvlLabel}, ${d.docentes?.perc_com_formacao || 0}% têm formação registrada.`);
   if (ext && ext.exists !== false && (ext.ideb_atual != null || ext.ideb_meta != null)) {
     parts.push(`IDEB atual: ${ext.ideb_atual ?? '—'} | meta: ${ext.ideb_meta ?? '—'}.`);
   }
