@@ -1,54 +1,50 @@
-<analysis>**original_problem_statement**: Solidificar arquitetura offline-first (PWA) e resolver bugs críticos de carregamento offline. **NOVO EPIC:** Desenvolver funcionalidade de Transferência Institucional (migração de turmas inteiras entre escolas por encerramento de unidade), garantindo preservação de histórico via re-homing (Opção A). PRODUCT REQUIREMENTS: Motor canônico, idempotência, segurança reforçada (re-autenticação para super_admin) e simulação via Dry Run. Adicionado novo requisito prioritário (P0/P1): Monitor global de sessão para evitar perda de dados com avisos temporais e AutoSave em banco local (Dexie) para formulários críticos (Notas, Frequência, Conteúdo).
+<analysis>**original_problem_statement**: Solidificar arquitetura offline-first (PWA) e resolver bugs críticos. NOVO EPIC: Funcionalidade de Transferência Institucional e Movimentação de Alunos. PRODUCT REQUIREMENTS: Motor canônico no backend, idempotência, segurança via rollback e auditoria temporal estrita. Adicionalmente, criação e expansão de novos relatórios analíticos de rede (Painel de Análise PME por nível de ensino) e restrições rigorosas de controle de acesso (RBAC) para auditores e perfis da SEMED.
 
 **User's preferred language**: Portuguese (INSTRUCT NEXT AGENT: Responda SEMPRE em Português)
 
 **what currently exists?**: 
-- **Transferência Institucional (Fase 1 & 1.5):** Backend completo ( e ) validado. Helpers temporais canônicos (, etc.) implementados para garantir que relatórios (Frequência, Rendimento, Histórico PDF) utilizem o  em vez da escola atual, prevenindo falhas no histórico da turma pós-transferência. 
-- **Bug Correção (Notas):** O erro 403 no salvamento em lote de notas () gerado por notas migradas/bloqueadas (ícone de cadeado) foi resolvido. O lote agora pula os bloqueados e salva o restante com sucesso.
-- **Sessão (P0):**  global funcional. Avisa aos 5min e 1min, com opção de Continuar conectado. Ao expirar, abre modal bloqueando a tela com opções Entrar novamente ou Continuar offline (sem apagar sessão local). Possui modo de teste de homologação ativado via .
-- **AutoSave (P1 Parcial):** IndexedDB (Dexie) atualizado para v4 com tabela . Hook  e banner  criados e integrados nativamente nas telas de **Notas** () e **Frequência** (). 
+- Reconstrução de histórico pedagógico (UI Frontend concluída).
+- Lógica de freeze granular (por bimestre) de notas/conceitos nas turmas de destino após movimentações de alunos.
+- Geração de PDFs (Notas, Frequência, Objetos) com suporte a múltiplos professores e linha extra de assinatura para Educação Infantil e Anos Iniciais.
+- Painel Análise PME generalizado para todos os níveis de ensino (Educação Infantil, Anos Iniciais, Anos Finais, EJA), com dropdown de seleção de nível e escolas dinâmicas.
+- Indicadores Externos (PME) com permissões restritas (somente leitura para SEMED; edição para Admin/Super/Gerente).
+- Painel de Auditoria de Matrículas restrito inteiramente à alta gestão.
+- Flexibilização do lançamento de frequência em datas futuras para professores, baseada em configuração global.
 
 **Last working item**:
-    - Last item agent was working: Fase P1 (AutoSave Dexie). O agente concluiu a integração do AutoSave nas Notas e Frequência, e realizou uma auditoria guiada para encontrar o terceiro módulo (Conteúdo/Diário regular). A auditoria identificou que a tela de Objetos de Conhecimento ( consumindo ) é o módulo principal a ser protegido. 
-    - Status: IN PROGRESS
-    - Agent Testing Done: N (Auditoria apenas)
-    - Which testing method agent to use? manual testing by screenshot tool or frontend testing agent
+    - Last item agent was working: Expansão do escopo do painel Anos Finais — Análise PME para Análise PME genérico, contemplando todos os níveis de ensino (Educação Infantil, Anos Iniciais, Anos Finais e EJA), com filtro de seleção aninhado (Ano Letivo -> Nível -> Escola que oferece o nível).
+    - Status: USER VERIFICATION PENDING
+    - Agent Testing Done: Y
+    - Which testing method agent to use? testing_agent
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:  
-Nenhuma issue ou bug pendente no momento. 
+Nenhum bug em aberto no momento. Todas as solicitações da última iteração foram verificadas pelo .
 
 **In progress Task List**:
-  Task 1: Fase P1 — AutoSave em Formulários Críticos (Módulo 3: Conteúdo)
-     - Where to resume: Integrar o hook  e o componente  na tela  (formulário de Objetos de Conhecimento do professor).
-     - What will be achieved with this? Concluir a proteção contra perda de dados offline nos três módulos pedagógicos mais importantes (Notas, Frequência e Conteúdo).
-     - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on something: None (Aguardando apenas iniciar o código com base na auditoria já realizada).
+Nenhuma no momento.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - P2 - Sessão (Frontend): Indicador permanente de status no cabeçalho (Online/Offline/Pendências/Expirado) e texto última sincronização há X min.
-    - P3 - Sessão (Frontend): Recuperação avançada de rascunhos e conflitos.
-    - Fase 2 - Transferência Institucional (P0): Implementar lógica de Rollback (Snapshot reverso). (Desbloqueado após conclusão da Fase 1.5).
-    - Fase 3 - Transferência Institucional (P1): Criar UI no menu Administração com wizard de seleção, simulação visual, e emissão de recibo PDF.
-    - Fase B - Offline de Conteúdo/Diário (P1).
-    - Fase B - Pré-cache automático de alunos, horários e conteúdos recentes (P1).
-    - Fase B - Painel visual de sincronização offline (P1).
+    - Aguardar a validação e homologação do usuário quanto aos últimos recursos entregues (Painel Análise PME expandido, congelamento de notas, e PDFs).
+    - Verificar necessidade de inclusão do recorte por cor/raça nos gráficos de rendimento e distorção do painel PME.
     
     Future Tasks:
-    - Fase 1 e 2 do Student Intelligence Engine (SIE).
-    - Módulo BNCC independente e integrado com IA.
+    - Fase B - Offline (Conteúdo/Diário + sincronização avançada).
+    - Student Intelligence Engine (SIE).
+    - Módulo BNCC independente integrado com IA.
 
 **Completed work in this session**
-- Fase 1 Backend de Transferência Institucional () (DONE)
-- Fase 1.5 Correção de vazamento de tempo em relatórios via  e criação do  (DONE)
-- Refatoração de 12 endpoints analíticos e de diário para usar resolução de escola temporal (DONE)
-- Correção de bug 403 em  onde uma nota migrada falhava a requisição do lote inteiro (DONE)
-- Simplificação UI de Login (Remoção do banner visual offline constante e ajuste de títulos) (DONE)
-- P0: SessionMonitor global com contagem regressiva e Continuar Offline (DONE)
-- Criação de interface de debug de sessão () para acelerar E2E manual (DONE)
-- P1 (Parcial): Upgrade Dexie DB v4 e AutoSave debounced funcional para Turmas/Notas e Frequência (DONE)
+- UI da ferramenta de Reconstrução de Histórico Pedagógico consumindo a API administrativa (DONE)
+- Congelamento granular de notas no destino para alunos remanejados (DONE)
+- Assinatura múltipla em relatórios PDF (Notas, Frequência, Objetos) para Infantil e Iniciais (DONE)
+- Remoção de textos de pré-matrícula e boas-vindas antigos na tela de Login (DONE)
+- Criação das páginas de Painel Análise PME e Formulário de Indicadores Externos (DONE)
+- RBAC: Restrição de acesso aos Indicadores Externos (SEMED apenas visualiza) e Auditoria de Matrículas (SEMED não tem acesso) (DONE)
+- Correção de bug no Painel PME: Cor/Raça lendo o campo correto  em vez do obsoleto  (DONE)
+- Expansão de permissão de lançamento de frequência em data futura para os Professores (DONE)
+- Correção de bug em turmas multisseriadas: Fallback adequado para listagem de alunos de 1º ano no grid de notas (DONE)
+- Expansão do Painel PME para todos os níveis de ensino com roteamento de combos aninhados (DONE)
 
 **Earlier issues found/mentioned but not fixed**
 N/A
@@ -59,75 +55,81 @@ N/A
   - Status: RESOLVED
 
 **Code Architecture**
-- Frontend: React PWA.  robusto com fallback offline para . Offline data via IndexedDB (Dexie). Hook-based state management with Context APIs (, ). 
-- Backend: FastAPI, motor MongoDB (AsyncIOMotorClient).
+- Frontend: React PWA. Componentes de UI usam  (RBAC dinâmico). O componente novo  foi refatorado para ser agnóstico de nível de ensino (usando  dinâmico). Gráficos via .
+- Backend: FastAPI, motor AsyncIOMotorClient (MongoDB). A abstração do endpoint  foi ajustada para aceitar  query param.  processa textualmente as séries nas listagens ( vs ).
 
 **Key Technical Concepts**
-- **Transferência Institucional**: A âncora é o . Para relatórios temporais de Censo/Frequência/Rendimento, usa-se estritamente  ou  lendo a matriz .
-- **Offline AutoSave**: Os rascunhos ( table via Dexie) são gerados localmente e apagados APENAS após salvamento confirmado na API (). Eles **sobrevivem** ao logout e fechamento da aba.
-- **Sessão (Session Monitor)**: Baseia-se no TTL real do JWT (15min). O refresh automático online estende a sessão; interações resetam avisos. O App não faz logout automático agressivo para não destruir o armazenamento PWA do IndexedDB.
+- **Idempotência & Transações:** Consistência de histórico.
+- **Controle de Acesso Temporal:** Lógica de bloqueio granular em notas.  processa as chaves mutáveis.
+- **Dynamic Selectors (PME):** Filtros encadeados (Ano Letivo -> Nível de Ensino -> Escola do nível).
+- **RBAC:**  e  são amplamente usados para limitar o escopo tenant/escola e impedir edições indevidas.
 
 **key DB schema**
-  - : contém campo vital temporal .
-  - Frontend Local DB (Dexie): Tabela  na versão 4.
+  - : 
+  - : 
+  - : 
+  - : 
 
 **changes in tech stack**
-  - Adição e uso de hooks robustos vinculados ao Dexie () para a nova tabela .
+N/A
 
 **All files of reference**
-  -  (Novo - Fase 1 Transferência)
-  -  (Novo - Fase 1.5 Lógica temporal de relatórios)
-  -  (Editado - Bug 403 lote corrigido)
-  -  (Novo - P0)
-  -  (Novo)
-  -  e  (Novos - P1 AutoSave)
-  -  (Dexie Schema V4 atualizado)
-  -  &  (P1 - Contextos de AutoSave)
-  -  (Destino pendente do P1 - Conteúdo)
+  -  &  (Páginas do Painel PME Generalizado)
+  -  (Backend Analytics do PME)
+  -  (Lógica de congelamento bimestral e filtro de multi-série)
+  -  (Cadeados de congelamento de UI)
+  - , , ,  (Ajustes de Assinatura Múltipla)
+  -  e  (Lançamento futuro)
+  -  &  (Rotas e Menus com novos RBACs)
 
 **Areas that need refactoring**: 
-- Teste E2E Visual no  via painel do AI é instável para rotas de  pois o **Service Worker** local da build corta as requisições mockadas e trava em . Testes de auth/sessão precisam ser homologados pelo usuário no próprio navegador (usar ).
+O Screenshot tool tem travado sistematicamente na rota  devido a um Service Worker de build de testes interceptando as chamadas e dando timeout. Prefira testes via  em vez de imagens automatizadas em telas de entrada.
 
 **key api endpoints**
--  e 
-- 
--  (Pendente AutoSave)
+  - 
+  -  (e PUT respectivo)
+  - 
+  - 
+  - 
 
 **Critical Info for New Agent**
-- **AUTO-SAVE NO LOGOUT:** Dados armazenados no IndexedDB ( de Dexie) NÃO devem ser limpos durante a expiração de sessão ou logout temporário do P0. Isso é vital para escolas rurais.
-- O modo de validação rápida do Session Monitor é habilitado inserindo  na URL.
-- NÃO perca tempo auditando/procurando o formulário de Conteúdo do professor para finalizar o AutoSave (P1). A auditoria anterior já definiu estritamente o arquivo a ser trabalhado: . 
-- Continue implementando o AutoSave seguindo o padrão já utilizado em  e .
+- **Dados demográficos (Raça):** Use sempre o campo  (Inglês) da collection , e não o antigo  (que está no schema mas vazio no banco de produção).
+- **Turmas Multisseriadas:** O fallback do grid de alunos agora obedece  alinhado ao dropdown de turmas, para não perder alunos quando a matrícula não declara série formalmente.
+- O termo Anos Finais — Análise PME não é mais usado; o painel agora se chama apenas Análise PME e cobre todos os níveis.
 
 **documents and test reports created in this job**
-  - 
-  - 
-  - 
-  - 
+  -  (Atualizado com registro das tasks)
+  -  até 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *User*: Confirmou a prioridade e requisições do Monitor de Sessão (P0) antes de AutoSave e exigiu modo de testes rápidos.
- - *User*: Aprovou a entrega do P0 (SessionMonitor). Instruiu seguir para o P1.
- - *Agent*: Implementou o P1 para Notas e Frequência; pediu confirmação de qual arquivo React era do módulo de Conteúdo/Diário.
- - *User*: Exigiu auditoria de endpoints (, , etc.) para provar documentalmente onde vive a tela de Conteúdo do professor regular (ou a ausência dela), sem implementar código às cegas. (LATEST)
- - *Agent*: Realizou a varredura e detectou que a tela é efetivamente . Preparado para prosseguir.
+ - *User*: Pediu para expandir a página Análise PME para contemplar todos os níveis de ensino (Infantil, Iniciais, Finais, EJA) com filtro específico.
+ - *Agent*: Ajustou backend e frontend para suportar query , encadeando seleção Escolas e renomeando a UI. Passou no teste. (LATEST)
+ - *User*: Reportou falha ao carregar alunos do 1º ano em turmas multisseriadas na área de Notas.
+ - *Agent*: Corrigiu o fallback da chave  e adicionou teste auto-contido.
+ - *User*: Pediu que Lançar frequência em datas futuras abranja os professores, além de secretários/admin.
+ - *Agent*: Implementou e testou no .
+ - *User*: Reportou que Cor/Raça mostrava tudo como Não declarado no painel PME.
+ - *Agent*: Ajustou query do backend para ler a chave  na agregação analítica.
+ - *User*: Pediu restrição da área Auditoria de Matrículas para Super Admin, Admin e Gerente (remover do dashboard geral).
+ - *Agent*: Removeu rotas de outras roles.
 
 **Project Health Check:**
-Healthy.
+Healthy. Nenhuma rota mockada, dependências com CI e Pytest ok (passando 100% nas validações).
 
 **3rd Party Integrations**
-Nenhuma nova inserida.
+N/A 
 
 **Testing status**
-  - Testing agent used after significant changes: NO (User validou fluxos críticos de UI pessoalmente; testes backend Python Pytest e NodeJS unit tests massivamente usados).
+  - Testing agent used after significant changes: YES (Iter 106 a 111 rodados com sucesso)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: , , , 
+  - Test files created: Atualizados , , .
   - Known regressions: None
 
 **Credentials to test flow:**
 Admin: gutenberg@sigesc.com / @Celta2007
 Coordenador: coordenador@sigesc.com / coordenador123
-(Consulte  para logins de professor).
+SEMED: semed@sigesc.com
+*(Verifique )*
 
 **What agent forgot to execute**
-Nada foi esquecido, o agente pausou explicitamente a execução do P1 (Integração de AutoSave em Conteúdo) para aguardar e fornecer o relatório de auditoria exigido pelo usuário no seu último comando. O próximo passo lógico imediato é integrar o  na tela  para finalizar a Epic P1.</analysis>
+Nenhum requisito da listagem de features pedidas foi esquecido. O usuário sinalizou apenas que a feature atual está pendente de homologação manual via interface.</analysis>

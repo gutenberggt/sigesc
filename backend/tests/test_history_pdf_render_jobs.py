@@ -26,7 +26,7 @@ import requests
 from motor.motor_asyncio import AsyncIOMotorClient
 
 BASE_URL = (
-    os.environ.get("REACT_APP_BACKEND_URL", "https://history-rebuild-2.preview.emergentagent.com")
+    os.environ.get("REACT_APP_BACKEND_URL", "https://institutional-audit-2.preview.emergentagent.com")
     .rstrip("/")
 )
 EMAIL = "gutenberg@sigesc.com"

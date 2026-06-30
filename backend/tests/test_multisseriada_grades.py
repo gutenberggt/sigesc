@@ -17,7 +17,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://history-rebuild-2.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://institutional-audit-2.preview.emergentagent.com").rstrip("/")
 CLASS_ID = "TST_JUA_CLASS"
 COURSE_ID = "TST_JUA_COURSE"
 ACADEMIC_YEAR = 2026

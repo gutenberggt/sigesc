@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv('/app/backend/.env')
 
 BASE_URL = os.environ.get(
-    "REACT_APP_BACKEND_URL", "https://history-rebuild-2.preview.emergentagent.com"
+    "REACT_APP_BACKEND_URL", "https://institutional-audit-2.preview.emergentagent.com"
 ).rstrip("/")
 ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 

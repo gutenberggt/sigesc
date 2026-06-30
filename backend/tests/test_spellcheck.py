@@ -15,7 +15,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://history-rebuild-2.preview.emergentagent.com",
+    "https://institutional-audit-2.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {
