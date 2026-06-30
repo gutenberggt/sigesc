@@ -761,11 +761,11 @@ function App() {
             }
           />
           
-          {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
+          {/* Livro de Promoção - admin, secretario, diretor, coordenador, professor, semed */}
           <Route
             path="/admin/promotion"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3']}>
                 <Promotion />
               </ProtectedRoute>
             }

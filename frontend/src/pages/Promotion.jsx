@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home } from 'lucide-react';
-import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI, professorAPI } from '@/services/api';
+import { usePermissions } from '@/hooks/usePermissions';
 import { usaAvaliacaoConceitual, valorParaConceito, isEducacaoInfantil } from '@/components/grades/gradeHelpers';
 import { toast } from 'sonner';
 import { useProgressTask } from '@/contexts/ProgressContext';
@@ -193,6 +194,10 @@ const STUDENTS_PER_PAGE = 10;
 export function Promotion() {
   const navigate = useNavigate();
   const { accessToken, user } = useAuth();
+  const { isProfessor, isSchoolStaff, isAdmin, isSuperAdmin, isSemed } = usePermissions();
+  // Professor: acesso restrito às turmas/componentes em que tem vínculo.
+  // Demais perfis de gestão veem todas as escolas/turmas normalmente.
+  const restrictToProfessor = isProfessor && !isAdmin && !isSuperAdmin && !isSchoolStaff && !isSemed;
   const progress = useProgressTask();
   const { mantenedora } = useMantenedora();
   
@@ -208,6 +213,8 @@ export function Promotion() {
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [gradesData, setGradesData] = useState([]);
+  // Turmas do professor (somente quando restrito ao vínculo) — inclui componentes lecionados
+  const [professorTurmas, setProfessorTurmas] = useState([]);
   
   // Componentes formativos/Tempo Integral que NÃO entram no Livro de Promoção
   const FORMATIVOS_NOMES = [
@@ -282,6 +289,19 @@ export function Promotion() {
   useEffect(() => {
     const fetchSchools = async () => {
       try {
+        if (restrictToProfessor) {
+          // Professor: deriva escolas apenas das turmas em que tem vínculo
+          const turmas = await professorAPI.getTurmas(selectedYear);
+          setProfessorTurmas(turmas || []);
+          const schoolMap = new Map();
+          (turmas || []).forEach(t => {
+            if (t.school_id && !schoolMap.has(t.school_id)) {
+              schoolMap.set(t.school_id, { id: t.school_id, name: t.school_name || 'Escola' });
+            }
+          });
+          setSchools(Array.from(schoolMap.values()));
+          return;
+        }
         const data = await schoolsAPI.list();
         setSchools(data || []);
       } catch (error) {
@@ -290,7 +310,7 @@ export function Promotion() {
       }
     };
     fetchSchools();
-  }, []);
+  }, [restrictToProfessor, selectedYear]);
 
   // Carregar turmas quando escola ou ano mudam (filtrar apenas séries elegíveis)
   useEffect(() => {
@@ -300,8 +320,14 @@ export function Promotion() {
         return;
       }
       try {
-        // Passar school_id diretamente (não como objeto)
-        const data = await classesAPI.list(selectedSchool);
+        let data;
+        if (restrictToProfessor) {
+          // Professor: usa apenas as turmas vinculadas (já carregadas) da escola selecionada
+          data = (professorTurmas || []).filter(t => t.school_id === selectedSchool);
+        } else {
+          // Passar school_id diretamente (não como objeto)
+          data = await classesAPI.list(selectedSchool);
+        }
         // Filtrar apenas turmas elegíveis (Ed. Infantil, 1º-9º Ano, EJA) + excluir AEE + bater com o ano letivo selecionado
         const filteredClasses = (data || []).filter(c => {
           const isAEE = (c.atendimento_programa || c.atendimento || c.modalidade || '').toLowerCase().includes('aee');
@@ -322,7 +348,7 @@ export function Promotion() {
       }
     };
     fetchClasses();
-  }, [selectedSchool, selectedYear]);
+  }, [selectedSchool, selectedYear, restrictToProfessor, professorTurmas]);
 
   // Carregar dados de promoção quando turma é selecionada
   const loadPromotionData = useCallback(async () => {
@@ -425,9 +451,18 @@ export function Promotion() {
         });
       }
       
+      // Professor restrito ao vínculo: exibir SOMENTE os componentes que ele leciona nesta turma
+      if (restrictToProfessor) {
+        const turmaVinculo = (professorTurmas || []).find(t => t.id === selectedClass);
+        const myCourseIds = new Set((turmaVinculo?.componentes || []).map(c => c.id));
+        if (myCourseIds.size > 0) {
+          filteredCourses = filteredCourses.filter(c => myCourseIds.has(c.id));
+        }
+      }
+
       const orderedCourses = ordenarComponentes(filteredCourses, classInfo.grade_level);
       setCourses(orderedCourses);
-      
+
       // Buscar notas de todos os alunos da turma
       const gradesPromises = studentIds.map(studentId => 
         gradesAPI.getAll({ student_id: studentId, academic_year: selectedYear })
@@ -783,14 +818,17 @@ export function Promotion() {
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
-            <Button
-              onClick={handleDownloadPDF}
-              disabled={loading || !selectedClass || promotionData.length === 0}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Gerar PDF
-            </Button>
+            {!restrictToProfessor && (
+              <Button
+                onClick={handleDownloadPDF}
+                disabled={loading || !selectedClass || promotionData.length === 0}
+                className="bg-emerald-600 hover:bg-emerald-700"
+                data-testid="promotion-generate-pdf-button"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Gerar PDF
+              </Button>
+            )}
           </div>
         </div>
 

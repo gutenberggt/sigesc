@@ -32,6 +32,17 @@ Evidência real (código + execução em banco isolado `scripts/_audit_student_m
 - **Decisão recomendada:** corrigir fluxos (P0: consolidação no backend, incluir conteúdo, dedup do histórico, herdar ano da turma) + criar ferramenta P1 "Reconstrução de Histórico Pedagógico" para dados legados. **Aguardando aprovação do usuário antes de implementar.**
 
 
+## CHANGELOG — Livro de Promoção visível ao Professor (acesso restrito ao vínculo) (Jun/2026)
+**Pedido:** tornar o "Livro de Promoção" acessível ao professor via botão/link no dashboard, lembrando que o acesso do professor se limita aos componentes curriculares das turmas em que tem vínculo.
+**Implementação (frontend):**
+- `ProfessorDashboard.js`: novo card de Acesso Rápido "Livro de Promoção" (`data-testid="menu-livro-promocao"`, ícone Award, dentro de `hasRegularTurmas`) → navega para `/admin/promotion`.
+- `App.js`: rota `/admin/promotion` passa a permitir `professor`.
+- `pages/Dashboard.js`: item "Livro de Promoção" do menu admin também visível a `isProfessor`.
+- `pages/Promotion.jsx`: quando o usuário é professor puro (`restrictToProfessor`), os filtros são restritos ao vínculo — Escolas e Turmas derivadas de `professorAPI.getTurmas(ano)`; a tabela exibe SOMENTE os componentes que o professor leciona na turma (interseção com `turma.componentes`); o botão "Gerar PDF" (livro completo da turma) é OCULTADO para o professor. Gestão (admin/staff/SEMED) mantém o comportamento completo.
+**Bugfix backend (pré-existente):** `GET /api/enrollments?class_id=...` retornava 500 (`ResponseValidationError`) quando havia matrícula legada com `status='inactive'` (fora do `Literal` de `EnrollmentBase`). Adicionado `field_validator('status', mode='before')` em `models.py::EnrollmentBase` coagindo valores legados na leitura (`inactive/inativo/deceased`→`cancelled`, `reclassified`→`progressed`). Agora 200.
+**Validação:** E2E preview como professor — escola/turma limitadas a "Escola Teste Multisseriada"/"Turma Multi 1-2-3", apenas L. PORT. e MAT. na tabela, sem "Gerar PDF", sem erro. `/api/enrollments` 200. Suítes `test_dedup_enrollments` (28), `test_cancelled_enrollment_hidden`, `test_relocate_student_regression` verdes; as 6 falhas em `test_enrollment_duplication.py` são PRÉ-EXISTENTES (independem desta mudança).
+
+
 ## CHANGELOG — GATE de regressão em CI (gate duro automático + gate humano final) (Jun/2026)
 **Arquitetura aprovada:** `cycle` = gate DURO automático (detecta regressão, bloqueia merge/deploy) · homologação assistida = gate HUMANO final (7 gates + aprovação formal) · produção só libera com os dois. CI **não** substitui os gates humanos.
 - **`make regression`** (Makefile): GATE DURO em **2 camadas formais, fail-fast global**. Camada 1 = smoke E2E (`cycle`, sandbox isolado, 8 verificações). Camada 2 = **suíte de 27 testes** (`test_school_transfer.py` 6 + `test_school_resolution.py` 10 + `test_school_transfer_rollback.py` 11) com `pytest -x` (falha imediata). Se qualquer camada falhar, o gate aborta com exit 1 (bloqueia merge/deploy). Banner reforça "NÃO certifica o sistema".

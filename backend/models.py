@@ -1632,6 +1632,16 @@ class EnrollmentBase(BaseModel):
     
     # Situação
     status: Literal['active', 'completed', 'cancelled', 'transferred', 'relocated', 'progressed', 'dropout'] = 'active'
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def _normalize_enrollment_status(cls, v):
+        # Tolera valores legados gravados no banco (ex.: 'inactive') na leitura,
+        # evitando ResponseValidationError ao listar matrículas antigas.
+        if isinstance(v, str):
+            legacy_map = {'inactive': 'cancelled', 'inativo': 'cancelled', 'deceased': 'cancelled', 'reclassified': 'progressed'}
+            return legacy_map.get(v.strip().lower(), v)
+        return v
     
     # Observações
     observations: Optional[str] = None

@@ -15,7 +15,8 @@ import {
   School,
   Clock,
   FileText,
-  Sparkles
+  Sparkles,
+  Award
 } from 'lucide-react';
 import { professorAPI } from '../services/api';
 import { mantenedoraAPI } from '../services/api';
@@ -207,6 +208,17 @@ export default function ProfessorDashboard() {
                   <CardContent className="p-4 text-center">
                     <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
                     <p className="font-medium">Objetos de Conhecimento</p>
+                  </CardContent>
+                </Card>
+
+                <Card 
+                  className="cursor-pointer hover:bg-emerald-50 transition-colors"
+                  onClick={() => navigate('/admin/promotion')}
+                  data-testid="menu-livro-promocao"
+                >
+                  <CardContent className="p-4 text-center">
+                    <Award className="mx-auto mb-2 text-emerald-600" size={32} />
+                    <p className="font-medium">Livro de Promoção</p>
                   </CardContent>
                 </Card>
               </>
