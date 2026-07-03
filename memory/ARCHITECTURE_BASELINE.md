@@ -47,6 +47,22 @@ os riscos estão em **modelagem duplicada** (grade horária e vínculo aluno↔t
 6. **Contrato JSON limpo** — UUID em `id`, nunca ObjectId no contrato; `field_validator` tolera legado.
 7. **Consolidar antes de expandir** — reutilizar coleções/módulos; não criar Nª representação de dados existentes.
 8. **Baseline viva** — este documento é atualizado a cada mudança estrutural.
+9. **Single Source of Truth de Indicadores (SSoT)** — *nenhum indicador pode ser
+   calculado dentro de dashboards, páginas ou componentes.* Todo indicador é
+   produzido **exclusivamente pelo Motor de Indicadores** (futuro domínio), a
+   única fonte oficial de cálculo do sistema. Dashboards/IA/relatórios apenas
+   **consomem** o resultado. Este princípio orienta todas as evoluções futuras.
+
+## 3.1 Diretriz permanente — checklist obrigatório de reuso (antes de implementar)
+> Toda nova funcionalidade DEVE responder, **antes** da implementação:
+> 1. Existe algum **dado** semelhante no sistema?
+> 2. Existe algum **indicador** equivalente?
+> 3. Existe algum **Service** reutilizável?
+> 4. Existe alguma **API** reutilizável?
+> 5. Existe algum **Dashboard** que já consome essa informação?
+> 6. O cálculo **deveria** ser responsabilidade do **Motor de Indicadores**?
+>
+> **Se qualquer resposta for "sim" → a prioridade é REUTILIZAR, nunca duplicar.**
 
 ## 4. Matriz de Capacidades (resumo — completo em [audit/19](audit/19_MATRIZ_CAPACIDADES.md))
 | Área | Status |

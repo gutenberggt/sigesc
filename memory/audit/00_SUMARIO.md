@@ -43,19 +43,27 @@
 - [20 — Roadmap Arquitetural](20_ROADMAP.md) 🟢
 - Documento mestre: [`../ARCHITECTURE_BASELINE.md`](../ARCHITECTURE_BASELINE.md)
 
-### Onda 2 — Detalhamento (PENDENTE — aguarda aprovação da Onda 1)
-- [03 — Dashboards](03_DASHBOARDS.md) ⏳
-- [04 — Catálogo de Indicadores](04_INDICADORES.md) ⏳
-- [07 — Componentes React](07_COMPONENTES.md) ⏳
+### Onda 2 — Reorientada para "Plataforma de Inteligência" (foco: dados + BI)
+> Reprioridade definida pelo arquiteto (Sprint 000.1): o foco deixa de ser inventário
+> técnico e passa a **preparar o SIGESC IA para BI + Motor de Indicadores + IA (SSoT)**.
+
+**Prioridade máxima (ENTREGUE nesta rodada):**
+- [21 — Business Intelligence (domínio)](21_BUSINESS_INTELLIGENCE.md) ✅
+- [04 — Catálogo de Indicadores (doc central)](04_INDICADORES.md) ✅
+- [03 — Dashboards (arquitetura definitiva)](03_DASHBOARDS.md) ✅
+- [09 — Services (camada analítica)](09_SERVICES.md) ✅
+- [14 — IA consumindo BI](14_INTELIGENCIA_ARTIFICIAL.md) ✅
+
+**Podem ficar para o final (não são foco estratégico agora):**
+- [07 — Componentes](07_COMPONENTES.md) ⏳
 - [08 — Hooks](08_HOOKS.md) ⏳
-- [09 — Services](09_SERVICES.md) ⏳
 - [10 — Contexts](10_CONTEXTS.md) ⏳
-- [13 — Integrações](13_INTEGRACOES.md) ⏳
-- [14 — Inteligência Artificial](14_INTELIGENCIA_ARTIFICIAL.md) ⏳
 - [15 — Relatórios](15_RELATORIOS.md) ⏳
 - [16 — Código Duplicado](16_CODIGO_DUPLICADO.md) ⏳
 - [17 — Código Obsoleto](17_CODIGO_OBSOLETO.md) ⏳
-- [21 — Business Intelligence](21_BUSINESS_INTELLIGENCE.md) ⏳
+
+### Sprint 000.1 — Consolidação Arquitetural (decisões)
+- [Índice 000.1](000.1/00_INDICE.md) · Executivo: [`../EXECUTIVE_ARCHITECT_REVIEW.md`](../EXECUTIVE_ARCHITECT_REVIEW.md)
 
 ## Como manter viva esta baseline
 Sempre que houver mudança estrutural relevante (novo módulo, nova coleção,
