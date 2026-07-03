@@ -105,6 +105,13 @@ As decisões priorizadas derivadas destes achados estão em
 decisão de dashboards/indicadores e plano de BI). **A Onda 2 só inicia após a
 validação dessas decisões.**
 
+## 6.2 Especificação do Motor de Indicadores (Sprint BI-0)
+A arquitetura oficial do Motor de Indicadores (SSoT) — modelo conceitual, catálogo,
+`bi_indicator_defs`, engine de cálculo, granularidade, performance, contrato
+`/api/bi/*`, integração com IA e roadmap BI-1→BI-6 — está em
+[`BI_ENGINE_ARCHITECTURE.md`](BI_ENGINE_ARCHITECTURE.md). **A implementação do BI só
+inicia após aprovação formal dessa especificação.**
+
 ## 7. Índice da documentação da auditoria
 **Onda 1 (entregue):**
 - [00 — Sumário/Métricas](audit/00_SUMARIO.md)
