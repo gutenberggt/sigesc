@@ -64,6 +64,18 @@ os riscos estão em **modelagem duplicada** (grade horária e vínculo aluno↔t
 >
 > **Se qualquer resposta for "sim" → a prioridade é REUTILIZAR, nunca duplicar.**
 
+## 3.2 Governança de migrações estruturais (política permanente)
+> **Nenhuma migração estrutural** (mudança de modelo, unificação de fonte de dados,
+> alteração de coleções ou de status canônicos) pode ser executada sem:
+> 1. **Auditoria prévia** de divergência com evidências reais (dados de produção);
+> 2. **Plano de migração aprovado** (matriz de impacto + dry-run);
+> 3. **Plano de rollback** (flag/snapshot/backup, com tempo de recuperação);
+> 4. **Plano de testes** (automatizados + funcionais + paridade + regressão);
+> 5. **Critérios objetivos de sucesso** (go/no-go documentado).
+>
+> Referência de processo: `DATA_DIVERGENCE_AUDIT.md` + `BI-1B_FINAL_MIGRATION_PLAN.md`.
+> Script de auditoria reproduzível: `audit/scripts/data_divergence_audit.py` (READ-ONLY).
+
 ## 4. Matriz de Capacidades (resumo — completo em [audit/19](audit/19_MATRIZ_CAPACIDADES.md))
 | Área | Status |
 |---|---|

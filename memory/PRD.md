@@ -12,6 +12,13 @@
   comportamento do sistema inalterado.** Smoke test: 4 passed. Relatório: `BI-1A_TECHNICAL_REPORT.md`.
 - **Próxima — Sprint BI-1B (planejada, requer aprovação):** consolidação de dados
   (vínculo aluno↔turma D2 + status legados D6). Plano: `BI-1B_PLAN.md` (altera dados/migrações).
+- **Sprint BI-1A.5 (READ-ONLY — CONCLUÍDA, Jun/2026):** auditoria de divergência de dados.
+  Evidências reais (preview) via `audit/scripts/data_divergence_audit.py`. Relatórios:
+  `DATA_DIVERGENCE_AUDIT.md` + `BI-1B_FINAL_MIGRATION_PLAN.md`. Confirmou D2 (divergência
+  11,11% entre alunos com class_id; 3 fontes de vínculo; 19/165 matrículas totalmente válidas
+  no preview) e D6 (status `inactive`/`reclassified` não-canônicos). Política permanente de
+  governança de migrações inscrita na baseline (§3.2). **BI-1B só inicia após reexecutar o
+  audit em PRODUÇÃO + aprovação formal deste plano.**
 
 
 ## ⛔ MÓDULOS BLOQUEADOS (NÃO ALTERAR SEM PERMISSÃO EXPLÍCITA DO USUÁRIO)
