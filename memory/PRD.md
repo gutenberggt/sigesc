@@ -1,5 +1,19 @@
 # SIGESC - Product Requirements Document
 
+## 📊 FASE BUSINESS INTELLIGENCE (registro cronológico)
+- **Sprint 000 (Auditoria/Onda 1):** baseline arquitetural em `ARCHITECTURE_BASELINE.md` + `audit/`.
+- **Sprint 000.1 (Consolidação):** decisões priorizadas em `EXECUTIVE_ARCHITECT_REVIEW.md` + `audit/000.1/`.
+- **Onda 2 (reorientada p/ dados/BI):** entregues 21(BI), 04(Indicadores), 03(Dashboards), 09(Services), 14(IA).
+- **Sprint BI-0 (aprovada):** especificação oficial do Motor de Indicadores em `BI_ENGINE_ARCHITECTURE.md`.
+- **Princípio permanente SSoT** inscrito na baseline (§3.9 + checklist §3.1): indicador só é calculado pelo Motor.
+- **Sprint BI-1A (IMPLEMENTADA — infraestrutura, Jun/2026):** Core Domain isolado
+  `/app/backend/business_intelligence/` (contratos, interfaces SOLID, FormulaRegistry,
+  BIEngine, DI, providers no-op, testes-scaffold). **Não importado pelo `server.py` →
+  comportamento do sistema inalterado.** Smoke test: 4 passed. Relatório: `BI-1A_TECHNICAL_REPORT.md`.
+- **Próxima — Sprint BI-1B (planejada, requer aprovação):** consolidação de dados
+  (vínculo aluno↔turma D2 + status legados D6). Plano: `BI-1B_PLAN.md` (altera dados/migrações).
+
+
 ## ⛔ MÓDULOS BLOQUEADOS (NÃO ALTERAR SEM PERMISSÃO EXPLÍCITA DO USUÁRIO)
 
 > **AVISO PARA AGENTES E DESENVOLVEDORES**: Os módulos abaixo foram travados pelo

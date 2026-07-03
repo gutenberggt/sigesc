@@ -112,6 +112,13 @@ A arquitetura oficial do Motor de Indicadores (SSoT) — modelo conceitual, cat�
 [`BI_ENGINE_ARCHITECTURE.md`](BI_ENGINE_ARCHITECTURE.md). **A implementação do BI só
 inicia após aprovação formal dessa especificação.**
 
+## 6.3 Fundação do domínio BI (Sprint BI-1A — IMPLEMENTADA, infraestrutura)
+Criado o Core Domain isolado `/app/backend/business_intelligence/` (contratos,
+interfaces SOLID, FormulaRegistry, BIEngine, DI, providers no-op, testes-scaffold,
+docs). **Não é importado pelo `server.py` → zero impacto em runtime.** Relatório:
+[`BI-1A_TECHNICAL_REPORT.md`](BI-1A_TECHNICAL_REPORT.md). Próxima: consolidação de
+dados em [`BI-1B_PLAN.md`](BI-1B_PLAN.md) (altera dados/migrações — requer aprovação).
+
 ## 7. Índice da documentação da auditoria
 **Onda 1 (entregue):**
 - [00 — Sumário/Métricas](audit/00_SUMARIO.md)
