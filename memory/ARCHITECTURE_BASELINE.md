@@ -82,6 +82,13 @@ os riscos estão em **modelagem duplicada** (grade horária e vínculo aluno↔t
 - 🟡 **D5** Motores de risco sobrepostos · **D6** status legados · **D7** RBAC desigual · **D8** snapshots múltiplos.
 - ⚫ **D9** legados (`mantenedora` singular, `render_jobs`×`document_render_jobs`, `App_old.js`, `server.py.bak`).
 
+## 6.1 Decisões arquiteturais (Sprint 000.1)
+As decisões priorizadas derivadas destes achados estão em
+[`EXECUTIVE_ARCHITECT_REVIEW.md`](EXECUTIVE_ARCHITECT_REVIEW.md) + `audit/000.1/`
+(priorização P0–P3, mapa de dependências, plano de refatoração, BI readiness,
+decisão de dashboards/indicadores e plano de BI). **A Onda 2 só inicia após a
+validação dessas decisões.**
+
 ## 7. Índice da documentação da auditoria
 **Onda 1 (entregue):**
 - [00 — Sumário/Métricas](audit/00_SUMARIO.md)
