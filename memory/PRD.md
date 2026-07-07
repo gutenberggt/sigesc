@@ -1,7 +1,17 @@
 # SIGESC - Product Requirements Document
 
-## 📊 FASE BUSINESS INTELLIGENCE (registro cronológico)
-- **Sprint 000 (Auditoria/Onda 1):** baseline arquitetural em `ARCHITECTURE_BASELINE.md` + `audit/`.
+## 🐛 BUGFIX — Divergência de números no painel "Análise PME" (Jun/2026)
+Reportado: cabeçalho "1332 Matrículas / 1247 ativos" vs Rendimento "Cursando 1266".
+Causa: duas bases de contagem — "ativos" contava ALUNOS ÚNICOS {active,progressed,reclassified};
+"cursando" contava MATRÍCULAS {active,relocated}. Fix (`routers/pme_anos_finais.py`):
+`outcome_map` canônico único; `matriculas.ativos` passou a ser POR MATRÍCULA (situação em
+{cursando,aprovado}), reconciliando com o gráfico (total = ativas + transferido + abandono + …);
+adicionado `matriculas.alunos_ativos` (alunos únicos) para denominadores demográficos; frontend
+rótulo "ativos"→"ativas". Validado pelo testing_agent (30/30; iteration_112). Testes:
+`backend/tests/test_pme_reconciliation.py`.
+
+
+## 📊 FASE BUSINESS INTELLIGENCE (registro cronológico)- **Sprint 000 (Auditoria/Onda 1):** baseline arquitetural em `ARCHITECTURE_BASELINE.md` + `audit/`.
 - **Sprint 000.1 (Consolidação):** decisões priorizadas em `EXECUTIVE_ARCHITECT_REVIEW.md` + `audit/000.1/`.
 - **Onda 2 (reorientada p/ dados/BI):** entregues 21(BI), 04(Indicadores), 03(Dashboards), 09(Services), 14(IA).
 - **Sprint BI-0 (aprovada):** especificação oficial do Motor de Indicadores em `BI_ENGINE_ARCHITECTURE.md`.
