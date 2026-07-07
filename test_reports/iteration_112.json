@@ -1,0 +1,20 @@
+{
+  "summary": "Bug fix validated: /api/pme/anos-finais/analytics reconcilia números entre cabeçalho 'Matrículas' e seção 'Rendimento'. Novos testes cobrem 4 níveis (educacao_infantil, anos_iniciais, anos_finais, eja) x 4 asserções (total==soma, ativos==cursando+aprovado, alunos_ativos presente e <= ativos, regressão de estrutura). Todos os 30 testes (16 novos + 14 regressão do arquivo test_pme_anos_finais.py) passaram.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_pme_reconciliation.py",
+    "/app/backend/tests/test_pme_anos_finais.py",
+    "/app/test_reports/pytest/iteration_112.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/backend/tests/test_pme_reconciliation.py"],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "not tested (backend only)"},
+  "test_credentials": "admin gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "nenhum — testes read-only sobre dataset preview existente",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reconciliação PME validada para 2026. Testes parametrizados por nível ficam em test_pme_reconciliation.py. Rota correta: /api/pme/anos-finais/analytics (query: academic_year, level).",
+  "rca of the issue": "Duas bases de contagem: 'ativos' contava alunos únicos {active,progressed,reclassified}, 'cursando' contava matrículas {active,relocated}. Fix aplicou outcome_map canônico único; matriculas.ativos passou a ser por-matrícula (cursando+aprovado) reconciliando com o gráfico; novo campo matriculas.alunos_ativos preserva a contagem de alunos únicos para denominadores demográficos."
+}

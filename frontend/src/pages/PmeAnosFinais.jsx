@@ -164,7 +164,7 @@ export default function PmeAnosFinais() {
             {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <Stat icon={School} label="Escolas (Anos Finais)" value={esc.total ?? 0} sub={`${esc.por_zona?.urbana || 0} urb. / ${esc.por_zona?.rural || 0} rural`} color="indigo" />
-              <Stat icon={Users} label="Matrículas" value={m.total ?? 0} sub={`${m.ativos || 0} ativos`} color="sky" />
+              <Stat icon={Users} label="Matrículas" value={m.total ?? 0} sub={`${m.ativos || 0} ativas`} color="sky" />
               <Stat icon={Layers} label="Turmas multisseriadas" value={data.multisseriadas?.total ?? 0} sub={`de ${data.multisseriadas?.total_turmas_af || 0} turmas`} color="purple" />
               <Stat icon={Accessibility} label="Com deficiência" value={`${data.deficiencia?.percentual ?? 0}%`} sub={`${data.deficiencia?.com_deficiencia || 0} alunos`} color="amber" />
               <Stat icon={TrendingDown} label="Taxa de abandono" value={`${data.evasao?.taxa_abandono_pct ?? 0}%`} sub={`${data.evasao?.abandono_total || 0} alunos`} color="red" />

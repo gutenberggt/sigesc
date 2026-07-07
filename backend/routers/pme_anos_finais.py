@@ -204,11 +204,24 @@ def setup_router(db):
             ser = stu.get("student_series") or class_map.get(enr["class_id"], {}).get("grade_level", "")
             return _serie_num(ser)
 
+        # ---- Classificação canônica de situação de matrícula (fonte única) ----
+        # Usada de forma consistente em TODAS as contagens (cabeçalho, rendimento,
+        # demografia e distorção) para evitar divergência entre "ativos" e "cursando".
+        outcome_map = {
+            "active": "cursando", "progressed": "aprovado", "reclassified": "aprovado",
+            "dropout": "abandono", "transferred": "transferido",
+            "cancelled": "cancelado", "inactive": "inativo", "relocated": "cursando",
+        }
+        # Matrícula "ativa" = aluno ainda vinculado à rede (cursando ou aprovado/promovido).
+        PRESENT_OUTCOMES = {"cursando", "aprovado"}
+
+        def _outcome(enr):
+            return outcome_map.get(enr.get("status"), "cursando")
+
         # ---- Matrículas totais por escola/zona ----
         total_matriculas = 0
         por_escola = {}
         por_zona = {"urbana": 0, "rural": 0, "nao_informado": 0}
-        active_statuses = {"active", "progressed", "reclassified"}
         for e in enrollments:
             total_matriculas += 1
             cls = class_map.get(e["class_id"], {})
@@ -221,11 +234,15 @@ def setup_router(db):
             z = sc.get("zona_localizacao") or "nao_informado"
             por_zona[z if z in por_zona else "nao_informado"] += 1
 
-        # ---- Demografia (ativos) ----
+        # ---- Demografia (por ALUNO ÚNICO ativo) + matrículas ativas (por matrícula) ----
         cor_raca_dist = {}
         com_deficiencia = 0
         com_nis = 0
-        ativos_ids = [e["student_id"] for e in enrollments if e.get("status") in active_statuses]
+        # Matrículas ativas = matrículas cuja situação é "cursando" ou "aprovado".
+        # (reconcilia com o gráfico de situação: total = ativas + transferido + abandono + ...)
+        matriculas_ativas = sum(1 for e in enrollments if _outcome(e) in PRESENT_OUTCOMES)
+        # Alunos ativos únicos = mesmos critérios, deduplicados por aluno (para percentuais demográficos).
+        ativos_ids = [e["student_id"] for e in enrollments if _outcome(e) in PRESENT_OUTCOMES]
         ativos_unique = sorted(set(ativos_ids))
         for sid in ativos_unique:
             stu = student_map.get(sid, {})
@@ -237,19 +254,14 @@ def setup_router(db):
                 com_nis += 1
         n_ativos = len(ativos_unique)
 
-        # ---- Rendimento (por status de matrícula) por série / zona / cor-raça ----
-        outcome_map = {
-            "active": "cursando", "progressed": "aprovado", "reclassified": "aprovado",
-            "dropout": "abandono", "transferred": "transferido",
-            "cancelled": "cancelado", "inactive": "inativo", "relocated": "cursando",
-        }
+        # ---- Rendimento (por situação de matrícula) por série / zona / cor-raça ----
         rendimento = {"aprovado": 0, "abandono": 0, "transferido": 0, "cursando": 0,
                       "cancelado": 0, "inativo": 0}
         rend_por_serie = {}
         rend_por_zona = {"urbana": {}, "rural": {}, "nao_informado": {}}
         rend_por_raca = {}
         for e in enrollments:
-            out = outcome_map.get(e.get("status"), "cursando")
+            out = _outcome(e)
             if out in rendimento:
                 rendimento[out] += 1
             ser = _serie_for(e)
@@ -273,7 +285,7 @@ def setup_router(db):
             ser = _serie_num(stu.get("student_series") or "")
             if not ser:
                 # tenta pela turma da matrícula ativa
-                enr = next((e for e in enrollments if e["student_id"] == sid and e.get("status") in active_statuses), None)
+                enr = next((e for e in enrollments if e["student_id"] == sid and _outcome(e) in PRESENT_OUTCOMES), None)
                 if enr:
                     ser = _serie_num(class_map.get(enr["class_id"], {}).get("grade_level", ""))
             if not ser or ser not in expected_age:
@@ -315,7 +327,8 @@ def setup_router(db):
             },
             "matriculas": {
                 "total": total_matriculas,
-                "ativos": n_ativos,
+                "ativos": matriculas_ativas,
+                "alunos_ativos": n_ativos,
                 "por_escola": sorted(por_escola.values(), key=lambda x: -x["total"]),
                 "por_zona": por_zona,
             },
