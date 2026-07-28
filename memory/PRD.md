@@ -23,6 +23,17 @@ Operacional (oferta/turmas/servidores/permissões — dinâmico). 6 entregas doc
 - `CTUE_PRINCIPIOS_ARQUITETURAIS.md` — "constituição" do CTUE (objetivos, limites, SSoT, governança, gate de inclusão de campos).
 **Ordem A→B→C→D com gates humanos.** Arquitetura **APROVADA integralmente pelo owner** (Jun/2026).
 
+### ✅ FASE C — Dossiê Institucional (PDF) — CONCLUÍDA (iter_115: BE 12/12 + 34/34 regressão, FE 100%)
+Dossiê Institucional por escola em `GET /api/ctue/schools/{id}/dossie?profile=` (reportlab,
+`pdf/dossie_institucional.py`). É **apenas representação do CTUE** — sem lógica própria: consome
+dados da escola + `CTUEConformityService.evaluate()`. Conteúdo: Identificação, Dados
+Administrativos/Gestor, Quadro-resumo de Conformidade e Completude, Infraestrutura, Acessibilidade,
+Segurança, Água/Saneamento, Equipamentos, Observações (quando houver) e Resumo Institucional
+(Conformidade Geral, Completude Geral, Última Atualização, Nível de Maturidade). Sem QR/assinatura/
+histórico/anexos (fora de escopo). Botão "Gerar Dossiê" no Painel de Conformidade (com loading,
+download via `<a download>`). Fixes pós-teste: perfil inválido → 400; botão com estado de loading.
+**Ciclo inicial do CTUE (A1 + B + C) ENCERRADO.**
+
 ### ✅ FASE B — Painel Gerencial da Rede (Centro de Inteligência) — CONCLUÍDA (iter_114: BE 34/34, FE 100%)
 Painel de decisão em `/admin/rede` (menu "Painel da Rede (CTUE)"), tudo derivado do SSoT
 (`build_network_panel` no CTUEConformityService — endpoint `GET /api/ctue/network-panel`, cache

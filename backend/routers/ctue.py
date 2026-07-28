@@ -24,6 +24,13 @@ def setup_router(db, audit_service, sandbox_db=None):
         await AuthMiddleware.get_current_user(request)
         return {"profiles": ctue.get_profiles()}
 
+    def _validate_profile(profile: str):
+        from fastapi import HTTPException, status as http_status
+        valid = {p["key"] for p in ctue.get_profiles()}
+        if profile not in valid:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST,
+                                detail=f"Perfil de avaliação inválido: '{profile}'")
+
     @router.get("/schools/{school_id}/conformity")
     async def school_conformity(school_id: str, request: Request, profile: str = "default"):
         current_user = await AuthMiddleware.verify_school_access(request, school_id)
@@ -94,6 +101,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         if not school:
             raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
         assert_same_tenant(school, current_user, request)
+        _validate_profile(profile)
 
         result = ctue.evaluate(school, profile=profile)
         mantenedora = None

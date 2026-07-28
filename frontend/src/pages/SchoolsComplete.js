@@ -302,15 +302,24 @@ export function SchoolsComplete() {
   }, [reloadTrigger]);
 
   // CTUE — gerar Dossiê Institucional (PDF, representação do CTUE)
+  const [generatingDossie, setGeneratingDossie] = useState(false);
   const handleGenerateDossie = async () => {
-    if (!editingSchool?.id) return;
+    if (!editingSchool?.id || generatingDossie) return;
+    setGeneratingDossie(true);
     try {
       const blob = await ctueAPI.getDossie(editingSchool.id, ctueProfile);
       const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dossie_institucional_${(editingSchool.name || 'escola').replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
       setAlert({ type: 'error', message: 'Não foi possível gerar o Dossiê Institucional.' });
+    } finally {
+      setGeneratingDossie(false);
     }
   };
 
@@ -2891,6 +2900,7 @@ export function SchoolsComplete() {
                 onProfileChange={setCtueProfile}
                 onNavigateSection={(tab) => setActiveTab(tab)}
                 onGenerateDossie={handleGenerateDossie}
+                generatingDossie={generatingDossie}
               />
             )}
 
