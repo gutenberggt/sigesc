@@ -11,6 +11,19 @@ rótulo "ativos"→"ativas". Validado pelo testing_agent (30/30; iteration_112).
 `backend/tests/test_pme_reconciliation.py`.
 
 
+## 🔎 AUDITORIA READ-ONLY — Cadastro de Escolas / SIGESC (Jun/2026)
+Sprint estritamente passiva (nenhum código/modelo/coleção/migração alterado). Cruzou
+`models.py::SchoolBase` (135 campos) × `SchoolsComplete.js` (80 editáveis) × Educacenso 2026 + MP/TCE.
+**Achado (hipótese do owner CONFIRMADA):** o modelo já é rico em infraestrutura/acessibilidade/
+segurança; **55/135 campos (41%) estão OCULTOS na UI** e **não há relatório institucional**.
+~44% dos requisitos MP/FNDE já têm campo (só falta expor); ~27% são lacunas reais de modelo
+(obras, conformidade legal, potabilidade, tipificação de esgoto/lixo, metragem/ocupação).
+**Proposta SSoT (sobre a coleção `schools`, sem módulo novo):** Fase A (expor campos ocultos) →
+Fase B (relatório/PDF de infraestrutura) → Fase C (evolução aditiva do modelo p/ os ❌, sob §3.2).
+Relatórios: `AUDITORIA_CADASTRO_ESCOLAS.md` (6 entregas) + `AUDITORIA_CAMPOS_ESCOLAS.md` +
+`MATRIZ_MP_FNDE_SIGESC.md`. **Aguardando decisão do owner (A→B→C) antes de qualquer implementação.**
+
+
 ## 📊 FASE BUSINESS INTELLIGENCE (registro cronológico)- **Sprint 000 (Auditoria/Onda 1):** baseline arquitetural em `ARCHITECTURE_BASELINE.md` + `audit/`.
 - **Sprint 000.1 (Consolidação):** decisões priorizadas em `EXECUTIVE_ARCHITECT_REVIEW.md` + `audit/000.1/`.
 - **Onda 2 (reorientada p/ dados/BI):** entregues 21(BI), 04(Indicadores), 03(Dashboards), 09(Services), 14(IA).
