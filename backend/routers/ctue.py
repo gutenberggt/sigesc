@@ -5,6 +5,7 @@ Expõe o resultado do CTUEConformityService. Nenhuma regra recalculada aqui.
 from fastapi import APIRouter, Request
 from typing import Optional
 
+from utils.cache import cache, CACHE_TTL_SCHOOLS
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope, assert_same_tenant
 from services import ctue_conformity_service as ctue
@@ -50,5 +51,34 @@ def setup_router(db, audit_service, sandbox_db=None):
         schools = await current_db.schools.find(query, {"_id": 0}).to_list(1000)
         overview = [ctue.summarize(s, profile=profile) for s in schools]
         return {"profile": profile, "count": len(overview), "schools": overview}
+
+    @router.get("/network-panel")
+    async def network_panel(request: Request, profile: str = "default"):
+        """Painel Gerencial da Rede (Centro de Inteligência) — tudo derivado do SSoT.
+        Cache transparente invalidado automaticamente quando o CTUE de qualquer escola muda."""
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+
+        wide_roles = ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed1',
+                      'semed2', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']
+        base_filter = {}
+        if current_user['role'] not in wide_roles:
+            base_filter = {"id": {"$in": current_user.get('school_ids', [])}}
+        query = apply_tenant_filter(base_filter, current_user, request)
+
+        tenant_id = get_mantenedora_scope(current_user, request)
+        cache_params = {
+            'role': current_user['role'],
+            'school_ids': sorted(current_user.get('school_ids', [])),
+            'tenant': tenant_id or 'ALL', 'profile': profile,
+        }
+        cached = cache.get('ctue', cache_params)
+        if cached is not None:
+            return cached
+
+        schools = await current_db.schools.find(query, {"_id": 0}).to_list(2000)
+        panel = ctue.build_network_panel(schools, profile=profile)
+        cache.set('ctue', cache_params, panel, CACHE_TTL_SCHOOLS)
+        return panel
 
     return router

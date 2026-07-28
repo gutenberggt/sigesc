@@ -166,6 +166,10 @@ export const ctueAPI = {
   getOverview: async (profile = 'default') => {
     const response = await axios.get(`${API}/ctue/conformity-overview`, { params: { profile } });
     return response.data;
+  },
+  getNetworkPanel: async (profile = 'default') => {
+    const response = await axios.get(`${API}/ctue/network-panel`, { params: { profile } });
+    return response.data;
   }
 };
 

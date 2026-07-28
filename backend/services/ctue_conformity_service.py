@@ -282,3 +282,187 @@ def summarize(school, profile="default"):
         "maturidade": r["maturidade"],
         "atualizacao": r["atualizacao"],
     }
+
+
+def _eval_alert(alert, result):
+    op = alert.get("op")
+    if "section" in alert:
+        sec = next((s for s in result["sections"] if s["key"] == alert["section"]), None)
+        if not sec or sec.get("avaliada") is False:
+            return False
+        if op == "status_in":
+            return sec.get("status") in (alert.get("value") or [])
+        return False
+    metric = alert.get("metric")
+    if metric == "days_since":
+        days = result["atualizacao"].get("days_since")
+        if op == "gt_or_never":
+            return days is None or days > alert.get("value", 999999)
+        return False
+    val = result.get(metric)
+    if val is None:
+        return False
+    target = alert.get("value")
+    return {"lt": val < target, "lte": val <= target, "gt": val > target,
+            "gte": val >= target, "eq": val == target}.get(op, False)
+
+
+def build_network_panel(schools, profile="default", ruleset=None):
+    """
+    Centro de Inteligência da Rede — deriva TUDO de evaluate() (SSoT).
+    Executiva + Alertas + Fila de Prioridades + Mapa + Comparativos + slot de Evolução.
+    """
+    rs = ruleset or _RULESET
+    alert_defs = rs.get("alerts", [])
+    sev_weights = rs.get("severity_weights", {})
+    action_defs = rs.get("priority_actions", {})
+    porte_buckets = rs.get("porte_buckets", [])
+
+    results = [(s, evaluate(s, profile=profile, ruleset=rs)) for s in schools]
+    total = len(results)
+    ativas = sum(1 for s, _ in results if s.get("status", "active") == "active")
+
+    # ---- Visão Executiva ----
+    avaliadas = [r for _, r in results]
+    conf_media = round(sum(r["conformidade_geral"] for r in avaliadas) / total) if total else 0
+    comp_media = round(sum(r["completude_geral"] for r in avaliadas) / total) if total else 0
+    dias_list = [r["atualizacao"]["days_since"] for r in avaliadas if r["atualizacao"].get("days_since") is not None]
+    atualizacao_media_dias = round(sum(dias_list) / len(dias_list)) if dias_list else None
+    nunca = sum(1 for r in avaliadas if r["atualizacao"].get("freshness") == "never")
+    maturidade_dist = {str(n): 0 for n in range(1, 6)}
+    for r in avaliadas:
+        maturidade_dist[str(r["maturidade"]["nivel"])] += 1
+    status_dist = {}
+    for r in avaliadas:
+        status_dist[r["selo_geral"]] = status_dist.get(r["selo_geral"], 0) + 1
+
+    executive = {
+        "total": total, "ativas": ativas, "inativas": total - ativas,
+        "conformidade_media": conf_media, "completude_media": comp_media,
+        "atualizacao_media_dias": atualizacao_media_dias,
+        "cadastros_nunca_atualizados": nunca,
+        "maturidade_distribuicao": maturidade_dist,
+        "status_distribuicao": status_dist,
+    }
+
+    # ---- Alertas + Fila de Prioridades ----
+    alerts_out = []
+    priorities = []
+    for school, r in results:
+        nome = school.get("name", "Escola")
+        crit_score = 0
+        hits = []
+        for a in alert_defs:
+            if _eval_alert(a, r):
+                sev = a.get("severidade", "medio")
+                crit_score += sev_weights.get(sev, 10)
+                hits.append(a)
+                alerts_out.append({
+                    "id": a["id"], "severidade": sev, "label": a["label"],
+                    "school_id": r["school_id"], "school_name": nome,
+                })
+        # ações sugeridas (regras, sem IA)
+        acts = []
+        fresh = r["atualizacao"].get("freshness")
+        if fresh == "never" and "never" in action_defs:
+            acts.append(("never", action_defs["never"]))
+        elif fresh == "stale" and "stale" in action_defs:
+            acts.append(("stale", action_defs["stale"]))
+        for key in ["seguranca", "acessibilidade", "agua_saneamento_energia", "conservacao"]:
+            sec = next((s for s in r["sections"] if s["key"] == key), None)
+            if sec and sec.get("avaliada") and sec.get("status") in ("nao_conforme", "critico") and key in action_defs:
+                acts.append((key, action_defs[key]))
+        if r["completude_geral"] < 30 and "completude" in action_defs:
+            acts.append(("completude", action_defs["completude"]))
+        for motivo, adef in acts:
+            priorities.append({
+                "school_id": r["school_id"], "school_name": nome,
+                "motivo": motivo,
+                "acao": adef["template"].replace("{escola}", nome),
+                "peso": adef.get("peso", 50) + crit_score,
+                "conformidade": r["conformidade_geral"],
+            })
+
+    sev_order = {"critico": 0, "alto": 1, "medio": 2}
+    alerts_out.sort(key=lambda x: sev_order.get(x["severidade"], 9))
+    priorities.sort(key=lambda x: x["peso"], reverse=True)
+    for i, p in enumerate(priorities):
+        p["ordem"] = i + 1
+
+    # ---- Mapa da Rede ----
+    map_points = []
+    for school, r in results:
+        lat, lng = school.get("latitude"), school.get("longitude")
+        try:
+            latf, lngf = float(lat), float(lng)
+        except (TypeError, ValueError):
+            continue
+        map_points.append({
+            "school_id": r["school_id"], "name": school.get("name"),
+            "gestor": school.get("gestor_principal"),
+            "lat": latf, "lng": lngf, "status": r["selo_geral"],
+            "conformidade": r["conformidade_geral"], "completude": r["completude_geral"],
+            "atualizacao": r["atualizacao"]["label"],
+        })
+
+    # ---- Comparativos ----
+    def _porte_label(school):
+        cap = school.get("capacidade_total_alunos") or 0
+        try:
+            cap = int(cap)
+        except (TypeError, ValueError):
+            cap = 0
+        if cap <= 0:
+            return "Não informado"
+        for b in porte_buckets:
+            if b.get("max") is None or cap <= b["max"]:
+                return b["label"]
+        return "Não informado"
+
+    def _group(getter):
+        buckets = {}
+        for school, r in results:
+            key = getter(school) or "Não informado"
+            keys = key if isinstance(key, list) else [key]
+            for k in (keys or ["Não informado"]):
+                k = k or "Não informado"
+                buckets.setdefault(k, []).append(r)
+        out = []
+        for k, rs_list in buckets.items():
+            n = len(rs_list)
+            out.append({
+                "grupo": k, "escolas": n,
+                "conformidade_media": round(sum(x["conformidade_geral"] for x in rs_list) / n),
+                "completude_media": round(sum(x["completude_geral"] for x in rs_list) / n),
+            })
+        out.sort(key=lambda x: x["escolas"], reverse=True)
+        return out
+
+    zona_label = lambda s: ("Urbana" if s.get("zona_localizacao") == "urbana" else "Rural" if s.get("zona_localizacao") == "rural" else "Não informado")
+    def _etapas(s):
+        m = {"educacao_infantil": "Educação Infantil", "fundamental_anos_iniciais": "Fund. Anos Iniciais",
+             "fundamental_anos_finais": "Fund. Anos Finais", "ensino_medio": "Ensino Médio", "eja": "EJA"}
+        et = [v for k, v in m.items() if s.get(k)]
+        return et or ["Não informado"]
+
+    comparativos = {
+        "zona": _group(zona_label),
+        "distrito": _group(lambda s: s.get("distrito")),
+        "etapas": _group(_etapas),
+        "porte": _group(_porte_label),
+    }
+
+    return {
+        "profile": profile,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "executive": executive,
+        "alerts": alerts_out,
+        "priorities": priorities,
+        "map": map_points,
+        "comparativos": comparativos,
+        "evolucao": {
+            "disponivel": False,
+            "nota": "Arquitetura preparada. Histórico será alimentado por snapshots do ConformityResult (ruleset_id+versao+timestamp) em coleção append-only ctue_history (Sprint futura).",
+            "series_previstas": ["conformidade", "completude", "atualizacao", "maturidade"],
+        },
+    }

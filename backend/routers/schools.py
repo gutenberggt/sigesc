@@ -54,6 +54,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         await current_db.schools.insert_one(doc)
         
         cache.invalidate('schools')
+        cache.invalidate('ctue')
         return school_obj
 
     @router.get("")
@@ -198,6 +199,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         updated_school = await current_db.schools.find_one({"id": school_id}, {"_id": 0})
         cache.invalidate('schools')
+        cache.invalidate('ctue')
         return School(**updated_school)
 
     @router.delete("/{school_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -224,6 +226,7 @@ def setup_router(db, audit_service, sandbox_db=None):
             )
         
         cache.invalidate('schools')
+        cache.invalidate('ctue')
         return None
 
     @router.post("/migrate-bercario", status_code=status.HTTP_200_OK)

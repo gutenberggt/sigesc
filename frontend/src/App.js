@@ -86,6 +86,7 @@ const MonthlyReports = lazy(() => import('@/pages/MonthlyReports'));
 const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Schools = lazy(() => import('@/pages/SchoolsComplete').then(m => ({ default: m.SchoolsComplete })));
+const NetworkPanel = lazy(() => import('@/pages/NetworkPanel'));
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
 const Classes = lazy(() => import('@/pages/Classes').then(m => ({ default: m.Classes })));
 const Courses = lazy(() => import('@/pages/CoursesNew').then(m => ({ default: m.Courses })));
@@ -345,6 +346,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3', 'auxiliar_secretaria']}>
                 <Schools />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/rede"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3']}>
+                <NetworkPanel />
               </ProtectedRoute>
             }
           />

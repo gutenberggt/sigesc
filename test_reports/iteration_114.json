@@ -1,0 +1,37 @@
+{
+  "summary": "Fase B CTUE — Painel Gerencial da Rede testado end-to-end. Backend: 13/13 testes novos em /app/backend/tests/test_ctue_network_panel.py passando (contrato completo, perfis default/mp/seguranca alterando métricas, ordenação de alertas por severidade e priorities por peso com ordem 1..N, cache consistente + invalidação após PUT /api/schools/{id}, auth obrigatória 401). Regressão Sprint A1 (test_ctue_conformity.py) 21/21 OK e mini-cards da lista de escolas intactos. Frontend: /admin/rede abre via menu 'Painel da Rede (CTUE)', 7 cards executivos com valores, 5 níveis de maturidade, 31 alertas com selo de severidade (clique navega para /admin/schools), 30 ações prioritárias numeradas, comparativos com 4 abas trocando a tabela, seletor de perfil recarregando via API (12%→29% sem reload de página), Evolução placeholder presente. Mapa: estado 'map-empty' correto sem coordenadas; ao popular lat/long via API, o Leaflet renderizou container + 2 marcadores coloridos por status + tiles + popup com dados do CTUE (coordenadas revertidas ao final).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/schools/{id}", "issue": "Enviar latitude/longitude como número (float) retorna 500 (pydantic ValidationError não tratada: SchoolUpdate declara latitude/longitude como str). Deveria ser 422 ou aceitar float. Com string funciona normalmente."},
+      {"endpoint": "GET /api/ctue/network-panel", "issue": "executive.ativas/inativas usa s.get('status','active'), então escola SEM campo status (ex.: demo_school) conta como ATIVA; a lista /admin/schools exibe a mesma escola como 'Inativa'. Divergência de regra de status entre painel e lista (SSoT)."},
+      {"endpoint": "PUT /api/schools/{id}", "issue": "Campos desconhecidos no payload são silenciosamente ignorados com 200 (nenhum aviso), o que dificulta detectar erro de nome de campo."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/rede — Visão Executiva", "issues": ["Card 'Nível médio' (exec-maturidade) é CALCULADO no frontend (média ponderada de maturidade_distribuicao) — pequeno desvio do princípio SSoT; recomendável expor executive.maturidade_media na API"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ctue_network_panel.py", "/app/test_reports/pytest/ctue_network_panel.xml"],
+  "action_items": [
+    "PUT /api/schools/{id}: tratar latitude/longitude numéricos (aceitar float ou retornar 422 em vez de 500)",
+    "Unificar a regra de status ativo/inativo entre network-panel e lista de escolas (escola sem campo 'status')",
+    "Opcional SSoT: mover o cálculo do 'Nível médio' para o backend (executive.maturidade_media)"
+  ],
+  "critical_code_review_comments": [
+    "ctue_conformity_service.build_network_panel: ativas = status == 'active' com default 'active' — documentos legados sem 'status' são contados como ativos, divergindo da UI de escolas",
+    "NetworkPanel.jsx: erro de API zera o painel (setPanel(null)) sem estado de erro visível ao usuário — adicionar mensagem/retry (data-testid='network-error')",
+    "NetworkPanel.jsx: priorities exibe apenas os 30 primeiros (slice) sem indicação de 'mostrando 30 de N'"
+  ],
+  "updated_files": ["/app/backend/tests/test_ctue_network_panel.py"],
+  "success_rate": {"backend": "100% (34/34: 13 novos + 21 regressão A1)", "frontend": "100% dos itens solicitados"},
+  "seed_data_creation": "Nenhum dado permanente. Temporariamente: campos de segurança de 1 escola (revertidos pelo teste) e latitude/longitude em fix_sch_v1 e 220d4022-... para validar o mapa Leaflet (revertidos para None ao final).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007",
+  "context_for_next_testing_agent": "Painel da Rede (Fase B) validado. Suíte: /app/backend/tests/test_ctue_network_panel.py. Para testar o mapa Leaflet é preciso setar latitude/longitude como STRING via PUT /api/schools/{id} (float causa 500) — o mapa renderiza corretamente e o cache 'ctue' invalida na hora. Estado real da rede: 6 escolas, conformidade baixa e 31 alertas (esperado).",
+  "rca_of_the_issue": "Falha inicial no teste de invalidação de cache foi do próprio teste (nomes de campo errados possui_extintores/etc). Os campos reais do ruleset de segurança são qtd_extintores/saidas_emergencia/brigada_incendio/plano_evacuacao. Após correção, PUT alterou os agregados do painel imediatamente, comprovando cache.invalidate('ctue'). O 500 do PUT com lat/long float vem de SchoolUpdate tipando latitude/longitude como str e a ValidationError ser levantada dentro do handler (instanciação manual do modelo), não pela validação do FastAPI."
+}
