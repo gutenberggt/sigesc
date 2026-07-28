@@ -81,4 +81,33 @@ def setup_router(db, audit_service, sandbox_db=None):
         cache.set('ctue', cache_params, panel, CACHE_TTL_SCHOOLS)
         return panel
 
+    @router.get("/schools/{school_id}/dossie")
+    async def school_dossie(school_id: str, request: Request, profile: str = "default"):
+        """Dossiê Institucional (PDF) — representação do CTUE. Sem lógica própria."""
+        from fastapi import HTTPException, status as http_status
+        from fastapi.responses import StreamingResponse
+        from pdf.dossie_institucional import generate_dossie_pdf
+
+        current_user = await AuthMiddleware.verify_school_access(request, school_id)
+        current_db = get_db_for_user(current_user)
+        school = await current_db.schools.find_one({"id": school_id}, {"_id": 0})
+        if not school:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+        assert_same_tenant(school, current_user, request)
+
+        result = ctue.evaluate(school, profile=profile)
+        mantenedora = None
+        mant_id = school.get("mantenedora_id")
+        if mant_id:
+            mantenedora = await current_db.mantenedoras.find_one({"id": mant_id}, {"_id": 0})
+
+        pdf_bytes = generate_dossie_pdf(school, result, mantenedora)
+        safe = (school.get("name") or "escola").replace(" ", "_").replace("/", "-")
+        filename = f"dossie_institucional_{safe}.pdf"
+        return StreamingResponse(
+            iter([pdf_bytes]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
+
     return router

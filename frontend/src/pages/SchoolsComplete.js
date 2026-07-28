@@ -301,6 +301,19 @@ export function SchoolsComplete() {
     };
   }, [reloadTrigger]);
 
+  // CTUE — gerar Dossiê Institucional (PDF, representação do CTUE)
+  const handleGenerateDossie = async () => {
+    if (!editingSchool?.id) return;
+    try {
+      const blob = await ctueAPI.getDossie(editingSchool.id, ctueProfile);
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      setAlert({ type: 'error', message: 'Não foi possível gerar o Dossiê Institucional.' });
+    }
+  };
+
   // Função para recarregar os dados
   const reloadData = () => {
     setReloadTrigger(prev => prev + 1);
@@ -2877,6 +2890,7 @@ export function SchoolsComplete() {
                 profile={ctueProfile}
                 onProfileChange={setCtueProfile}
                 onNavigateSection={(tab) => setActiveTab(tab)}
+                onGenerateDossie={handleGenerateDossie}
               />
             )}
 

@@ -1,0 +1,36 @@
+{
+  "summary": "Fase C CTUE — Dossiê Institucional (PDF) validado end-to-end. Backend: nova suíte /app/backend/tests/test_ctue_dossie.py com 12 testes, 12/12 PASS (HTTP 200 + Content-Type application/pdf + assinatura %PDF + Content-Disposition inline dossie_institucional_*.pdf; profile=default e profile=mp; todas as seções exigidas extraídas via pdfplumber — DOSSIÊ INSTITUCIONAL, Identificação, Dados Administrativos e Gestão, Quadro-resumo de Conformidade e Completude, Infraestrutura, Acessibilidade, Segurança, Água/Saneamento/Energia, Equipamentos e Resumo Institucional com Conformidade Geral/Completude Geral/Última Atualização/Nível de Maturidade; conformidade_geral impressa igual ao GET /conformity (SSoT) para cada perfil; todos os labels de seção do serviço presentes; sem QR/assinatura/histórico/anexo; 'Não informado' presente e nenhum 'None' cru; 401/403 sem token e com token inválido; 404 para escola inexistente). Regressão: test_ctue_conformity.py + test_ctue_network_panel.py 34/34 PASS (Sprint A1 e Fase B intactos). Frontend: login OK, /admin/schools com 6 escolas e mini-cards; abrindo escola EXISTENTE em modo Editar (lápis) e Visualizar (olho) o Painel de Conformidade exibe o botão 'Gerar Dossiê' (ctue-generate-dossie-button). Clique dispara GET /api/ctue/schools/{id}/dossie?profile=default → 200 application/pdf (21KB) e abre nova aba (blob); após trocar ctue-profile-select para 'Ministério Público' as métricas mudaram (5%→8% conformidade) e o novo clique usou profile=mp. Modal permaneceu íntegro, sem erros de console e sem elementos de erro na página.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/ctue/schools/{id}/dossie?profile=xxx", "issue": "Perfil inexistente retorna 200 com PDF (fallback silencioso para o ruleset default) em vez de 400/422. O resumo do PDF imprime o perfil inválido no campo 'Perfil de Avaliação', podendo induzir a erro documental."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ConformityPanel — botão Gerar Dossiê", "issue": "Sem estado de loading/disabled durante a geração; cliques repetidos disparam múltiplas requisições e múltiplas abas. Recomenda-se spinner + disabled.", "selector": "[data-testid='ctue-generate-dossie-button']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/schools — modal Editar/Visualizar Escola", "issues": ["window.open é chamado APÓS o await do blob, o que pode ser bloqueado por popup blockers em alguns navegadores (funcionou no Chromium do teste); alternativa mais segura é <a download> ou abrir a aba antes do await"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ctue_dossie.py", "/app/test_reports/pytest/ctue_dossie.xml"],
+  "action_items": [
+    "Opcional: validar o parâmetro profile no endpoint /dossie (400/422 para perfil desconhecido) ou normalizar para 'default' no resumo do PDF",
+    "Opcional UX: adicionar loading/disabled ao botão 'Gerar Dossiê' para evitar múltiplos disparos"
+  ],
+  "critical_code_review_comments": [
+    "routers/ctue.py — school_dossie faz imports locais (HTTPException/StreamingResponse/generate_dossie_pdf) dentro do handler; mover para o topo do módulo melhora legibilidade e evita custo por requisição",
+    "pdf/dossie_institucional.py — _bool() converte None em 'Não', então campos booleanos nunca preenchidos aparecem como 'Não' (afirmação factual) em vez de 'Não informado'; avaliar tri-estado para Acessibilidade/Segurança",
+    "routers/ctue.py — o PDF é gerado sincronamente no event loop (reportlab é CPU-bound); com muitas seções/escolas grandes vale run_in_threadpool"
+  ],
+  "updated_files": ["/app/backend/tests/test_ctue_dossie.py"],
+  "success_rate": {"backend": "100% (12/12 dossiê + 34/34 regressão CTUE)", "frontend": "100% dos itens solicitados"},
+  "seed_data_creation": "Nenhum. Testes são somente leitura (GET), nenhum dado criado ou alterado.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007",
+  "context_for_next_testing_agent": "Fase C (Dossiê PDF) OK. Suíte: /app/backend/tests/test_ctue_dossie.py (usa fixture school_id via /api/ctue/conformity-overview — atenção: o campo do overview é 'school_id', não 'id'). No frontend o painel só aparece ao abrir escola existente (lápis=Editar, olho=Visualizar) em /admin/schools; o botão dossiê aparece nos dois modos. O PDF de escolas pobres em dados tem ~21KB/3 páginas. Pendências apenas cosméticas: validação de profile e loading do botão.",
+  "rca_of_the_issue": "Única falha encontrada durante o setup foi do próprio teste (chave 'id' vs 'school_id' no retorno de summarize()), corrigida. Nenhum defeito funcional no dossiê."
+}

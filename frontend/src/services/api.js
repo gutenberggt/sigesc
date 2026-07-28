@@ -170,6 +170,10 @@ export const ctueAPI = {
   getNetworkPanel: async (profile = 'default') => {
     const response = await axios.get(`${API}/ctue/network-panel`, { params: { profile } });
     return response.data;
+  },
+  getDossie: async (schoolId, profile = 'default') => {
+    const response = await axios.get(`${API}/ctue/schools/${schoolId}/dossie`, { params: { profile }, responseType: 'blob' });
+    return response.data;
   }
 };
 

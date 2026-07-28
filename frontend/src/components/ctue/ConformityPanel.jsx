@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertTriangle, AlertCircle, XCircle, MinusCircle, Clock, Award } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, AlertCircle, XCircle, MinusCircle, Clock, Award, FileText } from 'lucide-react';
 
 // SSoT dos estados (rótulo/cor/ícone). Nenhum cálculo aqui — só apresentação.
 export const STATE_META = {
@@ -33,7 +33,7 @@ function Metric({ label, value, testid }) {
   );
 }
 
-export function ConformityPanel({ result, profiles = [], profile = 'default', onProfileChange, onNavigateSection }) {
+export function ConformityPanel({ result, profiles = [], profile = 'default', onProfileChange, onNavigateSection, onGenerateDossie }) {
   if (!result) return null;
   const selo = STATE_META[result.selo_geral] || STATE_META.nao_avaliado;
   const fresh = result.atualizacao || {};
@@ -59,6 +59,16 @@ export function ConformityPanel({ result, profiles = [], profile = 'default', on
           >
             {profiles.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
           </select>
+          {onGenerateDossie && (
+            <button
+              type="button"
+              onClick={onGenerateDossie}
+              className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              data-testid="ctue-generate-dossie-button"
+            >
+              <FileText size={15} /> Gerar Dossiê
+            </button>
+          )}
         </div>
       </div>
 
