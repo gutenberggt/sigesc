@@ -320,7 +320,7 @@ def build_network_panel(schools, profile="default", ruleset=None):
 
     results = [(s, evaluate(s, profile=profile, ruleset=rs)) for s in schools]
     total = len(results)
-    ativas = sum(1 for s, _ in results if s.get("status", "active") == "active")
+    ativas = sum(1 for s, _ in results if s.get("status") == "active")
 
     # ---- Visão Executiva ----
     avaliadas = [r for _, r in results]
@@ -332,6 +332,7 @@ def build_network_panel(schools, profile="default", ruleset=None):
     maturidade_dist = {str(n): 0 for n in range(1, 6)}
     for r in avaliadas:
         maturidade_dist[str(r["maturidade"]["nivel"])] += 1
+    maturidade_media = round(sum(r["maturidade"]["nivel"] for r in avaliadas) / total) if total else 1
     status_dist = {}
     for r in avaliadas:
         status_dist[r["selo_geral"]] = status_dist.get(r["selo_geral"], 0) + 1
@@ -342,6 +343,7 @@ def build_network_panel(schools, profile="default", ruleset=None):
         "atualizacao_media_dias": atualizacao_media_dias,
         "cadastros_nunca_atualizados": nunca,
         "maturidade_distribuicao": maturidade_dist,
+        "maturidade_media": maturidade_media,
         "status_distribuicao": status_dist,
     }
 

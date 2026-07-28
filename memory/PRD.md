@@ -23,6 +23,18 @@ Operacional (oferta/turmas/servidores/permissões — dinâmico). 6 entregas doc
 - `CTUE_PRINCIPIOS_ARQUITETURAIS.md` — "constituição" do CTUE (objetivos, limites, SSoT, governança, gate de inclusão de campos).
 **Ordem A→B→C→D com gates humanos.** Arquitetura **APROVADA integralmente pelo owner** (Jun/2026).
 
+### ✅ FASE B — Painel Gerencial da Rede (Centro de Inteligência) — CONCLUÍDA (iter_114: BE 34/34, FE 100%)
+Painel de decisão em `/admin/rede` (menu "Painel da Rede (CTUE)"), tudo derivado do SSoT
+(`build_network_panel` no CTUEConformityService — endpoint `GET /api/ctue/network-panel`, cache
+'ctue' invalidado no create/update/delete de escolas). Entregas: Visão Executiva (7 cards +
+distribuição de maturidade), Painel de Alertas (regras configuráveis em ctue_rulesets.json,
+ordenado por severidade), Fila "Ações Prioritárias" (ordenada por criticidade, sem IA), Mapa da
+Rede (react-leaflet, marcadores por status, estado vazio quando sem lat/long), Comparativos
+(Urbana×Rural/Distrito/Etapas/Porte), indicadores de Atualização e Maturidade, slot de Evolução
+(arquitetura preparada, sem histórico ainda). Correções SSoT pós-teste: `maturidade_media`
+calculada no backend; regra de status ativa/inativa alinhada entre painel e lista. Débitos menores
+não-bloqueantes: PUT /schools com lat/long float retorna 500 (frontend usa string, sem impacto).
+
 ### ✅ SPRINT A1 — CONCLUÍDA E VALIDADA (Jun/2026, testing_agent iter_113: BE 21/21, FE 12/12)
 Núcleo SSoT de conformidade do CTUE implementado. **Todo cálculo num único serviço backend;
 frontend só consome (sem regra duplicada).**

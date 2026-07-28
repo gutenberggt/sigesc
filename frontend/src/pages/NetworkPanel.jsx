@@ -101,7 +101,7 @@ export default function NetworkPanel() {
               <StatCard icon={Gauge} label="Conformidade média" value={`${e.conformidade_media}%`} color="text-emerald-600" testid="exec-conf" />
               <StatCard icon={ClipboardList} label="Completude média" value={`${e.completude_media}%`} color="text-indigo-600" testid="exec-comp" />
               <StatCard icon={Clock} label="Atualização média" value={e.atualizacao_media_dias != null ? `${e.atualizacao_media_dias}d` : '—'} sub={`${e.cadastros_nunca_atualizados} nunca`} color="text-amber-600" testid="exec-atualizacao" />
-              <StatCard icon={Award} label="Nível médio" value={`N${Math.round(Object.entries(e.maturidade_distribuicao).reduce((a, [k, v]) => a + Number(k) * v, 0) / Math.max(1, e.total)) || 1}`} color="text-violet-600" testid="exec-maturidade" />
+              <StatCard icon={Award} label="Nível médio" value={`N${e.maturidade_media || 1}`} sub={MATURITY_LABELS[e.maturidade_media] || ''} color="text-violet-600" testid="exec-maturidade" />
             </div>
 
             {/* Distribuição de maturidade */}
