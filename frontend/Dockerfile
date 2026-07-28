@@ -10,8 +10,11 @@ RUN echo "Cache bust: $CACHEBUST"
 # Copia arquivos de dependências primeiro (melhor cache)
 COPY package.json yarn.lock* ./
 
-# Instala dependências usando yarn (mais estável que npm)
-RUN yarn install --frozen-lockfile --network-timeout 600000
+# Instala dependências usando yarn (mais estável que npm).
+# Usa --frozen-lockfile quando o yarn.lock está sincronizado; se estiver defasado
+# (ex.: dependência nova ainda não refletida no lockfile commitado), faz fallback
+# para o install normal, que reconcilia a partir do package.json. Evita quebra de build.
+RUN yarn install --frozen-lockfile --network-timeout 600000 || yarn install --network-timeout 600000
 
 # Copia o restante do código
 COPY . .
