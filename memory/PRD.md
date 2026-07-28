@@ -11,6 +11,19 @@ rótulo "ativos"→"ativas". Validado pelo testing_agent (30/30; iteration_112).
 `backend/tests/test_pme_reconciliation.py`.
 
 
+## 🏛️ PROPOSTA CTUE — Cadastro Técnico da Unidade Escolar (Jun/2026, READ-ONLY)
+Sprint de **arquitetura de produto** (nenhum código alterado). Decisões do owner: cadastro vira
+**CTUE (SSoT institucional)**, separado em **2 visões** — Visão 1 Técnica (patrimônio, muda pouco:
+identificação→localização→gestão→infra→ambientes→acessibilidade→água/saneamento→segurança→
+conectividade→equipamentos→conservação→obras→documentação→obs. técnicas) e Visão 2 Pedagógica/
+Operacional (oferta/turmas/servidores/permissões — dinâmico). 6 entregas documentadas:
+- `CTUE_ARQUITETURA.md` — nova arquitetura (2 visões) + wireframe textual normativo + mockups + análise de redundâncias R1–R6 (proposta, não executar).
+- `CTUE_PAINEL_E_DOSSIE.md` — Painel Gerencial da Rede (indicadores read-only, BI-ready) + Dossiê Institucional (PDF verificável p/ MP/TCM/FNDE/Câmara/CME).
+- `CTUE_ROADMAP.md` — Fases A (reorg UI, sem schema) → B (painel) → C (dossiê) → D (evolução aditiva do modelo, campos classificados Obrigatório/Recomendado/Opcional sob §3.2).
+- `CTUE_PRINCIPIOS_ARQUITETURAIS.md` — "constituição" do CTUE (objetivos, limites, SSoT, governança, gate de inclusão de campos).
+**Ordem A→B→C→D com gates humanos. Aguardando aprovação das propostas antes de implementar.**
+
+
 ## 🔎 AUDITORIA READ-ONLY — Cadastro de Escolas / SIGESC (Jun/2026)
 Sprint estritamente passiva (nenhum código/modelo/coleção/migração alterado). Cruzou
 `models.py::SchoolBase` (135 campos) × `SchoolsComplete.js` (80 editáveis) × Educacenso 2026 + MP/TCE.
