@@ -22,6 +22,28 @@ Operacional (oferta/turmas/servidores/permissões — dinâmico). 6 entregas doc
 - `CTUE_ROADMAP.md` — Fases A (reorg UI, sem schema) → B (painel) → C (dossiê) → D (evolução aditiva do modelo, campos classificados Obrigatório/Recomendado/Opcional sob §3.2).
 - `CTUE_PRINCIPIOS_ARQUITETURAIS.md` — "constituição" do CTUE (objetivos, limites, SSoT, governança, gate de inclusão de campos).
 **Ordem A→B→C→D com gates humanos.** Arquitetura **APROVADA integralmente pelo owner** (Jun/2026).
+
+### ✅ SPRINT A1 — CONCLUÍDA E VALIDADA (Jun/2026, testing_agent iter_113: BE 21/21, FE 12/12)
+Núcleo SSoT de conformidade do CTUE implementado. **Todo cálculo num único serviço backend;
+frontend só consome (sem regra duplicada).**
+- **Backend:** `services/ctue_conformity_service.py` (evaluate/summarize/get_profiles) + config
+  `config/ctue_rulesets.json` (regras configuráveis + 7 perfis: default/mp/fnde/tcm/infraestrutura/
+  seguranca/educacao_integral) + router `routers/ctue.py` (`GET /api/ctue/profiles`,
+  `/api/ctue/schools/{id}/conformity?profile=`, `/api/ctue/conformity-overview?profile=`).
+  `schools.py` grava `updated_at` no create/update (indicador de Atualização).
+- **Métricas independentes:** Completude × Conformidade lado a lado. **4 estados**
+  🟢conforme/🟡atencao/🟠critico/🔴nao_conforme. Seções Fase D (obras/documentacao/observacoes) =
+  🔘 "Ainda não avaliado nesta versão" (NÃO reduzem conformidade). **Níveis de maturidade 1..5**.
+  Indicador de **Atualização** (Atualizado hoje / há N dias / há N meses / Nunca).
+- **Frontend:** `components/ctue/ConformityPanel.jsx` (Painel de Conformidade + Índice Inteligente
+  clicável + SectionIndicator por seção) integrado em `SchoolsComplete.js`; **mini-card na listagem**
+  (Gestor, Completude%, Conformidade%, Atualização, Situação + selo + nível). Seletor de perfil
+  recalcula via API sem reload. Campos ocultos críticos expostos (Segurança, Conservação,
+  Esgoto/Resíduos, Banheiros acessíveis, Cobertura de rede, Gestão & Vinculação, lat/long).
+- **Débitos anotados (não bloqueantes):** `SchoolsComplete.js` >2.900 linhas (extrair abas em
+  componentes na continuação da Fase A); overview sem paginação (ok p/ volume atual); exposição
+  completa dos 55 campos ocultos em todas as 14 seções ainda parcial (foco foi nos campos de
+  conformidade). Próximo: **Sprint A2** (reorg visual completa em 2 visões + demais campos) → **Fase B** (painel da rede) → C (dossiê) → D (modelo).
 Ajustes estratégicos aprovados p/ Sprint A1: **Painel de Conformidade** no topo do CTUE + **Índice
 Inteligente** lateral (✔/⚠/❌ com navegação) + **indicador por seção** (n/N · %). Conformidade nasce
 no cadastro e flui Cadastro→Conformidade→Painel→Dashboard→BI→PDF com **cálculo único** (SSoT), via
