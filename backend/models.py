@@ -762,6 +762,7 @@ class School(SchoolBase):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[str] = None  # CTUE: indicador de Atualização
     mantenedora_id: Optional[str] = None  # Multi-tenancy: mantenedora proprietária
 
 # ============= CLASS (TURMA) MODELS =============

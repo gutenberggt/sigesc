@@ -1,0 +1,265 @@
+{
+  "ruleset_id": "ctue-default-v1",
+  "versao": 1,
+  "status_global_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+  "maturity": {
+    "infra_sections": ["infraestrutura_fisica", "acessibilidade", "agua_saneamento_energia", "seguranca"]
+  },
+  "profiles": {
+    "default": {
+      "label": "Geral (Padrão)",
+      "section_weights": {
+        "identificacao": 10, "localizacao": 6, "gestao_vinculacao": 7,
+        "infraestrutura_fisica": 8, "ambientes_pedagogicos": 7, "acessibilidade": 12,
+        "agua_saneamento_energia": 12, "seguranca": 12, "conectividade": 5,
+        "equipamentos": 5, "conservacao": 6, "obras": 4, "documentacao": 6, "observacoes_tecnicas": 2
+      }
+    },
+    "mp": {
+      "label": "Ministério Público",
+      "section_weights": {
+        "acessibilidade": 20, "agua_saneamento_energia": 20, "seguranca": 20,
+        "conservacao": 12, "documentacao": 14, "obras": 8, "gestao_vinculacao": 6
+      }
+    },
+    "fnde": {
+      "label": "FNDE",
+      "section_weights": {
+        "infraestrutura_fisica": 16, "ambientes_pedagogicos": 14, "agua_saneamento_energia": 16,
+        "acessibilidade": 14, "equipamentos": 12, "obras": 14, "documentacao": 14
+      }
+    },
+    "tcm": {
+      "label": "Tribunal de Contas (TCM/TCE)",
+      "section_weights": {
+        "documentacao": 22, "obras": 20, "conservacao": 16, "seguranca": 16,
+        "gestao_vinculacao": 14, "agua_saneamento_energia": 12
+      }
+    },
+    "infraestrutura": {
+      "label": "Infraestrutura",
+      "section_weights": {
+        "infraestrutura_fisica": 20, "ambientes_pedagogicos": 18, "agua_saneamento_energia": 18,
+        "conectividade": 10, "equipamentos": 12, "conservacao": 12, "obras": 10
+      }
+    },
+    "seguranca": {
+      "label": "Segurança",
+      "section_weights": {
+        "seguranca": 40, "acessibilidade": 20, "conservacao": 20, "documentacao": 20
+      }
+    },
+    "educacao_integral": {
+      "label": "Educação Integral",
+      "section_weights": {
+        "ambientes_pedagogicos": 26, "infraestrutura_fisica": 18, "agua_saneamento_energia": 16,
+        "equipamentos": 16, "acessibilidade": 14, "conectividade": 10
+      }
+    }
+  },
+  "sections": [
+    {
+      "key": "identificacao", "label": "Identificação", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "name", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "inep_code", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "cnpj", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "caracteristica_escolar", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "situacao_funcionamento", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "zona_localizacao", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "sigla", "classe": "opcional", "peso": 1, "tipo": "str", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": []
+    },
+    {
+      "key": "localizacao", "label": "Localização & Georreferência", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "cep", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "logradouro", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "numero", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "bairro", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "municipio", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "estado", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "latitude", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "longitude", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": [
+        {"id": "endereco_completo", "label": "Endereço completo", "peso": 2, "modo": "all",
+         "condicoes": [
+           {"field": "cep", "op": "filled"}, {"field": "logradouro", "op": "filled"},
+           {"field": "bairro", "op": "filled"}, {"field": "municipio", "op": "filled"}, {"field": "estado", "op": "filled"}
+         ]},
+        {"id": "georreferenciada", "label": "Georreferenciada (lat/long)", "peso": 1, "modo": "all",
+         "condicoes": [{"field": "latitude", "op": "filled"}, {"field": "longitude", "op": "filled"}]}
+      ]
+    },
+    {
+      "key": "gestao_vinculacao", "label": "Gestão & Vinculação", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "gestor_principal", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "cargo_gestor", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "secretario_escolar", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "dependencia_administrativa", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "esfera_administrativa", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": [
+        {"id": "tem_gestor", "label": "Gestor definido", "peso": 1, "modo": "all",
+         "condicoes": [{"field": "gestor_principal", "op": "filled"}]},
+        {"id": "tem_vinculo", "label": "Vínculo administrativo definido", "peso": 1, "modo": "all",
+         "condicoes": [{"field": "dependencia_administrativa", "op": "filled"}]}
+      ]
+    },
+    {
+      "key": "infraestrutura_fisica", "label": "Infraestrutura Física", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "numero_salas_aula", "classe": "obrigatorio", "peso": 3, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "capacidade_total_alunos", "classe": "obrigatorio", "peso": 3, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "numero_banheiros", "classe": "obrigatorio", "peso": 3, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "sala_direcao", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "sala_secretaria", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "sala_professores", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_almoxarifado", "classe": "opcional", "peso": 1, "tipo": "bool", "requer_preenchimento": false}
+      ],
+      "regras_conformidade": [
+        {"id": "salas_informadas", "label": "Salas de aula informadas", "peso": 1, "modo": "all",
+         "condicoes": [{"field": "numero_salas_aula", "op": "gt", "value": 0}]},
+        {"id": "capacidade_informada", "label": "Capacidade informada", "peso": 1, "modo": "all",
+         "condicoes": [{"field": "capacidade_total_alunos", "op": "gt", "value": 0}]}
+      ]
+    },
+    {
+      "key": "ambientes_pedagogicos", "label": "Ambientes Pedagógicos", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "salas_recursos_multifuncionais", "classe": "recomendado", "peso": 2, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "possui_biblioteca", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_lab_ciencias", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_lab_informatica", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_quadra", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_cozinha", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_refeitorio", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_patio", "classe": "opcional", "peso": 1, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_parque", "classe": "opcional", "peso": 1, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_auditorio", "classe": "opcional", "peso": 1, "tipo": "bool", "requer_preenchimento": false}
+      ],
+      "regras_conformidade": [
+        {"id": "tem_alimentacao", "label": "Cozinha ou refeitório", "peso": 1, "modo": "any",
+         "condicoes": [{"field": "possui_cozinha", "op": "truthy"}, {"field": "possui_refeitorio", "op": "truthy"}]},
+        {"id": "tem_leitura", "label": "Biblioteca / espaço de leitura", "peso": 1, "modo": "any",
+         "condicoes": [{"field": "possui_biblioteca", "op": "truthy"}]},
+        {"id": "tem_esporte", "label": "Espaço esportivo (quadra)", "peso": 1, "modo": "any",
+         "condicoes": [{"field": "possui_quadra", "op": "truthy"}]}
+      ]
+    },
+    {
+      "key": "acessibilidade", "label": "Acessibilidade", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "possui_rampas", "classe": "obrigatorio", "peso": 3, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "possui_corrimao", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "banheiros_acessiveis", "classe": "obrigatorio", "peso": 3, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "sinalizacao_tatil", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false}
+      ],
+      "regras_conformidade": [
+        {"id": "tem_rampa", "label": "Possui rampas", "peso": 1, "modo": "all", "condicoes": [{"field": "possui_rampas", "op": "truthy"}]},
+        {"id": "tem_corrimao", "label": "Possui corrimão", "peso": 1, "modo": "all", "condicoes": [{"field": "possui_corrimao", "op": "truthy"}]},
+        {"id": "tem_banheiro_acessivel", "label": "Banheiro acessível", "peso": 1, "modo": "any",
+         "condicoes": [{"field": "banheiros_acessiveis", "op": "gt", "value": 0}, {"field": "banheiros_adaptados", "op": "truthy"}]},
+        {"id": "tem_tatil", "label": "Sinalização tátil", "peso": 1, "modo": "all", "condicoes": [{"field": "sinalizacao_tatil", "op": "truthy"}]}
+      ]
+    },
+    {
+      "key": "agua_saneamento_energia", "label": "Água, Saneamento & Energia", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "abastecimento_agua", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "energia_eletrica", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "saneamento", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "coleta_lixo", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": [
+        {"id": "tem_agua", "label": "Abastecimento de água", "peso": 1, "modo": "all", "condicoes": [{"field": "abastecimento_agua", "op": "filled"}]},
+        {"id": "tem_energia", "label": "Energia elétrica", "peso": 1, "modo": "all", "condicoes": [{"field": "energia_eletrica", "op": "filled"}]},
+        {"id": "tem_esgoto", "label": "Esgotamento sanitário", "peso": 1, "modo": "all", "condicoes": [{"field": "saneamento", "op": "filled"}]}
+      ]
+    },
+    {
+      "key": "seguranca", "label": "Segurança", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 100, "atencao": 65, "critico": 33 },
+      "campos": [
+        {"campo": "qtd_extintores", "classe": "obrigatorio", "peso": 3, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "saidas_emergencia", "classe": "recomendado", "peso": 2, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "brigada_incendio", "classe": "obrigatorio", "peso": 3, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "plano_evacuacao", "classe": "obrigatorio", "peso": 3, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "qtd_cameras", "classe": "opcional", "peso": 1, "tipo": "int", "requer_preenchimento": false},
+        {"campo": "possui_cercamento", "classe": "recomendado", "peso": 2, "tipo": "bool", "requer_preenchimento": false}
+      ],
+      "regras_conformidade": [
+        {"id": "tem_extintor", "label": "Possui extintores", "peso": 1, "modo": "any",
+         "condicoes": [{"field": "qtd_extintores", "op": "gt", "value": 0}, {"field": "extintores", "op": "gt", "value": 0}]},
+        {"id": "tem_plano", "label": "Possui plano de evacuação", "peso": 1, "modo": "all", "condicoes": [{"field": "plano_evacuacao", "op": "truthy"}]},
+        {"id": "tem_brigada", "label": "Possui brigada de incêndio", "peso": 1, "modo": "all", "condicoes": [{"field": "brigada_incendio", "op": "truthy"}]}
+      ]
+    },
+    {
+      "key": "conectividade", "label": "Conectividade", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "possui_internet", "classe": "obrigatorio", "peso": 3, "tipo": "bool", "requer_preenchimento": false},
+        {"campo": "tipo_conexao", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true},
+        {"campo": "cobertura_rede", "classe": "opcional", "peso": 1, "tipo": "str", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": [
+        {"id": "tem_internet", "label": "Internet ativa", "peso": 1, "modo": "all", "condicoes": [{"field": "possui_internet", "op": "truthy"}]}
+      ]
+    },
+    {
+      "key": "equipamentos", "label": "Equipamentos & Patrimônio", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "qtd_computadores", "classe": "recomendado", "peso": 2, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "qtd_projetores", "classe": "opcional", "peso": 1, "tipo": "int", "requer_preenchimento": true},
+        {"campo": "tamanho_acervo", "classe": "opcional", "peso": 1, "tipo": "int", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": []
+    },
+    {
+      "key": "conservacao", "label": "Conservação", "inativa_ate_fase": null,
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "estado_conservacao", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": [
+        {"id": "estado_informado", "label": "Estado de conservação informado", "peso": 1, "modo": "all", "condicoes": [{"field": "estado_conservacao", "op": "filled"}]},
+        {"id": "sem_reforma_critica", "label": "Sem necessidade de reforma crítica", "peso": 1, "modo": "all",
+         "condicoes": [{"field": "estado_conservacao", "op": "not_in", "value": ["ruim", "precario", "precário", "péssimo", "pessimo"]}]}
+      ]
+    },
+    {
+      "key": "obras", "label": "Obras", "inativa_ate_fase": "D",
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [],
+      "regras_conformidade": []
+    },
+    {
+      "key": "documentacao", "label": "Documentação", "inativa_ate_fase": "D",
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [
+        {"campo": "regulamentacao", "classe": "recomendado", "peso": 2, "tipo": "str", "requer_preenchimento": true}
+      ],
+      "regras_conformidade": [
+        {"id": "tem_ato", "label": "Ato de autorização/reconhecimento", "peso": 1, "modo": "all", "condicoes": [{"field": "regulamentacao", "op": "filled"}]}
+      ]
+    },
+    {
+      "key": "observacoes_tecnicas", "label": "Observações Técnicas", "inativa_ate_fase": "D",
+      "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
+      "campos": [],
+      "regras_conformidade": []
+    }
+  ]
+}

@@ -5,6 +5,7 @@ Endpoints para gestão de escolas.
 
 from fastapi import APIRouter, HTTPException, status, Request
 from typing import List
+from datetime import datetime, timezone
 
 from models import School, SchoolCreate, SchoolUpdate
 from auth_middleware import AuthMiddleware
@@ -39,6 +40,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         school_obj = School(**school_dict)
         doc = school_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
+        doc['updated_at'] = doc['created_at']  # CTUE: base do indicador de Atualização
         
         # Multi-tenancy: injeta mantenedora_id
         tenant_id = get_mantenedora_scope(current_user, request)
@@ -182,6 +184,7 @@ def setup_router(db, audit_service, sandbox_db=None):
                 )
             assert_same_tenant(existing, current_user, request)
             
+            update_data['updated_at'] = datetime.now(timezone.utc).isoformat()  # CTUE: indicador de Atualização
             result = await current_db.schools.update_one(
                 {"id": school_id},
                 {"$set": update_data}

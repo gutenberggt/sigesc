@@ -274,11 +274,63 @@ Regras: `tem_ato_autorizacao` · `[D] tem_alvara` · `[D] tem_avcb` · `[D] tem_
 
 ---
 
-## 7. Pendência de aprovação
-Aprovar: (a) as duas métricas (completude × conformidade), (b) pesos de seção/campo, (c) as
-regras por seção, (d) os thresholds de status, (e) a estratégia de Fase D (`inativa_ate_fase`).
-**A lógica só será implementada após o "sim" a esta matriz.** Em seguida inicia a **Sprint A1**
-(interface do CTUE + Painel de Conformidade + Índice inteligente + indicadores por seção,
-consumindo o `CTUEConformityService`).
+## 7. REFINAMENTOS APROVADOS PELO OWNER (Jun/2026) — vigentes na Sprint A1
 
-*Base normativa única de conformidade do CTUE. Última atualização: Jun/2026 — Sprint Proposta.*
+### 7.1 Duas métricas independentes (aprovado)
+Completude e Conformidade são **independentes** e aparecem **lado a lado** em todo o sistema.
+Uma escola pode ter 100% completude e 60% conformidade (ou o inverso).
+
+### 7.2 Perfis de Avaliação (evolução dos pesos)
+Os pesos deixam de ser um único conjunto: passam a existir **perfis**. O **motor é único**; muda
+apenas o ruleset/perfil selecionado. Perfis iniciais:
+`default`, `mp`, `fnde`, `tcm`, `infraestrutura`, `seguranca`, `educacao_integral`.
+Cada perfil define `section_weights` (peso por seção); seções fora do perfil = peso 0 (não contam).
+A mesma escola exibe índices diferentes conforme o objetivo da análise.
+
+### 7.3 Quatro estados (substitui 3)
+| Estado | Ícone | Faixa padrão (%) |
+|---|---|---|
+| Conforme | 🟢 | ≥ 85 |
+| Atenção | 🟡 | 65–84 |
+| Crítico | 🟠 | 40–64 |
+| Não Conforme | 🔴 | < 40 |
+Aplica-se ao selo geral e por seção (thresholds configuráveis por ruleset).
+
+### 7.4 Fase D — "Ainda não avaliado nesta versão"
+Seções/campos inexistentes **NÃO reduzem** a conformidade (excluídos do denominador) e são
+exibidos com estado neutro **🔘 "Ainda não avaliado nesta versão"** (nunca 🔴). Evita leitura equivocada.
+
+### 7.5 Terceiro indicador — Atualização
+Além de Completude e Conformidade, o CTUE expõe **Atualização** (frescor do cadastro), a partir
+de `updated_at`: `Atualizado hoje` · `há N dias` · `há N meses` · `Nunca atualizado`
+(`freshness: recent | ok | stale | never`).
+
+### 7.6 Mini-card na listagem de escolas (a lista vira painel-resumo da rede)
+Cada escola na lista exibe, sem abrir o cadastro: **Nome · Gestor · Situação (Ativa/Inativa) ·
+Completude % · Conformidade % · Última atualização · Status visual (🟢🟡🟠🔴) · Nível de maturidade**.
+
+### 7.7 Níveis de Maturidade (prontuário institucional)
+Além dos percentuais, cada escola tem um **nível**:
+| Nível | Nome | Critério (padrão, configurável) |
+|---|---|---|
+| 1 | Cadastro inicial | completude < 40% |
+| 2 | Cadastro completo | completude ≥ 80% |
+| 3 | Infraestrutura validada | completude ≥ 80% **e** seções de infraestrutura 🟢 |
+| 4 | Conformidade institucional | conformidade geral ≥ 85% (selo 🟢) |
+| 5 | Excelência operacional | conformidade ≥ 95% **e** completude ≥ 95% **e** atualização recente |
+
+### 7.8 CTUE como "prontuário institucional" (histórico — arquitetura futura, NÃO implementar agora)
+Cada alteração relevante deverá, no futuro, gerar histórico (quem/quando/o quê), permitindo
+responder: *"quando a acessibilidade foi atualizada?"*, *"quando a conformidade de segurança caiu
+de 100% para 66%?"*. **Sprint A1 NÃO implementa histórico**, mas a arquitetura já prevê:
+- `updated_at` gravado a cada alteração (base do indicador de Atualização — já na A1);
+- `ConformityResult` carimba `ruleset_id`+`versao`+timestamp (snapshotável no futuro);
+- coleção futura `ctue_history` (append-only) sem quebrar o SSoT.
+
+## 8. Pendência de aprovação → **APROVADA**. Sprint A1 autorizada.
+Implementar (consumindo o **único** `CTUEConformityService`): nova interface do CTUE, Painel de
+Conformidade, Índice Inteligente, indicadores por seção, mini-card na listagem e indicador de
+Atualização. **Nenhuma regra de negócio duplicada entre frontend e backend** — o frontend só
+consome o resultado do serviço.
+
+*Base normativa única de conformidade do CTUE. Última atualização: Jun/2026 — refinamentos aprovados.*

@@ -4,12 +4,13 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
-import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI, calendarAPI, teacherAssignmentAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI, calendarAPI, teacherAssignmentAPI, ctueAPI } from '@/services/api';
 import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { Plus, AlertCircle, CheckCircle, Home, Users, Phone, Clock, Eye, Edit2, Download } from 'lucide-react';
+import { ConformityPanel, SectionIndicator, STATE_META } from '@/components/ctue/ConformityPanel';
 import * as XLSX from 'xlsx';
 
 export function SchoolsComplete() {
@@ -30,6 +31,12 @@ export function SchoolsComplete() {
   const [calendarioLetivo, setCalendarioLetivo] = useState(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [novoAnoLetivo, setNovoAnoLetivo] = useState('');
+  // CTUE — Conformidade (SSoT: dados vêm do backend, sem cálculo no frontend)
+  const [ctueProfile, setCtueProfile] = useState('default');
+  const [ctueProfiles, setCtueProfiles] = useState([]);
+  const [conformityMap, setConformityMap] = useState({});
+  const [conformity, setConformity] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Permissões baseadas no papel do usuário
   // Admin: pode tudo
@@ -299,6 +306,32 @@ export function SchoolsComplete() {
     setReloadTrigger(prev => prev + 1);
   };
 
+  // CTUE — carrega perfis e overview de conformidade (mini-cards da listagem)
+  useEffect(() => {
+    let mounted = true;
+    ctueAPI.getProfiles().then((d) => { if (mounted) setCtueProfiles(d.profiles || []); }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    ctueAPI.getOverview(ctueProfile).then((d) => {
+      if (!mounted) return;
+      const map = {};
+      (d.schools || []).forEach((s) => { map[s.school_id] = s; });
+      setConformityMap(map);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, [ctueProfile, reloadTrigger]);
+
+  // CTUE — recarrega o painel da escola aberta quando o perfil muda
+  useEffect(() => {
+    const schoolId = editingSchool?.id;
+    if (isModalOpen && schoolId) {
+      ctueAPI.getConformity(schoolId, ctueProfile).then(setConformity).catch(() => setConformity(null));
+    }
+  }, [ctueProfile, isModalOpen, editingSchool?.id]);
+
   const showAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
@@ -308,6 +341,8 @@ export function SchoolsComplete() {
     setEditingSchool(null);
     setViewMode(false);
     setSchoolStaff([]); // Limpa lista de servidores
+    setConformity(null);
+    setActiveTab(0);
     // Reset form with default values (usando dados da mantenedora)
     setFormData({
       name: '',
@@ -448,6 +483,7 @@ export function SchoolsComplete() {
   function handleView(school) {
     setEditingSchool(school);
     setViewMode(true);
+    setActiveTab(0);
     setFormData({
       ...school,
       status: school.status || 'active',
@@ -461,6 +497,7 @@ export function SchoolsComplete() {
   function handleEdit(school) {
     setEditingSchool(school);
     setViewMode(false);
+    setActiveTab(0);
     setFormData({
       ...school,
       status: school.status || 'active',
@@ -524,35 +561,85 @@ export function SchoolsComplete() {
     setFormData(prev => ({ ...prev, [field]: value }));
   }
 
+  const StatusPill = ({ summary }) => {
+    if (!summary) return <span className="text-xs text-gray-400">—</span>;
+    const meta = STATE_META[summary.status] || STATE_META.nao_avaliado;
+    return (
+      <div className="flex flex-col gap-0.5" data-testid={`school-status-${summary.school_id}`}>
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.bg} ${meta.text} border ${meta.border} w-fit`}>
+          <span className={`w-2 h-2 rounded-full ${meta.dot}`} /> {meta.label}
+        </span>
+        <span className="text-[11px] text-gray-500">Nível {summary.maturidade?.nivel} · {summary.maturidade?.nome}</span>
+      </div>
+    );
+  };
+
+  const PctBar = ({ value, color }) => (
+    <div className="w-full">
+      <div className="flex justify-between text-[11px] text-gray-600"><span>{value}%</span></div>
+      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full ${color}`} style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+
   const columns = [
     { header: 'Nome', accessor: 'name' },
     {
-      header: 'Alunos(as)',
-      accessor: 'student_count',
+      header: 'Gestor',
+      accessor: 'gestor',
       render: (row) => (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {row.student_count !== undefined ? row.student_count : '-'}
+        <span data-testid={`school-gestor-${row.id}`}>
+          {conformityMap[row.id]?.gestor || <span className="text-gray-400">—</span>}
         </span>
       )
     },
     {
-      header: 'Zona',
-      accessor: 'zona_localizacao',
-      render: (row) => row.zona_localizacao ? (row.zona_localizacao === 'urbana' ? 'Urbana' : 'Rural') : '-'
+      header: 'Completude',
+      accessor: 'completude',
+      render: (row) => {
+        const s = conformityMap[row.id];
+        return (
+          <span data-testid={`school-completude-${row.id}`}>
+            {s ? <PctBar value={s.completude} color="bg-blue-500" /> : <span className="text-gray-400 text-xs">—</span>}
+          </span>
+        );
+      }
     },
     {
-      header: 'Status',
+      header: 'Conformidade',
+      accessor: 'conformidade',
+      render: (row) => {
+        const s = conformityMap[row.id];
+        return (
+          <span data-testid={`school-conformidade-${row.id}`}>
+            {s ? <PctBar value={s.conformidade} color="bg-emerald-500" /> : <span className="text-gray-400 text-xs">—</span>}
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Atualização',
+      accessor: 'atualizacao',
+      render: (row) => {
+        const s = conformityMap[row.id];
+        return <span className="text-xs text-gray-600" data-testid={`school-atualizacao-${row.id}`}>{s?.atualizacao?.label || '—'}</span>;
+      }
+    },
+    {
+      header: 'Situação',
       accessor: 'status',
       render: (row) => {
         const isAtiva = row.status === 'active';
         return (
-          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-              isAtiva
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
-            }`}>
-            {isAtiva ? 'Ativa' : 'Inativa'}
-          </span>
+          <div className="flex flex-col gap-1">
+            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full w-fit ${
+                isAtiva ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+              {isAtiva ? 'Ativa' : 'Inativa'}
+            </span>
+            <StatusPill summary={conformityMap[row.id]} />
+          </div>
         );
       }
     }
@@ -871,13 +958,78 @@ export function SchoolsComplete() {
           </div>
         </div>
       )}
+
+      <div>
+        <SectionIndicator section={conformity?.sections?.find((s) => s.key === 'gestao_vinculacao')} />
+        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Gestão & Vinculação</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Gestor(a) Principal</label>
+            <input type="text" value={formData.gestor_principal || ''}
+              onChange={(e) => updateFormData('gestor_principal', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-gestor-principal" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Cargo do Gestor(a)</label>
+            <input type="text" value={formData.cargo_gestor || ''}
+              onChange={(e) => updateFormData('cargo_gestor', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-cargo-gestor" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Secretário(a) Escolar</label>
+            <input type="text" value={formData.secretario_escolar || ''}
+              onChange={(e) => updateFormData('secretario_escolar', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-secretario-escolar" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Dependência Administrativa</label>
+            <select value={formData.dependencia_administrativa || ''}
+              onChange={(e) => updateFormData('dependencia_administrativa', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-dependencia-administrativa">
+              <option value="">Selecione</option>
+              <option value="Municipal">Municipal</option>
+              <option value="Estadual">Estadual</option>
+              <option value="Federal">Federal</option>
+              <option value="Privada">Privada</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Esfera Administrativa</label>
+            <input type="text" value={formData.esfera_administrativa || ''}
+              onChange={(e) => updateFormData('esfera_administrativa', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-esfera-administrativa" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+            <input type="text" value={formData.latitude || ''}
+              onChange={(e) => updateFormData('latitude', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-latitude" placeholder="-1.4558" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+            <input type="text" value={formData.longitude || ''}
+              onChange={(e) => updateFormData('longitude', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-longitude" placeholder="-48.5044" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 
-  const renderInfraestrutura = () => (
+  const renderInfraestrutura = () => {
+    const secByKey = (k) => conformity?.sections?.find((s) => s.key === k);
+    return (
     <div className="space-y-6">
       <div>
-        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Serviços Básicos</h4>
+        <SectionIndicator section={secByKey('agua_saneamento_energia')} />
+        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Água, Saneamento & Energia</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Abastecimento de Água</label>
@@ -910,10 +1062,45 @@ export function SchoolsComplete() {
               <option value="Não há">Não há</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Esgotamento Sanitário</label>
+            <select
+              value={formData.saneamento || ''}
+              onChange={(e) => updateFormData('saneamento', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              data-testid="ctue-field-saneamento"
+            >
+              <option value="">Selecione</option>
+              <option value="Rede pública">Rede pública de esgoto</option>
+              <option value="Fossa séptica">Fossa séptica</option>
+              <option value="Fossa rudimentar">Fossa rudimentar</option>
+              <option value="Inexistente">Inexistente</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Destinação de Resíduos (Lixo)</label>
+            <select
+              value={formData.coleta_lixo || ''}
+              onChange={(e) => updateFormData('coleta_lixo', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              data-testid="ctue-field-coleta-lixo"
+            >
+              <option value="">Selecione</option>
+              <option value="Coleta periódica">Coleta periódica</option>
+              <option value="Queima">Queima</option>
+              <option value="Enterra">Enterra</option>
+              <option value="Outra destinação">Outra destinação</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <div>
+        <SectionIndicator section={secByKey('acessibilidade')} />
         <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Acessibilidade</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="flex items-center space-x-2">
@@ -959,10 +1146,99 @@ export function SchoolsComplete() {
             />
             <span className="text-sm text-gray-700">Sinalização Tátil</span>
           </label>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Banheiros Acessíveis (quantidade)</label>
+            <input
+              type="number"
+              min="0"
+              value={formData.banheiros_acessiveis ?? ''}
+              onChange={(e) => updateFormData('banheiros_acessiveis', e.target.value === '' ? null : parseInt(e.target.value))}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              data-testid="ctue-field-banheiros-acessiveis"
+            />
+          </div>
         </div>
       </div>
 
       <div>
+        <SectionIndicator section={secByKey('seguranca')} />
+        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Segurança</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Extintores (quantidade)</label>
+            <input type="number" min="0" value={formData.qtd_extintores ?? ''}
+              onChange={(e) => updateFormData('qtd_extintores', e.target.value === '' ? null : parseInt(e.target.value))}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-qtd-extintores" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Saídas de Emergência (quantidade)</label>
+            <input type="number" min="0" value={formData.saidas_emergencia ?? ''}
+              onChange={(e) => updateFormData('saidas_emergencia', e.target.value === '' ? null : parseInt(e.target.value))}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-saidas-emergencia" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Câmeras de Segurança (quantidade)</label>
+            <input type="number" min="0" value={formData.qtd_cameras ?? ''}
+              onChange={(e) => updateFormData('qtd_cameras', e.target.value === '' ? null : parseInt(e.target.value))}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-qtd-cameras" />
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={formData.brigada_incendio || false}
+                onChange={(e) => updateFormData('brigada_incendio', e.target.checked)} disabled={viewMode}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                data-testid="ctue-field-brigada-incendio" />
+              <span className="text-sm text-gray-700">Possui Brigada de Incêndio</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={formData.plano_evacuacao || false}
+                onChange={(e) => updateFormData('plano_evacuacao', e.target.checked)} disabled={viewMode}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                data-testid="ctue-field-plano-evacuacao" />
+              <span className="text-sm text-gray-700">Possui Plano de Evacuação</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={formData.possui_cercamento || false}
+                onChange={(e) => updateFormData('possui_cercamento', e.target.checked)} disabled={viewMode}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                data-testid="ctue-field-possui-cercamento" />
+              <span className="text-sm text-gray-700">Possui Cercamento/Muro</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <SectionIndicator section={secByKey('conservacao')} />
+        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Conservação</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Estado de Conservação do Prédio</label>
+            <select value={formData.estado_conservacao || ''}
+              onChange={(e) => updateFormData('estado_conservacao', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-estado-conservacao">
+              <option value="">Selecione</option>
+              <option value="otimo">Ótimo</option>
+              <option value="bom">Bom</option>
+              <option value="regular">Regular</option>
+              <option value="ruim">Ruim</option>
+              <option value="precario">Precário</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <SectionIndicator section={secByKey('conectividade')} />
         <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Conectividade</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="flex items-center space-x-2">
@@ -991,10 +1267,24 @@ export function SchoolsComplete() {
               <option value="Satélite">Satélite</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Qualidade do Sinal de Internet</label>
+            <select value={formData.cobertura_rede || ''}
+              onChange={(e) => updateFormData('cobertura_rede', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-cobertura-rede">
+              <option value="">Selecione</option>
+              <option value="Boa">Boa</option>
+              <option value="Regular">Regular</option>
+              <option value="Ruim">Ruim</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderDependencias = () => (
     <div className="space-y-6">
@@ -2579,7 +2869,18 @@ export function SchoolsComplete() {
               </div>
             )}
             
-            <Tabs tabs={tabLabels}>
+            {/* CTUE — Painel de Conformidade + Índice Inteligente (SSoT) */}
+            {editingSchool && conformity && (
+              <ConformityPanel
+                result={conformity}
+                profiles={ctueProfiles}
+                profile={ctueProfile}
+                onProfileChange={setCtueProfile}
+                onNavigateSection={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+            <Tabs tabs={tabLabels} activeIndex={activeTab} onTabChange={setActiveTab}>
               {tabContents}
             </Tabs>
 

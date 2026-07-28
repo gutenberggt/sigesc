@@ -153,6 +153,22 @@ export const schoolsAPI = {
   }
 };
 
+// ============= CTUE (Conformidade — SSoT) =============
+export const ctueAPI = {
+  getProfiles: async () => {
+    const response = await axios.get(`${API}/ctue/profiles`);
+    return response.data;
+  },
+  getConformity: async (schoolId, profile = 'default') => {
+    const response = await axios.get(`${API}/ctue/schools/${schoolId}/conformity`, { params: { profile } });
+    return response.data;
+  },
+  getOverview: async (profile = 'default') => {
+    const response = await axios.get(`${API}/ctue/conformity-overview`, { params: { profile } });
+    return response.data;
+  }
+};
+
 // ============= USERS =============
 export const usersAPI = {
   getAll: async () => {

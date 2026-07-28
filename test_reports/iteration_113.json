@@ -1,0 +1,41 @@
+{
+  "summary": "Sprint A1 CTUE validada end-to-end (backend + frontend). Backend: 21/21 testes passando em /app/backend/tests/test_ctue_conformity.py — 7 perfis em GET /api/ctue/profiles; contrato completo de /api/ctue/conformity-overview (school_id, name, gestor, situacao, completude, conformidade, status, maturidade{nivel,nome}, atualizacao{label,freshness}); /api/ctue/schools/{id}/conformity com 14 seções, sections[] completo, seções da Fase D (obras/documentacao/observacoes_tecnicas) com status 'nao_avaliado', avaliada=false e completude/conformidade null; verificado matematicamente que a Fase D NÃO entra na média ponderada (conformidade_geral == média ponderada só das seções avaliadas com peso>0); troca de perfil (default/mp/seguranca) altera as métricas da MESMA escola; 404 para escola inexistente e 401/403 sem auth; PUT /api/schools/{id} com campos de segurança elevou a conformidade da seção 'seguranca' de 0% → 100% e o campo atualizacao passou para 'Atualizado hoje' (updated_at gravado); mini-card do overview idêntico ao evaluate() (SSoT confirmado); CRUD de escolas (create→get→put→delete→404) sem regressão. Frontend: listagem /admin/schools exibe Gestor, Completude (barra %), Conformidade (barra %), Atualização e Situação com pílula de status + Nível de maturidade sem abrir o cadastro; painel 'ctue-conformity-panel' aparece ao Editar e Visualizar (e não em Nova Escola) com ctue-completude, ctue-conformidade, ctue-selo-geral, ctue-maturidade, ctue-atualizacao e ctue-profile-select (7 perfis); Índice Inteligente com 14 chips, chips de Fase D com '—' e disabled; clique em ctue-index-seguranca navega para a aba Infraestrutura (indicador ctue-section-indicator-seguranca visível); todos os 11 campos novos da aba Infraestrutura e os 7 de Gestão & Vinculação presentes; troca de perfil atualiza os percentuais sem reload (default 2%/5% → seguranca 0%/12%). E2E de valor: preencher Gestor + extintores=6 + brigada + plano, salvar → lista mostra 'Atualizado hoje' e o Gestor, reabrindo a escola a Segurança foi de 0% → 100% e a conformidade geral de 5% → 23%. Nenhum cálculo no frontend (grep confirmou ausência de aritmética de %; todos os números vêm de /api/ctue/*).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/ctue/conformity-overview", "issue": "Sem paginação: carrega até 1000 escolas e avalia todas em loop síncrono por request. OK no volume atual (6 escolas), mas vira gargalo em rede grande — considerar cache/limite."},
+      {"endpoint": "services/ctue_conformity_service._is_filled", "issue": "Para tipo 'bool', qualquer valor não-None conta como preenchido (inclusive False). Um checkbox explicitamente desmarcado eleva a completude. Confirmar se é o comportamento desejado."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/schools — coluna Situação", "issues": ["A coluna acumula 3 informações (Ativa/Inativa + selo de conformidade + nível de maturidade), ficando visualmente densa; considerar separar o selo/maturidade em coluna própria. Não bloqueante — contraste e espaçamento estão adequados."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ctue_conformity.py",
+    "/app/test_reports/pytest/iteration_113.xml"
+  ],
+  "action_items": [
+    "Nenhum bloqueante. Opcional: revisar _is_filled para tipo bool (False contando como preenchido).",
+    "Opcional: mover StatusPill e PctBar para fora do componente SchoolsComplete (eslint react/no-unstable-nested-components — 2 erros de lint pré-existentes nas linhas 564 e 577)."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/src/pages/SchoolsComplete.js tem 2.907 linhas — muito acima do limite recomendado (700). Extrair as abas do formulário (Geral/Infraestrutura/Dependências/...) em componentes separados.",
+    "SSoT respeitado: o frontend não replica nenhuma regra; ConformityPanel/SectionIndicator são só apresentação e todos os percentuais vêm de /api/ctue/*.",
+    "Testes antigos de escolas (test_school_status_bug.py, test_sigesc_v32_columns.py) falham no setup com MissingSchema porque leem BASE_URL apenas de os.environ['REACT_APP_BACKEND_URL'] (não definido no shell). Defeito pré-existente dos arquivos de teste, não da aplicação — precisam ler /app/frontend/.env como fallback."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ctue_conformity.py",
+    "/app/frontend/src/pages/SchoolsComplete.js"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% (todos os 12 cenários solicitados)"},
+  "seed_data_creation": "Nenhum dado novo persistente. Escolas de teste existentes foram alteradas pelos testes: 'Escola Teste Multisseriada' (gestor_principal='TEST_Gestor QA', extintores/brigada/plano/câmeras) e 'Escola Fixture v1' (gestor_principal='TEST_QA Diretor E2E', cargo, extintores=6, brigada, plano) — ambas são escolas de fixture/teste. Uma escola 'TEST_CTUE_CRUD' foi criada e excluída no teste de regressão de CRUD.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "context_for_next_testing_agent": "Suíte CTUE: /app/backend/tests/test_ctue_conformity.py (21 testes; requer X-CSRF-Token do login para PUT/POST/DELETE em /api/schools, e X-Mantenedora-Id no POST). Novos data-testid adicionados por mim na listagem: school-gestor-{id}, school-completude-{id}, school-conformidade-{id}, school-atualizacao-{id} (além de school-status-{id} já existente) — use-os em vez de raspar texto da linha. Mapa de abas: Geral(0), Infraestrutura(1), Dependências(2)... e SECTION_TO_TAB em ConformityPanel.jsx mapeia seguranca/acessibilidade/agua_saneamento_energia/conectividade/conservacao→1 e infraestrutura_fisica/ambientes_pedagogicos→2. Ao reabrir o modal ele volta para a aba Geral, então campos de outras abas não existem no DOM até clicar na aba/chip.",
+  "rca_of_the_issue": "N/A — nenhuma falha de aplicação encontrada. As 3 falhas iniciais dos meus testes foram do próprio script (assert de '_id' com falso-positivo em 'school_id' e ausência do header X-CSRF-Token / X-Mantenedora-Id nas escritas), corrigidas no arquivo de teste."
+}
