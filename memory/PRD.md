@@ -21,7 +21,15 @@ Operacional (oferta/turmas/servidores/permissões — dinâmico). 6 entregas doc
 - `CTUE_PAINEL_E_DOSSIE.md` — Painel Gerencial da Rede (indicadores read-only, BI-ready) + Dossiê Institucional (PDF verificável p/ MP/TCM/FNDE/Câmara/CME).
 - `CTUE_ROADMAP.md` — Fases A (reorg UI, sem schema) → B (painel) → C (dossiê) → D (evolução aditiva do modelo, campos classificados Obrigatório/Recomendado/Opcional sob §3.2).
 - `CTUE_PRINCIPIOS_ARQUITETURAIS.md` — "constituição" do CTUE (objetivos, limites, SSoT, governança, gate de inclusão de campos).
-**Ordem A→B→C→D com gates humanos. Aguardando aprovação das propostas antes de implementar.**
+**Ordem A→B→C→D com gates humanos.** Arquitetura **APROVADA integralmente pelo owner** (Jun/2026).
+Ajustes estratégicos aprovados p/ Sprint A1: **Painel de Conformidade** no topo do CTUE + **Índice
+Inteligente** lateral (✔/⚠/❌ com navegação) + **indicador por seção** (n/N · %). Conformidade nasce
+no cadastro e flui Cadastro→Conformidade→Painel→Dashboard→BI→PDF com **cálculo único** (SSoT), via
+regras **configuráveis** (não hardcoded). PRÉ-REQUISITO à implementação: aprovar a
+**`CTUE_MATRIZ_CONFORMIDADE.md`** (campos O/R/P por seção, regra de conformidade, peso de seção/campo,
+fórmulas de completude × conformidade, thresholds, estratégia Fase D `inativa_ate_fase`). Serviço único
+`CTUEConformityService.evaluate()` → objeto `ConformityResult` consumido por painel/índice/dashboard/BI/
+dossiê/PDF/API. **Sprint A1 só inicia após aprovação da matriz.**
 
 
 ## 🔎 AUDITORIA READ-ONLY — Cadastro de Escolas / SIGESC (Jun/2026)
