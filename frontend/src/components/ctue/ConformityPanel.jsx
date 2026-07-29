@@ -21,7 +21,7 @@ const SECTION_TO_TAB = {
   identificacao: 0, localizacao: 0, gestao_vinculacao: 0,
   infraestrutura_fisica: 2, ambientes_pedagogicos: 2,
   acessibilidade: 1, agua_saneamento_energia: 1, seguranca: 1, conectividade: 1, conservacao: 1,
-  equipamentos: 3, obras: 4, documentacao: 5, observacoes_tecnicas: 6,
+  equipamentos: 3, obras: 8, documentacao: 9, observacoes_tecnicas: 10,
 };
 
 function Metric({ label, value, testid }) {

@@ -40,6 +40,7 @@ def setup_router(db, audit_service, sandbox_db=None):
             from fastapi import HTTPException, status
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
         assert_same_tenant(school, current_user, request)
+        _validate_profile(profile)
         return ctue.evaluate(school, profile=profile)
 
     @router.get("/conformity-overview")

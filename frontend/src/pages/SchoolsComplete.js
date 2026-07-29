@@ -2966,13 +2966,13 @@ export function SchoolsComplete() {
     'Infraestrutura',
     'Dependências',
     'Equipamentos',
-    'Obras e Intervenções',
-    'Documentação',
-    'Observações Técnicas',
     'Ensino',
     'Turmas',
     'Servidores',
-    'Permissão'
+    'Permissão',
+    'Obras e Intervenções',
+    'Documentação',
+    'Observações Técnicas'
   ];
 
   const tabContents = [
@@ -2980,13 +2980,13 @@ export function SchoolsComplete() {
     renderInfraestrutura(),
     renderDependencias(),
     renderEquipamentos(),
-    renderObras(),
-    renderDocumentacao(),
-    renderObsTecnicas(),
     renderDadosEnsino(),
     renderTurmas(),
     renderQuadroServidores(),
-    renderPermissoes()
+    renderPermissoes(),
+    renderObras(),
+    renderDocumentacao(),
+    renderObsTecnicas()
   ];
 
   return (
