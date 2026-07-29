@@ -590,6 +590,10 @@ class SchoolUpdate(BaseModel):
     name: Optional[str] = None
     inep_code: Optional[str] = None
     sigla: Optional[str] = None
+    # CTUE — seções técnicas (informativas)
+    obras: Optional[List[Dict]] = None
+    documentos: Optional[List[Dict]] = None
+    observacoes_tecnicas: Optional[List[Dict]] = None
     caracteristica_escolar: Optional[str] = None
     zona_localizacao: Optional[Literal['urbana', 'rural']] = None
     cnpj: Optional[str] = None
@@ -763,6 +767,10 @@ class School(SchoolBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[str] = None  # CTUE: indicador de Atualização
+    # CTUE — seções técnicas (informativas; não alteram cálculo de conformidade)
+    obras: Optional[List[Dict]] = []          # Obras e Intervenções
+    documentos: Optional[List[Dict]] = []      # Documentação (repositório técnico)
+    observacoes_tecnicas: Optional[List[Dict]] = []  # Histórico técnico
     mantenedora_id: Optional[str] = None  # Multi-tenancy: mantenedora proprietária
 
 # ============= CLASS (TURMA) MODELS =============

@@ -96,7 +96,7 @@
       "regras_conformidade": []
     },
     {
-      "key": "localizacao", "label": "Localização & Georreferência", "inativa_ate_fase": null,
+      "key": "localizacao", "label": "Localização & Georreferenciamento", "inativa_ate_fase": null,
       "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
       "campos": [
         {"campo": "cep", "classe": "obrigatorio", "peso": 3, "tipo": "str", "requer_preenchimento": true},
@@ -263,7 +263,7 @@
       ]
     },
     {
-      "key": "obras", "label": "Obras", "inativa_ate_fase": "D",
+      "key": "obras", "label": "Obras e Intervenções", "inativa_ate_fase": "D",
       "section_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
       "campos": [],
       "regras_conformidade": []

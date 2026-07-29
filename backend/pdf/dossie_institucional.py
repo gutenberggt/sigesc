@@ -212,11 +212,62 @@ def generate_dossie_pdf(school: dict, result: dict, mantenedora: dict = None) ->
         ("Tamanho do Acervo (biblioteca)", school.get("tamanho_acervo")),
     ], styles))
 
-    # 9. Observações (quando existentes)
+    # 9. Obras e Intervenções
+    obras = school.get("obras") or []
+    el.append(_heading("9. Obras e Intervenções", styles))
+    if obras:
+        data = [["Tipo", "Situação", "Início", "Previsão", "Descrição"]]
+        for o in obras:
+            data.append([_v(o.get("tipo"), "—"), _v(o.get("situacao"), "—"), _v(o.get("data_inicio"), "—"),
+                         _v(o.get("previsao_conclusao"), "—"), _v(o.get("descricao"), "—")])
+        t = Table(data, colWidths=[3.6 * cm, 2.6 * cm, 2.3 * cm, 2.3 * cm, 6.2 * cm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), _BLUE), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 8), ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7eb")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        el.append(t)
+    else:
+        el.append(Paragraph("Nenhuma intervenção cadastrada.", styles["DossieSmall"]))
+
+    # 10. Documentação (existentes x pendentes)
+    documentos = school.get("documentos") or []
+    el.append(_heading("10. Documentação", styles))
+    categorias_ref = ["Planta Baixa", "Memorial Descritivo", "Projeto Arquitetônico", "Habite-se",
+                      "AVCB (Corpo de Bombeiros)", "Alvará de Funcionamento", "Licença Sanitária",
+                      "Licença Ambiental", "Escritura ou Documento do Imóvel", "Laudos Técnicos"]
+    presentes = {(d.get("categoria") or "").strip() for d in documentos if d.get("categoria")}
+    if documentos:
+        data = [["Categoria", "Arquivo", "Data"]]
+        for d in documentos:
+            data.append([_v(d.get("categoria"), "—"), _v(d.get("filename"), "—"), _v(d.get("data_documento"), "—")])
+        t = Table(data, colWidths=[6.5 * cm, 7.5 * cm, 3 * cm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), _BLUE), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 8), ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7eb")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        el.append(t)
+    else:
+        el.append(Paragraph("Nenhum documento cadastrado.", styles["DossieSmall"]))
+    pendentes = [c for c in categorias_ref if c not in presentes]
+    if pendentes:
+        el.append(Spacer(1, 0.1 * cm))
+        el.append(Paragraph(f"<b>Documentos pendentes:</b> {', '.join(pendentes)}", styles["Normal"]))
+
+    # 11. Observações Técnicas (últimos registros)
     obs = school.get("observacoes_tecnicas")
-    if obs:
-        el.append(_heading("9. Observações Técnicas", styles))
+    el.append(_heading("11. Observações Técnicas", styles))
+    if isinstance(obs, list) and obs:
+        for r in obs[-5:]:
+            cab = f"<b>{_v(r.get('tipo'), 'Observação')}</b> — {_v(r.get('data'), 's/data')} · {_v(r.get('responsavel'), 's/responsável')}"
+            el.append(Paragraph(cab, styles["Normal"]))
+            el.append(Paragraph(_v(r.get("texto"), "—"), styles["JustifyText"]))
+            el.append(Spacer(1, 0.15 * cm))
+    elif isinstance(obs, str) and obs:
         el.append(Paragraph(_v(obs), styles["JustifyText"]))
+    else:
+        el.append(Paragraph("Nenhum registro técnico.", styles["DossieSmall"]))
 
     # Resumo objetivo final
     el.append(Spacer(1, 0.3 * cm))

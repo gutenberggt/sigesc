@@ -9,7 +9,7 @@ import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { Plus, AlertCircle, CheckCircle, Home, Users, Phone, Clock, Eye, Edit2, Download } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, Users, Phone, Clock, Eye, Edit2, Download, FileText } from 'lucide-react';
 import { ConformityPanel, SectionIndicator, STATE_META } from '@/components/ctue/ConformityPanel';
 import * as XLSX from 'xlsx';
 
@@ -70,6 +70,10 @@ export function SchoolsComplete() {
     // Dados Gerais - Identificação
     name: '',
     inep_code: '',
+    // CTUE — seções técnicas (informativas)
+    obras: [],
+    documentos: [],
+    observacoes_tecnicas: [],
     tipo_unidade: 'sede', // 'sede' ou 'anexa'
     anexa_a: '', // ID da escola sede (quando for anexa)
     caracteristica_escolar: '',
@@ -510,6 +514,9 @@ export function SchoolsComplete() {
       ...school,
       status: school.status || 'active',
       anos_letivos: school.anos_letivos || {},
+      obras: school.obras || [],
+      documentos: school.documentos || [],
+      observacoes_tecnicas: Array.isArray(school.observacoes_tecnicas) ? school.observacoes_tecnicas : [],
       anexa_a: school.anexa_a ? school.anexa_a.toLowerCase() : ''
     });
     setIsModalOpen(true);
@@ -524,6 +531,9 @@ export function SchoolsComplete() {
       ...school,
       status: school.status || 'active',
       anos_letivos: school.anos_letivos || {},
+      obras: school.obras || [],
+      documentos: school.documentos || [],
+      observacoes_tecnicas: Array.isArray(school.observacoes_tecnicas) ? school.observacoes_tecnicas : [],
       // Normaliza anexa_a para lowercase (corrige UUIDs salvos em maiúsculas)
       anexa_a: school.anexa_a ? school.anexa_a.toLowerCase() : ''
     });
@@ -2757,11 +2767,208 @@ export function SchoolsComplete() {
     );
   };
 
+  // ===== CTUE: Seções técnicas informativas (Obras, Documentação, Observações) =====
+  const updateArrayItem = (field, idx, key, value) => {
+    const arr = [...(formData[field] || [])];
+    arr[idx] = { ...arr[idx], [key]: value };
+    updateFormData(field, arr);
+  };
+  const addArrayItem = (field, item) => updateFormData(field, [...(formData[field] || []), item]);
+  const removeArrayItem = (field, idx) => updateFormData(field, (formData[field] || []).filter((_, i) => i !== idx));
+
+  const TIPOS_INTERVENCAO = ['Cercamento / Muro', 'Adequação de Acessibilidade', 'Ampliação', 'Reforma', 'Construção', 'Manutenção Preventiva', 'Manutenção Corretiva', 'Outros'];
+  const SITUACOES_OBRA = ['Planejada', 'Em execução', 'Concluída'];
+  const CATEGORIAS_DOC = ['Planta Baixa', 'Memorial Descritivo', 'Projeto Arquitetônico', 'Habite-se', 'AVCB (Corpo de Bombeiros)', 'Alvará de Funcionamento', 'Licença Sanitária', 'Licença Ambiental', 'Escritura ou Documento do Imóvel', 'Laudos Técnicos', 'Outros'];
+  const TIPOS_OBS = ['Parecer Técnico', 'Relatório de Vistoria', 'Observação Geral'];
+
+  const renderObras = () => {
+    const obras = formData.obras || [];
+    return (
+      <div className="space-y-4" data-testid="ctue-tab-obras">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-md font-semibold text-gray-900">Obras e Intervenções</h4>
+            <p className="text-xs text-gray-500">Seção informativa — não altera os cálculos de conformidade.</p>
+          </div>
+          {!viewMode && (
+            <button type="button" onClick={() => addArrayItem('obras', { tipo: '', situacao: 'Planejada', data_inicio: '', previsao_conclusao: '', descricao: '', observacoes: '' })}
+              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700" data-testid="ctue-add-obra">
+              <Plus size={15} /> Adicionar
+            </button>
+          )}
+        </div>
+        {obras.length === 0 && <p className="text-sm text-gray-400">Nenhuma intervenção cadastrada.</p>}
+        {obras.map((o, i) => (
+          <div key={i} className="border border-gray-200 rounded-lg p-4 space-y-3" data-testid={`ctue-obra-${i}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Intervenção</label>
+                <select value={o.tipo || ''} onChange={(e) => updateArrayItem('obras', i, 'tipo', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                  <option value="">Selecione</option>
+                  {TIPOS_INTERVENCAO.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Situação</label>
+                <select value={o.situacao || ''} onChange={(e) => updateArrayItem('obras', i, 'situacao', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                  {SITUACOES_OBRA.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+                <input type="date" value={o.data_inicio || ''} onChange={(e) => updateArrayItem('obras', i, 'data_inicio', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Previsão de Conclusão</label>
+                <input type="date" value={o.previsao_conclusao || ''} onChange={(e) => updateArrayItem('obras', i, 'previsao_conclusao', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+              <textarea rows={2} value={o.descricao || ''} onChange={(e) => updateArrayItem('obras', i, 'descricao', e.target.value)} disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <textarea rows={2} value={o.observacoes || ''} onChange={(e) => updateArrayItem('obras', i, 'observacoes', e.target.value)} disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+            </div>
+            {!viewMode && (
+              <button type="button" onClick={() => removeArrayItem('obras', i)} className="text-sm text-red-600 hover:text-red-800" data-testid={`ctue-remove-obra-${i}`}>Remover</button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const handleDocUpload = async (file) => {
+    if (!file) return;
+    try {
+      const res = await uploadAPI.upload(file, 'ctue_doc');
+      addArrayItem('documentos', { categoria: '', filename: res.original_name || res.filename, url: res.url, data_documento: '', observacoes: '' });
+    } catch (e) {
+      showAlert('error', 'Falha no upload do documento.');
+    }
+  };
+
+  const renderDocumentacao = () => {
+    const docs = formData.documentos || [];
+    return (
+      <div className="space-y-4" data-testid="ctue-tab-documentacao">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-md font-semibold text-gray-900">Documentação</h4>
+            <p className="text-xs text-gray-500">Repositório técnico da unidade — seção informativa.</p>
+          </div>
+          {!viewMode && (
+            <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 cursor-pointer" data-testid="ctue-add-doc">
+              <Plus size={15} /> Enviar documento
+              <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.webp"
+                onChange={(e) => { handleDocUpload(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+          )}
+        </div>
+        {docs.length === 0 && <p className="text-sm text-gray-400">Nenhum documento cadastrado.</p>}
+        {docs.map((d, i) => (
+          <div key={i} className="border border-gray-200 rounded-lg p-4 space-y-3" data-testid={`ctue-doc-${i}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                <select value={d.categoria || ''} onChange={(e) => updateArrayItem('documentos', i, 'categoria', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                  <option value="">Selecione</option>
+                  {CATEGORIAS_DOC.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data do Documento</label>
+                <input type="date" value={d.data_documento || ''} onChange={(e) => updateArrayItem('documentos', i, 'data_documento', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <FileText size={16} className="text-gray-400" />
+              {d.url ? <a href={d.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{d.filename || 'arquivo'}</a> : <span>{d.filename || '—'}</span>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <input type="text" value={d.observacoes || ''} onChange={(e) => updateArrayItem('documentos', i, 'observacoes', e.target.value)} disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+            </div>
+            {!viewMode && (
+              <button type="button" onClick={() => removeArrayItem('documentos', i)} className="text-sm text-red-600 hover:text-red-800" data-testid={`ctue-remove-doc-${i}`}>Remover</button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderObsTecnicas = () => {
+    const obs = formData.observacoes_tecnicas || [];
+    return (
+      <div className="space-y-4" data-testid="ctue-tab-obstecnicas">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-md font-semibold text-gray-900">Observações Técnicas</h4>
+            <p className="text-xs text-gray-500">Histórico técnico da unidade — seção informativa.</p>
+          </div>
+          {!viewMode && (
+            <button type="button" onClick={() => addArrayItem('observacoes_tecnicas', { tipo: 'Observação Geral', data: '', responsavel: '', texto: '' })}
+              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700" data-testid="ctue-add-obs">
+              <Plus size={15} /> Adicionar registro
+            </button>
+          )}
+        </div>
+        {obs.length === 0 && <p className="text-sm text-gray-400">Nenhum registro técnico.</p>}
+        {obs.map((r, i) => (
+          <div key={i} className="border border-gray-200 rounded-lg p-4 space-y-3" data-testid={`ctue-obs-${i}`}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Registro</label>
+                <select value={r.tipo || ''} onChange={(e) => updateArrayItem('observacoes_tecnicas', i, 'tipo', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                  {TIPOS_OBS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                <input type="date" value={r.data || ''} onChange={(e) => updateArrayItem('observacoes_tecnicas', i, 'data', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
+                <input type="text" value={r.responsavel || ''} onChange={(e) => updateArrayItem('observacoes_tecnicas', i, 'responsavel', e.target.value)} disabled={viewMode}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Texto da Observação</label>
+              <textarea rows={3} value={r.texto || ''} onChange={(e) => updateArrayItem('observacoes_tecnicas', i, 'texto', e.target.value)} disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+            </div>
+            {!viewMode && (
+              <button type="button" onClick={() => removeArrayItem('observacoes_tecnicas', i)} className="text-sm text-red-600 hover:text-red-800" data-testid={`ctue-remove-obs-${i}`}>Remover</button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const tabLabels = [
     'Geral',
     'Infraestrutura',
     'Dependências',
     'Equipamentos',
+    'Obras e Intervenções',
+    'Documentação',
+    'Observações Técnicas',
     'Ensino',
     'Turmas',
     'Servidores',
@@ -2773,6 +2980,9 @@ export function SchoolsComplete() {
     renderInfraestrutura(),
     renderDependencias(),
     renderEquipamentos(),
+    renderObras(),
+    renderDocumentacao(),
+    renderObsTecnicas(),
     renderDadosEnsino(),
     renderTurmas(),
     renderQuadroServidores(),

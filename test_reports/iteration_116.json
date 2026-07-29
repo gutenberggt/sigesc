@@ -1,0 +1,64 @@
+{
+  "summary": "Sprint de conclusão CTUE — 3 seções informativas (Obras e Intervenções, Documentação, Observações Técnicas) validadas backend + frontend. BACKEND: nova suíte /app/backend/tests/test_ctue_secoes_informativas.py 9/9 PASS — PUT /api/schools/{id} aceita e persiste obras[]/documentos[]/observacoes_tecnicas[] (com X-CSRF-Token), GET /api/schools e GET /api/schools/{id} retornam os 3 arrays (sem _id), remoção (arrays vazios) persiste, PUT sem token = 401/403; dossiê PDF contém '9. Obras e Intervenções', '10. Documentação' (+ 'Documentos pendentes:'), '11. Observações Técnicas' com os registros cadastrados (Reforma / AVCB / Relatório de Vistoria); CONFORMIDADE INALTERADA — conformidade_geral/completude_geral/maturidade idênticos antes e depois de cadastrar os 3 blocos e as seções obras/documentacao/observacoes_tecnicas continuam 'nao_avaliado'; label backend = 'Localização & Georreferenciamento'. Regressão: test_ctue_conformity + test_ctue_network_panel + test_ctue_dossie 46/46 PASS. FRONTEND (UI real, login gutenberg@sigesc.com): as 11 abas na ordem esperada; abas 4/5/6 renderizam ctue-tab-obras/ctue-tab-documentacao/ctue-tab-obstecnicas; selects com todas as opções pedidas (8 tipos de intervenção, 3 situações, 11 categorias de documento, 3 tipos de registro); Adicionar/Enviar documento/Adicionar registro criam ctue-obra-0 / ctue-doc-0 (POST /api/upload 200, link para /api/uploads/<uuid>.pdf) / ctue-obs-0; salvar (PUT 200 'Escola atualizada com sucesso') e reabrir manteve todos os campos (tipo, situação, datas, descrição, categoria, observações, responsável, texto); Remover funciona por índice (2 adds → 3 itens → remove idx0 → 2 itens, item correto removido, persistido após save/reopen); nenhum input de arquivo na aba Observações Técnicas; chips das 3 seções continuam neutros ('—') e clicáveis (clique em 'Obras e Intervenções' navegou para a aba 4); painel mostra 'Localização & Georreferenciamento' (0 ocorrências do nome antigo); Gerar Dossiê 200 application/pdf. Regressão UI: lista com mini-cards (Nome/Alunos/Completude/Conformidade/Situação) e /admin/rede (Centro de Inteligência da Rede: 6 escolas, 12% conformidade média, alertas e ações prioritárias) OK.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/ctue/schools/{id}/dossie?profile=xxx",
+        "issue": "(pendência da iteração 115, ainda presente) perfil inexistente retorna 200 com fallback silencioso para o ruleset default e imprime o perfil inválido no PDF"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SchoolsComplete — aba Documentação (renderDocumentacao)",
+        "issue": "CRASH DE RENDERIZAÇÃO (corrigido pelo testador): ícone <FileText> usado sem estar importado de lucide-react → 'ReferenceError: FileText is not defined' assim que o primeiro documento era enviado; ErrorBoundary derrubava a tela toda ('Algo deu errado nesta tela') e o cadastro em edição era perdido. Fix aplicado: adicionado FileText ao import de lucide-react em /app/frontend/src/pages/SchoolsComplete.js (linha 12). Revalidado: upload + preenchimento + save + reopen OK.",
+        "selector": "[data-testid='ctue-doc-0']",
+        "priority": "CRITICAL (já corrigido)"
+      },
+      {
+        "component": "ConformityPanel — botão Gerar Dossiê",
+        "issue": "(pendência anterior) sem loading/disabled durante a geração",
+        "selector": "[data-testid='ctue-generate-dossie-button']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/admin/schools — abas Obras/Documentação/Observações Técnicas",
+        "issues": [
+          "Campos de data usam o date picker nativo do browser (mm/dd/yyyy) em vez do componente de calendário do design system — consistente com o resto do cadastro, mas exibe formato US e não pt-BR",
+          "Não há validação de campos obrigatórios nos itens (é possível salvar obra/documento/observação totalmente vazios, gerando registros em branco no dossiê); recomenda-se descartar itens vazios no submit"
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ctue_secoes_informativas.py",
+    "/app/test_reports/pytest/ctue_secoes.xml",
+    "/app/test_reports/pytest/ctue_regression_116.xml"
+  ],
+  "action_items": [
+    "Nada bloqueante. Revisar (opcional) o descarte de itens vazios de obras/documentos/observacoes_tecnicas no submit do frontend",
+    "Opcional: validar ?profile no endpoint /dossie e adicionar loading no botão Gerar Dossiê"
+  ],
+  "critical_code_review_comments": [
+    "IMPORT FALTANTE (corrigido): FileText não estava importado em SchoolsComplete.js — qualquer documento enviado quebrava toda a tela via ErrorBoundary. Vale um lint de imports no CI (react/jsx-no-undef) para evitar recorrência.",
+    "/app/frontend/src/pages/SchoolsComplete.js tem 3139 linhas — as 3 novas seções CTUE (renderObras/renderDocumentacao/renderObsTecnicas, ~180 linhas) deveriam ser extraídas para componentes em src/components/ctue/ (>700 linhas por arquivo).",
+    "handleDocUpload não trata estado de loading do upload; em conexões lentas o usuário não recebe feedback entre a escolha do arquivo e o aparecimento do item.",
+    "Não há remoção do arquivo no storage ao clicar em 'Remover' de um documento (ctue-remove-doc-N) — arquivo órfão em /api/uploads."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/SchoolsComplete.js (adicionado import FileText)",
+    "/app/backend/tests/test_ctue_secoes_informativas.py (novo)"
+  ],
+  "success_rate": {"backend": "100% (9/9 novos + 46/46 regressão CTUE)", "frontend": "100% após o fix do import FileText"},
+  "seed_data_creation": "Dados de teste criados via UI/API na escola TEST_CrossTenant_School_B (obras/documentos/observações) e removidos no fim; DB verificado: todas as 6 escolas com os 3 arrays vazios. Upload de arquivo temporário /tmp/TEST_doc_ctue.pdf (arquivo em /api/uploads permanece no storage local).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "context_for_next_testing_agent": "PUT /api/schools/{id} exige header X-CSRF-Token (vindo do body do login) — sem ele retorna 403 'CSRF token inválido ou ausente'; super_admin sem X-Mantenedora-Id é cross-tenant (não dá 403). GET /api/schools é cacheado no backend: escrever direto no Mongo não invalida o cache (usar PUT via API). Abas: tab-4 Obras, tab-5 Documentação, tab-6 Observações Técnicas; itens ctue-obra-N/ctue-doc-N/ctue-obs-N. Suíte nova: tests/test_ctue_secoes_informativas.py.",
+  "rca_of_the_issue": "Import faltante: renderDocumentacao referenciava <FileText> (lucide-react) que não constava no import da linha 12 de SchoolsComplete.js. Reprodução: aba Documentação → 'Enviar documento' → upload 200 → React tenta renderizar ctue-doc-0 → ReferenceError → ErrorBoundary substitui a tela e o formulário em edição é perdido (dados não salvos). Mitigação aplicada: FileText incluído no import; fluxo completo (upload → categoria/data/observações → Salvar → reabrir) revalidado com persistência confirmada."
+}
