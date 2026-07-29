@@ -3,12 +3,12 @@
   "versao": 1,
   "status_global_thresholds": { "conforme": 85, "atencao": 65, "critico": 40 },
   "alerts": [
-    {"id": "conf_baixa", "severidade": "critico", "label": "Conformidade inferior a 50%", "metric": "conformidade_geral", "op": "lt", "value": 50},
+    {"id": "conf_baixa", "severidade": "critico", "label": "Situação cadastral abaixo de 50%", "metric": "conformidade_geral", "op": "lt", "value": 50},
     {"id": "desatualizado", "severidade": "critico", "label": "Cadastro não atualizado há mais de 180 dias", "metric": "days_since", "op": "gt_or_never", "value": 180},
-    {"id": "seguranca_nc", "severidade": "critico", "label": "Segurança não conforme", "section": "seguranca", "op": "status_in", "value": ["nao_conforme", "critico"]},
-    {"id": "acess_critica", "severidade": "alto", "label": "Acessibilidade crítica", "section": "acessibilidade", "op": "status_in", "value": ["nao_conforme", "critico"]},
-    {"id": "agua_nc", "severidade": "alto", "label": "Água/Saneamento não conforme", "section": "agua_saneamento_energia", "op": "status_in", "value": ["nao_conforme", "critico"]},
-    {"id": "dados_criticos", "severidade": "alto", "label": "Dados críticos ausentes (completude < 30%)", "metric": "completude_geral", "op": "lt", "value": 30}
+    {"id": "seguranca_nc", "severidade": "critico", "label": "Segurança com adequação prioritária", "section": "seguranca", "op": "status_in", "value": ["nao_conforme", "critico"]},
+    {"id": "acess_critica", "severidade": "alto", "label": "Acessibilidade com adequação prioritária", "section": "acessibilidade", "op": "status_in", "value": ["nao_conforme", "critico"]},
+    {"id": "agua_nc", "severidade": "alto", "label": "Água e Saneamento com adequação prioritária", "section": "agua_saneamento_energia", "op": "status_in", "value": ["nao_conforme", "critico"]},
+    {"id": "dados_criticos", "severidade": "alto", "label": "Dados obrigatórios ausentes (preenchimento < 30%)", "metric": "completude_geral", "op": "lt", "value": 30}
   ],
   "severity_weights": { "critico": 100, "alto": 60, "medio": 30 },
   "priority_actions": {
