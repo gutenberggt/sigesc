@@ -608,11 +608,11 @@ export function SchoolsComplete() {
   const columns = [
     { header: 'Nome', accessor: 'name' },
     {
-      header: 'Gestor',
-      accessor: 'gestor',
+      header: 'Alunos',
+      accessor: 'student_count',
       render: (row) => (
-        <span data-testid={`school-gestor-${row.id}`}>
-          {conformityMap[row.id]?.gestor || <span className="text-gray-400">—</span>}
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" data-testid={`school-students-${row.id}`}>
+          {row.student_count !== undefined ? row.student_count : '-'}
         </span>
       )
     },
@@ -638,14 +638,6 @@ export function SchoolsComplete() {
             {s ? <PctBar value={s.conformidade} color="bg-emerald-500" /> : <span className="text-gray-400 text-xs">—</span>}
           </span>
         );
-      }
-    },
-    {
-      header: 'Atualização',
-      accessor: 'atualizacao',
-      render: (row) => {
-        const s = conformityMap[row.id];
-        return <span className="text-xs text-gray-600" data-testid={`school-atualizacao-${row.id}`}>{s?.atualizacao?.label || '—'}</span>;
       }
     },
     {
