@@ -2,10 +2,10 @@ import { CheckCircle2, AlertTriangle, AlertCircle, XCircle, MinusCircle, Clock, 
 
 // SSoT dos estados (rótulo/cor/ícone). Nenhum cálculo aqui — só apresentação.
 export const STATE_META = {
-  conforme:      { label: 'Conforme',      dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200',  Icon: CheckCircle2 },
-  atencao:       { label: 'Atenção',       dot: 'bg-yellow-500', text: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200', Icon: AlertTriangle },
-  critico:       { label: 'Crítico',       dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', Icon: AlertCircle },
-  nao_conforme:  { label: 'Não Conforme',  dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200',    Icon: XCircle },
+  conforme:      { label: 'Atualizado',      dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200',  Icon: CheckCircle2 },
+  atencao:       { label: 'Parcialmente Atualizado',       dot: 'bg-yellow-500', text: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200', Icon: AlertTriangle },
+  critico:       { label: 'Desatualizado',       dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', Icon: AlertCircle },
+  nao_conforme:  { label: 'Necessita Atualização',  dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200',    Icon: XCircle },
   nao_avaliado:  { label: 'Não avaliado',  dot: 'bg-gray-300',   text: 'text-gray-500',   bg: 'bg-gray-50',   border: 'border-gray-200',   Icon: MinusCircle },
 };
 
