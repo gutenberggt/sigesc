@@ -18,8 +18,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from pdf.utils import get_logo_image, get_styles
 
 _STATUS_PT = {
-    "conforme": "Atualizado", "atencao": "Parcialmente Atualizado", "critico": "Desatualizado",
-    "nao_conforme": "Necessita Atualização", "nao_avaliado": "Não avaliado",
+    "conforme": "Adequado", "atencao": "Em Adequação", "critico": "Adequação Prioritária",
+    "nao_conforme": "Não Adequado", "nao_avaliado": "Não avaliado",
 }
 _STATUS_COLOR = {
     "conforme": colors.HexColor("#16a34a"), "atencao": colors.HexColor("#ca8a04"),

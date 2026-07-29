@@ -2,10 +2,10 @@ import { CheckCircle2, AlertTriangle, AlertCircle, XCircle, MinusCircle, Clock, 
 
 // SSoT dos estados (rótulo/cor/ícone). Nenhum cálculo aqui — só apresentação.
 export const STATE_META = {
-  conforme:      { label: 'Atualizado',      dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200',  Icon: CheckCircle2 },
-  atencao:       { label: 'Parcialmente Atualizado',       dot: 'bg-yellow-500', text: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200', Icon: AlertTriangle },
-  critico:       { label: 'Desatualizado',       dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', Icon: AlertCircle },
-  nao_conforme:  { label: 'Necessita Atualização',  dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200',    Icon: XCircle },
+  conforme:      { label: 'Adequado',      dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200',  Icon: CheckCircle2 },
+  atencao:       { label: 'Em Adequação',       dot: 'bg-yellow-500', text: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200', Icon: AlertTriangle },
+  critico:       { label: 'Adequação Prioritária',       dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', Icon: AlertCircle },
+  nao_conforme:  { label: 'Não Adequado',  dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200',    Icon: XCircle },
   nao_avaliado:  { label: 'Não avaliado',  dot: 'bg-gray-300',   text: 'text-gray-500',   bg: 'bg-gray-50',   border: 'border-gray-200',   Icon: MinusCircle },
 };
 
@@ -44,7 +44,7 @@ export function ConformityPanel({ result, profiles = [], profile = 'default', on
       <div className={`px-4 py-3 flex flex-wrap items-center justify-between gap-3 border-b ${selo.bg} ${selo.border}`}>
         <div className="flex items-center gap-2">
           <selo.Icon className={selo.text} size={22} />
-          <span className="font-semibold text-gray-900">CTUE — Situação da Unidade Escolar</span>
+          <span className="font-semibold text-gray-900">CTUE — Situação Cadastral da Unidade Escolar</span>
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${selo.text} ${selo.bg} border ${selo.border}`} data-testid="ctue-selo-geral">
             <span className={`w-2 h-2 rounded-full ${selo.dot}`} /> {selo.label}
           </span>
