@@ -137,6 +137,7 @@ export function SchoolsComplete() {
     possui_internet: false,
     tipo_conexao: '',
     cobertura_rede: '',
+    conexoes: [],
     estado_conservacao: '',
     possui_cercamento: false,
     
@@ -1089,6 +1090,7 @@ export function SchoolsComplete() {
               <option value="">Selecione</option>
               <option value="Rede pública">Rede pública</option>
               <option value="Poço artesiano">Poço artesiano</option>
+              <option value="Poço semiartesiano">Poço semiartesiano</option>
               <option value="Cisterna">Cisterna</option>
               <option value="Outros">Outros</option>
             </select>
@@ -1392,33 +1394,58 @@ export function SchoolsComplete() {
             <span className="text-sm text-gray-700">Possui Internet</span>
           </label>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Conexão</label>
-            <select
-              value={formData.tipo_conexao || ''}
-              onChange={(e) => updateFormData('tipo_conexao', e.target.value)}
-              disabled={viewMode}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              <option value="">Selecione</option>
-              <option value="Fibra óptica">Fibra óptica</option>
-              <option value="Cabo">Cabo</option>
-              <option value="Rádio">Rádio</option>
-              <option value="Satélite">Satélite</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Qualidade do Sinal de Internet</label>
-            <select value={formData.cobertura_rede || ''}
-              onChange={(e) => updateFormData('cobertura_rede', e.target.value)} disabled={viewMode}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              data-testid="ctue-field-cobertura-rede">
-              <option value="">Selecione</option>
-              <option value="Boa">Boa</option>
-              <option value="Regular">Regular</option>
-              <option value="Ruim">Ruim</option>
-            </select>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Conexão e Qualidade do Sinal</label>
+            <p className="text-xs text-gray-500 mb-2">Marque um ou mais tipos de conexão e defina a qualidade do sinal de cada um.</p>
+            <div className="space-y-2">
+              {['Fibra óptica', 'Cabo', 'Rádio', 'Satélite', 'Móvel (3G/4G/5G)'].map((tipo) => {
+                const item = (formData.conexoes || []).find((c) => c.tipo === tipo);
+                const checked = !!item;
+                return (
+                  <div key={tipo} className="flex items-center justify-between gap-3 border border-gray-200 rounded-lg px-3 py-2">
+                    <label className="flex items-center space-x-2 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={viewMode}
+                        onChange={(e) => {
+                          const list = [...(formData.conexoes || [])];
+                          if (e.target.checked) {
+                            list.push({ tipo, qualidade: '' });
+                          } else {
+                            const idx = list.findIndex((c) => c.tipo === tipo);
+                            if (idx > -1) list.splice(idx, 1);
+                          }
+                          updateFormData('conexoes', list);
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                        data-testid={`ctue-conexao-${tipo}`}
+                      />
+                      <span className="text-sm text-gray-700">{tipo}</span>
+                    </label>
+                    {checked && (
+                      <select
+                        value={item.qualidade || ''}
+                        disabled={viewMode}
+                        onChange={(e) => {
+                          const list = (formData.conexoes || []).map((c) =>
+                            c.tipo === tipo ? { ...c, qualidade: e.target.value } : c
+                          );
+                          updateFormData('conexoes', list);
+                        }}
+                        className="w-44 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                        data-testid={`ctue-conexao-qualidade-${tipo}`}
+                      >
+                        <option value="">Qualidade do sinal…</option>
+                        <option value="Boa">Boa</option>
+                        <option value="Regular">Regular</option>
+                        <option value="Ruim">Ruim</option>
+                      </select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -1617,18 +1644,6 @@ export function SchoolsComplete() {
               type="number"
               value={formData.qtd_tablets || 0}
               onChange={(e) => updateFormData('qtd_tablets', parseInt(e.target.value) || 0)}
-              min="0"
-              disabled={viewMode}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Projetores</label>
-            <input
-              type="number"
-              value={formData.qtd_projetores || 0}
-              onChange={(e) => updateFormData('qtd_projetores', parseInt(e.target.value) || 0)}
               min="0"
               disabled={viewMode}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"

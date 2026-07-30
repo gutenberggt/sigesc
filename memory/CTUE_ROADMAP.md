@@ -166,3 +166,15 @@ Um único PDF consolidado da rede, gerado com um clique no Painel Gerencial ("Do
 - **Rótulo**: "Adequação Prioritária" → "Necessita Adequação" em UI (ConformityPanel) e nos dois
   PDFs (dossiê por escola e da rede).
 - CTUE agora em **manutenção evolutiva**. Prioridade do SIGESC migra para outro módulo estratégico.
+
+---
+
+## Ajustes de cadastro (manutenção evolutiva · Jun/2026)
+- Infraestrutura → Água: nova opção "Poço semiartesiano" no Abastecimento de Água.
+- Infraestrutura → Conectividade: "Tipo de Conexão" agora é multi-seleção (Fibra óptica, Cabo,
+  Rádio, Satélite, Móvel 3G/4G/5G), com "Qualidade do Sinal" (Boa/Regular/Ruim) por tipo.
+  Persistido no novo campo `conexoes: List[{tipo, qualidade}]` (School + SchoolUpdate — mesmo
+  padrão de obras/documentos; informativo, não altera conformidade).
+- Equipamentos → Tecnologia: removido o campo "Projetores"; mantido só "Projetor Multimídia
+  (Data show)" (qtd_projetores_multimidia).
+- Validado E2E via UI (preencher → salvar → reabrir).

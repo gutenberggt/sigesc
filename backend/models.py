@@ -622,6 +622,7 @@ class SchoolUpdate(BaseModel):
     obras: Optional[List[Dict]] = None
     documentos: Optional[List[Dict]] = None
     observacoes_tecnicas: Optional[List[Dict]] = None
+    conexoes: Optional[List[Dict]] = None
     caracteristica_escolar: Optional[str] = None
     zona_localizacao: Optional[Literal['urbana', 'rural']] = None
     cnpj: Optional[str] = None
@@ -818,6 +819,7 @@ class School(SchoolBase):
     obras: Optional[List[Dict]] = []          # Obras e Intervenções
     documentos: Optional[List[Dict]] = []      # Documentação (repositório técnico)
     observacoes_tecnicas: Optional[List[Dict]] = []  # Histórico técnico
+    conexoes: Optional[List[Dict]] = []        # Conectividade: tipos de conexão e qualidade do sinal
     mantenedora_id: Optional[str] = None  # Multi-tenancy: mantenedora proprietária
 
 # ============= CLASS (TURMA) MODELS =============
