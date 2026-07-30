@@ -1,5 +1,19 @@
 # SIGESC - Product Requirements Document
 
+## ✅ MIG SPRINT 001.1 — Hardening Operacional HOMOLOGADA (Jun/2026)
+Homologação completa dos ajustes do MIG (Módulo de Integração Governamental / CMDE):
+Correlation IDs ponta a ponta, auditoria automática de Feature Flags (`FEATURE_FLAG_UPDATED`
+com old/new/actor/tenant/timestamp/correlation_id), paginação+filtros no `GET /mec/audit`
+(status/operação/período/ordenação desc + compat `limit` legado) e Dashboard Técnico
+(`/admin/mec` → aba Operação Técnica). Validação: testes automatizados 15/15 verdes
+(`backend/tests/test_mig_cmde.py`), E2E via API contra o preview (métricas, flags GET/PUT,
+audit paginado/filtrado, 401 sem auth) e evidência por screenshot do Dashboard.
+Relatório: `memory/audit/SPRINT_001_1_HARDENING_MIG.md`. **Sprint 002 (Envio de Frequência CMDE)
+permanece BLOQUEADA até liberação explícita do owner** — próximo passo é apresentar o plano
+arquitetural da Sprint 002 (sem código). P1 pendente: política real de limpeza/arquivamento
+de `mig_audit_events` (apenas documentada).
+
+
 ## 🐛 BUGFIX — Divergência de números no painel "Análise PME" (Jun/2026)
 Reportado: cabeçalho "1332 Matrículas / 1247 ativos" vs Rendimento "Cursando 1266".
 Causa: duas bases de contagem — "ativos" contava ALUNOS ÚNICOS {active,progressed,reclassified};
