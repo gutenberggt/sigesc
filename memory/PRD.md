@@ -17,6 +17,14 @@ de `mig_audit_events` (apenas documentada).
 scheduler, idempotência, reconciliação de rejeições, multi-tenant, testes e rollout gradual),
 reusando o core do MIG. Implementação BLOQUEADA até aprovação do owner + confirmação do contrato
 oficial da API CMDE de frequência.
+**PLANO DE EXECUÇÃO Sprint 002 (sub-sprints) produzido:** `memory/audit/SPRINT_002_PLANO_EXECUCAO_SUBSPRINTS.md`
+— roadmap 002.a (modelos/contratos/idempotência) → 002.b (Batch Builder) → 002.c (Queue) →
+002.d (Workers+Retry) → 002.e (Scheduler) → 002.f (Homologação/piloto), com gate humano entre cada.
+Requisito oficial adicionado: **Simulador CMDE de homologação** (mock provider via `CmdeFrequencyPort`,
+selecionável por flag `cmde.frequency.simulator`) cobrindo aceite/rejeição/erro 502-503-504/timeout/
+resposta inválida — permite validar Builder/Queue/Worker/Retry/Audit/Metrics/idempotência sem o MEC.
+Bloqueadores externos mantidos: contrato oficial CMDE, unidade de apuração aceita, limiares 60%/75%
+só para relatório. Implementação BLOQUEADA até aprovação deste plano de execução.
 
 
 ## 🐛 BUGFIX — Divergência de números no painel "Análise PME" (Jun/2026)
