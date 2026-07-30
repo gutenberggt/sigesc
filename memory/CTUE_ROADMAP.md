@@ -136,3 +136,18 @@ removido sem aprovação; leitura tolerante a legado mantida.
   incorporar cada campo ao ruleset sem mudança estrutural — ativação dependerá de decisão administrativa.
 - Testes: `backend/tests/test_fase_d_campos.py` (modelo + SSoT estável + PDF) e ciclo E2E de
   persistência validado via UI.
+
+---
+
+## Dossiê Institucional da Rede Municipal (ENTREGUE · Jun/2026)
+Um único PDF consolidado da rede, gerado com um clique no Painel Gerencial ("Dossiê da Rede").
+- **SSoT rigoroso**: `ctue.build_network_dossie()` consome `build_network_panel()` + `evaluate()` por
+  escola. Nenhum cálculo/indicador novo — apenas consolidação/ordenação de dados existentes.
+- 12 seções: Capa, Apresentação, Panorama Geral, Distribuição da Rede, Ranking de Conformidade,
+  Ranking de Prioridades (mesma Fila de Ações Prioritárias), Infraestrutura da Rede, Obras,
+  Documentação, Diagnóstico Executivo (texto determinístico, sem IA), Plano de Ação (consolida a
+  Fila de Prioridades), Conclusão.
+- Endpoint: `GET /api/ctue/network-dossie?profile=&exercicio=` (StreamingResponse PDF, escopo
+  multi-tenant como o network-panel). PDF: `pdf/dossie_rede.py`.
+- Frontend: botão "Dossiê da Rede" em `NetworkPanel.jsx` respeitando o perfil selecionado.
+- Testes: `backend/tests/test_dossie_rede.py` (dados + PDF) e verificação das 12 seções (6 págs).

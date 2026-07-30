@@ -7,7 +7,7 @@ import { ctueAPI } from '@/services/api';
 import { STATE_META } from '@/components/ctue/ConformityPanel';
 import {
   Building2, CheckCircle2, XCircle, Gauge, ClipboardList, Clock, Award,
-  AlertTriangle, ListChecks, MapPin, BarChart3, TrendingUp, ExternalLink, Loader2
+  AlertTriangle, ListChecks, MapPin, BarChart3, TrendingUp, ExternalLink, Loader2, FileText
 } from 'lucide-react';
 
 const SEV_META = {
@@ -47,6 +47,26 @@ export default function NetworkPanel() {
   const [panel, setPanel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [comparTab, setComparTab] = useState('zona');
+  const [generatingDossie, setGeneratingDossie] = useState(false);
+
+  const handleNetworkDossie = async () => {
+    setGeneratingDossie(true);
+    try {
+      const blob = await ctueAPI.getNetworkDossie(profile);
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dossie_rede_municipal_${profile}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao gerar Dossiê da Rede:', err);
+    } finally {
+      setGeneratingDossie(false);
+    }
+  };
 
   useEffect(() => { ctueAPI.getProfiles().then((d) => setProfiles(d.profiles || [])).catch(() => {}); }, []);
   useEffect(() => {
@@ -82,6 +102,16 @@ export default function NetworkPanel() {
             >
               {profiles.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
             </select>
+            <button
+              type="button"
+              onClick={handleNetworkDossie}
+              disabled={generatingDossie || loading}
+              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              data-testid="network-dossie-btn"
+            >
+              {generatingDossie ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
+              {generatingDossie ? 'Gerando…' : 'Dossiê da Rede'}
+            </button>
           </div>
         </div>
 

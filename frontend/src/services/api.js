@@ -174,6 +174,10 @@ export const ctueAPI = {
   getDossie: async (schoolId, profile = 'default') => {
     const response = await axios.get(`${API}/ctue/schools/${schoolId}/dossie`, { params: { profile }, responseType: 'blob' });
     return response.data;
+  },
+  getNetworkDossie: async (profile = 'default') => {
+    const response = await axios.get(`${API}/ctue/network-dossie`, { params: { profile }, responseType: 'blob' });
+    return response.data;
   }
 };
 

@@ -468,3 +468,171 @@ def build_network_panel(schools, profile="default", ruleset=None):
             "series_previstas": ["conformidade", "completude", "atualizacao", "maturidade"],
         },
     }
+
+
+# ---- Indicadores de infraestrutura (campos-fonte já usados pelo ruleset) ----
+_INFRA_INDICADORES = [
+    ("Acessibilidade (rampas)", lambda s: bool(s.get("possui_rampas"))),
+    ("Banheiros acessíveis", lambda s: (s.get("banheiros_acessiveis") or 0) > 0 or bool(s.get("banheiros_adaptados"))),
+    ("Abastecimento de água", lambda s: bool(str(s.get("abastecimento_agua") or "").strip())),
+    ("Energia elétrica", lambda s: bool(str(s.get("energia_eletrica") or "").strip())),
+    ("Esgotamento sanitário", lambda s: bool(str(s.get("saneamento") or "").strip())),
+    ("Internet", lambda s: bool(s.get("possui_internet"))),
+    ("Biblioteca", lambda s: bool(s.get("possui_biblioteca"))),
+    ("Laboratório (ciências/informática)", lambda s: bool(s.get("possui_lab_ciencias") or s.get("possui_lab_informatica"))),
+    ("Quadra esportiva", lambda s: bool(s.get("possui_quadra") or s.get("possui_quadra_esportiva"))),
+    ("Cozinha", lambda s: bool(s.get("possui_cozinha"))),
+    ("Extintores de incêndio", lambda s: (s.get("qtd_extintores") or s.get("extintores") or 0) > 0),
+]
+
+_MOTIVO_LABEL = {
+    "never": "Realizar o cadastro técnico (CTUE) das unidades ainda não cadastradas",
+    "stale": "Atualizar o CTUE das unidades desatualizadas",
+    "seguranca": "Regularizar a Segurança (extintores, brigada e plano de evacuação)",
+    "acessibilidade": "Regularizar a Acessibilidade (rampas, banheiros e sinalização)",
+    "agua_saneamento_energia": "Validar Água, Saneamento e Energia",
+    "conservacao": "Revisar a Conservação e necessidade de reforma",
+    "completude": "Completar o cadastro das unidades com dados ausentes",
+}
+
+
+def _has_doc_categoria(school, categorias):
+    presentes = {(d.get("categoria") or "").strip() for d in (school.get("documentos") or [])}
+    return any(c in presentes for c in categorias)
+
+
+def build_network_dossie(schools, profile="default", ruleset=None):
+    """
+    Dados consolidados para o Dossiê Institucional da Rede (PDF).
+    CONSOME exclusivamente o SSoT: build_network_panel() + evaluate() por escola.
+    Não cria novos indicadores de conformidade — apenas consolida/ordena o que já existe.
+    """
+    rs = ruleset or _RULESET
+    panel = build_network_panel(schools, profile=profile, ruleset=rs)
+    results = [(s, evaluate(s, profile=profile, ruleset=rs)) for s in schools]
+    total = len(results) or 1
+
+    # 5. Ranking de Conformidade (ordenado por conformidade desc — usa ConformityResult)
+    ranking = []
+    for s, r in results:
+        ranking.append({
+            "name": s.get("name") or "—",
+            "conformidade": r["conformidade_geral"],
+            "completude": r["completude_geral"],
+            "atualizacao": r["atualizacao"]["label"],
+            "maturidade_nivel": r["maturidade"]["nivel"],
+            "maturidade_nome": r["maturidade"]["nome"],
+            "status": r["selo_geral"],
+            "situacao": "Ativa" if s.get("status") == "active" else "Inativa",
+        })
+    ranking.sort(key=lambda x: (x["conformidade"], x["completude"]), reverse=True)
+
+    # 7. Infraestrutura da Rede (consolidação de campos-fonte existentes)
+    infraestrutura = []
+    for label, pred in _INFRA_INDICADORES:
+        com = sum(1 for s, _ in results if pred(s))
+        sem = len(results) - com
+        infraestrutura.append({
+            "indicador": label, "com": com, "sem": sem,
+            "pct_com": round(com / total * 100),
+        })
+
+    # 8. Obras e Intervenções (consolidação das listas obras[])
+    obras_por_situacao, obras_por_tipo = {}, {}
+    total_obras = 0
+    escolas_com_obras = 0
+    for s, _ in results:
+        lista = s.get("obras") or []
+        if lista:
+            escolas_com_obras += 1
+        for o in lista:
+            total_obras += 1
+            sit = (o.get("situacao") or "Não informado").strip() or "Não informado"
+            tp = (o.get("tipo") or "Não informado").strip() or "Não informado"
+            obras_por_situacao[sit] = obras_por_situacao.get(sit, 0) + 1
+            obras_por_tipo[tp] = obras_por_tipo.get(tp, 0) + 1
+    obras = {
+        "total_intervencoes": total_obras,
+        "escolas_com_obras": escolas_com_obras,
+        "por_situacao": sorted([{"grupo": k, "qtd": v} for k, v in obras_por_situacao.items()], key=lambda x: x["qtd"], reverse=True),
+        "por_tipo": sorted([{"grupo": k, "qtd": v} for k, v in obras_por_tipo.items()], key=lambda x: x["qtd"], reverse=True),
+    }
+
+    # 9. Documentação (booleans de Situação Documental + categorias do repositório)
+    doc_defs = [
+        ("Planta / Projeto arquitetônico", lambda s: _has_doc_categoria(s, ["Planta Baixa", "Projeto Arquitetônico", "Memorial Descritivo"])),
+        ("Alvará de Funcionamento", lambda s: bool(s.get("alvara_funcionamento")) or _has_doc_categoria(s, ["Alvará de Funcionamento"])),
+        ("Licença Sanitária", lambda s: bool(s.get("licenca_sanitaria")) or _has_doc_categoria(s, ["Licença Sanitária"])),
+        ("AVCB (Corpo de Bombeiros)", lambda s: bool(s.get("avcb_bombeiros")) or _has_doc_categoria(s, ["AVCB (Corpo de Bombeiros)"])),
+        ("Habite-se", lambda s: bool(s.get("habite_se")) or _has_doc_categoria(s, ["Habite-se"])),
+        ("Certificado de Potabilidade da Água", lambda s: bool(s.get("certificado_potabilidade")) or _has_doc_categoria(s, ["Certificado de Potabilidade da Água"])),
+    ]
+    documentacao = []
+    for label, pred in doc_defs:
+        com = sum(1 for s, _ in results if pred(s))
+        documentacao.append({
+            "documento": label, "com": com, "sem": len(results) - com,
+            "pct_com": round(com / total * 100),
+        })
+
+    # 10. Diagnóstico Executivo (texto determinístico a partir dos indicadores)
+    ex = panel["executive"]
+    pontos_fortes, fragilidades, areas_prioritarias = [], [], []
+    if ex["conformidade_media"] >= 65:
+        pontos_fortes.append(f"Conformidade média da rede em {ex['conformidade_media']}%.")
+    else:
+        fragilidades.append(f"Conformidade média da rede em {ex['conformidade_media']}%, abaixo do patamar adequado.")
+    if ex["completude_media"] >= 65:
+        pontos_fortes.append(f"Completude cadastral média em {ex['completude_media']}%.")
+    else:
+        fragilidades.append(f"Completude cadastral média em {ex['completude_media']}%, indicando cadastros incompletos.")
+    if ex.get("cadastros_nunca_atualizados"):
+        fragilidades.append(f"{ex['cadastros_nunca_atualizados']} unidade(s) nunca tiveram o CTUE atualizado.")
+    for ind in infraestrutura:
+        if ind["pct_com"] >= 85:
+            pontos_fortes.append(f"{ind['indicador']}: presente em {ind['pct_com']}% das unidades.")
+        elif ind["pct_com"] < 50:
+            fragilidades.append(f"{ind['indicador']}: presente em apenas {ind['pct_com']}% das unidades.")
+    # Áreas prioritárias = agregação da Fila de Prioridades (SSoT), por motivo
+    motivo_count = {}
+    for p in panel["priorities"]:
+        motivo_count[p["motivo"]] = motivo_count.get(p["motivo"], 0) + 1
+    for motivo, qtd in sorted(motivo_count.items(), key=lambda x: x[1], reverse=True):
+        areas_prioritarias.append(f"{_MOTIVO_LABEL.get(motivo, motivo)} ({qtd} unidade(s)).")
+    diagnostico = {
+        "pontos_fortes": pontos_fortes or ["Sem pontos fortes destacados nesta fotografia."],
+        "fragilidades": fragilidades or ["Nenhuma fragilidade crítica identificada."],
+        "areas_prioritarias": areas_prioritarias or ["Sem áreas prioritárias no momento."],
+    }
+
+    # 11. Plano de Ação Sugerido (consolida a Fila de Prioridades — sem nova lógica)
+    plano_grupos = {}
+    for p in panel["priorities"]:
+        g = plano_grupos.setdefault(p["motivo"], {"escolas": set(), "peso": 0})
+        g["escolas"].add(p["school_name"])
+        g["peso"] += p.get("peso", 0)
+    plano_acao = []
+    for motivo, g in plano_grupos.items():
+        exemplos = sorted(g["escolas"])
+        plano_acao.append({
+            "recomendacao": _MOTIVO_LABEL.get(motivo, motivo),
+            "escolas": len(g["escolas"]),
+            "exemplos": exemplos[:4],
+            "peso": g["peso"],
+        })
+    plano_acao.sort(key=lambda x: x["peso"], reverse=True)
+
+    return {
+        "profile": profile,
+        "profile_label": next((p["label"] for p in get_profiles() if p["key"] == profile), profile),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "executive": ex,
+        "ranking": ranking,
+        "priorities": panel["priorities"],
+        "comparativos": panel["comparativos"],
+        "infraestrutura": infraestrutura,
+        "obras": obras,
+        "documentacao": documentacao,
+        "diagnostico": diagnostico,
+        "plano_acao": plano_acao,
+    }

@@ -119,4 +119,41 @@ def setup_router(db, audit_service, sandbox_db=None):
             headers={"Content-Disposition": f'inline; filename="{filename}"'}
         )
 
+    @router.get("/network-dossie")
+    async def network_dossie(request: Request, profile: str = "default", exercicio: str = None):
+        """Dossiê Institucional da Rede (PDF consolidado) — representação do SSoT. Sem lógica própria."""
+        from fastapi.responses import StreamingResponse
+
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+        _validate_profile(profile)
+
+        wide_roles = ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed1',
+                      'semed2', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']
+        base_filter = {}
+        if current_user['role'] not in wide_roles:
+            base_filter = {"id": {"$in": current_user.get('school_ids', [])}}
+        query = apply_tenant_filter(base_filter, current_user, request)
+
+        schools = await current_db.schools.find(query, {"_id": 0}).to_list(2000)
+        data = ctue.build_network_dossie(schools, profile=profile)
+
+        mantenedora = None
+        tenant_id = get_mantenedora_scope(current_user, request)
+        if tenant_id:
+            mantenedora = await current_db.mantenedoras.find_one({"id": tenant_id}, {"_id": 0})
+        elif schools:
+            mant_id = schools[0].get("mantenedora_id")
+            if mant_id:
+                mantenedora = await current_db.mantenedoras.find_one({"id": mant_id}, {"_id": 0})
+
+        from pdf.dossie_rede import generate_network_dossie_pdf
+        pdf_bytes = generate_network_dossie_pdf(data, mantenedora, exercicio)
+        filename = f"dossie_rede_municipal_{profile}.pdf"
+        return StreamingResponse(
+            iter([pdf_bytes]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
+
     return router
