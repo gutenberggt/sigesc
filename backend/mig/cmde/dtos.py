@@ -30,3 +30,58 @@ class MappingRowDTO(BaseModel):
     school_inep: str = ""
     ready: bool = False
     missing_fields: List[str] = []
+
+
+# ===== Sprint 002 — Envio de Frequência CMDE (contratos de payload/resposta) =====
+class FrequencyItemDTO(BaseModel):
+    """Frequência consolidada de UM aluno numa competência (representação do SSoT)."""
+    student_id: str
+    cpf: str = ""
+    nis: str = ""
+    inep_aluno: str = ""
+    school_inep: str = ""
+    competencia: str                       # YYYY-MM
+    dias_letivos: int = 0
+    faltas_validas: int = 0
+    frequencia_percentual: float = 0.0
+    situacao: str = ""
+
+
+class FrequencyBatchRequestDTO(BaseModel):
+    """Parâmetros de construção de lote (usado a partir da Sprint 002.b)."""
+    competencia: str
+    school_id: Optional[str] = None
+    class_id: Optional[str] = None
+    dry_run: bool = True
+
+
+class CmdeFrequencyPayloadDTO(BaseModel):
+    """
+    Payload enviado ao CMDE. PLACEHOLDER até o contrato OFICIAL da API do MEC.
+    O formato final (campos/estrutura) será ajustado quando o contrato for confirmado.
+    """
+    correlation_id: str
+    tenant: Optional[str] = None
+    competencia: str
+    school_inep: str = ""
+    items: List[FrequencyItemDTO] = []
+
+
+class CmdeItemResultDTO(BaseModel):
+    """Resultado por item retornado pelo CMDE (aceite/rejeição)."""
+    ref: str                               # referência do item (student_id)
+    accepted: bool
+    code: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class CmdeFrequencyResponseDTO(BaseModel):
+    """
+    Resposta normalizada do CMDE. `valid=False` sinaliza resposta fora do contrato
+    (corpo não parseável / schema inesperado) — tratada como erro pela camada de envio.
+    """
+    protocol: Optional[str] = None
+    http_status: int = 200
+    valid: bool = True
+    items: List[CmdeItemResultDTO] = []
+    raw: Optional[dict] = None

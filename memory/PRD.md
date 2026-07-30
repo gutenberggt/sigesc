@@ -1,5 +1,21 @@
 # SIGESC - Product Requirements Document
 
+## ✅ MIG SPRINT 002.a — Modelos, Contratos e Idempotência CONCLUÍDA (Jun/2026)
+Fundação do Envio de Frequência CMDE (sem envio real, sem Builder/Queue real/Worker/Scheduler).
+Entregas: contratos genéricos `mig/core/ports.py` (`QueuePort`, `IdempotencyStore`) + refs
+in-memory (`mig/core/inmemory.py`); idempotência determinística `compute_idempotency_key`
+(`mig/core/ids.py`); DTOs de frequência (`mig/cmde/dtos.py`); modelos de domínio
+(`mig/cmde/frequency_models.py`: FrequencyBatch/QueueItem/SendReceipt); porta plugável
+`CmdeFrequencyPort` (`mig/cmde/frequency_port.py`); **Simulador CMDE** oficial
+(`mig/cmde/frequency_simulator.py`) com 5 cenários (accept/reject/error_502-503-504/timeout/
+invalid_response) + modo caótico determinístico/auditável, registrando correlation_id+cenário+
+resultado+métricas+auditoria. Campos aditivos `scenario`/`simulated` em `mig/core/audit.py`.
+Testes: `tests/test_mig_cmde_002a.py` 12/12 PASS; regressão `test_mig_cmde.py` 15/15; nenhum
+endpoint novo (biblioteca apenas). Relatório: `memory/audit/SPRINT_002_A_MODELOS_IDEMPOTENCIA.md`.
+Próximo: **002.b Batch Builder** (aguardando aprovação). Bloqueadores externos mantidos: contrato
+oficial CMDE, unidade de apuração aceita, limiares 60%/75% só p/ relatório.
+
+
 ## ✅ MIG SPRINT 001.1 — Hardening Operacional HOMOLOGADA (Jun/2026)
 Homologação completa dos ajustes do MIG (Módulo de Integração Governamental / CMDE):
 Correlation IDs ponta a ponta, auditoria automática de Feature Flags (`FEATURE_FLAG_UPDATED`

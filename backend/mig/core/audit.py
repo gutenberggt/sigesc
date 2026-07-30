@@ -51,6 +51,9 @@ class MigAuditService:
             "feature": event.get("feature"),
             "previous_value": event.get("previous_value"),
             "new_value": event.get("new_value"),
+            # Simulação (Sprint 002.a) — cenário executado + flag de origem simulada
+            "scenario": event.get("scenario"),
+            "simulated": event.get("simulated", False),
             # Preparação futura CMDE (Sprint 002) — default 0/None
             "records_sent": event.get("records_sent", 0),
             "records_accepted": event.get("records_accepted", 0),
