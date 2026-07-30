@@ -9,12 +9,13 @@ from mig.core.retry import CMDE_DEFAULT, NO_RETRY
 
 class CmdeClient:
     def __init__(self, environment: str, api_key: str, audit=None, monitoring=None,
-                 retry_enabled: bool = True):
+                 retry_enabled: bool = True, correlation_id: str = None):
         base_url = FeatureFlags.resolve_cmde_base_url(environment)
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         self._http = BaseGovClient(base_url=base_url, default_headers=headers, timeout=30.0,
                                    provider="cmde", audit=audit, monitoring=monitoring,
-                                   retry_policy=CMDE_DEFAULT if retry_enabled else NO_RETRY)
+                                   retry_policy=CMDE_DEFAULT if retry_enabled else NO_RETRY,
+                                   correlation_id=correlation_id)
 
     @property
     def last_attempts(self) -> int:

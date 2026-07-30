@@ -71,9 +71,17 @@ def setup_router(db, **kwargs):
         return await service.metrics(context=ctx)
 
     @router.get("/mec/audit")
-    async def get_audit(request: Request, limit: int = 50):
+    async def get_audit(request: Request, page: int = 1, page_size: int = 50,
+                        limit: int = None, status: Optional[str] = None,
+                        operation: Optional[str] = None, date_from: Optional[str] = None,
+                        date_to: Optional[str] = None):
         ctx = await _guard(request)
-        return await service.audit_events(context=ctx, limit=min(max(limit, 1), 200))
+        # Compatibilidade: `limit` legado mapeia para page_size na primeira página
+        if limit is not None:
+            page, page_size = 1, min(max(limit, 1), 200)
+        return await service.audit_events(context=ctx, page=page, page_size=page_size,
+                                          status=status, operation=operation,
+                                          date_from=date_from, date_to=date_to)
 
     @router.get("/mec/flags")
     async def get_flags(request: Request):

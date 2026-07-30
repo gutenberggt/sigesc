@@ -14,6 +14,7 @@ from mig.core.exceptions import MigConfigError, MigForbiddenError, MigError
 from mig.core.audit import MigAuditService
 from mig.core.monitoring import MigMonitoring
 from mig.core.feature_flags import FeatureFlagService
+from mig.core.ids import generate_correlation_id
 from mig.cmde.config_repo import CmdeConfigRepository
 from mig.cmde.client import CmdeClient
 from mig.cmde.mapper import CmdeMapper
@@ -108,9 +109,11 @@ class CmdeService(GovProvider):
         if not await self.flags.is_enabled("cmde.elegibilidades", tenant, environment):
             raise MigForbiddenError("Recurso de elegibilidades desabilitado por feature flag para este contexto.")
 
+        correlation_id = generate_correlation_id("CMDE")
         retry_enabled = await self.flags.is_enabled("cmde.retry", tenant, environment)
         client = CmdeClient(environment=environment, api_key=config.get("api_key"),
-                            audit=self.audit, monitoring=self.monitoring, retry_enabled=retry_enabled)
+                            audit=self.audit, monitoring=self.monitoring,
+                            retry_enabled=retry_enabled, correlation_id=correlation_id)
 
         try:
             if search:
@@ -126,6 +129,7 @@ class CmdeService(GovProvider):
                 "finished_at": _now_iso(), "duration_ms": round((time.perf_counter() - t0) * 1000, 1),
                 "records_processed": 0, "attempts": client.last_attempts,
                 "http_status": e.status_code, "error_code": type(e).__name__, "error_message": e.message,
+                "correlation_id": correlation_id, "environment": environment,
             })
             raise
 
@@ -137,6 +141,7 @@ class CmdeService(GovProvider):
             "actor": ctx.get("actor"), "status": "success", "started_at": started,
             "finished_at": _now_iso(), "duration_ms": round((time.perf_counter() - t0) * 1000, 1),
             "records_processed": records, "attempts": client.last_attempts, "http_status": 200,
+            "correlation_id": correlation_id, "environment": environment,
         })
         return data
 
@@ -147,10 +152,13 @@ class CmdeService(GovProvider):
         data["runtime_counters"] = self.monitoring.snapshot()
         return data
 
-    async def audit_events(self, context: dict = None, limit: int = 50) -> dict:
+    async def audit_events(self, context: dict = None, page: int = 1, page_size: int = 50,
+                           status: str = None, operation: str = None,
+                           date_from: str = None, date_to: str = None) -> dict:
         ctx = context or {}
-        events = await self.audit.recent(provider=PROVIDER, tenant=ctx.get("tenant"), limit=limit)
-        return {"events": events, "total": len(events)}
+        return await self.audit.query_events(
+            provider=PROVIDER, tenant=ctx.get("tenant"), status=status, operation=operation,
+            date_from=date_from, date_to=date_to, page=page, page_size=page_size)
 
     async def feature_flags(self, context: dict = None) -> dict:
         ctx = context or {}
@@ -162,5 +170,17 @@ class CmdeService(GovProvider):
     async def set_feature_flag(self, flag: str, enabled: bool, context: dict = None,
                                environment: str = None) -> dict:
         ctx = context or {}
-        return await self.flags.set_flag(flag, enabled, tenant=ctx.get("tenant"),
-                                         environment=environment, actor=ctx.get("actor"))
+        tenant = ctx.get("tenant")
+        env = environment or (await self.config_repo.get_raw() or {}).get("environment", "homologacao")
+        previous = await self.flags.is_enabled(flag, tenant, env)
+        result = await self.flags.set_flag(flag, enabled, tenant=tenant, environment=env,
+                                           actor=ctx.get("actor"))
+        # Auditoria da mudança de capacidade (P0 Sprint 001.1)
+        await self.audit.record({
+            "provider": PROVIDER, "operation": "FEATURE_FLAG_UPDATED", "tenant": tenant,
+            "actor": ctx.get("actor"), "status": "success", "started_at": _now_iso(),
+            "finished_at": _now_iso(), "duration_ms": 0, "environment": env, "feature": flag,
+            "previous_value": bool(previous), "new_value": bool(enabled),
+            "correlation_id": generate_correlation_id("FLAG"),
+        })
+        return result

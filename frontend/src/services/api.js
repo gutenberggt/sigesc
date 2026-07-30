@@ -207,8 +207,8 @@ export const mecAPI = {
     const res = await axios.get(`${API}/mec/metrics`);
     return res.data;
   },
-  getAudit: async (limit = 50) => {
-    const res = await axios.get(`${API}/mec/audit`, { params: { limit } });
+  getAudit: async (params = {}) => {
+    const res = await axios.get(`${API}/mec/audit`, { params });
     return res.data;
   },
   getFlags: async () => {

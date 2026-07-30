@@ -33,18 +33,25 @@ export default function MECIntegration() {
   const [auditEvents, setAuditEvents] = useState([]);
   const [flags, setFlags] = useState(null);
   const [loadingOps, setLoadingOps] = useState(false);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotalPages, setAuditTotalPages] = useState(1);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditStatusFilter, setAuditStatusFilter] = useState('');
 
-  const loadOps = useCallback(async () => {
+  const loadOps = useCallback(async (page = 1, statusFilter = '') => {
     setLoadingOps(true);
     try {
-      const [m, a, f] = await Promise.all([mecAPI.getMetrics(), mecAPI.getAudit(50), mecAPI.getFlags()]);
+      const params = { page, page_size: 20 };
+      if (statusFilter) params.status = statusFilter;
+      const [m, a, f] = await Promise.all([mecAPI.getMetrics(), mecAPI.getAudit(params), mecAPI.getFlags()]);
       setMetrics(m); setAuditEvents(a.events || []); setFlags(f);
+      setAuditPage(a.page || 1); setAuditTotalPages(a.total_pages || 1); setAuditTotal(a.total || 0);
     } catch (e) { console.error(e); }
     setLoadingOps(false);
   }, []);
 
   const toggleFlag = async (flag, enabled, environment) => {
-    try { await mecAPI.setFlag({ flag, enabled, environment }); await loadOps(); }
+    try { await mecAPI.setFlag({ flag, enabled, environment }); await loadOps(auditPage, auditStatusFilter); }
     catch (e) { console.error(e); }
   };
 
@@ -189,7 +196,7 @@ export default function MECIntegration() {
         <div className="space-y-6" data-testid="mec-ops-panel">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">Saúde da Integração</h3>
-            <button onClick={loadOps} disabled={loadingOps} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50 disabled:opacity-60" data-testid="ops-refresh-btn">
+            <button onClick={() => loadOps(auditPage, auditStatusFilter)} disabled={loadingOps} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50 disabled:opacity-60" data-testid="ops-refresh-btn">
               {loadingOps ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}Atualizar
             </button>
           </div>
@@ -253,7 +260,21 @@ export default function MECIntegration() {
 
           {/* Histórico de eventos */}
           <div className="bg-white rounded-xl border overflow-hidden">
-            <div className="px-5 py-3 border-b"><h4 className="font-semibold text-gray-900">Histórico de Eventos</h4></div>
+            <div className="px-5 py-3 border-b flex items-center justify-between gap-3 flex-wrap">
+              <h4 className="font-semibold text-gray-900">Histórico de Eventos <span className="text-xs font-normal text-gray-400">({auditTotal})</span></h4>
+              <div className="flex items-center gap-2">
+                <select
+                  value={auditStatusFilter}
+                  onChange={(e) => { setAuditStatusFilter(e.target.value); loadOps(1, e.target.value); }}
+                  className="text-sm border border-gray-300 rounded-lg px-2 py-1"
+                  data-testid="audit-status-filter"
+                >
+                  <option value="">Todos os status</option>
+                  <option value="success">Sucesso</option>
+                  <option value="error">Erro</option>
+                </select>
+              </div>
+            </div>
             {auditEvents.length === 0 ? (
               <p className="p-5 text-sm text-gray-400">Nenhum evento de integração registrado ainda.</p>
             ) : (
@@ -261,6 +282,7 @@ export default function MECIntegration() {
                 <table className="w-full text-sm" data-testid="mec-audit-table">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
+                      <th className="text-left px-4 py-2 font-medium">Correlation ID</th>
                       <th className="text-left px-4 py-2 font-medium">Operação</th>
                       <th className="text-left px-4 py-2 font-medium">Status</th>
                       <th className="text-left px-4 py-2 font-medium">Registros</th>
@@ -273,6 +295,7 @@ export default function MECIntegration() {
                   <tbody>
                     {auditEvents.map((e, i) => (
                       <tr key={i} className="border-t">
+                        <td className="px-4 py-2 font-mono text-xs text-gray-500">{e.correlation_id || '—'}</td>
                         <td className="px-4 py-2">{e.operation}</td>
                         <td className="px-4 py-2">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${e.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{e.status}</span>

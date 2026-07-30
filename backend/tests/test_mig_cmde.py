@@ -192,9 +192,140 @@ async def _run_sprint001():
     print("OK sprint001: service.feature_flags/metrics/audit_events")
 
 
+# ---------- Sprint 001.1: hardening (correlation_id, audit de flags, paginação, carga) ----------
+async def _run_sprint011():
+    from mig.core.audit import MigAuditService, COLLECTION
+    from mig.core.ids import generate_correlation_id
+    from mig.core.exceptions import MigTimeoutError, MigUnavailableError
+    import mig.cmde.service as service_mod
+
+    db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+
+    # correlation_id formato CMDE-YYYYMMDD-XXXXX
+    cid = generate_correlation_id("CMDE")
+    assert cid.startswith("CMDE-") and len(cid.split("-")) == 3 and len(cid.split("-")[2]) == 5, cid
+
+    # --- Auditoria de Feature Flag (P0) ---
+    svc = CmdeService(db)
+    await db["mig_feature_flags"].delete_many({"flag": "cmde.retry", "tenant": "ff_t"})
+    await db[COLLECTION].delete_many({"tenant": "ff_t"})
+    await svc.set_feature_flag("cmde.retry", False, context={"tenant": "ff_t", "actor": "admin@x"}, environment="homologacao")
+    ev = await db[COLLECTION].find_one({"tenant": "ff_t", "operation": "FEATURE_FLAG_UPDATED"}, {"_id": 0})
+    assert ev and ev["feature"] == "cmde.retry" and ev["previous_value"] is True and ev["new_value"] is False, ev
+    assert ev["actor"] == "admin@x" and ev["correlation_id"] and ev["environment"] == "homologacao", ev
+    await db["mig_feature_flags"].delete_many({"flag": "cmde.retry", "tenant": "ff_t"})
+    await db[COLLECTION].delete_many({"tenant": "ff_t"})
+    print("OK sprint011: auditoria de FEATURE_FLAG_UPDATED (old/new/actor/correlation_id)")
+
+    # --- Paginação e filtros (P1) ---
+    audit = MigAuditService(db)
+    TT = "pg_t"
+    await db[COLLECTION].delete_many({"tenant": TT})
+    for i in range(7):
+        await audit.record({"provider": "cmde", "tenant": TT, "operation": "elegibilidades",
+                            "status": "success" if i % 2 == 0 else "error", "records_processed": i,
+                            "started_at": "x", "finished_at": "y"})
+    p1 = await audit.query_events(provider="cmde", tenant=TT, page=1, page_size=5)
+    assert p1["total"] == 7 and len(p1["events"]) == 5 and p1["total_pages"] == 2, p1
+    p2 = await audit.query_events(provider="cmde", tenant=TT, page=2, page_size=5)
+    assert len(p2["events"]) == 2, p2
+    only_err = await audit.query_events(provider="cmde", tenant=TT, status="error")
+    assert only_err["total"] == 3 and all(e["status"] == "error" for e in only_err["events"]), only_err
+    # ordenação desc por created_at
+    dates = [e["created_at"] for e in p1["events"]]
+    assert dates == sorted(dates, reverse=True), "deve ordenar desc"
+    await db[COLLECTION].delete_many({"tenant": TT})
+    print("OK sprint011: paginação + filtro status + ordenação desc")
+
+    # --- Carga/resiliência (P1): multi-tenant concorrente + retry + erro definitivo ---
+    class _FakeClient:
+        def __init__(self, fail_times=0, always_fail=False, **kw):
+            self.fail_times = fail_times; self.always_fail = always_fail; self._n = 0
+            self.last_attempts = 0
+        async def elegibilidade_por_documento(self, doc):
+            self._n += 1; self.last_attempts = self._n
+            if self.always_fail:
+                raise MigUnavailableError("down")
+            if self._n <= self.fail_times:
+                raise MigTimeoutError("timeout")
+            return [{"id": 1}, {"id": 2}]
+
+    orig_client = service_mod.CmdeClient
+    LT_TENANTS = ["lt_a", "lt_b", "lt_c"]
+    await db[COLLECTION].delete_many({"tenant": {"$in": LT_TENANTS + ["lt_fail"]}})
+
+    svc2 = CmdeService(db)
+    async def _fake_raw():
+        return {"api_key": "x", "environment": "homologacao"}
+    svc2.config_repo.get_raw = _fake_raw
+    async def _noop(_): return None
+    svc2.config_repo.touch_last_sync = _noop
+
+    try:
+        # sucesso imediato, 3 tenants em paralelo (retry mecânico já coberto no unit)
+        service_mod.CmdeClient = lambda **kw: _FakeClient(fail_times=0, **kw)
+        await asyncio.gather(*[
+            svc2.query(search="123", context={"tenant": t, "actor": "u"}) for t in LT_TENANTS
+        ])
+        # erro definitivo
+        service_mod.CmdeClient = lambda **kw: _FakeClient(always_fail=True, **kw)
+        try:
+            await svc2.query(search="123", context={"tenant": "lt_fail", "actor": "u"})
+            assert False
+        except MigUnavailableError:
+            pass
+    finally:
+        service_mod.CmdeClient = orig_client
+
+    # consistência: 1 evento por tenant de sucesso, com correlation_id único
+    for t in LT_TENANTS:
+        evs = await db[COLLECTION].find({"tenant": t}, {"_id": 0}).to_list(10)
+        assert len(evs) == 1 and evs[0]["status"] == "success" and evs[0]["attempts"] == 1, (t, evs)
+        assert evs[0]["records_processed"] == 2 and evs[0]["correlation_id"], evs
+    fail_evs = await db[COLLECTION].find({"tenant": "lt_fail"}, {"_id": 0}).to_list(10)
+    assert len(fail_evs) == 1 and fail_evs[0]["status"] == "error" and fail_evs[0]["http_status"] == 503, fail_evs
+    cids = {(await db[COLLECTION].find_one({"tenant": t}))["correlation_id"] for t in LT_TENANTS}
+    assert len(cids) == 3, "correlation_ids devem ser únicos por execução"
+    await db[COLLECTION].delete_many({"tenant": {"$in": LT_TENANTS + ["lt_fail"]}})
+    print("OK sprint011: carga multi-tenant, retry, erro definitivo, sem duplicação")
+
+    # --- Retry integrado ao BaseGovClient (503,503,200 → ok em 3 tentativas) ---
+    import mig.core.http_client as hc
+    from mig.core.retry import RetryPolicy as _RP
+    rcalls = {"n": 0}
+    def _retry_ctx(*a, **k):
+        class _C:
+            def __init__(s, *aa, **kk): pass
+            async def __aenter__(s):
+                m = MagicMock()
+                async def _req(*aa, **kk):
+                    rcalls["n"] += 1
+                    r = MagicMock()
+                    if rcalls["n"] >= 3:
+                        r.status_code = 200; r.json = MagicMock(return_value={"ok": 1}); r.text = ""
+                    else:
+                        r.status_code = 503; r.text = "down"
+                    return r
+                m.request = _req; return m
+            async def __aexit__(s, *aa): return False
+        return _C()
+    with patch.object(hc.httpx, "AsyncClient", _retry_ctx):
+        c = BaseGovClient("http://x", provider="cmde", retry_policy=_RP(max_attempts=3, base_delay_seconds=0.01))
+        out = await c.get("/y")
+        assert out == {"ok": 1} and c.last_attempts == 3, (out, c.last_attempts)
+    print("OK sprint011: retry integrado no BaseGovClient (503,503,200)")
+
+    # --- Métricas preparadas para CMDE futuro ---
+    m = await svc2.metrics(context={"tenant": None})
+    for k in ("students_sent", "students_accepted", "students_rejected", "processing_rate"):
+        assert k in m, m
+    print("OK sprint011: métricas preparadas para envio CMDE (Sprint 002)")
+
+
 if __name__ == "__main__":
     test_mapper_validators()
     asyncio.run(_run_client_error_cases())
     asyncio.run(_run_parity())
     asyncio.run(_run_sprint001())
-    print("\nSPRINT 000/001 — TODOS OS TESTES PASSARAM ✅")
+    asyncio.run(_run_sprint011())
+    print("\nSPRINT 000/001/001.1 — TODOS OS TESTES PASSARAM ✅")

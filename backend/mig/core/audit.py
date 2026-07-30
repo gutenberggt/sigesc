@@ -2,7 +2,7 @@
 MigAuditService — auditoria PERSISTENTE de eventos de integração (SSoT operacional do MIG).
 
 Coleção: `mig_audit_events` (append-only). Cada evento registra tenant, operação, provider,
-início/fim, status, volume processado, erros/códigos e o responsável (usuário/processo).
+início/fim, status, volume processado, tentativas, erros/códigos, correlation_id e o responsável.
 `log_call` (síncrono) permanece para o rastro leve por requisição HTTP; `record` (assíncrono)
 persiste o evento operacional.
 """
@@ -23,17 +23,16 @@ class MigAuditService:
     def __init__(self, db=None):
         self.db = db
 
-    # rastro leve por request HTTP (sem persistir; sem segredos)
-    def log_call(self, provider: str, method: str, path: str, status_code: int, extra: dict = None):
-        payload = {"provider": provider, "method": method, "path": path, "status": status_code}
-        if extra:
-            payload.update(extra)
-        logger.info("MIG_CALL %s", payload)
+    def log_call(self, provider: str, method: str, path: str, status_code: int,
+                 correlation_id: str = None):
+        logger.info("MIG_CALL %s", {"provider": provider, "method": method, "path": path,
+                                    "status": status_code, "correlation_id": correlation_id})
 
     async def record(self, event: dict) -> dict:
         """Persiste um evento operacional. Nunca inclua segredos (api_key/chaves)."""
         doc = {
             "id": str(uuid.uuid4()),
+            "correlation_id": event.get("correlation_id"),
             "provider": event.get("provider", "generic"),
             "tenant": event.get("tenant"),
             "operation": event.get("operation"),
@@ -47,6 +46,16 @@ class MigAuditService:
             "http_status": event.get("http_status"),
             "error_code": event.get("error_code"),
             "error_message": event.get("error_message"),
+            # Feature flags / metadados
+            "environment": event.get("environment"),
+            "feature": event.get("feature"),
+            "previous_value": event.get("previous_value"),
+            "new_value": event.get("new_value"),
+            # Preparação futura CMDE (Sprint 002) — default 0/None
+            "records_sent": event.get("records_sent", 0),
+            "records_accepted": event.get("records_accepted", 0),
+            "records_rejected": event.get("records_rejected", 0),
+            "rejection_reasons": event.get("rejection_reasons"),
             "created_at": _now_iso(),
         }
         if self.db is not None:
@@ -57,30 +66,59 @@ class MigAuditService:
         doc.pop("_id", None)
         return doc
 
-    async def recent(self, provider: str = None, tenant: str = None, limit: int = 50):
-        if self.db is None:
-            return []
+    def _build_filter(self, provider=None, tenant=None, status=None, operation=None,
+                      date_from=None, date_to=None):
         q = {}
         if provider:
             q["provider"] = provider
         if tenant:
             q["tenant"] = tenant
+        if status:
+            q["status"] = status
+        if operation:
+            q["operation"] = operation
+        if date_from or date_to:
+            rng = {}
+            if date_from:
+                rng["$gte"] = date_from
+            if date_to:
+                rng["$lte"] = date_to
+            q["created_at"] = rng
+        return q
+
+    async def recent(self, provider=None, tenant=None, limit=50):
+        if self.db is None:
+            return []
+        q = self._build_filter(provider=provider, tenant=tenant)
         return await self.db[COLLECTION].find(q, {"_id": 0}).sort("created_at", -1).to_list(limit)
 
-    async def metrics(self, provider: str = None, tenant: str = None) -> dict:
-        """Agrega métricas operacionais a partir dos eventos persistidos (SSoT)."""
+    async def query_events(self, provider=None, tenant=None, status=None, operation=None,
+                           date_from=None, date_to=None, page=1, page_size=50):
+        if self.db is None:
+            return {"events": [], "total": 0, "page": page, "page_size": page_size, "total_pages": 0}
+        q = self._build_filter(provider, tenant, status, operation, date_from, date_to)
+        page = max(1, int(page))
+        page_size = min(max(1, int(page_size)), 200)
+        total = await self.db[COLLECTION].count_documents(q)
+        events = await self.db[COLLECTION].find(q, {"_id": 0}).sort("created_at", -1) \
+            .skip((page - 1) * page_size).limit(page_size).to_list(page_size)
+        return {
+            "events": events, "total": total, "page": page, "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+        }
+
+    async def metrics(self, provider=None, tenant=None) -> dict:
         empty = {
             "total_calls": 0, "success": 0, "error": 0, "success_rate": None,
             "avg_latency_ms": None, "volume_processed": 0, "last_execution": None,
             "recent_failures": [],
+            # Preparação futura CMDE (Sprint 002)
+            "students_sent": 0, "students_accepted": 0, "students_rejected": 0,
+            "processing_rate": None,
         }
         if self.db is None:
             return empty
-        match = {}
-        if provider:
-            match["provider"] = provider
-        if tenant:
-            match["tenant"] = tenant
+        match = self._build_filter(provider=provider, tenant=tenant)
         pipeline = [
             {"$match": match},
             {"$group": {
@@ -90,6 +128,9 @@ class MigAuditService:
                 "error": {"$sum": {"$cond": [{"$eq": ["$status", "error"]}, 1, 0]}},
                 "avg_latency_ms": {"$avg": "$duration_ms"},
                 "volume_processed": {"$sum": {"$ifNull": ["$records_processed", 0]}},
+                "students_sent": {"$sum": {"$ifNull": ["$records_sent", 0]}},
+                "students_accepted": {"$sum": {"$ifNull": ["$records_accepted", 0]}},
+                "students_rejected": {"$sum": {"$ifNull": ["$records_rejected", 0]}},
                 "last_execution": {"$max": "$finished_at"},
             }},
         ]
@@ -99,10 +140,12 @@ class MigAuditService:
         r = agg[0]
         total = r.get("total_calls", 0) or 0
         success = r.get("success", 0) or 0
+        sent = r.get("students_sent", 0) or 0
+        accepted = r.get("students_accepted", 0) or 0
         failures = await self.db[COLLECTION].find(
             {**match, "status": "error"},
-            {"_id": 0, "id": 1, "operation": 1, "finished_at": 1, "http_status": 1,
-             "error_code": 1, "error_message": 1}
+            {"_id": 0, "id": 1, "correlation_id": 1, "operation": 1, "finished_at": 1,
+             "http_status": 1, "error_code": 1, "error_message": 1}
         ).sort("created_at", -1).to_list(10)
         return {
             "total_calls": total,
@@ -113,4 +156,8 @@ class MigAuditService:
             "volume_processed": r.get("volume_processed", 0) or 0,
             "last_execution": r.get("last_execution"),
             "recent_failures": failures,
+            "students_sent": sent,
+            "students_accepted": accepted,
+            "students_rejected": r.get("students_rejected", 0) or 0,
+            "processing_rate": round(accepted / sent * 100, 1) if sent else None,
         }

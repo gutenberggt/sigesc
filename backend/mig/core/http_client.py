@@ -21,14 +21,18 @@ logger = logging.getLogger("mig.http")
 class BaseGovClient:
     def __init__(self, base_url: str, default_headers: dict = None, timeout: float = 30.0,
                  monitoring: MigMonitoring = None, audit: MigAuditService = None,
-                 provider: str = "generic", retry_policy: RetryPolicy = None):
+                 provider: str = "generic", retry_policy: RetryPolicy = None,
+                 correlation_id: str = None):
         self.base_url = (base_url or "").rstrip("/")
         self.default_headers = default_headers or {}
+        if correlation_id:
+            self.default_headers.setdefault("X-Correlation-Id", correlation_id)
         self.timeout = timeout
         self.monitoring = monitoring or MigMonitoring()
         self.audit = audit or MigAuditService()
         self.provider = provider
         self.retry_policy = retry_policy or NO_RETRY
+        self.correlation_id = correlation_id
         self.last_attempts = 0
 
     async def _single_request(self, method: str, url: str, params, json, merged) -> dict:
@@ -43,7 +47,7 @@ class BaseGovClient:
             self.monitoring.incr(f"{self.provider}.connect_error")
             raise MigUnavailableError("Não foi possível conectar à API do MEC. Verifique a configuração de rede.") from e
 
-        self.audit.log_call(self.provider, method, url, resp.status_code)
+        self.audit.log_call(self.provider, method, url, resp.status_code, self.correlation_id)
         if resp.status_code == 200:
             self.monitoring.incr(f"{self.provider}.ok")
             try:
