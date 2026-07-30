@@ -1,5 +1,20 @@
 # SIGESC - Product Requirements Document
 
+## ✅ MIG SPRINT 002.b — Batch Builder de Frequência CONCLUÍDA (Jun/2026)
+Builder que transforma o SSoT `attendance` em lotes CMDE — **read-only, sem regra nova de
+frequência, sem envio ao MEC, sem Queue/Worker/Scheduler**. Entregas: `mig/cmde/batch_builder.py`
+(consolida via `attendance_utils.compute_monthly_valid_absences`, valida prontidão, gera
+idempotency_key, dry-run padrão, persiste batch/itens só fora do dry-run com upsert idempotente),
+`frequency_validators.py`, `frequency_repository.py`; endpoint fino `POST /api/mec/frequency/preview`;
+painel **"Preview de Lotes de Frequência"** no Dashboard Técnico (competência, alunos analisados,
+prontos, pendências, lotes previstos, dry-run + relatório de inconsistências). Testes:
+`tests/test_mig_cmde_002b.py` 7/7 PASS (consolidação SSoT, prontidão, idempotência re-build sem
+duplicar, isolamento multi-tenant, dados incompletos, SSoT imutável, competência em curso bloqueia
+persistência); regressão 002.a 12/12 e 000/001/001.1 15/15 verdes; E2E preview 200/400/401.
+Relatório: `memory/audit/SPRINT_002_B_BATCH_BUILDER.md`. Próximo: **002.c Queue Manager** (aguardando
+aprovação). Bloqueadores externos mantidos.
+
+
 ## ✅ MIG SPRINT 002.a — Modelos, Contratos e Idempotência CONCLUÍDA (Jun/2026)
 Fundação do Envio de Frequência CMDE (sem envio real, sem Builder/Queue real/Worker/Scheduler).
 Entregas: contratos genéricos `mig/core/ports.py` (`QueuePort`, `IdempotencyStore`) + refs

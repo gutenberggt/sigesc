@@ -18,7 +18,8 @@ from mig.core.ids import generate_correlation_id
 from mig.cmde.config_repo import CmdeConfigRepository
 from mig.cmde.client import CmdeClient
 from mig.cmde.mapper import CmdeMapper
-from mig.cmde.dtos import MecConfigUpdateDTO
+from mig.cmde.dtos import MecConfigUpdateDTO, FrequencyBatchRequestDTO
+from mig.cmde.batch_builder import FrequencyBatchBuilder
 
 _ACTIVE_STATUSES = ["active", "Ativo"]
 PROVIDER = "cmde"
@@ -37,6 +38,7 @@ class CmdeService(GovProvider):
         self.audit = MigAuditService(db)
         self.monitoring = MigMonitoring()
         self.flags = FeatureFlagService(db)
+        self.batch_builder = FrequencyBatchBuilder(db)
 
     # ---- Configuração ----
     async def get_config(self) -> dict:
@@ -166,6 +168,11 @@ class CmdeService(GovProvider):
         env = config.get("environment", "homologacao")
         return {"environment": env, "tenant": ctx.get("tenant"),
                 "flags": await self.flags.effective(ctx.get("tenant"), env)}
+
+    async def build_frequency_batch(self, request: FrequencyBatchRequestDTO,
+                                     context: dict = None) -> dict:
+        """Sprint 002.b — constrói lote de frequência a partir do SSoT (read-only)."""
+        return await self.batch_builder.build(request, context or {})
 
     async def set_feature_flag(self, flag: str, enabled: bool, context: dict = None,
                                environment: str = None) -> dict:

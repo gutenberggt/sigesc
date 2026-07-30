@@ -38,6 +38,28 @@ export default function MECIntegration() {
   const [auditTotal, setAuditTotal] = useState(0);
   const [auditStatusFilter, setAuditStatusFilter] = useState('');
 
+  // Sprint 002.b — Preview de Lotes de Frequência (Batch Builder)
+  const defaultCompetencia = () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1); // mês anterior (competência normalmente já encerrada)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  const [freqCompetencia, setFreqCompetencia] = useState(defaultCompetencia());
+  const [freqPreview, setFreqPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+
+  const runFreqPreview = async () => {
+    setLoadingPreview(true); setPreviewError(''); setFreqPreview(null);
+    try {
+      const data = await mecAPI.previewFrequency({ competencia: freqCompetencia, dryRun: true });
+      setFreqPreview(data);
+    } catch (e) {
+      setPreviewError(e?.response?.data?.detail || 'Falha ao gerar o preview.');
+    }
+    setLoadingPreview(false);
+  };
+
   const loadOps = useCallback(async (page = 1, statusFilter = '') => {
     setLoadingOps(true);
     try {
@@ -237,6 +259,93 @@ export default function MECIntegration() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Preview de Lotes de Frequência (Batch Builder — Sprint 002.b) */}
+          <div className="bg-white rounded-xl border p-5" data-testid="freq-preview-panel">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+              <h4 className="font-semibold text-gray-900">Preview de Lotes de Frequência</h4>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">DRY-RUN (não envia)</span>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Simulação (somente leitura) da montagem de lotes CMDE a partir da frequência consolidada (SSoT). Nada é enviado ao MEC.
+            </p>
+            <div className="flex items-end gap-3 flex-wrap mb-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Competência (AAAA-MM)</label>
+                <input
+                  type="month"
+                  value={freqCompetencia}
+                  onChange={(e) => setFreqCompetencia(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5"
+                  data-testid="freq-competencia-input"
+                />
+              </div>
+              <button
+                onClick={runFreqPreview}
+                disabled={loadingPreview || !freqCompetencia}
+                className="inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                data-testid="freq-preview-btn"
+              >
+                {loadingPreview ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}Gerar preview
+              </button>
+            </div>
+
+            {previewError && (
+              <p className="text-sm text-red-600 mb-2" data-testid="freq-preview-error">{previewError}</p>
+            )}
+
+            {freqPreview && (
+              <div data-testid="freq-preview-result">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
+                  {[
+                    { label: 'Competência', value: freqPreview.competencia },
+                    { label: 'Alunos analisados', value: freqPreview.analyzed },
+                    { label: 'Prontos', value: freqPreview.ready_count },
+                    { label: 'Pendências', value: freqPreview.pending_count },
+                    { label: 'Lotes previstos', value: freqPreview.lotes_previstos },
+                    { label: 'Modo', value: freqPreview.dry_run ? 'Dry-run' : 'Real' },
+                  ].map((c, i) => (
+                    <div key={i} className="rounded-lg border p-3 bg-gray-50">
+                      <p className="text-[11px] text-gray-500">{c.label}</p>
+                      <p className="text-base font-bold text-gray-900" data-testid={`freq-metric-${i}`}>{c.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs mb-3">
+                  {freqPreview.competencia_fechada
+                    ? <span className="text-green-700">Competência encerrada — apta a construção real (fora do dry-run).</span>
+                    : <span className="text-amber-700">Competência em curso — apenas preview; construção real bloqueada.</span>}
+                  {' '}<span className="text-gray-400 font-mono">{freqPreview.correlation_id}</span>
+                </p>
+
+                {freqPreview.pendencias?.length > 0 && (
+                  <div className="border border-amber-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-amber-50 text-amber-800 text-sm font-medium">
+                      Relatório de inconsistências ({freqPreview.pendencias.length})
+                    </div>
+                    <div className="overflow-x-auto max-h-56 overflow-y-auto">
+                      <table className="w-full text-sm" data-testid="freq-pendencias-table">
+                        <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                          <tr>
+                            <th className="text-left px-4 py-2 font-medium">Aluno</th>
+                            <th className="text-left px-4 py-2 font-medium">Dados faltantes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {freqPreview.pendencias.map((p, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="px-4 py-2">{p.full_name || p.student_id}</td>
+                              <td className="px-4 py-2 text-gray-600">{(p.missing || []).join(', ')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Falhas recentes */}

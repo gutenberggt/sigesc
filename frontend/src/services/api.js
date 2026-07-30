@@ -218,6 +218,12 @@ export const mecAPI = {
   setFlag: async ({ flag, enabled, environment }) => {
     const res = await axios.put(`${API}/mec/flags`, { flag, enabled, environment });
     return res.data;
+  },
+  previewFrequency: async ({ competencia, schoolId, classId, dryRun = true } = {}) => {
+    const res = await axios.post(`${API}/mec/frequency/preview`, {
+      competencia, school_id: schoolId, class_id: classId, dry_run: dryRun,
+    });
+    return res.data;
   }
 };
 

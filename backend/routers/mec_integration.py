@@ -13,6 +13,7 @@ import logging
 from auth_middleware import AuthMiddleware
 from tenant_scope import get_mantenedora_scope
 from mig.cmde.service import CmdeService
+from mig.cmde.dtos import FrequencyBatchRequestDTO
 from mig.core.exceptions import MigError
 
 logger = logging.getLogger(__name__)
@@ -97,5 +98,21 @@ def setup_router(db, **kwargs):
             raise HTTPException(status_code=400, detail="Campo 'flag' é obrigatório.")
         return await service.set_feature_flag(flag, bool(body.get("enabled")), context=ctx,
                                               environment=body.get("environment"))
+
+    # ---------- Batch Builder de Frequência (Sprint 002.b) ----------
+    @router.post("/mec/frequency/preview")
+    async def frequency_preview(request: Request):
+        ctx = await _guard(request)
+        body = await request.json()
+        competencia = (body or {}).get("competencia")
+        if not competencia:
+            raise HTTPException(status_code=400, detail="Campo 'competencia' (AAAA-MM) é obrigatório.")
+        req = FrequencyBatchRequestDTO(
+            competencia=competencia, school_id=(body or {}).get("school_id"),
+            class_id=(body or {}).get("class_id"), dry_run=bool((body or {}).get("dry_run", True)))
+        try:
+            return await service.build_frequency_batch(req, context=ctx)
+        except MigError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.message)
 
     return router
