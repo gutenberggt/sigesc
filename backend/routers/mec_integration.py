@@ -3,13 +3,15 @@ Router da Integração MEC Gestão Presente (CMDE).
 
 Camada fina: autenticação/permissão, parse de request, delegação ao CmdeService (mig/cmde)
 e formatação da resposta HTTP. NÃO contém regra de negócio nem chamadas HTTP diretas.
-Contratos (URLs, métodos, respostas) preservados — ver memory/audit/SPRINT_000_*.md.
+Contratos dos 5 endpoints originais preservados. Sprint 001 adiciona endpoints operacionais
+(métricas/auditoria/flags) sem alterar os existentes.
 """
 from fastapi import APIRouter, HTTPException, Request
 from typing import Optional
 import logging
 
 from auth_middleware import AuthMiddleware
+from tenant_scope import get_mantenedora_scope
 from mig.cmde.service import CmdeService
 from mig.core.exceptions import MigError
 
@@ -21,9 +23,17 @@ router = APIRouter(tags=["MEC Integration"])
 def setup_router(db, **kwargs):
     service = CmdeService(db)
 
-    async def _guard(request: Request):
-        await AuthMiddleware.require_permission(db, 'nav-mec-button', ['super_admin'])(request)
+    async def _guard(request: Request) -> dict:
+        """Valida permissão e retorna contexto {actor, tenant}."""
+        user = await AuthMiddleware.require_permission(db, 'nav-mec-button', ['super_admin'])(request)
+        try:
+            tenant = get_mantenedora_scope(user, request)
+        except Exception:
+            tenant = None
+        return {"actor": user.get("email") or user.get("id"), "tenant": tenant,
+                "role": user.get("role")}
 
+    # ---------- Endpoints existentes (contratos preservados) ----------
     @router.get("/mec/config")
     async def get_config(request: Request):
         await _guard(request)
@@ -31,16 +41,16 @@ def setup_router(db, **kwargs):
 
     @router.put("/mec/config")
     async def update_config(request: Request):
-        await _guard(request)
+        ctx = await _guard(request)
         body = await request.json()
-        return await service.update_config(body)
+        return await service.update_config(body, context=ctx)
 
     @router.get("/mec/elegibilidades")
     async def consultar_elegibilidades(request: Request, search: Optional[str] = None,
                                        inep: Optional[str] = None, page: int = 1, page_size: int = 50):
-        await _guard(request)
+        ctx = await _guard(request)
         try:
-            return await service.query(search=search, inep=inep, page=page, page_size=page_size)
+            return await service.query(search=search, inep=inep, page=page, page_size=page_size, context=ctx)
         except MigError as e:
             raise HTTPException(status_code=e.status_code, detail=e.message)
 
@@ -53,5 +63,31 @@ def setup_router(db, **kwargs):
     async def get_sync_status(request: Request):
         await _guard(request)
         return await service.sync_status()
+
+    # ---------- Camada operacional (Sprint 001) ----------
+    @router.get("/mec/metrics")
+    async def get_metrics(request: Request):
+        ctx = await _guard(request)
+        return await service.metrics(context=ctx)
+
+    @router.get("/mec/audit")
+    async def get_audit(request: Request, limit: int = 50):
+        ctx = await _guard(request)
+        return await service.audit_events(context=ctx, limit=min(max(limit, 1), 200))
+
+    @router.get("/mec/flags")
+    async def get_flags(request: Request):
+        ctx = await _guard(request)
+        return await service.feature_flags(context=ctx)
+
+    @router.put("/mec/flags")
+    async def set_flag(request: Request):
+        ctx = await _guard(request)
+        body = await request.json()
+        flag = body.get("flag")
+        if not flag:
+            raise HTTPException(status_code=400, detail="Campo 'flag' é obrigatório.")
+        return await service.set_feature_flag(flag, bool(body.get("enabled")), context=ctx,
+                                              environment=body.get("environment"))
 
     return router

@@ -121,8 +121,80 @@ async def _run_parity():
     print("OK paridade: sync_status, students_mapping, get_config, query(400)")
 
 
+# ---------- Sprint 001: audit persistente, retry, feature flags ----------
+async def _run_sprint001():
+    from mig.core.audit import MigAuditService, COLLECTION
+    from mig.core.feature_flags import FeatureFlagService
+    from mig.core.retry import run_with_retry, RetryPolicy
+    from mig.core.exceptions import MigTimeoutError, MigAuthError, MigConfigError
+
+    db = AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+    TP = "cmde_test_sprint001"
+
+    # --- Audit persistente + métricas derivadas ---
+    audit = MigAuditService(db)
+    await db[COLLECTION].delete_many({"provider": TP})
+    await audit.record({"provider": TP, "tenant": "t1", "operation": "elegibilidades",
+                        "status": "success", "duration_ms": 120, "records_processed": 5,
+                        "started_at": "x", "finished_at": "y"})
+    await audit.record({"provider": TP, "tenant": "t1", "operation": "elegibilidades",
+                        "status": "error", "duration_ms": 80, "records_processed": 0,
+                        "http_status": 503, "error_code": "MigUnavailableError",
+                        "error_message": "down", "started_at": "x", "finished_at": "z"})
+    m = await audit.metrics(provider=TP, tenant="t1")
+    assert m["total_calls"] == 2 and m["success"] == 1 and m["error"] == 1, m
+    assert m["success_rate"] == 50.0 and m["avg_latency_ms"] == 100.0, m
+    assert m["volume_processed"] == 5 and len(m["recent_failures"]) == 1, m
+    ev = await audit.recent(provider=TP, tenant="t1", limit=10)
+    assert len(ev) == 2
+    await db[COLLECTION].delete_many({"provider": TP})
+    print("OK sprint001: auditoria persistente + métricas agregadas")
+
+    # --- RetryManager ---
+    calls = {"n": 0}
+    async def _flaky():
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise MigTimeoutError("timeout")  # 504 recuperável
+        return {"ok": True}
+    res = await run_with_retry(_flaky, RetryPolicy(max_attempts=3, base_delay_seconds=0.01))
+    assert res.value == {"ok": True} and res.attempts == 2, res
+
+    calls2 = {"n": 0}
+    async def _fatal():
+        calls2["n"] += 1
+        raise MigAuthError("no")  # 401 não recuperável
+    try:
+        await run_with_retry(_fatal, RetryPolicy(max_attempts=3, base_delay_seconds=0.01))
+        assert False
+    except MigAuthError:
+        assert calls2["n"] == 1, "não recuperável não deve retentar"
+    print("OK sprint001: RetryManager (recuperável retenta, fatal não)")
+
+    # --- Feature flags dinâmicas ---
+    flags = FeatureFlagService(db)
+    from mig.core.feature_flags import COLLECTION as FCOL
+    await db[FCOL].delete_many({"flag": "cmde.elegibilidades", "tenant": "tX"})
+    assert await flags.is_enabled("cmde.elegibilidades", "tX", "homologacao") is True  # default
+    await flags.set_flag("cmde.elegibilidades", False, tenant="tX", environment="homologacao", actor="admin")
+    assert await flags.is_enabled("cmde.elegibilidades", "tX", "homologacao") is False  # override
+    assert await flags.is_enabled("cmde.elegibilidades", "outro", "homologacao") is True  # não afeta outro tenant
+    eff = await flags.effective("tX", "homologacao")
+    assert eff["cmde.elegibilidades"] is False and eff["cmde.enabled"] is True, eff
+    await db[FCOL].delete_many({"flag": "cmde.elegibilidades", "tenant": "tX"})
+    print("OK sprint001: feature flags dinâmicas por tenant/ambiente")
+
+    # --- Service: flag desabilitada bloqueia query mesmo sem config? (config vem antes) ---
+    # query sem config continua 400 (paridade) — já coberto em _run_parity
+    svc = CmdeService(db)
+    fx = await svc.feature_flags(context={"tenant": None})
+    assert set(fx["flags"].keys()) == {"cmde.enabled", "cmde.elegibilidades", "cmde.retry"}, fx
+    print("OK sprint001: service.feature_flags/metrics/audit_events")
+
+
 if __name__ == "__main__":
     test_mapper_validators()
     asyncio.run(_run_client_error_cases())
     asyncio.run(_run_parity())
-    print("\nSPRINT 000 — TODOS OS TESTES PASSARAM ✅")
+    asyncio.run(_run_sprint001())
+    print("\nSPRINT 000/001 — TODOS OS TESTES PASSARAM ✅")

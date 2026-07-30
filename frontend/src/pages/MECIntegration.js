@@ -28,6 +28,25 @@ export default function MECIntegration() {
   const [showMapping, setShowMapping] = useState(false);
   const [mappingData, setMappingData] = useState(null);
   const [loadingMapping, setLoadingMapping] = useState(false);
+  const [activeTab, setActiveTab] = useState('config');
+  const [metrics, setMetrics] = useState(null);
+  const [auditEvents, setAuditEvents] = useState([]);
+  const [flags, setFlags] = useState(null);
+  const [loadingOps, setLoadingOps] = useState(false);
+
+  const loadOps = useCallback(async () => {
+    setLoadingOps(true);
+    try {
+      const [m, a, f] = await Promise.all([mecAPI.getMetrics(), mecAPI.getAudit(50), mecAPI.getFlags()]);
+      setMetrics(m); setAuditEvents(a.events || []); setFlags(f);
+    } catch (e) { console.error(e); }
+    setLoadingOps(false);
+  }, []);
+
+  const toggleFlag = async (flag, enabled, environment) => {
+    try { await mecAPI.setFlag({ flag, enabled, environment }); await loadOps(); }
+    catch (e) { console.error(e); }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -147,6 +166,134 @@ export default function MECIntegration() {
         </div>
       )}
 
+      {/* Abas: Configuração (administrativa) × Operação Técnica */}
+      <div className="flex gap-1 border-b border-gray-200" data-testid="mec-tabs">
+        <button
+          onClick={() => setActiveTab('config')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'config' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          data-testid="tab-config"
+        >
+          <Settings className="inline h-4 w-4 mr-1" />Configuração
+        </button>
+        <button
+          onClick={() => { setActiveTab('operacao'); loadOps(); }}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'operacao' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          data-testid="tab-operacao"
+        >
+          <RefreshCw className="inline h-4 w-4 mr-1" />Operação Técnica
+        </button>
+      </div>
+
+      {/* ===== Operação Técnica (Dashboard Técnico MIG) ===== */}
+      {activeTab === 'operacao' && (
+        <div className="space-y-6" data-testid="mec-ops-panel">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">Saúde da Integração</h3>
+            <button onClick={loadOps} disabled={loadingOps} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border hover:bg-gray-50 disabled:opacity-60" data-testid="ops-refresh-btn">
+              {loadingOps ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}Atualizar
+            </button>
+          </div>
+
+          {/* Métricas */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" data-testid="mec-metrics">
+            {[
+              { label: 'Total de chamadas', value: metrics?.total_calls ?? 0 },
+              { label: 'Sucesso', value: metrics?.success ?? 0 },
+              { label: 'Erros', value: metrics?.error ?? 0 },
+              { label: 'Taxa de sucesso', value: metrics?.success_rate != null ? `${metrics.success_rate}%` : '—' },
+              { label: 'Latência média', value: metrics?.avg_latency_ms != null ? `${metrics.avg_latency_ms} ms` : '—' },
+              { label: 'Volume processado', value: metrics?.volume_processed ?? 0 },
+            ].map((c, i) => (
+              <div key={i} className="bg-white rounded-xl border p-4">
+                <p className="text-xs text-gray-500">{c.label}</p>
+                <p className="text-xl font-bold text-gray-900">{c.value}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">Última execução: {metrics?.last_execution ? new Date(metrics.last_execution).toLocaleString('pt-BR') : 'Nenhuma execução registrada'}</p>
+
+          {/* Feature Flags */}
+          <div className="bg-white rounded-xl border p-5">
+            <h4 className="font-semibold text-gray-900 mb-1">Feature Flags {flags?.environment ? `(ambiente: ${flags.environment})` : ''}</h4>
+            <p className="text-xs text-gray-500 mb-3">Ativação controlada por tenant/ambiente. Alterações são auditadas.</p>
+            <div className="space-y-2" data-testid="mec-flags">
+              {flags?.flags && Object.entries(flags.flags).map(([flag, enabled]) => (
+                <div key={flag} className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
+                  <span className="text-sm font-mono text-gray-700">{flag}</span>
+                  <button
+                    onClick={() => toggleFlag(flag, !enabled, flags.environment)}
+                    className={`text-xs px-3 py-1 rounded-full font-medium ${enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                    data-testid={`flag-toggle-${flag}`}
+                  >
+                    {enabled ? 'Habilitado' : 'Desabilitado'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Falhas recentes */}
+          {metrics?.recent_failures?.length > 0 && (
+            <div className="bg-white rounded-xl border p-5">
+              <h4 className="font-semibold text-red-700 mb-3">Falhas Recentes</h4>
+              <div className="space-y-2">
+                {metrics.recent_failures.map((f, i) => (
+                  <div key={i} className="text-sm text-gray-700 flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                    <span className="font-medium">{f.operation}</span>
+                    <span className="text-gray-400">·</span>
+                    <span>HTTP {f.http_status ?? '—'}</span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-gray-500">{f.error_message}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Histórico de eventos */}
+          <div className="bg-white rounded-xl border overflow-hidden">
+            <div className="px-5 py-3 border-b"><h4 className="font-semibold text-gray-900">Histórico de Eventos</h4></div>
+            {auditEvents.length === 0 ? (
+              <p className="p-5 text-sm text-gray-400">Nenhum evento de integração registrado ainda.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" data-testid="mec-audit-table">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-medium">Operação</th>
+                      <th className="text-left px-4 py-2 font-medium">Status</th>
+                      <th className="text-left px-4 py-2 font-medium">Registros</th>
+                      <th className="text-left px-4 py-2 font-medium">Tentativas</th>
+                      <th className="text-left px-4 py-2 font-medium">Duração</th>
+                      <th className="text-left px-4 py-2 font-medium">Responsável</th>
+                      <th className="text-left px-4 py-2 font-medium">Quando</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditEvents.map((e, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="px-4 py-2">{e.operation}</td>
+                        <td className="px-4 py-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${e.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{e.status}</span>
+                        </td>
+                        <td className="px-4 py-2">{e.records_processed ?? 0}</td>
+                        <td className="px-4 py-2">{e.attempts ?? 1}</td>
+                        <td className="px-4 py-2">{e.duration_ms != null ? `${e.duration_ms} ms` : '—'}</td>
+                        <td className="px-4 py-2 text-gray-500">{e.actor || '—'}</td>
+                        <td className="px-4 py-2 text-gray-500">{e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== Configuração (administrativa) ===== */}
+      {activeTab === 'config' && (<>
       {/* Guia Passo a Passo */}
       <div className="bg-white rounded-xl border overflow-hidden">
         <button
@@ -390,6 +537,7 @@ export default function MECIntegration() {
           </div>
         )}
       </div>
+      </>)}
     </div>
     </Layout>
   );

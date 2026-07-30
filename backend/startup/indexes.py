@@ -326,4 +326,14 @@ async def create_all_indexes(db):
         unique=True, background=True, name="uq_bf_snapshot",
     )
 
+    # MIG — Infra Operacional (Sprint 001, Jun/2026)
+    await db.mig_audit_events.create_index("id", unique=True, background=True)
+    await db.mig_audit_events.create_index(
+        [("provider", 1), ("tenant", 1), ("created_at", -1)], background=True, name="ix_mig_audit"
+    )
+    await db.mig_audit_events.create_index([("status", 1), ("created_at", -1)], background=True, name="ix_mig_audit_status")
+    await db.mig_feature_flags.create_index(
+        [("flag", 1), ("tenant", 1), ("environment", 1)], unique=True, background=True, name="uq_mig_flag"
+    )
+
     logger.info("Índices MongoDB criados/verificados com sucesso")

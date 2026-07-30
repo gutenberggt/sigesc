@@ -202,6 +202,22 @@ export const mecAPI = {
   consultarElegibilidades: async ({ search, inep, page = 1, pageSize = 50 } = {}) => {
     const res = await axios.get(`${API}/mec/elegibilidades`, { params: { search, inep, page, page_size: pageSize } });
     return res.data;
+  },
+  getMetrics: async () => {
+    const res = await axios.get(`${API}/mec/metrics`);
+    return res.data;
+  },
+  getAudit: async (limit = 50) => {
+    const res = await axios.get(`${API}/mec/audit`, { params: { limit } });
+    return res.data;
+  },
+  getFlags: async () => {
+    const res = await axios.get(`${API}/mec/flags`);
+    return res.data;
+  },
+  setFlag: async ({ flag, enabled, environment }) => {
+    const res = await axios.put(`${API}/mec/flags`, { flag, enabled, environment });
+    return res.data;
   }
 };
 
