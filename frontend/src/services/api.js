@@ -181,6 +181,30 @@ export const ctueAPI = {
   }
 };
 
+// MIG — Integração MEC Gestão Presente (CMDE). Camada única de chamadas (usa interceptors de auth/CSRF).
+export const mecAPI = {
+  getConfig: async () => {
+    const res = await axios.get(`${API}/mec/config`);
+    return res.data;
+  },
+  updateConfig: async (config) => {
+    const res = await axios.put(`${API}/mec/config`, config);
+    return res.data;
+  },
+  getSyncStatus: async () => {
+    const res = await axios.get(`${API}/mec/sync/status`);
+    return res.data;
+  },
+  getStudentsMapping: async (schoolId) => {
+    const res = await axios.get(`${API}/mec/students/mapping`, { params: schoolId ? { school_id: schoolId } : {} });
+    return res.data;
+  },
+  consultarElegibilidades: async ({ search, inep, page = 1, pageSize = 50 } = {}) => {
+    const res = await axios.get(`${API}/mec/elegibilidades`, { params: { search, inep, page, page_size: pageSize } });
+    return res.data;
+  }
+};
+
 // ============= USERS =============
 export const usersAPI = {
   getAll: async () => {

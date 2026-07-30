@@ -3,9 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Settings, Key, Server, User, Mail, Phone, Briefcase, CheckCircle2, AlertCircle, XCircle, Loader2, ExternalLink, RefreshCw, School, Users, FileText, Shield, Copy, ChevronDown, ChevronUp, Info, Home } from 'lucide-react';
-import axios from 'axios';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { mecAPI } from '@/services/api';
 
 const ENV_LABELS = {
   homologacao: 'Homologação (Testes)',
@@ -21,8 +19,6 @@ const STATUS_MAP = {
 export default function MECIntegration() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const token = localStorage.getItem('accessToken');
-  const headers = { Authorization: `Bearer ${token}` };
 
   const [config, setConfig] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
@@ -37,11 +33,11 @@ export default function MECIntegration() {
     setLoading(true);
     try {
       const [configRes, statusRes] = await Promise.all([
-        axios.get(`${API}/mec/config`, { headers }),
-        axios.get(`${API}/mec/sync/status`, { headers })
+        mecAPI.getConfig(),
+        mecAPI.getSyncStatus()
       ]);
-      setConfig(configRes.data);
-      setSyncStatus(statusRes.data);
+      setConfig(configRes);
+      setSyncStatus(statusRes);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
@@ -51,7 +47,7 @@ export default function MECIntegration() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/mec/config`, config, { headers });
+      await mecAPI.updateConfig(config);
       await loadData();
     } catch (e) { console.error(e); }
     setSaving(false);
@@ -65,8 +61,8 @@ export default function MECIntegration() {
     setShowMapping(true);
     setLoadingMapping(true);
     try {
-      const res = await axios.get(`${API}/mec/students/mapping`, { headers });
-      setMappingData(res.data);
+      const res = await mecAPI.getStudentsMapping();
+      setMappingData(res);
     } catch (e) { console.error(e); }
     setLoadingMapping(false);
   };
@@ -264,21 +260,6 @@ export default function MECIntegration() {
               placeholder="Ex: 192.168.1.100"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
               data-testid="server-ip-input"
-            />
-          </div>
-
-          {/* Chave PGP Pública */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <Shield className="inline h-4 w-4 mr-1" />Chave PGP Pública
-            </label>
-            <textarea
-              value={config?.pgp_public_key || ''}
-              onChange={e => handleChange('pgp_public_key', e.target.value)}
-              placeholder="Cole sua chave PGP pública aqui (conteúdo do arquivo .asc)"
-              rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 font-mono"
-              data-testid="pgp-key-input"
             />
           </div>
         </div>
