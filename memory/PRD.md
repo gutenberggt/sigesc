@@ -12,6 +12,11 @@ Relatório: `memory/audit/SPRINT_001_1_HARDENING_MIG.md`. **Sprint 002 (Envio de
 permanece BLOQUEADA até liberação explícita do owner** — próximo passo é apresentar o plano
 arquitetural da Sprint 002 (sem código). P1 pendente: política real de limpeza/arquivamento
 de `mig_audit_events` (apenas documentada).
+**PLANO Sprint 002 produzido (sem código):** `memory/audit/SPRINT_002_PLANO_ARQUITETURAL_CMDE.md`
+— arquitetura de envio de frequência CMDE (Batch Builder, fila Mongo durável, workers,
+scheduler, idempotência, reconciliação de rejeições, multi-tenant, testes e rollout gradual),
+reusando o core do MIG. Implementação BLOQUEADA até aprovação do owner + confirmação do contrato
+oficial da API CMDE de frequência.
 
 
 ## 🐛 BUGFIX — Divergência de números no painel "Análise PME" (Jun/2026)
