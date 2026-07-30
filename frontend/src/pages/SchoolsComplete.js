@@ -140,6 +140,25 @@ export function SchoolsComplete() {
     estado_conservacao: '',
     possui_cercamento: false,
     
+    // CTUE Fase D — campos estruturais (informativos)
+    area_terreno_m2: '',
+    area_construida_m2: '',
+    ano_construcao: '',
+    regime_ocupacao: '',
+    predio_compartilhado: false,
+    vias_acessiveis: false,
+    dependencias_acessiveis: false,
+    agua_potavel: false,
+    certificado_potabilidade: false,
+    tipo_esgotamento: '',
+    tipo_destinacao_lixo: '',
+    avcb_bombeiros: false,
+    necessita_reforma: false,
+    itens_criticos: '',
+    alvara_funcionamento: false,
+    licenca_sanitaria: false,
+    habite_se: false,
+    
     // Dependências
     numero_salas_aula: 0,
     capacidade_total_alunos: 0,
@@ -559,11 +578,15 @@ export function SchoolsComplete() {
     setSubmitting(true);
 
     try {
+      const payload = { ...formData };
+      ['area_terreno_m2', 'area_construida_m2', 'ano_construcao'].forEach((f) => {
+        if (payload[f] === '' || payload[f] === undefined || Number.isNaN(payload[f])) payload[f] = null;
+      });
       if (editingSchool) {
-        await schoolsAPI.update(editingSchool.id, formData);
+        await schoolsAPI.update(editingSchool.id, payload);
         showAlert('success', 'Escola atualizada com sucesso');
       } else {
-        await schoolsAPI.create(formData);
+        await schoolsAPI.create(payload);
         showAlert('success', 'Escola criada com sucesso');
       }
       setIsModalOpen(false);
@@ -1120,6 +1143,59 @@ export function SchoolsComplete() {
               <option value="Outra destinação">Outra destinação</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Classificação do Esgotamento</label>
+            <select
+              value={formData.tipo_esgotamento || ''}
+              onChange={(e) => updateFormData('tipo_esgotamento', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              data-testid="ctue-field-tipo-esgotamento"
+            >
+              <option value="">Selecione</option>
+              <option value="Rede coletora">Rede coletora</option>
+              <option value="Fossa séptica">Fossa séptica</option>
+              <option value="Fossa rudimentar">Fossa rudimentar</option>
+              <option value="Sumidouro">Sumidouro</option>
+              <option value="Inexistente">Inexistente</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Classificação da Destinação de Resíduos</label>
+            <select
+              value={formData.tipo_destinacao_lixo || ''}
+              onChange={(e) => updateFormData('tipo_destinacao_lixo', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              data-testid="ctue-field-tipo-destinacao-lixo"
+            >
+              <option value="">Selecione</option>
+              <option value="Coleta seletiva">Coleta seletiva</option>
+              <option value="Coleta periódica">Coleta periódica</option>
+              <option value="Reciclagem">Reciclagem</option>
+              <option value="Queima">Queima</option>
+              <option value="Enterra">Enterra</option>
+              <option value="Outra destinação">Outra destinação</option>
+            </select>
+          </div>
+
+          <label className="flex items-center space-x-2">
+            <input type="checkbox" checked={formData.agua_potavel || false}
+              onChange={(e) => updateFormData('agua_potavel', e.target.checked)} disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              data-testid="ctue-field-agua-potavel" />
+            <span className="text-sm text-gray-700">Possui Água Potável</span>
+          </label>
+
+          <label className="flex items-center space-x-2">
+            <input type="checkbox" checked={formData.certificado_potabilidade || false}
+              onChange={(e) => updateFormData('certificado_potabilidade', e.target.checked)} disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              data-testid="ctue-field-certificado-potabilidade" />
+            <span className="text-sm text-gray-700">Possui Certificado de Potabilidade da Água</span>
+          </label>
         </div>
       </div>
 
@@ -1169,6 +1245,22 @@ export function SchoolsComplete() {
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Sinalização Tátil</span>
+          </label>
+
+          <label className="flex items-center space-x-2">
+            <input type="checkbox" checked={formData.vias_acessiveis || false}
+              onChange={(e) => updateFormData('vias_acessiveis', e.target.checked)} disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              data-testid="ctue-field-vias-acessiveis" />
+            <span className="text-sm text-gray-700">Vias de Acesso Acessíveis</span>
+          </label>
+
+          <label className="flex items-center space-x-2">
+            <input type="checkbox" checked={formData.dependencias_acessiveis || false}
+              onChange={(e) => updateFormData('dependencias_acessiveis', e.target.checked)} disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              data-testid="ctue-field-dependencias-acessiveis" />
+            <span className="text-sm text-gray-700">Dependências Internas Acessíveis</span>
           </label>
 
           <div>
@@ -1236,6 +1328,13 @@ export function SchoolsComplete() {
                 data-testid="ctue-field-possui-cercamento" />
               <span className="text-sm text-gray-700">Possui Cercamento/Muro</span>
             </label>
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={formData.avcb_bombeiros || false}
+                onChange={(e) => updateFormData('avcb_bombeiros', e.target.checked)} disabled={viewMode}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                data-testid="ctue-field-avcb-bombeiros" />
+              <span className="text-sm text-gray-700">Possui AVCB (Corpo de Bombeiros)</span>
+            </label>
           </div>
         </div>
       </div>
@@ -1257,6 +1356,23 @@ export function SchoolsComplete() {
               <option value="ruim">Ruim</option>
               <option value="precario">Precário</option>
             </select>
+          </div>
+
+          <label className="flex items-center space-x-2 self-end pb-2">
+            <input type="checkbox" checked={formData.necessita_reforma || false}
+              onChange={(e) => updateFormData('necessita_reforma', e.target.checked)} disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              data-testid="ctue-field-necessita-reforma" />
+            <span className="text-sm text-gray-700">Necessita de Reforma</span>
+          </label>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Itens Críticos de Conservação</label>
+            <textarea rows={2} value={formData.itens_criticos || ''}
+              onChange={(e) => updateFormData('itens_criticos', e.target.value)} disabled={viewMode}
+              placeholder="Ex.: telhado com infiltração, piso danificado, instalação elétrica antiga…"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-itens-criticos" />
           </div>
         </div>
       </div>
@@ -1350,6 +1466,58 @@ export function SchoolsComplete() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Dados Estruturais do Prédio</h4>
+        <p className="text-xs text-gray-500 mb-4">Campos de infraestrutura (auditoria MP/FNDE) — informativos; não alteram os cálculos de conformidade.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Área do Terreno (m²)</label>
+            <input type="number" min="0" step="0.01" value={formData.area_terreno_m2 ?? ''}
+              onChange={(e) => updateFormData('area_terreno_m2', e.target.value === '' ? '' : parseFloat(e.target.value))}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-area-terreno" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Área Construída (m²)</label>
+            <input type="number" min="0" step="0.01" value={formData.area_construida_m2 ?? ''}
+              onChange={(e) => updateFormData('area_construida_m2', e.target.value === '' ? '' : parseFloat(e.target.value))}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-area-construida" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ano de Construção</label>
+            <input type="number" min="1800" max="2100" value={formData.ano_construcao ?? ''}
+              onChange={(e) => updateFormData('ano_construcao', e.target.value === '' ? '' : parseInt(e.target.value))}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-ano-construcao" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Regime de Ocupação</label>
+            <select value={formData.regime_ocupacao || ''}
+              onChange={(e) => updateFormData('regime_ocupacao', e.target.value)} disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              data-testid="ctue-field-regime-ocupacao">
+              <option value="">Selecione</option>
+              <option value="Próprio">Próprio</option>
+              <option value="Alugado">Alugado</option>
+              <option value="Cedido">Cedido</option>
+              <option value="Comodato">Comodato</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <label className="flex items-center space-x-2 self-end pb-2">
+            <input type="checkbox" checked={formData.predio_compartilhado || false}
+              onChange={(e) => updateFormData('predio_compartilhado', e.target.checked)} disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              data-testid="ctue-field-predio-compartilhado" />
+            <span className="text-sm text-gray-700">Prédio Compartilhado</span>
+          </label>
         </div>
       </div>
 
@@ -2778,7 +2946,7 @@ export function SchoolsComplete() {
 
   const TIPOS_INTERVENCAO = ['Cercamento / Muro', 'Adequação de Acessibilidade', 'Ampliação', 'Reforma', 'Construção', 'Manutenção Preventiva', 'Manutenção Corretiva', 'Outros'];
   const SITUACOES_OBRA = ['Planejada', 'Em execução', 'Concluída'];
-  const CATEGORIAS_DOC = ['Planta Baixa', 'Memorial Descritivo', 'Projeto Arquitetônico', 'Habite-se', 'AVCB (Corpo de Bombeiros)', 'Alvará de Funcionamento', 'Licença Sanitária', 'Licença Ambiental', 'Escritura ou Documento do Imóvel', 'Laudos Técnicos', 'Outros'];
+  const CATEGORIAS_DOC = ['Planta Baixa', 'Memorial Descritivo', 'Projeto Arquitetônico', 'Habite-se', 'AVCB (Corpo de Bombeiros)', 'Alvará de Funcionamento', 'Licença Sanitária', 'Certificado de Potabilidade da Água', 'Licença Ambiental', 'Escritura ou Documento do Imóvel', 'Laudos Técnicos', 'Outros'];
   const TIPOS_OBS = ['Parecer Técnico', 'Relatório de Vistoria', 'Observação Geral'];
 
   const renderObras = () => {
@@ -2872,6 +3040,33 @@ export function SchoolsComplete() {
                 onChange={(e) => { handleDocUpload(e.target.files?.[0]); e.target.value = ''; }} />
             </label>
           )}
+        </div>
+        <div className="border border-gray-200 rounded-lg p-4">
+          <h5 className="text-sm font-semibold text-gray-900 mb-1">Situação Documental</h5>
+          <p className="text-xs text-gray-500 mb-3">Indique quais atos/licenças a unidade possui (informativo — não altera a conformidade nesta etapa).</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={formData.alvara_funcionamento || false}
+                onChange={(e) => updateFormData('alvara_funcionamento', e.target.checked)} disabled={viewMode}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                data-testid="ctue-field-alvara-funcionamento" />
+              <span className="text-sm text-gray-700">Alvará de Funcionamento</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={formData.licenca_sanitaria || false}
+                onChange={(e) => updateFormData('licenca_sanitaria', e.target.checked)} disabled={viewMode}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                data-testid="ctue-field-licenca-sanitaria" />
+              <span className="text-sm text-gray-700">Licença Sanitária</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={formData.habite_se || false}
+                onChange={(e) => updateFormData('habite_se', e.target.checked)} disabled={viewMode}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                data-testid="ctue-field-habite-se" />
+              <span className="text-sm text-gray-700">Habite-se</span>
+            </label>
+          </div>
         </div>
         {docs.length === 0 && <p className="text-sm text-gray-400">Nenhum documento cadastrado.</p>}
         {docs.map((d, i) => (

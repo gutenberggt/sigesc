@@ -116,3 +116,23 @@ removido sem aprovação; leitura tolerante a legado mantida.
 4. Homologar **C** + aprovar a matriz de campos → inicia **D**.
 
 *Entrega 5. Última atualização: Jun/2026 — Sprint Proposta CTUE.*
+
+---
+
+## Fase D — Campos Estruturais (ENTREGUE · Jun/2026)
+**Estratégia aprovada pelo owner: opção (a) — modelo + UI, SEM ativar o motor de conformidade.**
+- 17 novos campos adicionados a `SchoolBase`/`SchoolUpdate` (informativos):
+  Infra Física (area_terreno_m2, area_construida_m2, ano_construcao, regime_ocupacao, predio_compartilhado);
+  Acessibilidade (vias_acessiveis, dependencias_acessiveis);
+  Água (agua_potavel, certificado_potabilidade, tipo_esgotamento, tipo_destinacao_lixo);
+  Segurança (avcb_bombeiros); Conservação (necessita_reforma, itens_criticos);
+  Documentação (alvara_funcionamento, licenca_sanitaria, habite_se).
+- UI: campos nas abas Infraestrutura, Dependências ("Dados Estruturais do Prédio") e
+  Documentação ("Situação Documental"). Nova categoria doc: "Certificado de Potabilidade da Água".
+- Dossiê PDF exibe os campos quando preenchidos (helper _tri para tri-estado).
+- **SSoT intocado**: `ctue_conformity_service` e `ctue_rulesets.json` NÃO alterados. Percentuais
+  de Conformidade/Completude/Maturidade permanecem idênticos (validado: 70%/60% e 2%/5% estáveis).
+- **Preparação futura**: metadados em `/app/backend/config/ctue_fase_d_fields.json` permitem
+  incorporar cada campo ao ruleset sem mudança estrutural — ativação dependerá de decisão administrativa.
+- Testes: `backend/tests/test_fase_d_campos.py` (modelo + SSoT estável + PDF) e ciclo E2E de
+  persistência validado via UI.

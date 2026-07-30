@@ -1,0 +1,88 @@
+{
+  "_doc": "Catálogo de metadados dos campos estruturais da Fase D (auditoria MP/FNDE). Estes campos JÁ EXISTEM no modelo SchoolBase e são capturados na UI e exibidos no Dossiê, porém NÃO são consumidos pelo CTUEConformityService nesta etapa (decisão administrativa: preservar estabilidade dos indicadores). Quando a rede tiver base cadastral consistente, estes metadados permitem incorporar os campos ao ruleset (ctue_rulesets.json) SEM alterações estruturais — bastando mover cada entrada para a seção correspondente com seu 'peso', 'classe', 'tipo' e 'requer_preenchimento', e (quando houver) as 'regras_conformidade' sugeridas.",
+  "status": "preparado_inativo",
+  "ruleset_alvo": "ctue-default-v1",
+  "ativacao_depende_de": "decisao_administrativa",
+  "campos": [
+    {
+      "campo": "area_terreno_m2", "label": "Área do Terreno (m²)", "secao": "infraestrutura_fisica",
+      "classe": "recomendado", "tipo": "float", "peso": 2, "requer_preenchimento": true
+    },
+    {
+      "campo": "area_construida_m2", "label": "Área Construída (m²)", "secao": "infraestrutura_fisica",
+      "classe": "recomendado", "tipo": "float", "peso": 2, "requer_preenchimento": true
+    },
+    {
+      "campo": "ano_construcao", "label": "Ano de Construção", "secao": "infraestrutura_fisica",
+      "classe": "recomendado", "tipo": "int", "peso": 2, "requer_preenchimento": true
+    },
+    {
+      "campo": "regime_ocupacao", "label": "Regime de Ocupação", "secao": "infraestrutura_fisica",
+      "classe": "opcional", "tipo": "str", "peso": 1, "requer_preenchimento": true,
+      "opcoes": ["Próprio", "Alugado", "Cedido", "Comodato", "Outros"]
+    },
+    {
+      "campo": "predio_compartilhado", "label": "Prédio Compartilhado", "secao": "infraestrutura_fisica",
+      "classe": "opcional", "tipo": "bool", "peso": 1, "requer_preenchimento": false
+    },
+    {
+      "campo": "vias_acessiveis", "label": "Vias de Acesso Acessíveis", "secao": "acessibilidade",
+      "classe": "recomendado", "tipo": "bool", "peso": 2, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_vias_acessiveis", "label": "Vias de acesso acessíveis", "peso": 1, "modo": "all", "condicoes": [{"field": "vias_acessiveis", "op": "truthy"}]}
+    },
+    {
+      "campo": "dependencias_acessiveis", "label": "Dependências Acessíveis", "secao": "acessibilidade",
+      "classe": "recomendado", "tipo": "bool", "peso": 2, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_dependencias_acessiveis", "label": "Dependências internas acessíveis", "peso": 1, "modo": "all", "condicoes": [{"field": "dependencias_acessiveis", "op": "truthy"}]}
+    },
+    {
+      "campo": "agua_potavel", "label": "Água Potável", "secao": "agua_saneamento_energia",
+      "classe": "obrigatorio", "tipo": "bool", "peso": 3, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_agua_potavel", "label": "Água potável", "peso": 1, "modo": "all", "condicoes": [{"field": "agua_potavel", "op": "truthy"}]}
+    },
+    {
+      "campo": "certificado_potabilidade", "label": "Certificado de Potabilidade da Água", "secao": "agua_saneamento_energia",
+      "classe": "obrigatorio", "tipo": "bool", "peso": 3, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_cert_potabilidade", "label": "Certificado de potabilidade", "peso": 1, "modo": "all", "condicoes": [{"field": "certificado_potabilidade", "op": "truthy"}]}
+    },
+    {
+      "campo": "tipo_esgotamento", "label": "Classificação do Esgotamento", "secao": "agua_saneamento_energia",
+      "classe": "recomendado", "tipo": "str", "peso": 2, "requer_preenchimento": true,
+      "opcoes": ["Rede coletora", "Fossa séptica", "Fossa rudimentar", "Sumidouro", "Inexistente"]
+    },
+    {
+      "campo": "tipo_destinacao_lixo", "label": "Classificação da Destinação de Resíduos", "secao": "agua_saneamento_energia",
+      "classe": "recomendado", "tipo": "str", "peso": 2, "requer_preenchimento": true,
+      "opcoes": ["Coleta seletiva", "Coleta periódica", "Reciclagem", "Queima", "Enterra", "Outra destinação"]
+    },
+    {
+      "campo": "avcb_bombeiros", "label": "AVCB (Auto de Vistoria do Corpo de Bombeiros)", "secao": "seguranca",
+      "classe": "obrigatorio", "tipo": "bool", "peso": 3, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_avcb", "label": "Possui AVCB válido", "peso": 1, "modo": "all", "condicoes": [{"field": "avcb_bombeiros", "op": "truthy"}]}
+    },
+    {
+      "campo": "necessita_reforma", "label": "Necessita de Reforma", "secao": "conservacao",
+      "classe": "recomendado", "tipo": "bool", "peso": 2, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "sem_necessidade_reforma", "label": "Sem necessidade de reforma", "peso": 1, "modo": "all", "condicoes": [{"field": "necessita_reforma", "op": "falsy"}]}
+    },
+    {
+      "campo": "itens_criticos", "label": "Itens Críticos de Conservação", "secao": "conservacao",
+      "classe": "recomendado", "tipo": "str", "peso": 2, "requer_preenchimento": false
+    },
+    {
+      "campo": "alvara_funcionamento", "label": "Alvará de Funcionamento", "secao": "documentacao",
+      "classe": "obrigatorio", "tipo": "bool", "peso": 3, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_alvara", "label": "Possui alvará de funcionamento", "peso": 1, "modo": "all", "condicoes": [{"field": "alvara_funcionamento", "op": "truthy"}]}
+    },
+    {
+      "campo": "licenca_sanitaria", "label": "Licença Sanitária", "secao": "documentacao",
+      "classe": "obrigatorio", "tipo": "bool", "peso": 3, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_licenca_sanitaria", "label": "Possui licença sanitária", "peso": 1, "modo": "all", "condicoes": [{"field": "licenca_sanitaria", "op": "truthy"}]}
+    },
+    {
+      "campo": "habite_se", "label": "Habite-se", "secao": "documentacao",
+      "classe": "recomendado", "tipo": "bool", "peso": 2, "requer_preenchimento": false,
+      "regra_sugerida": {"id": "tem_habite_se", "label": "Possui habite-se", "peso": 1, "modo": "all", "condicoes": [{"field": "habite_se", "op": "truthy"}]}
+    }
+  ]
+}

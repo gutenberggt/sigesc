@@ -557,6 +557,34 @@ class SchoolBase(BaseModel):
     possui_horta: Optional[bool] = False
     possui_estacionamento: Optional[bool] = False
     
+    # ===== CTUE Fase D — Campos estruturais (auditoria MP/FNDE) =====
+    # INFORMATIVOS: capturados na UI e exibidos no Dossiê, porém NÃO participam
+    # do CTUEConformityService nesta etapa. Metadados para futura ativação em
+    # /app/backend/config/ctue_fase_d_fields.json (Fase D dependerá de decisão administrativa).
+    # Infraestrutura Física
+    area_terreno_m2: Optional[float] = None
+    area_construida_m2: Optional[float] = None
+    ano_construcao: Optional[int] = None
+    regime_ocupacao: Optional[str] = None
+    predio_compartilhado: Optional[bool] = None
+    # Acessibilidade
+    vias_acessiveis: Optional[bool] = None
+    dependencias_acessiveis: Optional[bool] = None
+    # Água, Saneamento & Energia
+    agua_potavel: Optional[bool] = None
+    certificado_potabilidade: Optional[bool] = None
+    tipo_esgotamento: Optional[str] = None
+    tipo_destinacao_lixo: Optional[str] = None
+    # Segurança
+    avcb_bombeiros: Optional[bool] = None
+    # Conservação
+    necessita_reforma: Optional[bool] = None
+    itens_criticos: Optional[str] = None
+    # Documentação (situação documental)
+    alvara_funcionamento: Optional[bool] = None
+    licenca_sanitaria: Optional[bool] = None
+    habite_se: Optional[bool] = None
+    
     # Permissão - Data Limite de Lançamento por Bimestre
     bimestre_1_limite_lancamento: Optional[str] = None
     bimestre_2_limite_lancamento: Optional[str] = None
@@ -741,6 +769,25 @@ class SchoolUpdate(BaseModel):
     possui_auditorio: Optional[bool] = None
     possui_horta: Optional[bool] = None
     possui_estacionamento: Optional[bool] = None
+    
+    # ===== CTUE Fase D — Campos estruturais (auditoria MP/FNDE) — informativos =====
+    area_terreno_m2: Optional[float] = None
+    area_construida_m2: Optional[float] = None
+    ano_construcao: Optional[int] = None
+    regime_ocupacao: Optional[str] = None
+    predio_compartilhado: Optional[bool] = None
+    vias_acessiveis: Optional[bool] = None
+    dependencias_acessiveis: Optional[bool] = None
+    agua_potavel: Optional[bool] = None
+    certificado_potabilidade: Optional[bool] = None
+    tipo_esgotamento: Optional[str] = None
+    tipo_destinacao_lixo: Optional[str] = None
+    avcb_bombeiros: Optional[bool] = None
+    necessita_reforma: Optional[bool] = None
+    itens_criticos: Optional[str] = None
+    alvara_funcionamento: Optional[bool] = None
+    licenca_sanitaria: Optional[bool] = None
+    habite_se: Optional[bool] = None
     
     # Permissão - Data Limite de Lançamento por Bimestre
     bimestre_1_limite_lancamento: Optional[str] = None

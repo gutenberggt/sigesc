@@ -40,6 +40,12 @@ def _bool(val):
     return "Sim" if val else "Não"
 
 
+def _tri(val):
+    if val is None:
+        return "Não informado"
+    return "Sim" if val else "Não"
+
+
 def _section_by_key(result, key):
     return next((s for s in result.get("sections", []) if s["key"] == key), None)
 
@@ -170,6 +176,14 @@ def generate_dossie_pdf(school: dict, result: dict, mantenedora: dict = None) ->
         ("Nº de Banheiros", school.get("numero_banheiros")),
         ("Sala de Recursos (AEE)", school.get("salas_recursos_multifuncionais")),
         ("Ambientes existentes", ", ".join(ambientes) if ambientes else None),
+        ("Área do Terreno (m²)", school.get("area_terreno_m2")),
+        ("Área Construída (m²)", school.get("area_construida_m2")),
+        ("Ano de Construção", school.get("ano_construcao")),
+        ("Regime de Ocupação", school.get("regime_ocupacao")),
+        ("Prédio Compartilhado", _tri(school.get("predio_compartilhado")) if school.get("predio_compartilhado") is not None else None),
+        ("Estado de Conservação", school.get("estado_conservacao")),
+        ("Necessita de Reforma", _tri(school.get("necessita_reforma")) if school.get("necessita_reforma") is not None else None),
+        ("Itens Críticos de Conservação", school.get("itens_criticos")),
     ], styles))
 
     # 5. Acessibilidade
@@ -179,6 +193,8 @@ def generate_dossie_pdf(school: dict, result: dict, mantenedora: dict = None) ->
         ("Corrimão", _bool(school.get("possui_corrimao"))),
         ("Banheiros Acessíveis (qtd)", school.get("banheiros_acessiveis")),
         ("Sinalização Tátil", _bool(school.get("sinalizacao_tatil"))),
+        ("Vias de Acesso Acessíveis", _tri(school.get("vias_acessiveis")) if school.get("vias_acessiveis") is not None else None),
+        ("Dependências Internas Acessíveis", _tri(school.get("dependencias_acessiveis")) if school.get("dependencias_acessiveis") is not None else None),
     ], styles))
 
     # 6. Segurança
@@ -190,15 +206,20 @@ def generate_dossie_pdf(school: dict, result: dict, mantenedora: dict = None) ->
         ("Plano de Evacuação", _bool(school.get("plano_evacuacao"))),
         ("Câmeras de Segurança (qtd)", school.get("qtd_cameras")),
         ("Cercamento/Muro", _bool(school.get("possui_cercamento"))),
+        ("AVCB (Corpo de Bombeiros)", _tri(school.get("avcb_bombeiros")) if school.get("avcb_bombeiros") is not None else None),
     ], styles))
 
     # 7. Água e Saneamento
     el.append(_heading("7. Água, Saneamento e Energia", styles))
     el.append(_kv_table([
         ("Abastecimento de Água", school.get("abastecimento_agua")),
+        ("Água Potável", _tri(school.get("agua_potavel")) if school.get("agua_potavel") is not None else None),
+        ("Certificado de Potabilidade", _tri(school.get("certificado_potabilidade")) if school.get("certificado_potabilidade") is not None else None),
         ("Energia Elétrica", school.get("energia_eletrica")),
         ("Esgotamento Sanitário", school.get("saneamento")),
+        ("Classificação do Esgotamento", school.get("tipo_esgotamento")),
         ("Destinação de Resíduos", school.get("coleta_lixo")),
+        ("Classificação da Destinação de Resíduos", school.get("tipo_destinacao_lixo")),
     ], styles))
 
     # 8. Equipamentos
@@ -254,6 +275,15 @@ def generate_dossie_pdf(school: dict, result: dict, mantenedora: dict = None) ->
     if pendentes:
         el.append(Spacer(1, 0.1 * cm))
         el.append(Paragraph(f"<b>Documentos pendentes:</b> {', '.join(pendentes)}", styles["Normal"]))
+    situacao_doc = [
+        ("alvara_funcionamento", "Alvará de Funcionamento"),
+        ("licenca_sanitaria", "Licença Sanitária"),
+        ("habite_se", "Habite-se"),
+        ("avcb_bombeiros", "AVCB (Corpo de Bombeiros)"),
+    ]
+    if any(school.get(k) is not None for k, _ in situacao_doc):
+        el.append(Spacer(1, 0.15 * cm))
+        el.append(_kv_table([(lbl, _tri(school.get(k))) for k, lbl in situacao_doc], styles))
 
     # 11. Observações Técnicas (últimos registros)
     obs = school.get("observacoes_tecnicas")
