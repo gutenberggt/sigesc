@@ -241,6 +241,26 @@ export default function MECIntegration() {
           </div>
           <p className="text-xs text-gray-500">Última execução: {metrics?.last_execution ? new Date(metrics.last_execution).toLocaleString('pt-BR') : 'Nenhuma execução registrada'}</p>
 
+          {/* Fila de Envio (Queue Manager — Sprint 002.c) */}
+          <div className="bg-white rounded-xl border p-5" data-testid="mec-queue-metrics">
+            <h4 className="font-semibold text-gray-900 mb-3">Fila de Envio</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                { label: 'Pendentes', value: metrics?.queue?.pendentes ?? 0 },
+                { label: 'Processando', value: metrics?.queue?.processando ?? 0 },
+                { label: 'Retries', value: metrics?.queue?.retries ?? 0 },
+                { label: 'Dead letters', value: metrics?.queue?.dead_letters ?? 0 },
+                { label: 'Concluídos', value: metrics?.queue?.success ?? 0 },
+                { label: 'Tempo médio em fila', value: metrics?.queue?.tempo_medio_fila_ms != null ? `${metrics.queue.tempo_medio_fila_ms} ms` : '—' },
+              ].map((c, i) => (
+                <div key={i} className="rounded-lg border p-3 bg-gray-50">
+                  <p className="text-[11px] text-gray-500">{c.label}</p>
+                  <p className="text-base font-bold text-gray-900" data-testid={`queue-metric-${i}`}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Feature Flags */}
           <div className="bg-white rounded-xl border p-5">
             <h4 className="font-semibold text-gray-900 mb-1">Feature Flags {flags?.environment ? `(ambiente: ${flags.environment})` : ''}</h4>

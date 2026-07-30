@@ -169,7 +169,7 @@ class FrequencyBatchBuilder:
                         batch_id=batch.id, correlation_id=correlation_id, tenant=tenant,
                         idempotency_key=idem, student_id=record["student_id"],
                         school_inep=record["school_inep"], competencia=competencia,
-                        payload_snapshot=record, status="pending")
+                        payload_snapshot=record, status="PENDING")
                     await self.repo.upsert_item(item)
             persisted = True
 

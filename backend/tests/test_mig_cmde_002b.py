@@ -128,7 +128,7 @@ async def run():
     q_after_2 = await db[QUEUE].count_documents({"tenant": TA})
     assert q_after_2 == 1, ("re-build NÃO duplica item (idempotency_key)", q_after_2)
     item = await db[QUEUE].find_one({"tenant": TA}, {"_id": 0})
-    assert item["status"] == "pending" and item["student_id"] == "bb_A1"
+    assert item["status"] == "PENDING" and item["student_id"] == "bb_A1"
     assert item["payload_snapshot"]["faltas_validas"] == 1
     print("OK 002b: persistência ready + idempotência (re-build não duplica)")
 

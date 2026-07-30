@@ -16,7 +16,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 BATCH_STATUSES = ("draft", "ready", "processing", "completed", "partial", "failed")
-QUEUE_STATUSES = ("pending", "leased", "sent", "accepted", "rejected", "error")
+# Máquina de estados do item de fila (Sprint 002.c)
+QUEUE_STATUSES = ("PENDING", "RESERVED", "PROCESSING", "RETRYING", "SUCCESS", "FAILED", "DEAD_LETTER")
 
 
 def _now_iso() -> str:
@@ -61,9 +62,12 @@ class QueueItem(BaseModel):
     school_inep: str = ""
     competencia: str
     payload_snapshot: dict = Field(default_factory=dict)   # nunca inclui segredos
-    status: str = "pending"
+    status: str = "PENDING"
     attempts: int = 0
     lease_until: Optional[str] = None
+    next_attempt_at: Optional[str] = None
+    reserved_at: Optional[str] = None
+    first_reserved_at: Optional[str] = None
     last_error: Optional[str] = None
     created_at: str = Field(default_factory=_now_iso)
     updated_at: str = Field(default_factory=_now_iso)

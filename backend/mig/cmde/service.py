@@ -152,6 +152,8 @@ class CmdeService(GovProvider):
         ctx = context or {}
         data = await self.audit.metrics(provider=PROVIDER, tenant=ctx.get("tenant"))
         data["runtime_counters"] = self.monitoring.snapshot()
+        from mig.cmde.queue import MongoFrequencyQueue
+        data["queue"] = await MongoFrequencyQueue(self.db).queue_metrics(ctx.get("tenant"))
         return data
 
     async def audit_events(self, context: dict = None, page: int = 1, page_size: int = 50,

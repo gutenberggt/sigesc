@@ -68,7 +68,7 @@ def test_models_and_dtos():
     assert doc["status"] in BATCH_STATUSES and "id" in doc and doc["created_at"]
     q = QueueItem(batch_id=b.id, idempotency_key="k", student_id="s1", competencia="2026-05", tenant="t1")
     qd = q.to_doc()
-    assert qd["status"] == "pending" and qd["attempts"] == 0 and qd["lease_until"] is None
+    assert qd["status"] == "PENDING" and qd["attempts"] == 0 and qd["lease_until"] is None
     r = SendReceipt(queue_item_id=q.id, batch_id=b.id, accepted=True, mec_protocol="SIM-1")
     assert r.to_doc()["accepted"] is True
     req = FrequencyBatchRequestDTO(competencia="2026-05")

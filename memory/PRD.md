@@ -1,5 +1,20 @@
 # SIGESC - Product Requirements Document
 
+## ✅ MIG SPRINT 002.c — Queue Manager (fila durável MongoDB) CONCLUÍDA (Jun/2026)
+Fila durável `MongoFrequencyQueue` (`mig/cmde/queue.py`) com máquina de estados PENDING→RESERVED→
+PROCESSING→SUCCESS/FAILED, RETRYING (com backoff) e DEAD_LETTER ao exceder max_attempts. Recursos:
+reserva atômica via find_one_and_update (lease), renovação de lease, requeue automático por
+expiração, backpressure por tenant, índices (uq_idem unique em idempotency_key + reserve/lease/
+metrics idx, criados na base real), métricas de fila (pendentes/processando/retries/dead_letters/
+tempo médio) expostas em `/mec/metrics` e no card "Fila de Envio" do Dashboard. **Sem Worker/
+Scheduler/envio.** `QueueItem` migrado para a máquina de estados nova (status default PENDING +
+next_attempt_at/reserved_at/first_reserved_at); builder cria em PENDING. Testes:
+`tests/test_mig_cmde_002c.py` 11 blocos PASS (reserva simultânea 20/40 sem duplicidade, expiração+
+requeue, renovação de lease, multi-tenant, backpressure, RETRYING→DEAD_LETTER, FAILED, 500 itens,
+métricas); regressão 002.a 12/12, 002.b 7/7, 000/001/001.1 15/15. Relatório:
+`memory/audit/SPRINT_002_C_QUEUE_MANAGER.md`. Próximo: **002.d Workers+Retry** (aguardando aprovação).
+
+
 ## ✅ MIG SPRINT 002.b — Batch Builder de Frequência CONCLUÍDA (Jun/2026)
 Builder que transforma o SSoT `attendance` em lotes CMDE — **read-only, sem regra nova de
 frequência, sem envio ao MEC, sem Queue/Worker/Scheduler**. Entregas: `mig/cmde/batch_builder.py`
