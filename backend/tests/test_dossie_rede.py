@@ -23,9 +23,10 @@ schools = [
 ]
 
 data = ctue.build_network_dossie(schools, profile="mp")
-assert data["executive"]["total"] == 3
-assert len(data["ranking"]) == 3
-assert data["ranking"][0]["conformidade"] >= data["ranking"][-1]["conformidade"], "ranking deve estar desc"
+assert data["executive"]["total"] == 3, "Panorama (item 3) considera toda a rede"
+assert data["executive"]["ativas"] == 2
+assert len(data["ranking"]) == 2, "A partir do item 4 considera apenas ativas"
+assert all(r["situacao"] == "Ativa" for r in data["ranking"])
 assert any(i["indicador"] == "Internet" for i in data["infraestrutura"])
 assert data["obras"]["total_intervencoes"] == 2
 assert any(d["documento"] == "AVCB (Corpo de Bombeiros)" for d in data["documentacao"])

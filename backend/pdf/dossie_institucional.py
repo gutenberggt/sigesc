@@ -18,7 +18,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from pdf.utils import get_logo_image, get_styles
 
 _STATUS_PT = {
-    "conforme": "Adequado", "atencao": "Em Adequação", "critico": "Adequação Prioritária",
+    "conforme": "Adequado", "atencao": "Em Adequação", "critico": "Necessita Adequação",
     "nao_conforme": "Não Adequado", "nao_avaliado": "Não avaliado",
 }
 _STATUS_COLOR = {

@@ -19,17 +19,16 @@ from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table, Tab
 from pdf.utils import get_logo_image, get_styles
 
 _STATUS_PT = {
-    "conforme": "Adequado", "atencao": "Em Adequação", "critico": "Adequação Prioritária",
+    "conforme": "Adequado", "atencao": "Em Adequação", "critico": "Necessita Adequação",
     "nao_conforme": "Não Adequado", "nao_avaliado": "Não avaliado",
-}
-_STATUS_COLOR = {
-    "conforme": colors.HexColor("#16a34a"), "atencao": colors.HexColor("#ca8a04"),
-    "critico": colors.HexColor("#ea580c"), "nao_conforme": colors.HexColor("#dc2626"),
-    "nao_avaliado": colors.HexColor("#6b7280"),
 }
 _BLUE = colors.HexColor("#1e40af")
 _GRAY = colors.HexColor("#f3f4f6")
 _HEAD_GRID = colors.HexColor("#e5e7eb")
+
+_CELL = ParagraphStyle("RedeCell", fontName="Helvetica", fontSize=8.5, leading=10.5, alignment=TA_LEFT)
+_CELL_H = ParagraphStyle("RedeCellH", fontName="Helvetica-Bold", fontSize=8.5, leading=10.5,
+                         alignment=TA_LEFT, textColor=colors.white)
 
 
 def _v(val, none="Não informado"):
@@ -42,15 +41,17 @@ def _h2(text, styles):
     return Paragraph(text, styles["RedeH2"])
 
 
-def _bar_table(rows, styles, header, col_widths):
-    data = [header] + rows
-    t = Table(data, colWidths=col_widths)
+def _c(text, header=False):
+    return Paragraph(str(text) if header else _v(text, "—"), _CELL_H if header else _CELL)
+
+
+def _bar_table(rows, header, col_widths):
+    data = [[_c(h, header=True) for h in header]] + [[_c(v) for v in r] for r in rows]
+    t = Table(data, colWidths=col_widths, repeatRows=1)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), _BLUE),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
         ("GRID", (0, 0), (-1, -1), 0.4, _HEAD_GRID),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
     ]))
@@ -66,9 +67,6 @@ def _bullets(items, styles):
 
 def generate_network_dossie_pdf(data: dict, mantenedora: dict = None, exercicio: str = None) -> bytes:
     buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
-                            leftMargin=1.8 * cm, rightMargin=1.8 * cm,
-                            title="Dossiê Institucional da Rede Municipal de Ensino")
     styles = get_styles()
     if "RedeH2" not in styles:
         styles.add(ParagraphStyle(name="RedeH2", parent=styles["Heading2"], fontSize=13,
@@ -80,45 +78,83 @@ def generate_network_dossie_pdf(data: dict, mantenedora: dict = None, exercicio:
         styles.add(ParagraphStyle(name="RedeCover", parent=styles["Heading1"], fontSize=24,
                                   textColor=_BLUE, alignment=TA_CENTER, spaceBefore=10, spaceAfter=10, leading=28))
 
-    el = []
-    mant_nome = (mantenedora or {}).get("nome") or (mantenedora or {}).get("name") or "Secretaria Municipal de Educação"
-    prefeitura = (mantenedora or {}).get("prefeitura") or (mantenedora or {}).get("municipio") or "Prefeitura Municipal"
+    m = mantenedora or {}
+    prefeitura = m.get("nome") or "Prefeitura Municipal"
+    secretaria = m.get("secretaria") or "Secretaria Municipal de Educação"
+    municipio = m.get("municipio")
     exercicio = exercicio or str(datetime.now(timezone.utc).year)
     emitido = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
+    rodape_titulo = "Dossiê Institucional da Rede Municipal de Ensino"
+
+    # Brasão do município (identificação da mantenedora); fallback: logotipo → logo padrão
+    brasao_url = m.get("brasao_url") or m.get("logotipo_url") or None
+
+    def _footer(canvas, doc):
+        canvas.saveState()
+        w, _ = A4
+        if doc.page > 1:  # capa sem rodapé
+            canvas.setStrokeColor(_HEAD_GRID)
+            canvas.setLineWidth(0.5)
+            canvas.line(1.8 * cm, 1.2 * cm, w - 1.8 * cm, 1.2 * cm)
+            canvas.setFont("Helvetica", 7.5)
+            canvas.setFillColor(colors.HexColor("#6b7280"))
+            canvas.drawString(1.8 * cm, 0.8 * cm, f"{rodape_titulo} · {prefeitura}")
+            canvas.drawRightString(w - 1.8 * cm, 0.8 * cm, f"Página {doc.page}")
+            canvas.drawCentredString(w / 2.0, 0.8 * cm, "SIGESC · gerado a partir do CTUE (SSoT)")
+        canvas.restoreState()
+
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.8 * cm,
+                            leftMargin=1.8 * cm, rightMargin=1.8 * cm,
+                            title="Dossiê Institucional da Rede Municipal de Ensino")
+
+    el = []
 
     # ===== 1. Capa Institucional =====
-    el.append(Spacer(1, 2.2 * cm))
-    logo = get_logo_image(width=3.2 * cm, height=3.2 * cm)
+    el.append(Spacer(1, 2.0 * cm))
+    logo = get_logo_image(width=3.4 * cm, height=3.4 * cm, logo_url=brasao_url)
     if logo:
-        lt = Table([[logo]], colWidths=[3.2 * cm])
-        lt.hAlign = "CENTER"
-        el.append(lt)
-        el.append(Spacer(1, 0.6 * cm))
+        lt = Table([[logo]], colWidths=[3.4 * cm]); lt.hAlign = "CENTER"
+        el.append(lt); el.append(Spacer(1, 0.6 * cm))
     el.append(Paragraph(f"<b>{prefeitura}</b>", styles["SubTitle"]))
-    el.append(Paragraph(f"<b>{mant_nome}</b>", styles["CenterText"]))
-    el.append(Spacer(1, 1.4 * cm))
+    el.append(Paragraph(f"<b>{secretaria}</b>", styles["CenterText"]))
+    if municipio:
+        el.append(Paragraph(municipio, styles["RedeSmall"]))
+    el.append(Spacer(1, 1.3 * cm))
     el.append(Paragraph("DOSSIÊ INSTITUCIONAL DA REDE MUNICIPAL DE ENSINO", styles["RedeCover"]))
-    el.append(Spacer(1, 0.6 * cm))
+    el.append(Spacer(1, 0.5 * cm))
     el.append(Paragraph(f"Exercício {exercicio}", styles["SubTitle"]))
-    el.append(Spacer(1, 3.5 * cm))
-    el.append(Paragraph(f"Documento gerado automaticamente pelo SIGESC a partir do Cadastro Técnico "
-                        f"da Unidade Escolar (CTUE) — emitido em {emitido} (UTC).", styles["RedeSmall"]))
-    el.append(Paragraph(f"Perfil de avaliação: {data.get('profile_label', data.get('profile'))}", styles["RedeSmall"]))
+    el.append(Spacer(1, 3.2 * cm))
+    el.append(Paragraph(f"Emitido em {emitido} (UTC) · Perfil de avaliação: "
+                        f"{data.get('profile_label', data.get('profile'))}", styles["RedeSmall"]))
+    el.append(PageBreak())
+
+    # ===== Sumário =====
+    el.append(_h2("Sumário", styles))
+    sumario = [
+        "1. Capa Institucional", "2. Apresentação", "3. Panorama Geral",
+        "4. Distribuição da Rede", "5. Ranking de Conformidade", "6. Ranking de Prioridades",
+        "7. Infraestrutura da Rede", "8. Obras e Intervenções", "9. Documentação",
+        "10. Diagnóstico Executivo", "11. Plano de Ação Sugerido", "12. Conclusão",
+    ]
+    el.append(ListFlowable([ListItem(Paragraph(s, styles["Normal"]), leftIndent=8) for s in sumario],
+                           bulletType="bullet", start="", leftIndent=6))
+    el.append(Paragraph("<i>Observação: a partir do item 4, os indicadores consideram apenas as "
+                        "escolas ativas da rede.</i>", styles["RedeSmall"]))
     el.append(PageBreak())
 
     # ===== 2. Apresentação =====
     el.append(_h2("2. Apresentação", styles))
     el.append(Paragraph(
         "Este Dossiê consolida, em documento único, a fotografia institucional da Rede Municipal de "
-        "Ensino a partir do Cadastro Técnico da Unidade Escolar (CTUE). Todas as informações aqui "
-        "apresentadas são geradas automaticamente pelo SIGESC, sem consolidação manual, respeitando "
-        "rigorosamente o princípio de fonte única de dados (Single Source of Truth). O documento "
-        "destina-se à alta gestão e pode subsidiar prestação de contas, planejamento estratégico, "
-        "planos de ação da Secretaria e o atendimento a órgãos de controle (Ministério Público, "
-        "Tribunal de Contas, FNDE), à Câmara Municipal e ao Conselho Municipal de Educação.",
+        "Ensino a partir do Cadastro Técnico da Unidade Escolar (CTUE). Todas as informações são "
+        "geradas automaticamente pelo SIGESC, sem consolidação manual, respeitando rigorosamente o "
+        "princípio de fonte única de dados (Single Source of Truth). O documento destina-se à alta "
+        "gestão e pode subsidiar prestação de contas, planejamento estratégico, planos de ação da "
+        "Secretaria e o atendimento a órgãos de controle (Ministério Público, Tribunal de Contas, "
+        "FNDE), à Câmara Municipal e ao Conselho Municipal de Educação.",
         styles["JustifyText"]))
 
-    # ===== 3. Panorama Geral =====
+    # ===== 3. Panorama Geral (TODA a rede) =====
     ex = data["executive"]
     el.append(_h2("3. Panorama Geral", styles))
     pg = [
@@ -129,41 +165,39 @@ def generate_network_dossie_pdf(data: dict, mantenedora: dict = None, exercicio:
         ["Cadastros nunca atualizados", str(ex.get("cadastros_nunca_atualizados", 0)),
          "Maturidade média", f"Nível {ex.get('maturidade_media', 1)}"],
     ]
-    t = Table(pg, colWidths=[4.6 * cm, 4.0 * cm, 4.6 * cm, 4.0 * cm])
+    t = Table([[_c(a), _c(b), _c(cc), _c(d)] for a, b, cc, d in pg],
+              colWidths=[4.6 * cm, 4.0 * cm, 4.6 * cm, 4.0 * cm])
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (0, -1), _GRAY), ("BACKGROUND", (2, 0), (2, -1), _GRAY),
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"), ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
-        ("GRID", (0, 0), (-1, -1), 0.4, _HEAD_GRID), ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("GRID", (0, 0), (-1, -1), 0.4, _HEAD_GRID),
         ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
     el.append(t)
 
-    # ===== 4. Distribuição da Rede =====
+    # ===== 4. Distribuição da Rede (apenas ativas) =====
     el.append(_h2("4. Distribuição da Rede", styles))
+    el.append(Paragraph("Considera apenas escolas ativas.", styles["RedeSmall"]))
     comp = data["comparativos"]
-    grupo_titulos = [("zona", "Urbana × Rural"), ("etapas", "Etapas de Ensino"),
-                     ("porte", "Porte das Escolas"), ("distrito", "Distritos / Polos")]
-    for key, titulo in grupo_titulos:
+    for key, titulo in [("zona", "Urbana × Rural"), ("etapas", "Etapas de Ensino"),
+                        ("porte", "Porte das Escolas"), ("distrito", "Distritos / Polos")]:
         linhas = comp.get(key, [])
         if not linhas:
             continue
         el.append(Paragraph(f"<b>{titulo}</b>", styles["Normal"]))
-        rows = [[_v(g["grupo"]), str(g["escolas"]), f"{g['conformidade_media']}%", f"{g['completude_media']}%"] for g in linhas]
-        el.append(_bar_table(rows, styles, ["Grupo", "Escolas", "Conf. média", "Compl. média"],
+        rows = [[g["grupo"], str(g["escolas"]), f"{g['conformidade_media']}%", f"{g['completude_media']}%"] for g in linhas]
+        el.append(_bar_table(rows, ["Grupo", "Escolas", "Conf. média", "Compl. média"],
                              [8.0 * cm, 3.0 * cm, 3.1 * cm, 3.1 * cm]))
         el.append(Spacer(1, 0.25 * cm))
 
     # ===== 5. Ranking de Conformidade =====
     el.append(PageBreak())
     el.append(_h2("5. Ranking de Conformidade", styles))
-    el.append(Paragraph("Todas as unidades, da maior para a menor conformidade.", styles["RedeSmall"]))
-    rows = []
-    for i, r in enumerate(data["ranking"], start=1):
-        rows.append([str(i), _v(r["name"]), f"{r['conformidade']}%", f"{r['completude']}%",
-                     _v(r["atualizacao"]), f"N{r['maturidade_nivel']}", _STATUS_PT.get(r["status"], r["status"])])
-    tbl = _bar_table(rows, styles, ["#", "Escola", "Conf.", "Compl.", "Atualização", "Mat.", "Situação"],
-                     [0.9 * cm, 5.6 * cm, 1.6 * cm, 1.6 * cm, 3.2 * cm, 1.2 * cm, 3.1 * cm])
-    el.append(tbl)
+    el.append(Paragraph("Escolas ativas, da maior para a menor conformidade.", styles["RedeSmall"]))
+    rows = [[str(i), r["name"], f"{r['conformidade']}%", f"{r['completude']}%", r["atualizacao"],
+             f"N{r['maturidade_nivel']}", _STATUS_PT.get(r["status"], r["status"])]
+            for i, r in enumerate(data["ranking"], start=1)]
+    el.append(_bar_table(rows, ["#", "Escola", "Conf.", "Compl.", "Atualização", "Mat.", "Situação"],
+                         [0.9 * cm, 5.4 * cm, 1.5 * cm, 1.6 * cm, 3.2 * cm, 1.2 * cm, 3.4 * cm]))
 
     # ===== 6. Ranking de Prioridades =====
     el.append(PageBreak())
@@ -171,17 +205,16 @@ def generate_network_dossie_pdf(data: dict, mantenedora: dict = None, exercicio:
     el.append(Paragraph("Fila de Ações Prioritárias — mesma lógica do Painel Gerencial da Rede.", styles["RedeSmall"]))
     prio = data["priorities"]
     if prio:
-        rows = [[str(p.get("ordem", i + 1)), _v(p.get("school_name")), _v(p.get("acao"))] for i, p in enumerate(prio[:25])]
-        el.append(_bar_table(rows, styles, ["#", "Unidade", "Ação recomendada"],
-                             [1.0 * cm, 5.0 * cm, 11.2 * cm]))
+        rows = [[str(p.get("ordem", i + 1)), p.get("school_name"), p.get("acao")] for i, p in enumerate(prio[:30])]
+        el.append(_bar_table(rows, ["#", "Unidade", "Ação recomendada"], [1.0 * cm, 5.0 * cm, 11.2 * cm]))
     else:
         el.append(Paragraph("Nenhuma ação prioritária no momento.", styles["RedeSmall"]))
 
     # ===== 7. Infraestrutura da Rede =====
     el.append(PageBreak())
     el.append(_h2("7. Infraestrutura da Rede", styles))
-    rows = [[_v(x["indicador"]), str(x["com"]), str(x["sem"]), f"{x['pct_com']}%"] for x in data["infraestrutura"]]
-    el.append(_bar_table(rows, styles, ["Indicador", "Com", "Sem", "% Com"],
+    rows = [[x["indicador"], str(x["com"]), str(x["sem"]), f"{x['pct_com']}%"] for x in data["infraestrutura"]]
+    el.append(_bar_table(rows, ["Indicador", "Com", "Sem", "% Com"],
                          [9.0 * cm, 2.7 * cm, 2.7 * cm, 2.8 * cm]))
 
     # ===== 8. Obras e Intervenções =====
@@ -190,22 +223,20 @@ def generate_network_dossie_pdf(data: dict, mantenedora: dict = None, exercicio:
     el.append(Paragraph(f"Total de {ob['total_intervencoes']} intervenção(ões) em "
                         f"{ob['escolas_com_obras']} unidade(s).", styles["Normal"]))
     if ob["por_situacao"]:
-        el.append(Spacer(1, 0.15 * cm))
-        el.append(Paragraph("<b>Por situação</b>", styles["Normal"]))
-        rows = [[_v(g["grupo"]), str(g["qtd"])] for g in ob["por_situacao"]]
-        el.append(_bar_table(rows, styles, ["Situação", "Qtd."], [13.0 * cm, 4.2 * cm]))
+        el.append(Spacer(1, 0.15 * cm)); el.append(Paragraph("<b>Por situação</b>", styles["Normal"]))
+        el.append(_bar_table([[g["grupo"], str(g["qtd"])] for g in ob["por_situacao"]],
+                             ["Situação", "Qtd."], [13.0 * cm, 4.2 * cm]))
     if ob["por_tipo"]:
-        el.append(Spacer(1, 0.15 * cm))
-        el.append(Paragraph("<b>Por tipo de intervenção</b>", styles["Normal"]))
-        rows = [[_v(g["grupo"]), str(g["qtd"])] for g in ob["por_tipo"]]
-        el.append(_bar_table(rows, styles, ["Tipo", "Qtd."], [13.0 * cm, 4.2 * cm]))
+        el.append(Spacer(1, 0.15 * cm)); el.append(Paragraph("<b>Por tipo de intervenção</b>", styles["Normal"]))
+        el.append(_bar_table([[g["grupo"], str(g["qtd"])] for g in ob["por_tipo"]],
+                             ["Tipo", "Qtd."], [13.0 * cm, 4.2 * cm]))
     if not ob["por_situacao"] and not ob["por_tipo"]:
         el.append(Paragraph("Nenhuma obra ou intervenção cadastrada na rede.", styles["RedeSmall"]))
 
     # ===== 9. Documentação =====
     el.append(_h2("9. Documentação", styles))
-    rows = [[_v(x["documento"]), str(x["com"]), str(x["sem"]), f"{x['pct_com']}%"] for x in data["documentacao"]]
-    el.append(_bar_table(rows, styles, ["Documento", "Possuem", "Não possuem", "% Possuem"],
+    rows = [[x["documento"], str(x["com"]), str(x["sem"]), f"{x['pct_com']}%"] for x in data["documentacao"]]
+    el.append(_bar_table(rows, ["Documento", "Possuem", "Não possuem", "% Possuem"],
                          [9.0 * cm, 2.7 * cm, 2.7 * cm, 2.8 * cm]))
 
     # ===== 10. Diagnóstico Executivo =====
@@ -231,9 +262,9 @@ def generate_network_dossie_pdf(data: dict, mantenedora: dict = None, exercicio:
             exemplos = ", ".join(p.get("exemplos", []))
             if p.get("escolas", 0) > len(p.get("exemplos", [])):
                 exemplos += ", …"
-            rows.append([str(i), _v(p["recomendacao"]), str(p["escolas"]), _v(exemplos, "—")])
-        el.append(_bar_table(rows, styles, ["#", "Recomendação", "Unid.", "Exemplos"],
-                             [0.9 * cm, 8.4 * cm, 1.5 * cm, 6.4 * cm]))
+            rows.append([str(i), p["recomendacao"], str(p["escolas"]), exemplos or "—"])
+        el.append(_bar_table(rows, ["#", "Recomendação", "Unid.", "Exemplos"],
+                             [0.9 * cm, 8.2 * cm, 1.5 * cm, 6.6 * cm]))
     else:
         el.append(Paragraph("Sem recomendações no momento — rede em situação regular.", styles["RedeSmall"]))
 
@@ -248,5 +279,5 @@ def generate_network_dossie_pdf(data: dict, mantenedora: dict = None, exercicio:
         f"escolares e pela Secretaria Municipal de Educação.",
         styles["JustifyText"]))
 
-    doc.build(el)
+    doc.build(el, onFirstPage=_footer, onLaterPages=_footer)
     return buf.getvalue()

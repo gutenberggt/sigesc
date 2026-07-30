@@ -508,8 +508,13 @@ def build_network_dossie(schools, profile="default", ruleset=None):
     Não cria novos indicadores de conformidade — apenas consolida/ordena o que já existe.
     """
     rs = ruleset or _RULESET
-    panel = build_network_panel(schools, profile=profile, ruleset=rs)
-    results = [(s, evaluate(s, profile=profile, ruleset=rs)) for s in schools]
+    # Panorama Geral (item 3) considera TODA a rede (total/ativas/inativas + médias).
+    panel_all = build_network_panel(schools, profile=profile, ruleset=rs)
+    # A partir do item 4 (Distribuição, Ranking, Prioridades, Infra, Obras, Doc, Diagnóstico,
+    # Plano) considera-se APENAS escolas ativas.
+    ativas = [s for s in schools if s.get("status") == "active"]
+    panel = build_network_panel(ativas, profile=profile, ruleset=rs)
+    results = [(s, evaluate(s, profile=profile, ruleset=rs)) for s in ativas]
     total = len(results) or 1
 
     # 5. Ranking de Conformidade (ordenado por conformidade desc — usa ConformityResult)
@@ -626,7 +631,7 @@ def build_network_dossie(schools, profile="default", ruleset=None):
         "profile": profile,
         "profile_label": next((p["label"] for p in get_profiles() if p["key"] == profile), profile),
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "executive": ex,
+        "executive": panel_all["executive"],
         "ranking": ranking,
         "priorities": panel["priorities"],
         "comparativos": panel["comparativos"],

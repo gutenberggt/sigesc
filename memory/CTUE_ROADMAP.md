@@ -151,3 +151,18 @@ Um único PDF consolidado da rede, gerado com um clique no Painel Gerencial ("Do
   multi-tenant como o network-panel). PDF: `pdf/dossie_rede.py`.
 - Frontend: botão "Dossiê da Rede" em `NetworkPanel.jsx` respeitando o perfil selecionado.
 - Testes: `backend/tests/test_dossie_rede.py` (dados + PDF) e verificação das 12 seções (6 págs).
+
+---
+
+## Refinamentos do Dossiê da Rede + encerramento do ciclo (Jun/2026)
+- **Sumário** (índice das 12 seções) após a capa.
+- **Paginação + rodapé institucional** em todas as páginas (exceto capa): título do documento,
+  prefeitura, "Página X" e assinatura "SIGESC · gerado a partir do CTUE (SSoT)".
+- **Brasão do município**: capa usa `mantenedora.brasao_url` (fallback logotipo_url → logo padrão).
+- **Quebra de linha nas tabelas**: todas as células agora são Paragraph (evita sobreposição).
+- **Escopo ativo**: a partir do item 4 (Distribuição), o dossiê considera SOMENTE escolas ativas;
+  o Panorama Geral (item 3) permanece com toda a rede (total/ativas/inativas). Implementado em
+  `build_network_dossie` (panel_all p/ item 3, panel/ativas p/ itens 4–11).
+- **Rótulo**: "Adequação Prioritária" → "Necessita Adequação" em UI (ConformityPanel) e nos dois
+  PDFs (dossiê por escola e da rede).
+- CTUE agora em **manutenção evolutiva**. Prioridade do SIGESC migra para outro módulo estratégico.
