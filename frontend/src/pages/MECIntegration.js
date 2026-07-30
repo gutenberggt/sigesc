@@ -48,6 +48,9 @@ export default function MECIntegration() {
   const [freqPreview, setFreqPreview] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState('');
+  const [scheduler, setScheduler] = useState(null);
+  const [schedulerBusy, setSchedulerBusy] = useState(false);
+  const [deadLetters, setDeadLetters] = useState([]);
 
   const runFreqPreview = async () => {
     setLoadingPreview(true); setPreviewError(''); setFreqPreview(null);
@@ -65,12 +68,27 @@ export default function MECIntegration() {
     try {
       const params = { page, page_size: 20 };
       if (statusFilter) params.status = statusFilter;
-      const [m, a, f] = await Promise.all([mecAPI.getMetrics(), mecAPI.getAudit(params), mecAPI.getFlags()]);
+      const [m, a, f, sch, dl] = await Promise.all([
+        mecAPI.getMetrics(), mecAPI.getAudit(params), mecAPI.getFlags(),
+        mecAPI.getScheduler(), mecAPI.getDeadLetters({ page: 1, pageSize: 50 })]);
       setMetrics(m); setAuditEvents(a.events || []); setFlags(f);
       setAuditPage(a.page || 1); setAuditTotalPages(a.total_pages || 1); setAuditTotal(a.total || 0);
+      setScheduler(sch); setDeadLetters(dl.items || []);
     } catch (e) { console.error(e); }
     setLoadingOps(false);
   }, []);
+
+  const runSchedulerTick = async () => {
+    setSchedulerBusy(true);
+    try { await mecAPI.tickScheduler(); await loadOps(auditPage, auditStatusFilter); }
+    catch (e) { console.error(e); }
+    setSchedulerBusy(false);
+  };
+
+  const reprocessDeadLetter = async (itemId) => {
+    try { await mecAPI.reprocessDeadLetter(itemId); await loadOps(auditPage, auditStatusFilter); }
+    catch (e) { console.error(e); }
+  };
 
   const toggleFlag = async (flag, enabled, environment) => {
     try { await mecAPI.setFlag({ flag, enabled, environment }); await loadOps(auditPage, auditStatusFilter); }
@@ -364,6 +382,80 @@ export default function MECIntegration() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Scheduler (Sprint 002.e) */}
+          <div className="bg-white rounded-xl border p-5" data-testid="mec-scheduler-panel">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+              <h4 className="font-semibold text-gray-900">Scheduler de Envio</h4>
+              <div className="flex items-center gap-2">
+                <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${scheduler?.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`} data-testid="scheduler-status">
+                  {scheduler?.status || 'OFF'}
+                </span>
+                <button onClick={runSchedulerTick} disabled={schedulerBusy}
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border hover:bg-gray-50 disabled:opacity-60"
+                  data-testid="scheduler-tick-btn">
+                  {schedulerBusy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}Disparo manual
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                { label: 'Status', value: scheduler?.status || 'OFF' },
+                { label: 'Tenant', value: scheduler?.tenant || '—' },
+                { label: 'Feature Flag', value: scheduler?.flag || '—' },
+                { label: 'Última execução', value: scheduler?.last_run ? new Date(scheduler.last_run).toLocaleString('pt-BR') : '—' },
+                { label: 'Próxima execução', value: scheduler?.next_run ? new Date(scheduler.next_run).toLocaleString('pt-BR') : '—' },
+                { label: 'Último resultado', value: scheduler?.last_result ? `${scheduler.last_result.success ?? 0} ok / ${scheduler.last_result.processed ?? 0}` : '—' },
+              ].map((c, i) => (
+                <div key={i} className="rounded-lg border p-3 bg-gray-50">
+                  <p className="text-[11px] text-gray-500">{c.label}</p>
+                  <p className="text-sm font-bold text-gray-900 break-words" data-testid={`scheduler-field-${i}`}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">Provider ativo: Simulador CMDE (nenhuma chamada real ao MEC). Ativação somente por feature flag.</p>
+          </div>
+
+          {/* Dead Letters (Sprint 002.e) */}
+          <div className="bg-white rounded-xl border p-5" data-testid="mec-dead-letters-panel">
+            <h4 className="font-semibold text-gray-900 mb-3">Dead Letters ({deadLetters.length})</h4>
+            {deadLetters.length === 0 ? (
+              <p className="text-sm text-gray-500" data-testid="dead-letters-empty">Nenhum item em dead letter.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" data-testid="dead-letters-table">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium">Correlation ID</th>
+                      <th className="text-left px-3 py-2 font-medium">Tenant</th>
+                      <th className="text-left px-3 py-2 font-medium">Competência</th>
+                      <th className="text-left px-3 py-2 font-medium">Motivo</th>
+                      <th className="text-left px-3 py-2 font-medium">Tentativas</th>
+                      <th className="text-left px-3 py-2 font-medium">Última tentativa</th>
+                      <th className="text-left px-3 py-2 font-medium">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deadLetters.map((d) => (
+                      <tr key={d.id} className="border-t" data-testid={`dead-letter-row-${d.id}`}>
+                        <td className="px-3 py-2 font-mono text-xs">{d.correlation_id || '—'}</td>
+                        <td className="px-3 py-2">{d.tenant || '—'}</td>
+                        <td className="px-3 py-2">{d.competencia || '—'}</td>
+                        <td className="px-3 py-2 text-red-600">{d.last_error || '—'}</td>
+                        <td className="px-3 py-2">{d.attempts ?? 0}</td>
+                        <td className="px-3 py-2 text-gray-500">{d.updated_at ? new Date(d.updated_at).toLocaleString('pt-BR') : '—'}</td>
+                        <td className="px-3 py-2">
+                          <button onClick={() => reprocessDeadLetter(d.id)}
+                            className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                            data-testid={`reprocess-btn-${d.id}`}>Reprocessar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

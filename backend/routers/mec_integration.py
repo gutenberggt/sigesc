@@ -115,4 +115,31 @@ def setup_router(db, **kwargs):
         except MigError as e:
             raise HTTPException(status_code=e.status_code, detail=e.message)
 
+    # ---------- Scheduler + Dead Letters (Sprint 002.e) ----------
+    @router.get("/mec/scheduler")
+    async def scheduler_status(request: Request):
+        ctx = await _guard(request)
+        return await service.scheduler_status(context=ctx)
+
+    @router.post("/mec/scheduler/config")
+    async def scheduler_config(request: Request):
+        ctx = await _guard(request)
+        body = await request.json()
+        return await service.scheduler_set_config(body or {}, context=ctx)
+
+    @router.post("/mec/scheduler/tick")
+    async def scheduler_tick(request: Request):
+        ctx = await _guard(request)
+        return await service.scheduler_tick(context=ctx, manual=True)
+
+    @router.get("/mec/dead-letters")
+    async def dead_letters(request: Request, page: int = 1, page_size: int = 50):
+        ctx = await _guard(request)
+        return await service.dead_letters(context=ctx, page=page, page_size=page_size)
+
+    @router.post("/mec/dead-letters/{item_id}/reprocess")
+    async def reprocess_dead_letter(item_id: str, request: Request):
+        ctx = await _guard(request)
+        return await service.reprocess_dead_letter(item_id, context=ctx)
+
     return router

@@ -139,6 +139,15 @@ class MongoFrequencyQueue:
         await self.col.update_one({"id": item_id}, {"$set": {
             "status": PENDING, "lease_until": None, "updated_at": _iso()}})
 
+    async def reprocess(self, item_id: str) -> bool:
+        """Reprocessa item terminal (DEAD_LETTER/FAILED) → PENDING, respeitando idempotência
+        (mesmo item/idempotency_key; não cria duplicata)."""
+        res = await self.col.update_one(
+            {"id": item_id, "status": {"$in": [DEAD_LETTER, FAILED]}},
+            {"$set": {"status": PENDING, "attempts": 0, "lease_until": None,
+                      "next_attempt_at": None, "last_error": None, "updated_at": _iso()}})
+        return res.modified_count == 1
+
     async def requeue_expired(self) -> int:
         now_iso = _iso()
         res = await self.col.update_many(

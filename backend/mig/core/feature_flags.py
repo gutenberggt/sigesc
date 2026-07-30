@@ -21,6 +21,9 @@ DEFAULT_FLAGS = {
     "cmde.enabled": True,
     "cmde.elegibilidades": True,
     "cmde.retry": True,
+    # Sprint 002.e — Scheduler OFF por padrão (produção); Simulador é o provider ativo
+    "cmde.frequency.scheduler_enabled": False,
+    "cmde.frequency.simulator": True,
 }
 
 COLLECTION = "mig_feature_flags"

@@ -20,6 +20,8 @@ from mig.cmde.client import CmdeClient
 from mig.cmde.mapper import CmdeMapper
 from mig.cmde.dtos import MecConfigUpdateDTO, FrequencyBatchRequestDTO
 from mig.cmde.batch_builder import FrequencyBatchBuilder
+from mig.cmde.scheduler import FrequencyScheduler
+from mig.cmde.queue import MongoFrequencyQueue, DEAD_LETTER, FAILED
 
 _ACTIVE_STATUSES = ["active", "Ativo"]
 PROVIDER = "cmde"
@@ -39,6 +41,8 @@ class CmdeService(GovProvider):
         self.monitoring = MigMonitoring()
         self.flags = FeatureFlagService(db)
         self.batch_builder = FrequencyBatchBuilder(db)
+        self.scheduler = FrequencyScheduler(db)
+        self.queue = MongoFrequencyQueue(db)
 
     # ---- Configuração ----
     async def get_config(self) -> dict:
@@ -175,6 +179,54 @@ class CmdeService(GovProvider):
                                      context: dict = None) -> dict:
         """Sprint 002.b — constrói lote de frequência a partir do SSoT (read-only)."""
         return await self.batch_builder.build(request, context or {})
+
+    # ---------- Scheduler + Dead Letters (Sprint 002.e) ----------
+    async def _environment(self) -> str:
+        return (await self.config_repo.get_raw() or {}).get("environment", "homologacao")
+
+    async def scheduler_status(self, context: dict = None) -> dict:
+        ctx = context or {}
+        return await self.scheduler.status_view(ctx.get("tenant"), await self._environment())
+
+    async def scheduler_set_config(self, body: dict, context: dict = None) -> dict:
+        ctx = context or {}
+        b = body or {}
+        return await self.scheduler.set_config(
+            ctx.get("tenant"), await self._environment(),
+            window_start=b.get("window_start"), window_end=b.get("window_end"),
+            interval_seconds=b.get("interval_seconds"), max_items=b.get("max_items"))
+
+    async def scheduler_tick(self, context: dict = None, manual: bool = True) -> dict:
+        ctx = context or {}
+        return await self.scheduler.tick(ctx.get("tenant"), await self._environment(), manual=manual)
+
+    async def dead_letters(self, context: dict = None, page: int = 1, page_size: int = 50) -> dict:
+        ctx = context or {}
+        query = {"status": DEAD_LETTER}
+        if ctx.get("tenant"):
+            query["tenant"] = ctx.get("tenant")
+        total = await self.db[self.queue.col.name].count_documents(query)
+        skip = max(0, (max(page, 1) - 1) * page_size)
+        docs = await self.queue.col.find(query, {
+            "_id": 0, "id": 1, "correlation_id": 1, "tenant": 1, "competencia": 1,
+            "student_id": 1, "last_error": 1, "attempts": 1, "updated_at": 1
+        }).sort("updated_at", -1).skip(skip).limit(page_size).to_list(page_size)
+        return {"total": total, "page": page, "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size if page_size else 0,
+                "items": docs}
+
+    async def reprocess_dead_letter(self, item_id: str, context: dict = None) -> dict:
+        ctx = context or {}
+        item = await self.queue.col.find_one({"id": item_id}, {"_id": 0})
+        ok = await self.queue.reprocess(item_id)
+        if ok:
+            await self.audit.record({
+                "provider": PROVIDER, "operation": "FREQUENCY_ITEM_REPROCESS",
+                "tenant": (item or {}).get("tenant"), "actor": ctx.get("actor"),
+                "status": "success", "started_at": None, "finished_at": None, "duration_ms": 0,
+                "environment": await self._environment(),
+                "correlation_id": (item or {}).get("correlation_id"), "records_processed": 1})
+        return {"reprocessed": ok, "item_id": item_id}
 
     async def set_feature_flag(self, flag: str, enabled: bool, context: dict = None,
                                environment: str = None) -> dict:

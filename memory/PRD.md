@@ -1,5 +1,29 @@
 # SIGESC - Product Requirements Document
 
+## 🚧 BLOQUEADOR SPRINT 002.f — Normalização de caracteres na integração CMDE (P0 antes do provider real)
+Antes de ativar o provider oficial do MEC, validar o CONTRATO OFICIAL da API CMDE quanto a:
+suporte a UTF-8; obrigatoriedade de caixa alta; tratamento de acentos; cedilha; til; caracteres
+especiais; tamanho máximo dos campos textuais. A eventual normalização deverá ocorrer
+EXCLUSIVAMENTE na camada de Mapper/Serializer da integração, preservando integralmente os dados
+originais no SIGESC (SSoT). **Em nenhuma hipótese o banco do SIGESC deve perder acentos, cedilhas
+ou quaisquer caracteres originais em função da integração com o MEC.** (Registrado nas Sprints
+002.e/002.f.)
+
+## ✅ MIG SPRINT 002.e — Scheduler CONCLUÍDA (Jun/2026)
+`FrequencyScheduler` (`mig/cmde/scheduler.py`) orquestra APENAS o acionamento do `FrequencyWorker`
+(runner injetável) — sem conhecer regra/Queue/Retry/Provider/MEC. OFF por padrão
+(`cmde.frequency.scheduler_enabled`=False), ativação só por feature flag, habilitável por tenant,
+janela operacional por tenant, lock por tenant (compare-and-set atômico), auditoria de cada disparo
+(`SCHEDULER_TICK`) + métricas (`scheduler.tick`). Provider ativo = Simulador CMDE (nenhuma chamada
+real ao MEC). Flags novas em `feature_flags.py`; `queue.reprocess()` (DEAD_LETTER/FAILED→PENDING
+idempotente); service+router com `GET/POST /mec/scheduler[/config|/tick]`, `GET /mec/dead-letters`,
+`POST /mec/dead-letters/{id}/reprocess`. Frontend: painéis **Scheduler de Envio** e **Dead Letters**
+(com botão Reprocessar). Testes: `tests/test_mig_cmde_002e.py` 7 blocos PASS (flag on/off,
+multi-tenant, lock, janela, integração Worker+Simulador com protocolo SIM-, auditoria, métricas,
+reprocess idempotente); regressão 15/15 + 002.a/b/c/d verdes; E2E OK. Relatório:
+`memory/audit/SPRINT_002_E_SCHEDULER.md`. Próximo: **002.f Homologação e piloto** (aguardando aprovação).
+
+
 ## ✅ MIG SPRINT 002.d — Workers + Retry CONCLUÍDA (Jun/2026)
 `FrequencyWorker` (`mig/cmde/worker.py`) consome a fila via `CmdeFrequencyPort` (**Simulador CMDE
 como provider padrão — nenhuma chamada real ao MEC**), usando RetryManager, Audit, Metrics e

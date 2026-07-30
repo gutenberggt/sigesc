@@ -188,7 +188,7 @@ async def _run_sprint001():
     # query sem config continua 400 (paridade) — já coberto em _run_parity
     svc = CmdeService(db)
     fx = await svc.feature_flags(context={"tenant": None})
-    assert set(fx["flags"].keys()) == {"cmde.enabled", "cmde.elegibilidades", "cmde.retry"}, fx
+    assert {"cmde.enabled", "cmde.elegibilidades", "cmde.retry"}.issubset(set(fx["flags"].keys())), fx
     print("OK sprint001: service.feature_flags/metrics/audit_events")
 
 

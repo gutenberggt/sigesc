@@ -224,6 +224,22 @@ export const mecAPI = {
       competencia, school_id: schoolId, class_id: classId, dry_run: dryRun,
     });
     return res.data;
+  },
+  getScheduler: async () => {
+    const res = await axios.get(`${API}/mec/scheduler`);
+    return res.data;
+  },
+  tickScheduler: async () => {
+    const res = await axios.post(`${API}/mec/scheduler/tick`, {});
+    return res.data;
+  },
+  getDeadLetters: async ({ page = 1, pageSize = 50 } = {}) => {
+    const res = await axios.get(`${API}/mec/dead-letters`, { params: { page, page_size: pageSize } });
+    return res.data;
+  },
+  reprocessDeadLetter: async (itemId) => {
+    const res = await axios.post(`${API}/mec/dead-letters/${itemId}/reprocess`, {});
+    return res.data;
   }
 };
 
