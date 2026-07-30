@@ -96,6 +96,8 @@ class CmdeFrequencySimulator(CmdeFrequencyPort):
     async def enviar_frequencia(self, payload: CmdeFrequencyPayloadDTO) -> CmdeFrequencyResponseDTO:
         self._call_index += 1
         cid = payload.correlation_id or generate_correlation_id("SIM")
+        # chave de tentativas por operação+aluno (itens de um mesmo lote compartilham cid)
+        akey = f"{cid}:{payload.items[0].student_id if payload.items else ''}"
         scenario = self._pick_scenario(cid)
         started = _now_iso()
         t0 = time.perf_counter()
@@ -103,7 +105,7 @@ class CmdeFrequencySimulator(CmdeFrequencyPort):
         self.monitoring.incr(f"cmde_sim.{scenario}")
 
         try:
-            result = self._execute(scenario, payload, cid)
+            result = self._execute(scenario, payload, cid, akey)
         except MigError as e:
             await self._audit(scenario, payload, cid, "error", started, t0,
                               http_status=e.status_code, error_code=type(e).__name__,
@@ -122,10 +124,10 @@ class CmdeFrequencySimulator(CmdeFrequencyPort):
 
     # ---- Execução por cenário ----
     def _execute(self, scenario: str, payload: CmdeFrequencyPayloadDTO,
-                 cid: str) -> CmdeFrequencyResponseDTO:
+                 cid: str, akey: str) -> CmdeFrequencyResponseDTO:
         if scenario in _TRANSIENT:
-            self._attempts[cid] = self._attempts.get(cid, 0) + 1
-            if self.config.transient_failures and self._attempts[cid] > self.config.transient_failures:
+            self._attempts[akey] = self._attempts.get(akey, 0) + 1
+            if self.config.transient_failures and self._attempts[akey] > self.config.transient_failures:
                 return self._accept_response(payload, cid)   # recuperado após N falhas
             raise self._error_for(scenario)
         if scenario == SCENARIO_INVALID:

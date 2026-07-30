@@ -1,5 +1,21 @@
 # SIGESC - Product Requirements Document
 
+## ✅ MIG SPRINT 002.d — Workers + Retry CONCLUÍDA (Jun/2026)
+`FrequencyWorker` (`mig/cmde/worker.py`) consome a fila via `CmdeFrequencyPort` (**Simulador CMDE
+como provider padrão — nenhuma chamada real ao MEC**), usando RetryManager, Audit, Metrics e
+Correlation ID existentes. `bootstrap()` roda `ensure_indexes()` + valida infraestrutura da fila.
+`process_one`: reserve→start_processing→envia com retry→reconcilia por item→grava `SendReceipt`→
+audita→reconcilia o lote. Caminhos: aceite→SUCCESS, rejeição→FAILED, transporte/timeout/invalid→
+RETRYING/DEAD_LETTER; todos auditados (`FREQUENCY_ITEM_<estado>`). Reconciliação de lote
+completed/failed/partial/processing. `frequency_repository` ganhou save_receipt/batch_item_counts/
+update_batch; simulador conta tentativas transitórias por (correlation_id+aluno). Testes:
+`tests/test_mig_cmde_002d.py` 8 blocos PASS (bootstrap, simulador accept, 4 workers concorrentes 30
+itens sem duplicação, retry 503×2→SUCCESS, timeout→RETRYING, rejeição→FAILED, recuperação lease
+expirado, reconciliação partial); regressão 000/001/001.1 15/15, 002.a 12/12, 002.b 7/7, 002.c 11.
+Sem Scheduler. Relatório: `memory/audit/SPRINT_002_D_WORKERS_RETRY.md`. Próximo: **002.e Scheduler**
+(aguardando aprovação).
+
+
 ## ✅ MIG SPRINT 002.c — Queue Manager (fila durável MongoDB) CONCLUÍDA (Jun/2026)
 Fila durável `MongoFrequencyQueue` (`mig/cmde/queue.py`) com máquina de estados PENDING→RESERVED→
 PROCESSING→SUCCESS/FAILED, RETRYING (com backoff) e DEAD_LETTER ao exceder max_attempts. Recursos:
