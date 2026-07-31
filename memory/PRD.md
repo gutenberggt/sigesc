@@ -1,5 +1,22 @@
 # SIGESC - Product Requirements Document
 
+## 📊 MIG SPRINT 002.f0 — GAP Analysis do Contrato Oficial CMDE CONCLUÍDA (Jun/2026, análise apenas)
+Análise (sem código) comparando a arquitetura 000–002.e com o contrato oficial do MEC Gestão
+Presente. Fatos oficiais confirmados por fontes públicas (Swagger `api-cmde.gestaopresente.mec.gov.br/v1`,
+cartilha, manual SGP/frequência): modelo **assíncrono por LOTES** (`api/v2/lotes`, `/lotes/{id}`,
+`/lotes/{id}/erros`), **token Bearer com validade ~5 min + auto-renovação**, exigência de **PGP** e
+IP autorizado na adesão, UTF-8. **BLOQUEADOR #1:** schema campo-a-campo/enums/códigos de erro/tamanhos/
+normalização NÃO puderam ser lidos (PDFs oficiais atrás de anti-bot/CAPTCHA; Swagger exige credenciais
+de adesão). GAPs de ALTO impacto (só na camada de TRANSPORTE/SERIALIZAÇÃO): v1→v2/lotes, token dinâmico,
+envio assíncrono (submeter→polling status/erros), PGP no Mapper/Serializer, schema pendente. Compatível
+e reutilizável sem mudança: Queue, Worker, Scheduler, Dashboard, Batch Builder (batch≈lote), idempotência,
+correlation_id, flags, auditoria/métricas — **reduz o escopo da 002.f ao Provider Oficial**. Ajustes
+menores (aditivos): 429 recuperável + 401-refresh no retry; `SendReceipt`/auditoria com lote_id/
+transaction_id/request_id/correlation MEC + hashes/timestamps. SSoT permanece INTOCADO (normalização só
+no serializer). Relatório: `memory/audit/SPRINT_002_F0_GAP_ANALYSIS_CMDE.md`. **002.f (Provider Oficial)
+BLOQUEADA** até obter contrato oficial completo + chave PGP + credenciais/IP de adesão.
+
+
 ## 🚧 BLOQUEADOR SPRINT 002.f — Normalização de caracteres na integração CMDE (P0 antes do provider real)
 Antes de ativar o provider oficial do MEC, validar o CONTRATO OFICIAL da API CMDE quanto a:
 suporte a UTF-8; obrigatoriedade de caixa alta; tratamento de acentos; cedilha; til; caracteres
