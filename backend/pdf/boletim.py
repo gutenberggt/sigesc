@@ -470,8 +470,16 @@ def generate_boletim_pdf(
             total_carga_horaria = 800
     
     # ===== RESULTADO FINAL =====
-    # Obter status da matrícula e dados para cálculo do resultado
+    # Obter status da matrícula e dados para cálculo do resultado.
+    # O status TERMINAL do ALUNO (transferido/desistente/falecido) prevalece sobre o status
+    # da matrícula, para o documento sempre condizer com a situação atual do aluno.
     enrollment_status = enrollment.get('status', 'active')
+    _student_status = (student.get('status') or '').lower()
+    _STUDENT_TERMINAL = {'transferred', 'transferido', 'transferencia',
+                         'dropout', 'desistente', 'desistencia',
+                         'deceased', 'falecido', 'falecimento'}
+    if _student_status in _STUDENT_TERMINAL:
+        enrollment_status = _student_status
     grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
     
     # Obter data fim do 4º bimestre do calendário

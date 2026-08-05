@@ -690,8 +690,16 @@ def generate_ficha_individual_pdf(
     elements.append(Spacer(1, 5))
     
     # ===== CALCULAR RESULTADO =====
-    # Obter status da matrícula e dados para cálculo do resultado
+    # Obter status da matrícula e dados para cálculo do resultado.
+    # O status TERMINAL do ALUNO (transferido/desistente/falecido) prevalece sobre o status
+    # da matrícula, para o documento sempre condizer com a situação atual do aluno.
     enrollment_status = enrollment.get('status', 'active')
+    _student_status = (student.get('status') or '').lower()
+    _STUDENT_TERMINAL = {'transferred', 'transferido', 'transferencia',
+                         'dropout', 'desistente', 'desistencia',
+                         'deceased', 'falecido', 'falecimento'}
+    if _student_status in _STUDENT_TERMINAL:
+        enrollment_status = _student_status
     
     # Obter data fim do 4º bimestre do calendário
     calendario_letivo = calendario_letivo or {}

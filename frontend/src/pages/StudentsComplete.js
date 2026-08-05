@@ -1235,7 +1235,6 @@ export function StudentsComplete() {
     { tabIndex: 0, key: 'color_race', label: 'Cor/Raça' },
     { tabIndex: 0, key: 'comunidade_tradicional', label: 'Comunidade Tradicional' },
     { tabIndex: 0, key: 'birth_city', label: 'Naturalidade (Cidade)' },
-    { tabIndex: 0, key: 'birth_state', label: 'Estado' },
     { tabIndex: 2, key: 'mother_name', label: 'Mãe' },
     { tabIndex: 2, key: 'legal_guardian_type', label: 'Responsável Legal' },
   ];
@@ -1923,7 +1922,7 @@ export function StudentsComplete() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Estado *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
           <select
             value={formData.birth_state}
             onChange={(e) => updateFormData('birth_state', e.target.value)}
