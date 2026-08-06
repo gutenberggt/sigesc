@@ -1,5 +1,11 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-XX — Bugfix: notas de componentes fora da matriz sumindo no Boletim/Ficha ✅
+Sintoma: notas lançadas para componentes regionais/complementares (ex.: "Estudos Amazônicos") apareciam na UI e no Livro de Promoção, mas sumiam no Boletim e na Ficha Individual (a etapa de resolução/dedupe curricular ocultava o componente ausente da matriz/assignments).
+- **`routers/documents.py` — Boletim** (fork anterior): safeguard já aplicado (linhas ~313-327) — todo `course_id` com nota lançada é backfillado em `courses` após a resolução curricular.
+- **`routers/documents.py` — Ficha Individual** (esta sessão): mesma salvaguarda replicada após `courses = filtered_courses` (~linha 1173). Nota lançada = evidência SSoT e nunca pode sumir.
+- **Validação E2E**: cenário isolado (aluno + turma regular + curso regional "aee" com notas) → `GET /api/documents/boletim/{id}` e `GET /api/documents/ficha-individual/{id}` retornam HTTP 200; extração do texto dos PDFs confirma o componente "Estudos Amazonicos QA" e suas notas (carga 80, 8,0) em AMBOS. Dados de teste removidos.
+
 ## 2026-06-24 — P1 (parcial): AutoSave em Dexie — Notas e Frequência ✅
 Objetivo: nenhum dado digitado é perdido se a sessão expirar, a internet cair ou o navegador fechar.
 - **Dexie v4**: nova tabela `drafts` (`formId, userId, route, updatedAt`) + helpers `saveDraft/loadDraft/deleteDraft/listDrafts` em `db/database.js`. **Rascunhos NÃO são apagados no logout** (sobrevivem p/ restauração — P2/P3). Upgrade de schema validado (DB abre OK em v4).

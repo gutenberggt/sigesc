@@ -1172,6 +1172,23 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         courses = filtered_courses
 
+        # Salvaguarda de consistência (igual ao Boletim/Livro de Promoção):
+        # todo componente com NOTAS lançadas do aluno DEVE aparecer na Ficha Individual.
+        # Evita ocultar componentes ausentes da matriz/assignments (ex.: componentes
+        # regionais como "Estudos Amazônicos"). Nota lançada é evidência acadêmica (SSoT)
+        # e nunca pode sumir.
+        _ficha_present_course_ids = {c.get('id') for c in courses}
+        _ficha_graded_course_ids = {g.get('course_id') for g in grades if g.get('course_id')}
+        _ficha_missing_course_ids = [cid for cid in _ficha_graded_course_ids if cid not in _ficha_present_course_ids]
+        if _ficha_missing_course_ids:
+            _ficha_extra_courses = await db.courses.find(
+                {"id": {"$in": _ficha_missing_course_ids}}, {"_id": 0}).to_list(100)
+            if _ficha_extra_courses:
+                courses = courses + _ficha_extra_courses
+                courses.sort(key=lambda x: x.get('name', ''))
+                logger.info("ficha_individual.grade_backfill student=%s class=%s added=%s",
+                            student_id, class_id, _ficha_missing_course_ids)
+
         # Buscar dados de frequência do aluno
         # A estrutura de attendance é: {class_id, date, attendance_type, period, course_id, records: [{student_id, status}]}
 
