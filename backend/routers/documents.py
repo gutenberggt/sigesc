@@ -205,11 +205,20 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Buscar matrícula do aluno (ativa ou transferida)
         academic_year_int_query = int(academic_year) if academic_year else datetime.now().year
+        # Preferir a matrícula ATIVA (turma vigente) antes de transferida. Isso garante que
+        # o documento seja emitido para a turma atual do aluno e que as notas sejam escopadas
+        # à turma correta (evita puxar dados de turma de origem em caso de transferência).
         enrollment = await db.enrollments.find_one({
             "student_id": student_id,
-            "status": {"$in": ["active", "transferred"]},
+            "status": "active",
             "academic_year": academic_year_int_query
         }, {"_id": 0})
+        if not enrollment:
+            enrollment = await db.enrollments.find_one({
+                "student_id": student_id,
+                "status": {"$in": ["active", "transferred"]},
+                "academic_year": academic_year_int_query
+            }, {"_id": 0})
 
         if not enrollment:
             # Tentar buscar qualquer matrícula do aluno
@@ -255,6 +264,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "student_id": student_id,
             "academic_year": academic_year_int
         }, {"_id": 0}).to_list(100)
+
+        # Escopo por turma (SSoT): usar exclusivamente as notas lançadas NESTA turma.
+        # Evita que notas de outra turma (ex.: turma de origem de um aluno transferido)
+        # colidam pelo mesmo course_id e sobrescrevam a nota correta desta turma.
+        # Notas legadas sem class_id são preservadas.
+        grades = [g for g in grades if (not g.get("class_id")) or g.get("class_id") == class_id]
 
         # ===== RESOLUÇÃO CURRICULAR EVIDENCE-FIRST (curriculum_resolver) =====
         # Fonte única usada por boletim online, PDF e render_jobs.
@@ -1103,6 +1118,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             {"_id": 0}
         ).to_list(100)
 
+        # Escopo por turma (SSoT): notas lançadas NESTA turma (mantém legadas sem class_id).
+        # Usado no fluxo normal e no safeguard. O fluxo de remanejamento abaixo continua
+        # usando `grades` completo, pois precisa combinar notas de origem + destino.
+        grades_turma = [g for g in grades if (not g.get("class_id")) or g.get("class_id") == class_id]
+
         # Buscar componentes curriculares da turma/escola
         # Filtrar por nível de ensino - usar série do ALUNO para turmas multisseriadas
         nivel_ensino = class_info.get('nivel_ensino')
@@ -1178,7 +1198,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # regionais como "Estudos Amazônicos"). Nota lançada é evidência acadêmica (SSoT)
         # e nunca pode sumir.
         _ficha_present_course_ids = {c.get('id') for c in courses}
-        _ficha_graded_course_ids = {g.get('course_id') for g in grades if g.get('course_id')}
+        _ficha_graded_course_ids = {g.get('course_id') for g in grades_turma if g.get('course_id')}
         _ficha_missing_course_ids = [cid for cid in _ficha_graded_course_ids if cid not in _ficha_present_course_ids]
         if _ficha_missing_course_ids:
             _ficha_extra_courses = await db.courses.find(
@@ -1577,7 +1597,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 class_info=class_info,
                 enrollment=enrollment,
                 academic_year=actual_academic_year,
-                grades=grades,
+                grades=grades_turma,
                 courses=courses,
                 attendance_data=attendance_data,
                 mantenedora=mantenedora,

@@ -1,5 +1,14 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-XX — CAUSA RAIZ REAL: notas somem/duplicam quando aluno tem notas em >1 turma (transferência) ✅ (validado no preview)
+Diagnóstico feito com dados reais de produção (mongosh no droplet DigitalOcean). Caso: aluno Gustavo Gomes Barros (7º ANO C) — nota de "Estudos Amazônicos" sumia no Boletim/Ficha mas aparecia no Livro/lançamento.
+- **Causa real** (NÃO era curso duplicado nem o safeguard): o aluno foi **transferido** de uma turma antiga ("MULTI 6º E 7º", status `transferred`) para a atual ("7º ANO C", status `active`). Havia registros de nota do MESMO `course_id` (8ab5df2a) em **ambas as turmas**: a atual com valores (7/5) e a antiga **vazia** (null). Boletim/Ficha buscavam notas por `student_id + academic_year` **sem escopar por turma** → carregavam os dois registros → colisão pelo mesmo `course_id` → o registro **vazio da turma antiga sobrescrevia** a nota real. O mesmo efeito produzia **linhas duplicadas** (Ed. Física/Ciências/Geografia).
+- **Correção (regra de escopo por turma)** em `routers/documents.py`:
+  - Boletim: passou a **preferir a matrícula `active`** antes de `transferred`; notas filtradas ao `class_id` da turma emitida (mantém legadas sem class_id).
+  - Ficha: nova lista `grades_turma` (escopada ao `class_id`) no safeguard e na geração do fluxo normal; fluxo de **remanejamento** (`relocated`) intacto (segue combinando origem+destino).
+- **Validação E2E no preview** (cenário espelho): Boletim e Ficha exibem a matéria **1 vez** com as **notas reais (7,0/5,0)**, sem linha vazia/duplicada. Regressão: 3 alunos existentes seguem HTTP 200. **Pendente: redeploy no Coolify pelo usuário para valer em produção.**
+
+
 ## 2026-06-XX — Bugfix: notas de componentes fora da matriz sumindo no Boletim/Ficha ✅
 Sintoma: notas lançadas para componentes regionais/complementares (ex.: "Estudos Amazônicos") apareciam na UI e no Livro de Promoção, mas sumiam no Boletim e na Ficha Individual (a etapa de resolução/dedupe curricular ocultava o componente ausente da matriz/assignments).
 - **`routers/documents.py` — Boletim** (fork anterior): safeguard já aplicado (linhas ~313-327) — todo `course_id` com nota lançada é backfillado em `courses` após a resolução curricular.
