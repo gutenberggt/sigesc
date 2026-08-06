@@ -310,7 +310,21 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         courses = filtered_courses
 
-        # Buscar dados da mantenedora
+        # Salvaguarda de consistência (igual ao Livro de Promoção/Relatório de Notas):
+        # todo componente com NOTAS lançadas do aluno DEVE aparecer no Boletim. Evita ocultar
+        # componentes ausentes da matriz/assignments (ex.: componentes regionais como
+        # "Estudos Amazônicos"). Nota lançada é evidência acadêmica (SSoT) e nunca pode sumir.
+        _present_course_ids = {c.get('id') for c in courses}
+        _graded_course_ids = {g.get('course_id') for g in grades if g.get('course_id')}
+        _missing_course_ids = [cid for cid in _graded_course_ids if cid not in _present_course_ids]
+        if _missing_course_ids:
+            _extra_courses = await db.courses.find(
+                {"id": {"$in": _missing_course_ids}}, {"_id": 0}).to_list(100)
+            if _extra_courses:
+                courses = courses + _extra_courses
+                courses.sort(key=lambda x: x.get('name', ''))
+                logger.info("boletim_pdf.grade_backfill student=%s class=%s added=%s",
+                            student_id, class_id, _missing_course_ids)
         mantenedora = await get_mantenedora_cached(db)
 
         # Buscar calendário letivo para obter os dias letivos (usar ano da turma)
