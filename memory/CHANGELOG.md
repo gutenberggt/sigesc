@@ -3,10 +3,13 @@
 ## 2026-06-XX — CAUSA RAIZ REAL: notas somem/duplicam quando aluno tem notas em >1 turma (transferência) ✅ (validado no preview)
 Diagnóstico feito com dados reais de produção (mongosh no droplet DigitalOcean). Caso: aluno Gustavo Gomes Barros (7º ANO C) — nota de "Estudos Amazônicos" sumia no Boletim/Ficha mas aparecia no Livro/lançamento.
 - **Causa real** (NÃO era curso duplicado nem o safeguard): o aluno foi **transferido** de uma turma antiga ("MULTI 6º E 7º", status `transferred`) para a atual ("7º ANO C", status `active`). Havia registros de nota do MESMO `course_id` (8ab5df2a) em **ambas as turmas**: a atual com valores (7/5) e a antiga **vazia** (null). Boletim/Ficha buscavam notas por `student_id + academic_year` **sem escopar por turma** → carregavam os dois registros → colisão pelo mesmo `course_id` → o registro **vazio da turma antiga sobrescrevia** a nota real. O mesmo efeito produzia **linhas duplicadas** (Ed. Física/Ciências/Geografia).
-- **Correção (regra de escopo por turma)** em `routers/documents.py`:
-  - Boletim: passou a **preferir a matrícula `active`** antes de `transferred`; notas filtradas ao `class_id` da turma emitida (mantém legadas sem class_id).
-  - Ficha: nova lista `grades_turma` (escopada ao `class_id`) no safeguard e na geração do fluxo normal; fluxo de **remanejamento** (`relocated`) intacto (segue combinando origem+destino).
-- **Validação E2E no preview** (cenário espelho): Boletim e Ficha exibem a matéria **1 vez** com as **notas reais (7,0/5,0)**, sem linha vazia/duplicada. Regressão: 3 alunos existentes seguem HTTP 200. **Pendente: redeploy no Coolify pelo usuário para valer em produção.**
+- **Correção (dedupe de notas por componente, à prova de zerar boletim)** em `routers/documents.py`:
+  - Novo helper `_dedupe_grades_prefer_filled(grades, class_id)`: retorna UMA nota por `course_id`, priorizando o registro COM valores (empate → turma emitida → `updated_at` mais recente). Nunca deixa um registro vazio sobrescrever a nota real e nunca descarta nota real que esteja em outra turma.
+  - Boletim: passou a preferir matrícula `active`; notas passam pelo dedupe antes de gerar.
+  - Ficha: `grades_turma = _dedupe_grades_prefer_filled(...)` no fluxo normal e no safeguard; remanejamento (`relocated`) intacto.
+  - IMPORTANTE: a 1ª tentativa (escopo estrito por `class_id`) foi DESCARTADA por zerar alunos cujo dado real está na turma antiga (padrão B, ex.: Isabelly Sophia — turma ativa 12/12 vazias).
+- **Diagnóstico de banco (produção):** 118 alunos com notas em >1 turma no mesmo ano (leftover de transferência/remanejamento), em 2 padrões opostos (nota real na turma atual OU na antiga). O dedupe cobre ambos.
+- **Validação E2E no preview** (padrão A e padrão B): Boletim e Ficha exibem a matéria **1 vez** com as **notas reais**, sem linha vazia/duplicada, sem zerar ninguém. Regressão: alunos existentes HTTP 200. **Pendente: redeploy no Coolify pelo usuário.**
 
 
 ## 2026-06-XX — Bugfix: notas de componentes fora da matriz sumindo no Boletim/Ficha ✅
