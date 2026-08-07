@@ -1,5 +1,13 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-07 — FIX CRÍTICO: Ficha Individual retornava 500 ("Failed to fetch"/CORS) no caso normal ✅ (validado curl)
+- Sintoma em produção (Coolify): ao clicar "Abrir PDF" da Ficha Individual → console mostrava "blocked by CORS policy: No 'Access-Control-Allow-Origin'" + `net::ERR_FAILED 500`. A mensagem de CORS era SECUNDÁRIA: um 500 não tratado é gerado pelo ServerErrorMiddleware do Starlette (fora do CORSMiddleware), por isso a resposta de erro vinha sem header CORS.
+- Causa raiz: em `routers/documents.py` (caso normal da ficha, ~linha 1642) a trava `_dedupe_components(courses, grade_level, _graded_ids_f)` passava um **set de strings** de course_id como 3º argumento (`grades`), mas a função itera esse parâmetro como lista de dicts e faz `g.get('course_id')` → `AttributeError: 'str' object has no attribute 'get'` → 500 não tratado.
+- Por que passava no preview: o aluno de teste tinha remanejamento (ficha de 2 páginas), desviando do caso normal. Alunos de produção sem remanejamento caíam na linha bugada.
+- Fix: passar `grades_turma` (lista de notas da turma ativa) — igual ao Boletim (linha 542, que já estava correto).
+- Validado via curl com o admin: 5 fichas de caso normal + 2 boletins → HTTP 200 (antes: 500). Sem erros no backend.
+
+
 ## 2026-06-XX — Trava anti-duplicação definitiva no Boletim e Ficha (hierarquia mantenedora→escola→turma→aluno) ✅ (preview)
 - `routers/documents.py`: novo `_dedupe_components(courses, class_grade_level, graded_course_ids)` aplicado ANTES de gerar Boletim e Ficha. Garante **1 linha por componente**: colapsa cadastros de mesmo nome+nível+atendimento, escolhendo o que tem a NOTA do aluno (1º) e/ou cuja série (`grade_levels`) casa com a série da turma (2º). Nomes/atendimentos diferentes são preservados.
 - Resolve o caso de componentes cadastrados por série (ex.: Ciências 6º/8º 80h vs 7º/9º 120h) que apareciam duplicados na ficha de um aluno de 7º ano. Combinado com o escopo por turma (grades da turma ativa), elimina duplicação de componente E de nota.

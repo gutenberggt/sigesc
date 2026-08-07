@@ -1639,8 +1639,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # ===== CASO NORMAL (sem remanejamento) =====
         # Trava anti-duplicação (regra: 1 linha por componente, conforme série da turma/aluno)
-        _graded_ids_f = {g.get('course_id') for g in grades_turma if g.get('course_id')}
-        courses = _dedupe_components(courses, (class_info or {}).get('grade_level'), _graded_ids_f)
+        courses = _dedupe_components(courses, (class_info or {}).get('grade_level'), grades_turma)
         # Gerar PDF
         try:
             await resolve_anexa_name(db, school)
