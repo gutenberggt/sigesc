@@ -1,5 +1,11 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-XX — Reconstrução: escopo "Todas as escolas" (backfill em lote) ✅ (preview)
+- `routers/history_reconstruction.py`: novo escopo `all` no dry-run e execute, com agregação `by_school` (alunos, movimentações e registros por escola). Dry-run também conta campos vazios que o merge preencherá.
+- `frontend/src/pages/HistoryReconstruction.jsx`: opção "Todas as escolas" + esconde seletores nesse modo + tabela "Resumo por escola" (simulação e aplicado). Rota `/admin/reconstrucao-historico` (super_admin).
+- Testado no preview: dry-run `all` retorna resumo por escola; UI renderiza e executa o fluxo. Backfill dos alunos movimentados agora roda para a rede inteira de uma vez.
+
+
 ## 2026-06-XX — CAUSA RAIZ REAL: notas somem/duplicam quando aluno tem notas em >1 turma (transferência) ✅ (validado no preview)
 Diagnóstico feito com dados reais de produção (mongosh no droplet DigitalOcean). Caso: aluno Gustavo Gomes Barros (7º ANO C) — nota de "Estudos Amazônicos" sumia no Boletim/Ficha mas aparecia no Livro/lançamento.
 - **Causa real** (NÃO era curso duplicado nem o safeguard): o aluno foi **transferido** de uma turma antiga ("MULTI 6º E 7º", status `transferred`) para a atual ("7º ANO C", status `active`). Havia registros de nota do MESMO `course_id` (8ab5df2a) em **ambas as turmas**: a atual com valores (7/5) e a antiga **vazia** (null). Boletim/Ficha buscavam notas por `student_id + academic_year` **sem escopar por turma** → carregavam os dois registros → colisão pelo mesmo `course_id` → o registro **vazio da turma antiga sobrescrevia** a nota real. O mesmo efeito produzia **linhas duplicadas** (Ed. Física/Ciências/Geografia).

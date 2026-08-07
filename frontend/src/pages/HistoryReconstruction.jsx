@@ -14,6 +14,7 @@ const SCOPES = [
   { value: 'student', label: 'Aluno', help: 'Reprocessa um aluno específico.' },
   { value: 'class', label: 'Turma', help: 'Reprocessa todos os alunos de uma turma.' },
   { value: 'school', label: 'Escola', help: 'Reprocessa todos os alunos de uma escola.' },
+  { value: 'all', label: 'Todas as escolas', help: 'Corrige a rede inteira de uma vez (resumo por escola).' },
 ];
 
 const MIN_REASON = 10;
@@ -80,6 +81,7 @@ export default function HistoryReconstruction() {
     if (scope === 'student') return !!studentId;
     if (scope === 'class') return !!classId;
     if (scope === 'school') return !!schoolId;
+    if (scope === 'all') return true;
     return false;
   };
 
@@ -156,7 +158,7 @@ export default function HistoryReconstruction() {
           <CardContent className="p-6 space-y-4">
             <h2 className="text-lg font-semibold text-gray-800">Escopo</h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {SCOPES.map((s) => (
                 <button
                   key={s.value}
@@ -171,18 +173,26 @@ export default function HistoryReconstruction() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Escola</label>
-                <select
-                  value={schoolId}
-                  onChange={(e) => setSchoolId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg bg-white"
-                  data-testid="recon-school-select"
-                >
-                  <option value="">Selecione a escola…</option>
-                  {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
+              {scope !== 'all' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Escola</label>
+                  <select
+                    value={schoolId}
+                    onChange={(e) => setSchoolId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg bg-white"
+                    data-testid="recon-school-select"
+                  >
+                    <option value="">Selecione a escola…</option>
+                    {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {scope === 'all' && (
+                <div className="md:col-span-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-800" data-testid="recon-all-note">
+                  Modo <strong>Todas as escolas</strong>: a simulação e a execução cobrem a rede inteira e trazem um <strong>resumo por escola</strong>. Recomendado após correções de notas migradas. Sempre rode a simulação antes.
+                </div>
+              )}
 
               {scope === 'class' && (
                 <div>
@@ -280,6 +290,10 @@ export default function HistoryReconstruction() {
                 </div>
               )}
 
+              {preview.by_school && preview.by_school.length > 0 && (
+                <BySchoolTable rows={preview.by_school} valueKey="counts" title="Resumo por escola (a copiar)" />
+              )}
+
               {preview.movements_detected === 0 ? (
                 <p className="text-sm text-blue-700 bg-blue-50 p-3 rounded">
                   Nenhuma movimentação a reconstruir neste escopo. Os históricos já estão consolidados.
@@ -319,6 +333,9 @@ export default function HistoryReconstruction() {
                   <FileText size={16} className="mr-2" /> Baixar recibo (PDF)
                 </Button>
               </div>
+              {result.by_school && result.by_school.length > 0 && (
+                <BySchoolTable rows={result.by_school} valueKey="counts" title="Resumo por escola (aplicado)" />
+              )}
             </CardContent>
           </Card>
         )}
@@ -358,6 +375,40 @@ export default function HistoryReconstruction() {
         </div>
       )}
     </Layout>
+  );
+}
+
+function BySchoolTable({ rows, valueKey = 'counts', title = 'Resumo por escola' }) {
+  return (
+    <div className="space-y-2" data-testid="recon-by-school">
+      <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+      <div className="max-h-72 overflow-y-auto border rounded">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-100 sticky top-0">
+            <tr>
+              <th className="text-left p-2">Escola</th>
+              <th className="text-center p-2">Alunos</th>
+              <th className="text-center p-2">Movim.</th>
+              <th className="text-center p-2">Freq.</th>
+              <th className="text-center p-2">Notas</th>
+              <th className="text-center p-2">Conteúdo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-t">
+                <td className="p-2">{r.school_name}</td>
+                <td className="p-2 text-center">{r.students_in_scope}</td>
+                <td className="p-2 text-center">{r.movements}</td>
+                <td className="p-2 text-center">{r[valueKey]?.attendance ?? 0}</td>
+                <td className="p-2 text-center font-semibold text-teal-700">{r[valueKey]?.grades ?? 0}</td>
+                <td className="p-2 text-center">{r[valueKey]?.content_entries ?? 0}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

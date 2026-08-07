@@ -39,7 +39,7 @@ MIN_REASON_LEN = 10
 
 
 class ReconScope(BaseModel):
-    scope: str = Field(..., pattern="^(student|class|school)$")
+    scope: str = Field(..., pattern="^(student|class|school|all)$")
     student_id: Optional[str] = None
     class_id: Optional[str] = None
     school_id: Optional[str] = None
@@ -79,7 +79,34 @@ def setup_router(db, audit_service=None):
                 raise HTTPException(400, "school_id obrigatório para escopo 'school'.")
             ids = [s["id"] for s in await db.students.find({"school_id": scope.school_id}, {"_id": 0, "id": 1}).to_list(None)]
             return sorted(set(ids))
+        if scope.scope == "all":
+            ids = [s["id"] for s in await db.students.find({}, {"_id": 0, "id": 1}).to_list(None)]
+            return sorted(set(ids))
         return []
+
+    async def _by_school_summary(students: List[str], details: List[dict], key: str = "missing"):
+        """Agrega por escola: alunos no escopo, movimentações e registros (a copiar OU aplicados)."""
+        stu_docs = await db.students.find({"id": {"$in": students}}, {"_id": 0, "id": 1, "school_id": 1}).to_list(None)
+        stu_school = {s["id"]: s.get("school_id") for s in stu_docs}
+        school_docs = await db.schools.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+        school_name = {s["id"]: s.get("name") for s in school_docs}
+        by = {}
+
+        def _bs(sch):
+            return by.setdefault(sch or "—", {
+                "school_id": sch, "school_name": school_name.get(sch, "(sem escola)"),
+                "students_in_scope": 0, "movements": 0,
+                "counts": {"attendance": 0, "grades": 0, "content_entries": 0},
+            })
+        for sid in students:
+            _bs(stu_school.get(sid))["students_in_scope"] += 1
+        for d in details:
+            b = _bs(stu_school.get(d.get("student_id")))
+            b["movements"] += 1
+            c = d.get(key) or {}
+            for k in b["counts"]:
+                b["counts"][k] += c.get(k, 0)
+        return sorted(by.values(), key=lambda x: (x["school_name"] or ""))
 
     async def _plan_for_student(student_id: str, year_filter: Optional[int]):
         """Para cada (ano) com >1 turma, planeja cópia das origens → turma ativa.
@@ -156,6 +183,7 @@ def setup_router(db, audit_service=None):
             "movements_detected": len(jobs),
             "to_consolidate": totals,
             "details": details[:200],
+            "by_school": (await _by_school_summary(students, details, key="missing")) if payload.scope == "all" else None,
             "note": "Dry run não altera dados. 'to_consolidate' = registros faltantes que seriam copiados.",
         }
 
@@ -169,6 +197,7 @@ def setup_router(db, audit_service=None):
 
         applied = {"attendance": 0, "grades": 0, "content_entries": 0}
         processed_students = set()
+        exec_details = []
         for job in jobs:
             res = await consolidate_student_movement(
                 db, student_id=job["student_id"], source_class_id=job["source_class_id"],
@@ -176,6 +205,7 @@ def setup_router(db, audit_service=None):
             for k in applied:
                 applied[k] += res.get(k, 0)
             processed_students.add(job["student_id"])
+            exec_details.append({"student_id": job["student_id"], "applied": {k: res.get(k, 0) for k in applied}})
 
         year = datetime.now().year
         seq = await db.history_reconstruction_audit.count_documents({"protocol": {"$regex": f"^RECON-{year}-"}}) + 1
@@ -202,7 +232,8 @@ def setup_router(db, audit_service=None):
             except Exception:
                 pass
         return {"success": True, "protocol": protocol, "students_processed": len(processed_students),
-                "movements_processed": len(jobs), "applied_counts": applied, "executed_at": now}
+                "movements_processed": len(jobs), "applied_counts": applied, "executed_at": now,
+                "by_school": (await _by_school_summary(students, exec_details, key="applied")) if payload.scope == "all" else None}
 
     @router.get("/{protocol}/receipt")
     async def receipt(protocol: str, request: Request):
