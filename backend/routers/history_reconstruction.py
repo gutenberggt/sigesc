@@ -135,6 +135,22 @@ def setup_router(db, audit_service=None):
 
     _MIG_FIELDS = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery']
 
+    async def _enrich_names(details: List[dict]):
+        """Adiciona nomes reais (aluno e turmas origem/destino) aos itens de detalhe."""
+        if not details:
+            return details
+        sids = list({d.get("student_id") for d in details if d.get("student_id")})
+        cids = list({c for d in details for c in (d.get("source_class_id"), d.get("target_class_id")) if c})
+        stu = {s["id"]: (s.get("full_name") or s.get("name") or s["id"])
+               for s in await db.students.find({"id": {"$in": sids}}, {"_id": 0, "id": 1, "full_name": 1, "name": 1}).to_list(None)}
+        cls = {c["id"]: (c.get("name") or c["id"])
+               for c in await db.classes.find({"id": {"$in": cids}}, {"_id": 0, "id": 1, "name": 1}).to_list(None)}
+        for d in details:
+            d["student_name"] = stu.get(d.get("student_id"), d.get("student_id"))
+            d["source_class_name"] = cls.get(d.get("source_class_id"), d.get("source_class_id"))
+            d["target_class_name"] = cls.get(d.get("target_class_id"), d.get("target_class_id"))
+        return details
+
     async def _count_missing(job, dry=True):
         """Conta quanto seria copiado/preenchido (dry) pela consolidação idempotente."""
         src, tgt, y, sid = job["source_class_id"], job["target_class_id"], job["academic_year"], job["student_id"]
@@ -177,6 +193,7 @@ def setup_router(db, audit_service=None):
             for k in totals:
                 totals[k] += miss[k]
             details.append({**job, "missing": miss})
+        details = await _enrich_names(details)
         return {
             "scope": payload.scope,
             "students_in_scope": len(students),

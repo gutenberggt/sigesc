@@ -277,8 +277,8 @@ export default function HistoryReconstruction() {
                     <tbody>
                       {preview.details.map((d, i) => (
                         <tr key={i} className="border-t">
-                          <td className="p-2 font-mono text-[11px]">{d.student_id}</td>
-                          <td className="p-2 font-mono text-[11px]">{d.source_class_id} → {d.target_class_id}</td>
+                          <td className="p-2">{d.student_name || d.student_id}</td>
+                          <td className="p-2">{(d.source_class_name || d.source_class_id)} → {(d.target_class_name || d.target_class_id)}</td>
                           <td className="p-2 text-center">{d.academic_year || '—'}</td>
                           <td className="p-2 text-center">{d.missing?.attendance ?? 0}</td>
                           <td className="p-2 text-center">{d.missing?.grades ?? 0}</td>
