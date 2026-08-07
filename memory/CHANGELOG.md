@@ -1,5 +1,11 @@
 # CHANGELOG — SIGESC
 
+## 2026-06-XX — Trava anti-duplicação definitiva no Boletim e Ficha (hierarquia mantenedora→escola→turma→aluno) ✅ (preview)
+- `routers/documents.py`: novo `_dedupe_components(courses, class_grade_level, graded_course_ids)` aplicado ANTES de gerar Boletim e Ficha. Garante **1 linha por componente**: colapsa cadastros de mesmo nome+nível+atendimento, escolhendo o que tem a NOTA do aluno (1º) e/ou cuja série (`grade_levels`) casa com a série da turma (2º). Nomes/atendimentos diferentes são preservados.
+- Resolve o caso de componentes cadastrados por série (ex.: Ciências 6º/8º 80h vs 7º/9º 120h) que apareciam duplicados na ficha de um aluno de 7º ano. Combinado com o escopo por turma (grades da turma ativa), elimina duplicação de componente E de nota.
+- Testado no preview: turma 7º ANO com Ciências em 2 cadastros → PDF mostra Ciências **1 vez** (120h, com a nota). Regressão HTTP 200.
+
+
 ## 2026-06-XX — Reconstrução: escopo "Todas as escolas" (backfill em lote) ✅ (preview)
 - `routers/history_reconstruction.py`: novo escopo `all` no dry-run e execute, com agregação `by_school` (alunos, movimentações e registros por escola). Dry-run também conta campos vazios que o merge preencherá.
 - `frontend/src/pages/HistoryReconstruction.jsx`: opção "Todas as escolas" + esconde seletores nesse modo + tabela "Resumo por escola" (simulação e aplicado). Rota `/admin/reconstrucao-historico` (super_admin).

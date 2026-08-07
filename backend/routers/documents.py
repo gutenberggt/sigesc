@@ -33,6 +33,50 @@ from utils.curriculum_resolver import resolve_curriculum
 logger = logging.getLogger(__name__)
 
 
+def _norm_component_name(s):
+    import unicodedata
+    s = (s or '').strip()
+    s = ''.join(ch for ch in unicodedata.normalize('NFD', s) if unicodedata.category(ch) != 'Mn')
+    return ' '.join(s.lower().split())
+
+
+def _dedupe_components(courses, class_grade_level=None, graded_course_ids=None):
+    """Garante UMA linha por componente curricular no documento (trava anti-duplicação).
+
+    Componentes com o MESMO nome (normalizado) + mesmo nível + mesmo atendimento são
+    colapsados em um único registro — escolhendo o cadastro que:
+      1) tem a NOTA do aluno lançada (graded_course_ids);
+      2) empate -> cujo `grade_levels` contém a SÉRIE da turma (class_grade_level);
+      3) empate -> o primeiro.
+    Componentes de nomes/atendimentos diferentes são preservados (não são duplicatas).
+    """
+    graded = set(graded_course_ids or [])
+    gl_norm = _norm_component_name(class_grade_level) if class_grade_level else None
+    groups, order = {}, []
+    for c in courses or []:
+        key = (
+            _norm_component_name(c.get('name') or c.get('nome')),
+            (c.get('nivel_ensino') or ''),
+            (c.get('atendimento_programa') or '').strip().lower(),
+        )
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(c)
+
+    def _score(c):
+        has_grade = 1 if c.get('id') in graded else 0
+        gls = [_norm_component_name(x) for x in (c.get('grade_levels') or [])]
+        in_serie = 1 if (gl_norm and gl_norm in gls) else 0
+        return (has_grade, in_serie)
+
+    result = []
+    for key in order:
+        arr = groups[key]
+        result.append(arr[0] if len(arr) == 1 else max(arr, key=_score))
+    return result
+
+
 async def _ensure_enrollment_number(
     db, student_id: str, enrollment: dict, academic_year: int
 ) -> str:
@@ -490,6 +534,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 'absences': faltas,
                 'atendimento_programa': atendimento
             }
+
+        # Trava anti-duplicação (regra: 1 linha por componente, conforme série da turma/aluno)
+        _graded_ids_b = {g.get('course_id') for g in grades if g.get('course_id')}
+        courses = _dedupe_components(courses, (class_info or {}).get('grade_level'), _graded_ids_b)
 
         # Gerar PDF
         try:
@@ -1588,6 +1636,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
 
         # ===== CASO NORMAL (sem remanejamento) =====
+        # Trava anti-duplicação (regra: 1 linha por componente, conforme série da turma/aluno)
+        _graded_ids_f = {g.get('course_id') for g in grades_turma if g.get('course_id')}
+        courses = _dedupe_components(courses, (class_info or {}).get('grade_level'), _graded_ids_f)
         # Gerar PDF
         try:
             await resolve_anexa_name(db, school)
