@@ -33,39 +33,6 @@ from utils.curriculum_resolver import resolve_curriculum
 logger = logging.getLogger(__name__)
 
 
-def _dedupe_grades_prefer_filled(grades, preferred_class_id=None):
-    """Retorna UMA nota por course_id, priorizando o registro que TEM valores.
-
-    Motivação (SSoT): alunos transferidos/remanejados podem ter registros de nota do
-    MESMO course_id em mais de uma turma no mesmo ano — às vezes o registro correto está
-    na turma atual, às vezes na turma antiga, e o outro fica vazio (placeholder). Sem isso,
-    um registro vazio pode sobrescrever a nota real ao montar o documento.
-
-    Critério de escolha por course_id (maior vence):
-      1) quantidade de campos de nota preenchidos (não-nulos);
-      2) empate -> registro da turma preferida (a turma que está sendo emitida);
-      3) empate -> updated_at mais recente.
-    Nunca descarta uma nota real em favor de um vazio.
-    """
-    _FIELDS = ('b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'final_average')
-    best = {}
-    for g in grades:
-        cid = g.get('course_id')
-        if not cid:
-            continue
-        filled = sum(1 for k in _FIELDS if g.get(k) is not None)
-        key = (
-            filled,
-            1 if (preferred_class_id and g.get('class_id') == preferred_class_id) else 0,
-            g.get('updated_at') or '',
-        )
-        cur = best.get(cid)
-        if cur is None or key > cur[0]:
-            best[cid] = (key, g)
-    return [v[1] for v in best.values()]
-
-
-
 async def _ensure_enrollment_number(
     db, student_id: str, enrollment: dict, academic_year: int
 ) -> str:
@@ -298,11 +265,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "academic_year": academic_year_int
         }, {"_id": 0}).to_list(100)
 
-        # Deduplicação de notas por componente (SSoT): garante UMA nota por course_id,
-        # priorizando o registro que TEM valores. Evita que um registro vazio (ex.: placeholder
-        # criado em transferência/remanejamento) sobrescreva a nota real. Desempate pela turma
-        # emitida (class_id). Não zera boletins de alunos cuja nota real está em outra turma.
-        grades = _dedupe_grades_prefer_filled(grades, class_id)
+        # Regra #4: o documento considera a TURMA ATIVA (destino). Usa somente as notas
+        # lançadas nesta turma (class_id). Notas de turmas anteriores são migradas para a
+        # turma de destino pela consolidação; aqui não misturamos turmas. (Notas legadas
+        # sem class_id são preservadas por segurança.)
+        grades = [g for g in grades if g.get("class_id") == class_id or not g.get("class_id")]
 
         # ===== RESOLUÇÃO CURRICULAR EVIDENCE-FIRST (curriculum_resolver) =====
         # Fonte única usada por boletim online, PDF e render_jobs.
@@ -1151,11 +1118,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             {"_id": 0}
         ).to_list(100)
 
-        # Deduplicação de notas por componente (SSoT): UMA nota por course_id, priorizando
-        # o registro COM valores (evita que placeholder vazio de transferência sobrescreva a
-        # nota real). Usado no fluxo normal e no safeguard. O fluxo de remanejamento abaixo
-        # continua usando `grades` completo (precisa combinar notas de origem + destino).
-        grades_turma = _dedupe_grades_prefer_filled(grades, class_id)
+        # Regra #4: a Ficha considera a TURMA ATIVA (destino) — somente notas desta turma
+        # (class_id). Usado no fluxo normal e no safeguard. O fluxo de remanejamento abaixo
+        # continua usando `grades` completo (precisa combinar origem + destino).
+        grades_turma = [g for g in grades if g.get("class_id") == class_id or not g.get("class_id")]
 
         # Buscar componentes curriculares da turma/escola
         # Filtrar por nível de ensino - usar série do ALUNO para turmas multisseriadas

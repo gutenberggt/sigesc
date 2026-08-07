@@ -106,16 +106,19 @@ def setup_router(db, audit_service=None):
                                  "target_class_id": target, "academic_year": y})
         return jobs
 
+    _MIG_FIELDS = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery']
+
     async def _count_missing(job, dry=True):
-        """Conta quanto seria copiado (dry) executando a consolidação idempotente."""
-        # dry-run real: roda a consolidação? Não — precisa não alterar. Então conta o gap.
+        """Conta quanto seria copiado/preenchido (dry) pela consolidação idempotente."""
         src, tgt, y, sid = job["source_class_id"], job["target_class_id"], job["academic_year"], job["student_id"]
         missing = {"attendance": 0, "grades": 0, "content_entries": 0}
-        # grades
-        gsrc = await db.grades.find({"class_id": src, "student_id": sid, "academic_year": y}, {"_id": 0, "course_id": 1}).to_list(500)
+        # grades: registro ausente no destino OU registro existente com campo vazio que a origem preencheria
+        gsrc = await db.grades.find({"class_id": src, "student_id": sid, "academic_year": y}, {"_id": 0}).to_list(500)
         for g in gsrc:
-            ex = await db.grades.find_one({"class_id": tgt, "student_id": sid, "course_id": g.get("course_id"), "academic_year": y})
+            ex = await db.grades.find_one({"class_id": tgt, "student_id": sid, "course_id": g.get("course_id"), "academic_year": y}, {"_id": 0})
             if not ex:
+                missing["grades"] += 1
+            elif any(ex.get(f) is None and g.get(f) is not None for f in _MIG_FIELDS):
                 missing["grades"] += 1
         # attendance
         asrc = await db.attendance.find({"class_id": src, "academic_year": y, "records.student_id": sid}, {"_id": 0, "date": 1}).to_list(2000)

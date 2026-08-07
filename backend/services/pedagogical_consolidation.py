@@ -51,14 +51,28 @@ async def consolidate_student_movement(db, *, student_id, source_class_id,
         counts["attendance"] += 1
 
     # ===== Notas =====
+    _MIGRATABLE = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery']
     grades = await db.grades.find(
         {"class_id": source_class_id, "student_id": student_id, "academic_year": academic_year},
         {"_id": 0}).to_list(500)
     for g in grades:
         exists = await db.grades.find_one({
             "class_id": target_class_id, "student_id": student_id,
-            "course_id": g.get("course_id"), "academic_year": academic_year})
+            "course_id": g.get("course_id"), "academic_year": academic_year}, {"_id": 0})
         if exists:
+            # Merge (regra #1): preenche no DESTINO apenas os campos VAZIOS com os valores da
+            # ORIGEM. NUNCA sobrescreve um valor já lançado no destino. Os campos preenchidos a
+            # partir da origem ficam marcados como migrados (congelados p/ professor).
+            set_fields = {}
+            for f in _MIGRATABLE:
+                if exists.get(f) is None and g.get(f) is not None:
+                    set_fields[f] = g.get(f)
+            if set_fields:
+                set_fields['migrated_from_class_id'] = exists.get('migrated_from_class_id') or source_class_id
+                set_fields['migrated_at'] = now
+                set_fields['updated_at'] = now
+                await db.grades.update_one({"id": exists['id']}, {"$set": set_fields})
+                counts["grades"] += 1
             continue
         await db.grades.insert_one({**g, "id": str(uuid.uuid4()), "class_id": target_class_id,
                                     "migrated_from_class_id": source_class_id, "migrated_at": now,
