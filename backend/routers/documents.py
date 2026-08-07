@@ -43,8 +43,11 @@ def _norm_component_name(s):
 def _dedupe_components(courses, class_grade_level=None, grades=None):
     """Garante UMA linha por componente curricular no documento (trava anti-duplicação).
 
-    Colapsa componentes de MESMO nome (normalizado) + mesmo nível de ensino em um único
-    registro — independentemente de atendimento/turma de origem — escolhendo o cadastro que:
+    Colapsa TODOS os cadastros de MESMO nome (normalizado) num único registro —
+    independentemente de nível de ensino/atendimento/turma de origem. Numa ficha/boletim
+    o documento é de UMA turma (uma série), logo componentes com o mesmo nome são sempre
+    duplicatas de cadastro (ex.: "Educação Física" cadastrada por carga horária/série).
+    Escolhe o cadastro que:
       1) tem a NOTA mais completa do aluno (nº de bimestres preenchidos);
       2) empate -> tem qualquer nota lançada;
       3) empate -> cujo `grade_levels` contém a SÉRIE da turma;
@@ -62,7 +65,7 @@ def _dedupe_components(courses, class_grade_level=None, grades=None):
     gl_norm = _norm_component_name(class_grade_level) if class_grade_level else None
     groups, order = {}, []
     for c in courses or []:
-        key = (_norm_component_name(c.get('name') or c.get('nome')), (c.get('nivel_ensino') or ''))
+        key = _norm_component_name(c.get('name') or c.get('nome'))
         if key not in groups:
             groups[key] = []
             order.append(key)
@@ -1490,6 +1493,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
             # Gerar ficha DESTINO
             await resolve_anexa_name(db, school)
+            # Trava anti-duplicação: 1 linha por componente (destino usa notas combinadas)
+            courses = _dedupe_components(courses, (class_info or {}).get('grade_level'), grades)
             pdf_destino = generate_ficha_individual_pdf(
                 student=student,
                 school=school,
@@ -1610,6 +1615,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
                 # Gerar ficha ORIGEM
                 await resolve_anexa_name(db, origin_school)
+                # Trava anti-duplicação: 1 linha por componente (origem usa notas da turma de origem)
+                origin_filtered_courses = _dedupe_components(
+                    origin_filtered_courses, origin_grade_level, origin_grades
+                )
                 pdf_origem = generate_ficha_individual_pdf(
                     student=student,
                     school=origin_school,
@@ -2669,13 +2678,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         attendance_data[c_id] = {'absences': faltas, 'atendimento_programa': atendimento}
 
                     await resolve_anexa_name(db, school)
+                    _batch_courses_bol = _dedupe_components(courses, class_info.get('grade_level'), grades)
                     pdf_buffer = generate_boletim_pdf(
                         student=student,
                         school=school,
                         enrollment=enrollment,
                         class_info=class_info,
                         grades=grades,
-                        courses=courses,
+                        courses=_batch_courses_bol,
                         academic_year=str(academic_year_int),
                         mantenedora=mantenedora,
                         dias_letivos_ano=dias_letivos_ano,
@@ -2715,13 +2725,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         attendance_data[c_id] = {'absences': faltas, 'atendimento_programa': atendimento}
 
                     await resolve_anexa_name(db, school)
+                    _batch_courses_fic = _dedupe_components(courses, class_info.get('grade_level'), grades)
                     pdf_buffer = generate_ficha_individual_pdf(
                         student=student,
                         school=school,
                         enrollment=enrollment,
                         class_info=class_info,
                         grades=grades,
-                        courses=courses,
+                        courses=_batch_courses_fic,
                         attendance_data=attendance_data,
                         academic_year=academic_year_int,
                         mantenedora=mantenedora,

@@ -1,5 +1,14 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-07 — FIX: "Educação Física" ainda duplicava na Ficha/Boletim ✅ (validado e2e)
+- Sintoma: PDF do aluno mostrava "Educação Física" 2x (notas 6/6/6/6 e 6/6/6/0) = dois cadastros distintos do componente.
+- Causa raiz: a trava `_dedupe_components` agrupava por chave `(nome_normalizado, nivel_ensino)`. Como os dois cadastros de EF tinham `nivel_ensino` diferente (um vazio), caíam em grupos distintos e NÃO colapsavam.
+- Fix 1 (`routers/documents.py`): chave de agrupamento passou a ser SÓ o nome normalizado do componente. Dentro de uma ficha/boletim (uma turma/série), mesmo nome = duplicata de cadastro. Escolhe o cadastro com nota mais completa e que casa com a série da turma.
+- Fix 2: a trava passou a ser aplicada TAMBÉM nos caminhos que a ignoravam: ficha de remanejamento (páginas destino e origem) e geração em LOTE por turma (`/documents/batch` boletim e ficha).
+- Fix 3 (`pdf/ficha_individual.py:231`): `carga_horaria` None causava `TypeError: int += NoneType` na soma de carga → guard `get_course_workload(...) or 0`.
+- Validado e2e com seed idêntico ao caso reportado (2 cadastros de EF, nivel_ensino diferente, notas em ambos): Ficha e Boletim → "Educação Física" aparece 1x. Regressão em alunos reais + batch de 2 turmas → todos HTTP 200.
+
+
 ## 2026-08-07 — FIX CRÍTICO: Ficha Individual retornava 500 ("Failed to fetch"/CORS) no caso normal ✅ (validado curl)
 - Sintoma em produção (Coolify): ao clicar "Abrir PDF" da Ficha Individual → console mostrava "blocked by CORS policy: No 'Access-Control-Allow-Origin'" + `net::ERR_FAILED 500`. A mensagem de CORS era SECUNDÁRIA: um 500 não tratado é gerado pelo ServerErrorMiddleware do Starlette (fora do CORSMiddleware), por isso a resposta de erro vinha sem header CORS.
 - Causa raiz: em `routers/documents.py` (caso normal da ficha, ~linha 1642) a trava `_dedupe_components(courses, grade_level, _graded_ids_f)` passava um **set de strings** de course_id como 3º argumento (`grades`), mas a função itera esse parâmetro como lista de dicts e faz `g.get('course_id')` → `AttributeError: 'str' object has no attribute 'get'` → 500 não tratado.

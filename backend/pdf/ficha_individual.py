@@ -228,7 +228,7 @@ def generate_ficha_individual_pdf(
     carga_integral = 0
     for course in courses:
         atendimento = course.get('atendimento_programa')
-        ch = get_course_workload(course, grade_level)
+        ch = get_course_workload(course, grade_level) or 0
         if atendimento == 'atendimento_integral':
             carga_integral += ch
         else:
