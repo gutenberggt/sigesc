@@ -40,35 +40,38 @@ def _norm_component_name(s):
     return ' '.join(s.lower().split())
 
 
-def _dedupe_components(courses, class_grade_level=None, graded_course_ids=None):
+def _dedupe_components(courses, class_grade_level=None, grades=None):
     """Garante UMA linha por componente curricular no documento (trava anti-duplicação).
 
-    Componentes com o MESMO nome (normalizado) + mesmo nível + mesmo atendimento são
-    colapsados em um único registro — escolhendo o cadastro que:
-      1) tem a NOTA do aluno lançada (graded_course_ids);
-      2) empate -> cujo `grade_levels` contém a SÉRIE da turma (class_grade_level);
-      3) empate -> o primeiro.
-    Componentes de nomes/atendimentos diferentes são preservados (não são duplicatas).
+    Colapsa componentes de MESMO nome (normalizado) + mesmo nível de ensino em um único
+    registro — independentemente de atendimento/turma de origem — escolhendo o cadastro que:
+      1) tem a NOTA mais completa do aluno (nº de bimestres preenchidos);
+      2) empate -> tem qualquer nota lançada;
+      3) empate -> cujo `grade_levels` contém a SÉRIE da turma;
+      4) empate -> o primeiro.
+    Componentes de nomes diferentes são preservados (não são duplicatas).
     """
-    graded = set(graded_course_ids or [])
+    _F = ('b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2')
+    filled_by, graded = {}, set()
+    for g in (grades or []):
+        cid = g.get('course_id')
+        if not cid:
+            continue
+        graded.add(cid)
+        filled_by[cid] = max(filled_by.get(cid, 0), sum(1 for k in _F if g.get(k) is not None))
     gl_norm = _norm_component_name(class_grade_level) if class_grade_level else None
     groups, order = {}, []
     for c in courses or []:
-        key = (
-            _norm_component_name(c.get('name') or c.get('nome')),
-            (c.get('nivel_ensino') or ''),
-            (c.get('atendimento_programa') or '').strip().lower(),
-        )
+        key = (_norm_component_name(c.get('name') or c.get('nome')), (c.get('nivel_ensino') or ''))
         if key not in groups:
             groups[key] = []
             order.append(key)
         groups[key].append(c)
 
     def _score(c):
-        has_grade = 1 if c.get('id') in graded else 0
+        cid = c.get('id')
         gls = [_norm_component_name(x) for x in (c.get('grade_levels') or [])]
-        in_serie = 1 if (gl_norm and gl_norm in gls) else 0
-        return (has_grade, in_serie)
+        return (filled_by.get(cid, 0), 1 if cid in graded else 0, 1 if (gl_norm and gl_norm in gls) else 0)
 
     result = []
     for key in order:
@@ -536,8 +539,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }
 
         # Trava anti-duplicação (regra: 1 linha por componente, conforme série da turma/aluno)
-        _graded_ids_b = {g.get('course_id') for g in grades if g.get('course_id')}
-        courses = _dedupe_components(courses, (class_info or {}).get('grade_level'), _graded_ids_b)
+        courses = _dedupe_components(courses, (class_info or {}).get('grade_level'), grades)
 
         # Gerar PDF
         try:
