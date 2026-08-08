@@ -1,5 +1,11 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-07 — Script: Top 100 alunos por desempenho (rede completa)
+- Novo `backend/scripts/top100_desempenho_alunos.py`: replica a regra do Dashboard Analítico (endpoint /api/analytics/students/performance) sem o corte em 20.
+- Score = 60% (média final ×10) + 40% frequência. Exclui Ed. Infantil/1º/2º ano; notas regulares (final_average, sem dependência); frequência P/F/J.
+- Exibe colocação, nome do aluno, nome da escola, turma e score. Suporta ano e limite por argumento e saída CSV. Validado no preview (12 alunos elegíveis).
+
+
 ## 2026-08-07 — FIX: "Educação Física" ainda duplicava na Ficha/Boletim ✅ (validado e2e)
 - Sintoma: PDF do aluno mostrava "Educação Física" 2x (notas 6/6/6/6 e 6/6/6/0) = dois cadastros distintos do componente.
 - Causa raiz: a trava `_dedupe_components` agrupava por chave `(nome_normalizado, nivel_ensino)`. Como os dois cadastros de EF tinham `nivel_ensino` diferente (um vazio), caíam em grupos distintos e NÃO colapsavam.
