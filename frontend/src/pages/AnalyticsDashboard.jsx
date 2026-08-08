@@ -613,6 +613,7 @@ export function AnalyticsDashboard() {
   const [gradesByPeriod, setGradesByPeriod] = useState([]);
   const [schoolsRanking, setSchoolsRanking] = useState([]);
   const [studentsPerformance, setStudentsPerformance] = useState([]);
+  const [perfLimit, setPerfLimit] = useState(20); // Limite do ranking de desempenho (20/50/100/'all')
   const [teachersPerformance, setTeachersPerformance] = useState([]);
   const [gradesDistribution, setGradesDistribution] = useState([]);
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null); // Para o modal de drill-down
@@ -782,7 +783,7 @@ export function AnalyticsDashboard() {
           safeFetch(`${API_URL}/api/analytics/grades/by-subject?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-period?${params}`),
           (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/schools/ranking?academic_year=${selectedYear}`) : null,
-          canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}`) : null,
+          canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}&limit=${perfLimit === 'all' ? 100000 : perfLimit}`) : null,
           safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`),
           (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/teachers/performance?academic_year=${selectedYear}${selectedSchool ? '&school_id=' + selectedSchool : ''}`) : null
         ]);
@@ -828,7 +829,7 @@ export function AnalyticsDashboard() {
     };
     
     loadAnalytics();
-  }, [selectedYear, selectedSchool, selectedClass, selectedStudent]);
+  }, [selectedYear, selectedSchool, selectedClass, selectedStudent, perfLimit]);
 
   // Carregar alunos da turma selecionada via matrículas (enrollments)
   useEffect(() => {
@@ -2165,12 +2166,31 @@ export function AnalyticsDashboard() {
         {canViewStudentData && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2 flex-wrap">
                 <Users className="h-5 w-5 text-green-600" />
                 Desempenho dos Alunos
                 {isProfessor && !selectedClass && (
                   <span className="text-xs font-normal text-amber-600 ml-2">(Selecione uma turma)</span>
                 )}
+                {/* Seletor de limite do ranking */}
+                <div className="flex items-center gap-1 ml-auto" data-testid="perf-limit-selector">
+                  <span className="text-xs font-normal text-gray-500 mr-1">Exibir:</span>
+                  {[20, 50, 100, 'all'].map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      data-testid={`perf-limit-${opt}`}
+                      onClick={() => setPerfLimit(opt)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        perfLimit === opt
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {opt === 'all' ? 'Todos' : opt}
+                    </button>
+                  ))}
+                </div>
               </CardTitle>
               {/* Indicador de restrição por perfil */}
               <div className="mt-1 text-xs text-gray-500">
@@ -2209,6 +2229,7 @@ export function AnalyticsDashboard() {
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">#</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Aluno</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Escola</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Turma</th>
                         <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média (60%)</th>
                         <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Frequência (40%)</th>
@@ -2220,6 +2241,7 @@ export function AnalyticsDashboard() {
                         <tr key={student.student_id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-4 text-gray-500">{index + 1}</td>
                           <td className="py-3 px-4 font-medium text-gray-900">{student.student_name}</td>
+                          <td className="py-3 px-4 text-gray-600">{student.school_name}</td>
                           <td className="py-3 px-4 text-gray-600">{student.class_name}</td>
                           <td className="py-3 px-4 text-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${

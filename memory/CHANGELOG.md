@@ -1,5 +1,12 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-08 — Dashboard Analítico: seletor de limite + coluna Escola no ranking de alunos
+- Card "Desempenho dos Alunos" ganhou seletor 20/50/100/Todos (data-testid perf-limit-*); refetch automático ao trocar (frontend AnalyticsDashboard.jsx).
+- Endpoint GET /api/analytics/students/performance agora retorna `school_name` (resolvido via matrícula, fallback pela turma) além de class_name.
+- Tabela passou a exibir a coluna "Escola" (colocação · aluno · escola · turma · média · frequência · score).
+- Validado: endpoint com limit=100 retorna school_name; UI renderiza seletor (100 ativo) e coluna Escola preenchida (screenshot).
+
+
 ## 2026-08-07 — Script: Top 100 alunos por desempenho (rede completa)
 - Novo `backend/scripts/top100_desempenho_alunos.py`: replica a regra do Dashboard Analítico (endpoint /api/analytics/students/performance) sem o corte em 20.
 - Score = 60% (média final ×10) + 40% frequência. Exclui Ed. Infantil/1º/2º ano; notas regulares (final_average, sem dependência); frequência P/F/J.

@@ -1365,6 +1365,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             students[student['id']] = {
                 'name': student.get('full_name') or student.get('name', 'N/A'),
                 'class_id': enrollment_map.get(student['id'], {}).get('class_id'),
+                'school_id': enrollment_map.get(student['id'], {}).get('school_id'),
                 'avg_grade': 0,
                 'attendance_rate': 0,
                 'total_grades': 0,
@@ -1433,9 +1434,21 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # Buscar nomes das turmas
         class_ids = list(set(s['class_id'] for s in students.values() if s['class_id']))
         classes = {}
-        async for cls in current_db.classes.find({'id': {'$in': class_ids}}, {'id': 1, 'name': 1}):
+        async for cls in current_db.classes.find({'id': {'$in': class_ids}}, {'id': 1, 'name': 1, 'school_id': 1}):
             classes[cls['id']] = cls['name']
-        
+
+        # Buscar nomes das escolas (via matrícula, com fallback pela turma)
+        class_school = {}
+        async for cls in current_db.classes.find({'id': {'$in': class_ids}}, {'id': 1, 'school_id': 1}):
+            class_school[cls['id']] = cls.get('school_id')
+        school_ids = list(set(
+            (s.get('school_id') or class_school.get(s.get('class_id')))
+            for s in students.values()
+        ) - {None})
+        schools = {}
+        async for sc in current_db.schools.find({'id': {'$in': school_ids}}, {'id': 1, 'name': 1}):
+            schools[sc['id']] = sc.get('name') or 'N/A'
+
         result = []
         for student_id, data in students.items():
             avg = data['avg_grade']
@@ -1443,9 +1456,11 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             # Score: 60% média (nota/10 * 100) + 40% frequência
             indice_media = round(avg * 10, 1) if avg > 0 else 0
             score = round(indice_media * 0.6 + freq * 0.4, 1)
+            _sid = data.get('school_id') or class_school.get(data.get('class_id'))
             result.append({
                 'student_id': student_id,
                 'student_name': data['name'],
+                'school_name': schools.get(_sid, 'N/A'),
                 'class_name': classes.get(data['class_id'], 'N/A'),
                 'avg_grade': avg,
                 'attendance_rate': freq,
