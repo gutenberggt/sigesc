@@ -139,14 +139,51 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 return str(ts or '-')
 
         from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.units import mm
+        from reportlab.lib.units import mm, cm
         from reportlab.lib import colors
+        from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from pdf.utils import get_logo_image
+
+        # ===== Dados institucionais (mantenedora / escola / usuário filtrado) =====
+        _mant_scope = request.headers.get('X-Mantenedora-Id')
+        mantenedora = await db['mantenedora'].find_one({}, {'_id': 0})
+        if not mantenedora and _mant_scope:
+            mantenedora = await db['mantenedoras'].find_one({'id': _mant_scope}, {'_id': 0})
+        if not mantenedora:
+            mantenedora = await db['mantenedoras'].find_one({}, {'_id': 0})
+        mantenedora = mantenedora or {}
+        mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+        mant_estado = mantenedora.get('estado', 'PA')
+        mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
+        mant_secretaria = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
+        mant_slogan = mantenedora.get('slogan', '')
+        logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
+        logo = get_logo_image(width=2.3 * cm, height=2.7 * cm, logo_url=logo_url)
+
+        escola_nome = None
+        if school_id:
+            _sc = await db.schools.find_one({'id': school_id}, {'_id': 0, 'name': 1})
+            escola_nome = (_sc or {}).get('name')
+        usuario_ctx = None
+        if user_id:
+            _u = await db.users.find_one({'id': user_id}, {'_id': 0, 'full_name': 1, 'name': 1, 'email': 1, 'role': 1})
+            if _u:
+                role_labels = {
+                    'super_admin': 'Super Administrador', 'admin': 'Administrador(a)',
+                    'gerente': 'Gerente', 'secretario': 'Secretário(a)', 'coordenador': 'Coordenador(a)',
+                    'professor': 'Professor(a)', 'auxiliar_secretaria': 'Auxiliar de Secretaria',
+                    'diretor': 'Diretor(a)',
+                }
+                _rl = role_labels.get(_u.get('role'), _u.get('role') or '')
+                usuario_ctx = f"{_u.get('full_name') or _u.get('name') or _u.get('email')}" + (f" — {_rl}" if _rl else '')
 
         styles = getSampleStyleSheet()
         cell = ParagraphStyle('cell', parent=styles['Normal'], fontSize=7, leading=9)
-        title = ParagraphStyle('t', parent=styles['Title'], fontSize=14)
+        left_style = ParagraphStyle('hleft', fontSize=10, alignment=TA_LEFT, leading=13)
+        right_style = ParagraphStyle('hright', fontSize=10, alignment=TA_RIGHT, leading=15)
+        ctx_style = ParagraphStyle('ctx', parent=styles['Normal'], fontSize=8, leading=11)
         small = ParagraphStyle('s', parent=styles['Normal'], fontSize=8, textColor=colors.grey)
 
         header = ['Data/Hora', 'Usuário', 'Ação', 'Descrição', 'Tempo']
@@ -167,13 +204,58 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         buf = BytesIO()
         doc = SimpleDocTemplate(
             buf, pagesize=landscape(A4),
-            leftMargin=10 * mm, rightMargin=10 * mm, topMargin=12 * mm, bottomMargin=12 * mm,
+            leftMargin=10 * mm, rightMargin=10 * mm, topMargin=10 * mm, bottomMargin=12 * mm,
         )
+
+        # ===== Cabeçalho institucional (brasão | mantenedora/secretaria | título) =====
+        slogan_html = f'<br/><font size="8" color="#666666"><i>"{mant_slogan}"</i></font>' if mant_slogan else ''
+        header_left = (
+            f'<font size="12"><b>{mant_nome.upper()}</b></font><br/>'
+            f'<font size="9"><i>{mant_secretaria}</i></font><br/>'
+            f'<font size="8" color="#555555">{mant_municipio} - {mant_estado}</font>'
+            f'{slogan_html}'
+        )
+        header_right = (
+            '<font size="15" color="#1e40af"><b>LOGS DE AUDITORIA</b></font><br/>'
+            '<font size="9" color="#555555">Rastreamento de alterações no sistema</font>'
+        )
+        if logo:
+            head_table = Table(
+                [[logo, Paragraph(header_left, left_style), Paragraph(header_right, right_style)]],
+                colWidths=[2.8 * cm, 15 * cm, 9 * cm],
+            )
+        else:
+            head_table = Table(
+                [[Paragraph(header_left, left_style), Paragraph(header_right, right_style)]],
+                colWidths=[17.8 * cm, 9 * cm],
+            )
+        head_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (1 if logo else 0, 0), (1 if logo else 0, 0), 10),
+            ('LINEAFTER', (0, 0), (0, 0), 0.8, colors.HexColor('#1e40af')) if logo else ('LINEBELOW', (0, 0), (-1, -1), 0, colors.white),
+        ]))
+
         gen_at = datetime.now(timezone.utc).astimezone().strftime('%d/%m/%Y %H:%M')
+        ctx_parts = []
+        if escola_nome:
+            ctx_parts.append(f'<b>Escola:</b> {escola_nome}')
+        if usuario_ctx:
+            ctx_parts.append(f'<b>Usuário:</b> {usuario_ctx}')
+        if start_date or end_date:
+            ctx_parts.append(f"<b>Período:</b> {start_date or '...'} a {end_date or '...'}")
+        ctx_parts.append(f'<b>Gerado em:</b> {gen_at}')
+        ctx_parts.append(f"<b>Registros:</b> {len(logs)} de {total}"
+                         + (f" (limitado a {MAX_ROWS})" if total > MAX_ROWS else ''))
+
         elements = [
-            Paragraph('Logs de Auditoria', title),
-            Paragraph(f"Gerado em {gen_at} — {len(logs)} de {total} registro(s)"
-                      + (f" (limitado a {MAX_ROWS})" if total > MAX_ROWS else ''), small),
+            head_table,
+            Table([['']], colWidths=[26.8 * cm], style=TableStyle([
+                ('LINEBELOW', (0, 0), (-1, -1), 1, colors.HexColor('#1e40af')),
+                ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ])),
+            Spacer(1, 4),
+            Paragraph(' &nbsp;|&nbsp; '.join(ctx_parts), ctx_style),
             Spacer(1, 6),
         ]
         col_widths = [28 * mm, 45 * mm, 32 * mm, 150 * mm, 22 * mm]

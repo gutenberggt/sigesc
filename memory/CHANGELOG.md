@@ -1,5 +1,11 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-09 — Logs de Auditoria: PDF institucional (brasão + mantenedora)
+- PDF de auditoria (GET /api/audit-logs/pdf) agora com cabeçalho institucional igual aos demais documentos: brasão (get_logo_image), Prefeitura/Mantenedora (Município-UF), Secretaria, slogan, título "LOGS DE AUDITORIA".
+- Fonte da mantenedora: coleção 'mantenedora' (singular) → fallback por X-Mantenedora-Id em 'mantenedoras' → 1º doc. brasao_url/logotipo_url.
+- Linha de contexto conforme filtros: Escola (se school_id), Usuário + papel em PT (se user_id — cobre professor/coordenador/etc.), Período (se datas), Gerado em, Registros (x de y, limitado a 2000).
+- Validado: PDF HTTP 200; render da 1ª página confirma brasão + textos institucionais + contexto do usuário filtrado.
+
 ## 2026-08-09 — Logs de Auditoria: quebra de linha e descrição objetiva com nome
 - Colunas "Usuário" e "Descrição" agora permitem quebra de linha (whitespace-normal break-words; removido truncate/nowrap; align-top). Nomes/descrições longos não são mais cortados.
 - audit_service.get_logs → _enrich_subject_names: descrições genéricas com "(ID: xxxx...)" para students/staff/users/schools/classes passam a exibir o NOME real do sujeito (lookup em lote por document_id). Descrições que já trazem o nome não mudam. Aplica-se também ao PDF (usa get_logs).
