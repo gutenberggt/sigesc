@@ -1,5 +1,11 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-09 — Dashboard Analítico: seletor de limite no Desempenho dos Professores
+- Card "Desempenho dos Professores" ganhou seletor Exibir 10/20/50/100/Todos (data-testid teacher-limit-*); refetch automático (frontend AnalyticsDashboard.jsx). Título deixou de ser fixo "Top 10".
+- Backend GET /api/analytics/teachers/performance já aceitava `limit` (result[:limit]); frontend passa limit=teacherLimit ('all'→100000).
+- Validado: endpoint respeita limit; UI mostra seletor (50 ativo). Preview tem 1 professor.
+
+
 ## 2026-08-09 — Dashboard Analítico: filtro Série/Ano no ranking de alunos
 - Card "Desempenho dos Alunos" ganhou seletor "Série/Ano" (data-testid perf-gradegroup-select): Todas / 3º ao 5º Ano / 6º ao 9º Ano / 1ª e 2ª Etapa / 3ª e 4ª Etapa.
 - Backend GET /api/analytics/students/performance: novo parâmetro `grade_group` (fund_3_5|fund_6_9|eja_1_2|eja_3_4) que filtra as turmas elegíveis por número da série/etapa + detecção de EJA (education_level 'eja' ou grade contendo ETAPA/EJA). Robusto a variações de caixa/acentuação.

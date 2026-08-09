@@ -615,6 +615,7 @@ export function AnalyticsDashboard() {
   const [studentsPerformance, setStudentsPerformance] = useState([]);
   const [perfLimit, setPerfLimit] = useState(20); // Limite do ranking de desempenho (20/50/100/'all')
   const [perfGradeGroup, setPerfGradeGroup] = useState(''); // Filtro Série/Ano do ranking ('' = todas)
+  const [teacherLimit, setTeacherLimit] = useState(10); // Limite do ranking de professores (10/20/50/100/'all')
   const [teachersPerformance, setTeachersPerformance] = useState([]);
   const [gradesDistribution, setGradesDistribution] = useState([]);
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null); // Para o modal de drill-down
@@ -786,7 +787,7 @@ export function AnalyticsDashboard() {
           (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/schools/ranking?academic_year=${selectedYear}`) : null,
           canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}&limit=${perfLimit === 'all' ? 100000 : perfLimit}${perfGradeGroup ? `&grade_group=${perfGradeGroup}` : ''}`) : null,
           safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`),
-          (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/teachers/performance?academic_year=${selectedYear}${selectedSchool ? '&school_id=' + selectedSchool : ''}`) : null
+          (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/teachers/performance?academic_year=${selectedYear}${selectedSchool ? '&school_id=' + selectedSchool : ''}&limit=${teacherLimit === 'all' ? 100000 : teacherLimit}`) : null
         ]);
         
         if (ovRes) setOverview(ovRes);
@@ -830,7 +831,7 @@ export function AnalyticsDashboard() {
     };
     
     loadAnalytics();
-  }, [selectedYear, selectedSchool, selectedClass, selectedStudent, perfLimit, perfGradeGroup]);
+  }, [selectedYear, selectedSchool, selectedClass, selectedStudent, perfLimit, perfGradeGroup, teacherLimit]);
 
   // Carregar alunos da turma selecionada via matrículas (enrollments)
   useEffect(() => {
@@ -2299,9 +2300,27 @@ export function AnalyticsDashboard() {
         {(isAdmin || isSemed) && teachersPerformance.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2 flex-wrap">
                 <Award className="h-5 w-5 text-purple-600" />
-                Desempenho dos Professores - Top 10
+                Desempenho dos Professores
+                <div className="flex items-center gap-1 ml-auto" data-testid="teacher-limit-selector">
+                  <span className="text-xs font-normal text-gray-500 mr-1">Exibir:</span>
+                  {[10, 20, 50, 100, 'all'].map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      data-testid={`teacher-limit-${opt}`}
+                      onClick={() => setTeacherLimit(opt)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        teacherLimit === opt
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {opt === 'all' ? 'Todos' : opt}
+                    </button>
+                  ))}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
