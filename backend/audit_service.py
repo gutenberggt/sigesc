@@ -322,8 +322,42 @@ class AuditService:
         ]
         
         logs = await self.db.audit_logs.aggregate(pipeline).to_list(length=limit)
-        
+
+        # Enriquecimento: coluna "Tempo" — dias entre a data do lançamento (aula) e a
+        # data do 1º salvamento. Apenas para CREATE de frequência/conteúdos.
+        for lg in logs:
+            lg['tempo_dias'] = self._compute_tempo_dias(lg)
+
         return logs, total
+
+    def _compute_tempo_dias(self, log: dict):
+        """Diferença, em dias, entre a data do 1º salvamento (timestamp) e a data do
+        registro (aula/lançamento). Somente para o PRIMEIRO salvamento (action='create')
+        de frequência (attendance) ou conteúdos (content_entries). Edições e demais casos
+        retornam None (exibidos como '-'). Notas não possuem data de aula → None.
+        """
+        if log.get('action') != 'create':
+            return None
+        if log.get('collection') not in ('attendance', 'content_entries'):
+            return None
+        extra = log.get('extra_data') or {}
+        rec_date = extra.get('date')
+        if not rec_date:
+            import re
+            m = re.search(r'(\d{4}-\d{2}-\d{2})', log.get('description') or '')
+            rec_date = m.group(1) if m else None
+        if not rec_date:
+            return None
+        try:
+            rd = datetime.strptime(str(rec_date)[:10], '%Y-%m-%d').date()
+            ts = log.get('timestamp')
+            if not ts:
+                return None
+            td = datetime.fromisoformat(str(ts).replace('Z', '+00:00')).date()
+            diff = (td - rd).days
+            return diff if diff >= 0 else None
+        except Exception:
+            return None
     
     async def get_user_activity(self, user_id: str, limit: int = 20) -> List[dict]:
         """Retorna atividades recentes de um usuário específico"""

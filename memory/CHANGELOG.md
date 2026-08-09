@@ -1,5 +1,13 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-09 — Logs de Auditoria: coluna "Tempo", filtro por usuário (autocomplete) e Gerar PDF
+- Removida a coluna "Severidade"; adicionada "Tempo" = dias entre a data do 1º salvamento (timestamp) e a data do registro (aula). Só para action='create' de attendance (frequência) e content_entries (conteúdos); edições e demais casos → "-". Notas (grades) não têm data de aula e o log é sempre 'update' → "-".
+- Cálculo em audit_service.get_logs (_compute_tempo_dias, usa extra_data.date com fallback regex na descrição; diferença negativa → None).
+- Filtros: removidos "Ação" e "Severidade". Novo "Buscar por usuário" com sugestões a partir do 3º caractere (autocomplete client-side sobre a lista já carregada — leve/rápido, sem endpoint extra).
+- Novo GET /api/audit-logs/pdf (ReportLab, StreamingResponse, cap 2000 linhas) respeitando filtros; botão "Gerar PDF" na UI baixa via downloadBlob.
+- Validado: tempo_dias=0 no mesmo dia, negativos→"-"; PDF HTTP 200 (206KB); UI mostra coluna Tempo, autocomplete e botão.
+
+
 ## 2026-08-09 — Dashboard Analítico: seletor de limite no Desempenho dos Professores
 - Card "Desempenho dos Professores" ganhou seletor Exibir 10/20/50/100/Todos (data-testid teacher-limit-*); refetch automático (frontend AnalyticsDashboard.jsx). Título deixou de ser fixo "Top 10".
 - Backend GET /api/analytics/teachers/performance já aceitava `limit` (result[:limit]); frontend passa limit=teacherLimit ('all'→100000).

@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  FileText as FilePdf,
+  X,
   Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,6 +33,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -94,12 +97,13 @@ export const AuditLogs = () => {
   const [page, setPage] = useState(0);
   const [limit] = useState(20);
   const [users, setUsers] = useState([]);
+  const [userQuery, setUserQuery] = useState(''); // texto digitado no "Buscar por Usuário"
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   
   // Filtros
   const [filters, setFilters] = useState({
-    action: '',
     collection: '',
-    severity: '',
     search: '',
     user_id: ''
   });
@@ -112,9 +116,7 @@ export const AuditLogs = () => {
         limit: limit
       });
       
-      if (filters.action) params.append('action', filters.action);
       if (filters.collection) params.append('collection', filters.collection);
-      if (filters.severity) params.append('severity', filters.severity);
       if (filters.search) params.append('search', filters.search);
       if (filters.user_id) params.append('user_id', filters.user_id);
       
@@ -190,6 +192,47 @@ export const AuditLogs = () => {
 
   const totalPages = Math.ceil(total / limit);
 
+  // Sugestões de usuário (a partir do 3º caractere), filtrando pela lista já carregada
+  const userSuggestions = userQuery.trim().length >= 3
+    ? users.filter(u => {
+        const q = userQuery.trim().toLowerCase();
+        return (u.full_name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+      }).slice(0, 8)
+    : [];
+
+  const selectUser = (u) => {
+    setFilters({ ...filters, user_id: u.id });
+    setUserQuery(u.full_name || u.email || '');
+    setShowUserSuggestions(false);
+    setPage(0);
+  };
+
+  const clearUser = () => {
+    setFilters({ ...filters, user_id: '' });
+    setUserQuery('');
+    setShowUserSuggestions(false);
+    setPage(0);
+  };
+
+  const handleGeneratePdf = async () => {
+    try {
+      setGeneratingPdf(true);
+      const params = new URLSearchParams();
+      if (filters.collection) params.append('collection', filters.collection);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.user_id) params.append('user_id', filters.user_id);
+      const filename = `logs_auditoria_${new Date().toISOString().slice(0, 10)}.pdf`;
+      await downloadBlob(`${API}/api/audit-logs/pdf?${params}`, filename, {
+        Authorization: token ? `Bearer ${token}` : ''
+      });
+    } catch (e) {
+      console.error('Erro ao gerar PDF:', e);
+      alert('Não foi possível gerar o PDF. Tente novamente.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   // Verifica permissão
   if (!hasRole(user, ['admin', 'admin_teste', 'secretario', 'semed'])) {
     return (
@@ -229,10 +272,16 @@ export const AuditLogs = () => {
               </p>
             </div>
           </div>
-          <Button onClick={() => { fetchLogs(); fetchStats(); }} variant="outline">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleGeneratePdf} disabled={generatingPdf} data-testid="audit-generate-pdf-button">
+              <FilePdf className="w-4 h-4 mr-2" />
+              {generatingPdf ? 'Gerando...' : 'Gerar PDF'}
+            </Button>
+            <Button onClick={() => { fetchLogs(); fetchStats(); }} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Estatísticas */}
@@ -272,40 +321,63 @@ export const AuditLogs = () => {
                 value={filters.search}
                 onChange={(e) => setFilters({...filters, search: e.target.value})}
                 className="w-full"
+                data-testid="audit-search-input"
               />
             </div>
-            <Select
-              value={filters.user_id || 'all'}
-              onValueChange={(value) => setFilters({...filters, user_id: value === 'all' ? '' : value})}
-            >
-              <SelectTrigger className="w-[220px]">
-                <User className="w-4 h-4 mr-2 text-gray-500" />
-                <SelectValue placeholder="Usuário" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os usuários</SelectItem>
-                {users.map(u => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.full_name || u.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.action || 'all'}
-              onValueChange={(value) => setFilters({...filters, action: value === 'all' ? '' : value})}
-            >
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Ação" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="login">Login</SelectItem>
-                <SelectItem value="create">Criação</SelectItem>
-                <SelectItem value="update">Alteração</SelectItem>
-                <SelectItem value="delete">Exclusão</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Buscar por Usuário — autocomplete a partir do 3º caractere */}
+            <div className="relative w-[260px]">
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Buscar por usuário..."
+                  value={userQuery}
+                  onChange={(e) => {
+                    setUserQuery(e.target.value);
+                    setShowUserSuggestions(true);
+                    if (filters.user_id) setFilters({ ...filters, user_id: '' });
+                  }}
+                  onFocus={() => setShowUserSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowUserSuggestions(false), 150)}
+                  className="w-full pl-8 pr-8"
+                  data-testid="audit-user-search-input"
+                />
+                {userQuery && (
+                  <button
+                    type="button"
+                    onClick={clearUser}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    data-testid="audit-user-clear-button"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {showUserSuggestions && userQuery.trim().length >= 3 && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto" data-testid="audit-user-suggestions">
+                  {userSuggestions.length > 0 ? (
+                    userSuggestions.map(u => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onMouseDown={() => selectUser(u)}
+                        className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                        data-testid={`audit-user-suggestion-${u.id}`}
+                      >
+                        <div className="font-medium text-gray-900">{u.full_name || u.email}</div>
+                        {u.full_name && <div className="text-xs text-gray-500">{u.email}</div>}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">Nenhum usuário encontrado</div>
+                  )}
+                </div>
+              )}
+              {userQuery.trim().length > 0 && userQuery.trim().length < 3 && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-sm px-3 py-2 text-xs text-gray-400">
+                  Digite pelo menos 3 caracteres…
+                </div>
+              )}
+            </div>
             <Select
               value={filters.collection || 'all'}
               onValueChange={(value) => setFilters({...filters, collection: value === 'all' ? '' : value})}
@@ -319,21 +391,8 @@ export const AuditLogs = () => {
                 <SelectItem value="students">Alunos(as)</SelectItem>
                 <SelectItem value="grades">Notas</SelectItem>
                 <SelectItem value="attendance">Frequência</SelectItem>
+                <SelectItem value="content_entries">Conteúdos</SelectItem>
                 <SelectItem value="staff">Servidores(as)</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.severity || 'all'}
-              onValueChange={(value) => setFilters({...filters, severity: value === 'all' ? '' : value})}
-            >
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Severidade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="info">Informação</SelectItem>
-                <SelectItem value="warning">Aviso</SelectItem>
-                <SelectItem value="critical">Crítico</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -360,7 +419,7 @@ export const AuditLogs = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ação</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severidade</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tempo</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -404,11 +463,14 @@ export const AuditLogs = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <Badge className={SEVERITY_COLORS[log.severity]}>
-                            {log.severity === 'critical' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                            {SEVERITY_LABELS[log.severity] || log.severity}
-                          </Badge>
+                        <td className="px-4 py-3 whitespace-nowrap" data-testid="audit-tempo-cell">
+                          {Number.isInteger(log.tempo_dias) ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                              {log.tempo_dias} {log.tempo_dias === 1 ? 'dia' : 'dias'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                       </tr>
                     );
