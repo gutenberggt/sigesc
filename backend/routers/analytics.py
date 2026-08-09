@@ -1245,6 +1245,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         school_id: Optional[str] = Query(None),
         class_id: Optional[str] = Query(None),
         subject_id: Optional[str] = Query(None, description="ID do componente curricular"),
+        grade_group: Optional[str] = Query(None, description="Grupo de série/ano: fund_3_5 | fund_6_9 | eja_1_2 | eja_3_4"),
         limit: int = Query(20, description="Limite de resultados")
     ):
         """
@@ -1308,7 +1309,25 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         excluded_grade_levels = ['1º ANO', '1 ANO', '2º ANO', '2 ANO', 'PRÉ I', 'PRÉ II', 'PRE I', 'PRE II',
                                  'MATERNAL', 'BERÇÁRIO', 'BERCARIO', 'CRECHE', 'INFANTIL I', 'INFANTIL II',
                                  'INFANTIL III', 'INFANTIL IV', 'INFANTIL V']
-        
+
+        def _matches_grade_group(grade_upper: str, ed_level_lower: str, group: str) -> bool:
+            """Classifica a turma em um grupo de série/ano: fund_3_5, fund_6_9, eja_1_2, eja_3_4."""
+            if not group or group == 'all':
+                return True
+            import re
+            is_eja = ('eja' in ed_level_lower) or ('ETAPA' in grade_upper) or ('EJA' in grade_upper)
+            nums = re.findall(r'\d+', grade_upper)
+            n = int(nums[0]) if nums else None
+            if group == 'fund_3_5':
+                return (not is_eja) and n in (3, 4, 5)
+            if group == 'fund_6_9':
+                return (not is_eja) and n in (6, 7, 8, 9)
+            if group == 'eja_1_2':
+                return is_eja and n in (1, 2)
+            if group == 'eja_3_4':
+                return is_eja and n in (3, 4)
+            return True
+
         # Buscar turmas elegíveis (excluindo as não desejadas)
         class_filter = {'academic_year': year_filter(academic_year)}
         if class_id:
@@ -1327,6 +1346,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             if ed_level in excluded_grades:
                 continue
             if any(eg in grade for eg in excluded_grade_levels):
+                continue
+            if not _matches_grade_group(grade, (ed_level or '').lower(), grade_group):
                 continue
             eligible_classes.append(cls['id'])
         

@@ -614,6 +614,7 @@ export function AnalyticsDashboard() {
   const [schoolsRanking, setSchoolsRanking] = useState([]);
   const [studentsPerformance, setStudentsPerformance] = useState([]);
   const [perfLimit, setPerfLimit] = useState(20); // Limite do ranking de desempenho (20/50/100/'all')
+  const [perfGradeGroup, setPerfGradeGroup] = useState(''); // Filtro Série/Ano do ranking ('' = todas)
   const [teachersPerformance, setTeachersPerformance] = useState([]);
   const [gradesDistribution, setGradesDistribution] = useState([]);
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null); // Para o modal de drill-down
@@ -783,7 +784,7 @@ export function AnalyticsDashboard() {
           safeFetch(`${API_URL}/api/analytics/grades/by-subject?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-period?${params}`),
           (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/schools/ranking?academic_year=${selectedYear}`) : null,
-          canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}&limit=${perfLimit === 'all' ? 100000 : perfLimit}`) : null,
+          canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}&limit=${perfLimit === 'all' ? 100000 : perfLimit}${perfGradeGroup ? `&grade_group=${perfGradeGroup}` : ''}`) : null,
           safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`),
           (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/teachers/performance?academic_year=${selectedYear}${selectedSchool ? '&school_id=' + selectedSchool : ''}`) : null
         ]);
@@ -829,7 +830,7 @@ export function AnalyticsDashboard() {
     };
     
     loadAnalytics();
-  }, [selectedYear, selectedSchool, selectedClass, selectedStudent, perfLimit]);
+  }, [selectedYear, selectedSchool, selectedClass, selectedStudent, perfLimit, perfGradeGroup]);
 
   // Carregar alunos da turma selecionada via matrículas (enrollments)
   useEffect(() => {
@@ -2172,24 +2173,41 @@ export function AnalyticsDashboard() {
                 {isProfessor && !selectedClass && (
                   <span className="text-xs font-normal text-amber-600 ml-2">(Selecione uma turma)</span>
                 )}
-                {/* Seletor de limite do ranking */}
-                <div className="flex items-center gap-1 ml-auto" data-testid="perf-limit-selector">
-                  <span className="text-xs font-normal text-gray-500 mr-1">Exibir:</span>
-                  {[20, 50, 100, 'all'].map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      data-testid={`perf-limit-${opt}`}
-                      onClick={() => setPerfLimit(opt)}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                        perfLimit === opt
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
+                {/* Filtros do ranking: Série/Ano + limite */}
+                <div className="flex items-center gap-2 ml-auto flex-wrap">
+                  <div className="flex items-center gap-1" data-testid="perf-gradegroup-selector">
+                    <span className="text-xs font-normal text-gray-500">Série/Ano:</span>
+                    <select
+                      data-testid="perf-gradegroup-select"
+                      value={perfGradeGroup}
+                      onChange={(e) => setPerfGradeGroup(e.target.value)}
+                      className="text-xs font-normal border border-gray-200 rounded-md px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500"
                     >
-                      {opt === 'all' ? 'Todos' : opt}
-                    </button>
-                  ))}
+                      <option value="">Todas</option>
+                      <option value="fund_3_5">3º ao 5º Ano</option>
+                      <option value="fund_6_9">6º ao 9º Ano</option>
+                      <option value="eja_1_2">1ª e 2ª Etapa</option>
+                      <option value="eja_3_4">3ª e 4ª Etapa</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1" data-testid="perf-limit-selector">
+                    <span className="text-xs font-normal text-gray-500 mr-1">Exibir:</span>
+                    {[20, 50, 100, 'all'].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        data-testid={`perf-limit-${opt}`}
+                        onClick={() => setPerfLimit(opt)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                          perfLimit === opt
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {opt === 'all' ? 'Todos' : opt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </CardTitle>
               {/* Indicador de restrição por perfil */}

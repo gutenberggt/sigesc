@@ -1,5 +1,11 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-09 — Dashboard Analítico: filtro Série/Ano no ranking de alunos
+- Card "Desempenho dos Alunos" ganhou seletor "Série/Ano" (data-testid perf-gradegroup-select): Todas / 3º ao 5º Ano / 6º ao 9º Ano / 1ª e 2ª Etapa / 3ª e 4ª Etapa.
+- Backend GET /api/analytics/students/performance: novo parâmetro `grade_group` (fund_3_5|fund_6_9|eja_1_2|eja_3_4) que filtra as turmas elegíveis por número da série/etapa + detecção de EJA (education_level 'eja' ou grade contendo ETAPA/EJA). Robusto a variações de caixa/acentuação.
+- Validado: fund_3_5→só 5º ano (9), fund_6_9→6º+9º (3), Todas→12, EJA→0 (sem EJA no preview). UI filtra a tabela e mostra a coluna Escola.
+
+
 ## 2026-08-08 — Dashboard Analítico: seletor de limite + coluna Escola no ranking de alunos
 - Card "Desempenho dos Alunos" ganhou seletor 20/50/100/Todos (data-testid perf-limit-*); refetch automático ao trocar (frontend AnalyticsDashboard.jsx).
 - Endpoint GET /api/analytics/students/performance agora retorna `school_name` (resolvido via matrícula, fallback pela turma) além de class_name.
