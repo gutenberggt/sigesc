@@ -1,5 +1,9 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-09 — Logs de Auditoria: quebra de linha e descrição objetiva com nome
+- Colunas "Usuário" e "Descrição" agora permitem quebra de linha (whitespace-normal break-words; removido truncate/nowrap; align-top). Nomes/descrições longos não são mais cortados.
+- audit_service.get_logs → _enrich_subject_names: descrições genéricas com "(ID: xxxx...)" para students/staff/users/schools/classes passam a exibir o NOME real do sujeito (lookup em lote por document_id). Descrições que já trazem o nome não mudam. Aplica-se também ao PDF (usa get_logs).
+
 ## 2026-08-09 — Logs de Auditoria: regra de "Tempo" para NOTAS
 - Notas (grades): "Tempo" = dias entre o 1º salvamento e o fim do bimestre lançado. Só no PRIMEIRO salvamento (lote puramente de criações, sem edição). Valor em módulo (distância entre as datas) → sempre mostra um número; edições/lotes mistos → "-".
 - grades.py: no lote, detecta lote puro de create, identifica o maior bimestre lançado (b1..b4/rec), busca `bimestre_N_fim` no calendario_letivo (preferência pela escola, fallback rede), grava extra_data.tempo_ref_date e marca action='create'.

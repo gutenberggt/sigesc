@@ -431,18 +431,18 @@ export const AuditLogs = () => {
                           <div className="text-sm text-gray-900">{formatDate(log.timestamp)}</div>
                           <div className="text-xs text-gray-500">{log.ip_address}</div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex items-start">
+                            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                               <User className="h-4 w-4 text-gray-500" />
                             </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-medium text-gray-900">{log.user_name || log.user_email}</div>
-                              <div className="text-xs text-gray-500">{log.user_role}</div>
+                            <div className="ml-3 min-w-0 max-w-[220px]">
+                              <div className="text-sm font-medium text-gray-900 whitespace-normal break-words" data-testid="audit-user-cell">{log.user_name || log.user_email}</div>
+                              <div className="text-xs text-gray-500 whitespace-normal break-words">{log.user_role}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap align-top">
                           <div className="flex items-center gap-2">
                             <ActionIcon className="h-4 w-4 text-gray-400" />
                             <span className="text-sm">
@@ -453,8 +453,8 @@ export const AuditLogs = () => {
                             {COLLECTION_LABELS[log.collection] || log.collection}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-900 max-w-md truncate" title={log.description}>
+                        <td className="px-4 py-3 align-top">
+                          <div className="text-sm text-gray-900 max-w-md whitespace-normal break-words" title={log.description} data-testid="audit-description-cell">
                             {log.description}
                           </div>
                           {log.school_name && (

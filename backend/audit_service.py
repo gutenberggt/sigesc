@@ -323,12 +323,53 @@ class AuditService:
         
         logs = await self.db.audit_logs.aggregate(pipeline).to_list(length=limit)
 
-        # Enriquecimento: coluna "Tempo" — dias entre a data do lançamento (aula) e a
-        # data do 1º salvamento. Apenas para CREATE de frequência/conteúdos.
+        # Enriquecimento: descrições genéricas "(ID: xxxx...)" → nome do aluno/servidor/usuário
+        await self._enrich_subject_names(logs)
+
+        # Enriquecimento: coluna "Tempo" — dias entre a data do lançamento e a
+        # data do 1º salvamento. Apenas para CREATE de frequência/conteúdos/notas.
         for lg in logs:
             lg['tempo_dias'] = self._compute_tempo_dias(lg)
 
         return logs, total
+
+    async def _enrich_subject_names(self, logs: list):
+        """Torna a descrição objetiva: quando o log se refere a um aluno, servidor ou
+        usuário e a descrição contém apenas o ID genérico "(ID: xxxx...)", substitui pelo
+        nome real do sujeito. Descrições que já trazem o nome não são alteradas.
+        """
+        import re
+        NAME_MAP = {
+            'students': ('students', ['full_name', 'name']),
+            'staff': ('staff', ['full_name', 'name', 'nome']),
+            'users': ('users', ['full_name', 'name']),
+            'schools': ('schools', ['name']),
+            'classes': ('classes', ['name']),
+        }
+        id_paren = re.compile(r'\s*\(ID:[^)]*\)')
+        need = {}
+        for lg in logs:
+            col = lg.get('collection')
+            did = lg.get('document_id')
+            desc = lg.get('description') or ''
+            if col in NAME_MAP and did and '(ID:' in desc:
+                need.setdefault(col, set()).add(did)
+        if not need:
+            return
+        resolved = {}
+        for col, ids in need.items():
+            mongo_col, fields = NAME_MAP[col]
+            proj = {'_id': 0, 'id': 1}
+            for f in fields:
+                proj[f] = 1
+            async for doc in self.db[mongo_col].find({'id': {'$in': list(ids)}}, proj):
+                name = next((doc.get(f) for f in fields if doc.get(f)), None)
+                if name:
+                    resolved[(col, doc['id'])] = name
+        for lg in logs:
+            nm = resolved.get((lg.get('collection'), lg.get('document_id')))
+            if nm and lg.get('description'):
+                lg['description'] = id_paren.sub(f': {nm}', lg['description'])
 
     def _compute_tempo_dias(self, log: dict):
         """Diferença, em dias, entre a data do 1º salvamento (timestamp) e a data do
