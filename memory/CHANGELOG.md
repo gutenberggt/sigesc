@@ -1,6 +1,10 @@
 # CHANGELOG — SIGESC
 
-## 2026-08-09 — Logs de Auditoria: coluna "Tempo", filtro por usuário (autocomplete) e Gerar PDF
+## 2026-08-09 — Logs de Auditoria: regra de "Tempo" para NOTAS
+- Notas (grades): "Tempo" = dias entre o 1º salvamento e o fim do bimestre lançado. Só no PRIMEIRO salvamento (lote puramente de criações, sem edição). Valor em módulo (distância entre as datas) → sempre mostra um número; edições/lotes mistos → "-".
+- grades.py: no lote, detecta lote puro de create, identifica o maior bimestre lançado (b1..b4/rec), busca `bimestre_N_fim` no calendario_letivo (preferência pela escola, fallback rede), grava extra_data.tempo_ref_date e marca action='create'.
+- audit_service._compute_tempo_dias: passou a aceitar collection 'grades' (usa tempo_ref_date; valor absoluto). Frequência/Conteúdos seguem medindo atraso (>=0). Validado: nota antes do fim=48, depois=4, freq negativa="-".
+
 - Removida a coluna "Severidade"; adicionada "Tempo" = dias entre a data do 1º salvamento (timestamp) e a data do registro (aula). Só para action='create' de attendance (frequência) e content_entries (conteúdos); edições e demais casos → "-". Notas (grades) não têm data de aula e o log é sempre 'update' → "-".
 - Cálculo em audit_service.get_logs (_compute_tempo_dias, usa extra_data.date com fallback regex na descrição; diferença negativa → None).
 - Filtros: removidos "Ação" e "Severidade". Novo "Buscar por usuário" com sugestões a partir do 3º caractere (autocomplete client-side sobre a lista já carregada — leve/rápido, sem endpoint extra).

@@ -765,16 +765,47 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                     {"_id": 0, "name": 1, "school_id": 1}
                 )
                 school_id = class_info.get('school_id') if class_info else None
-            
+
+            # "Tempo": registrar SOMENTE o 1º salvamento (lote puramente de criações,
+            # sem nenhuma edição). Referência = fim do bimestre lançado.
+            _creates = [c for c in audit_changes if c.get('action') == 'create']
+            _updates = [c for c in audit_changes if c.get('action') != 'create']
+            _is_pure_first_save = bool(_creates) and not _updates
+            _ay = grades[0].get('academic_year') if grades else None
+            _bim_map = {'b1': 1, 'b2': 2, 'b3': 3, 'b4': 4, 'rec_s1': 2, 'rec_s2': 4}
+            _tempo_ref_date = None
+            _log_action = 'update'
+            if _is_pure_first_save and _ay is not None:
+                _bims = set()
+                for c in _creates:
+                    for k, v in (c.get('new') or {}).items():
+                        if v is not None and k in _bim_map:
+                            _bims.add(_bim_map[k])
+                if _bims:
+                    _n = max(_bims)
+                    _cal = await current_db.calendario_letivo.find_one(
+                        {"ano_letivo": _ay, "school_id": school_id}, {"_id": 0, f"bimestre_{_n}_fim": 1}
+                    ) or await current_db.calendario_letivo.find_one(
+                        {"ano_letivo": _ay}, {"_id": 0, f"bimestre_{_n}_fim": 1}
+                    )
+                    _tempo_ref_date = (_cal or {}).get(f"bimestre_{_n}_fim")
+                    if _tempo_ref_date:
+                        _log_action = 'create'
+
+            _extra = {'changes': audit_changes[:10]}
+            if _tempo_ref_date:
+                _extra['tempo_ref_date'] = str(_tempo_ref_date)[:10]
+                _extra['tempo_ref_kind'] = 'fim_bimestre'
+
             await audit_service.log(
-                action='update',
+                action=_log_action,
                 collection='grades',
                 user=current_user,
                 request=request,
-                description=f"Atualizou notas de {len(audit_changes)} aluno(s) da turma {class_info.get('name', 'N/A') if class_info else 'N/A'}",
+                description=f"{'Lançou' if _log_action == 'create' else 'Atualizou'} notas de {len(audit_changes)} aluno(s) da turma {class_info.get('name', 'N/A') if class_info else 'N/A'}",
                 school_id=school_id,
                 academic_year=grades[0].get('academic_year') if grades else None,
-                extra_data={'changes': audit_changes[:10]}
+                extra_data=_extra
             )
         
         return {"updated": len(results), "grades": results, "skipped": skipped}

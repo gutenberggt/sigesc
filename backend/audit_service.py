@@ -338,10 +338,11 @@ class AuditService:
         """
         if log.get('action') != 'create':
             return None
-        if log.get('collection') not in ('attendance', 'content_entries'):
+        if log.get('collection') not in ('attendance', 'content_entries', 'grades'):
             return None
         extra = log.get('extra_data') or {}
-        rec_date = extra.get('date')
+        # frequência/conteúdos → data da aula; notas → fim do bimestre (tempo_ref_date)
+        rec_date = extra.get('date') or extra.get('tempo_ref_date')
         if not rec_date:
             import re
             m = re.search(r'(\d{4}-\d{2}-\d{2})', log.get('description') or '')
@@ -355,6 +356,10 @@ class AuditService:
                 return None
             td = datetime.fromisoformat(str(ts).replace('Z', '+00:00')).date()
             diff = (td - rd).days
+            # Notas: "dias entre o lançamento e o fim do bimestre" = distância (valor absoluto).
+            # Frequência/Conteúdos: atraso do lançamento em relação à aula (>= 0).
+            if log.get('collection') == 'grades':
+                return abs(diff)
             return diff if diff >= 0 else None
         except Exception:
             return None
