@@ -1580,10 +1580,11 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         )
         
         # Calcular total de dias letivos no ano (e os já VENCIDOS = prazo de 3 dias expirado)
-        from datetime import datetime as _dt2, timedelta as _td2, timezone as _tz2
-        _cutoff_str = (_dt2.now(_tz2.utc) - _td2(days=3)).strftime('%Y-%m-%d')
+        from datetime import datetime as _dt2, timezone as _tz2
+        # "Período" = do início do ano letivo (1º bimestre) até a DATA ATUAL (hoje)
+        _period_end_str = _dt2.now(_tz2.utc).strftime('%Y-%m-%d')
         total_dias_letivos = 0
-        dias_letivos_vencidos = 0
+        dias_letivos_periodo = 0
         if calendario:
             from datetime import datetime as dt, timedelta
             events = await current_db.calendar_events.find(
@@ -1626,8 +1627,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                             dow = d.weekday()
                             if dow != 6 and ds not in blocked and (dow != 5 or ds in sab_letivos):
                                 total_dias_letivos += 1
-                                if ds <= _cutoff_str:
-                                    dias_letivos_vencidos += 1
+                                if ds <= _period_end_str:
+                                    dias_letivos_periodo += 1
                             d += timedelta(days=1)
                     except: pass
         
@@ -1647,7 +1648,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             sla_freq_pipeline = [
                 {'$match': {
                     'class_id': {'$in': all_class_ids},
-                    'date': {'$regex': f'^{academic_year}', '$lte': _cutoff_str},
+                    'date': {'$regex': f'^{academic_year}', '$lte': _period_end_str},
                     'created_at': {'$ne': None}
                 }},
                 {'$project': {
@@ -1681,6 +1682,42 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                     'total': doc['total'], 'on_time': doc['on_time']
                 }
 
+        # ===== SLA Notas (7 dias após o FIM do bimestre) =====
+        # Prazos apenas dos bimestres ENCERRADOS no período (fim <= hoje).
+        from datetime import datetime as _dtn, timedelta as _tdn
+        bim_note_deadlines = {}  # N -> 'YYYY-MM-DD' (fim + 7 dias)
+        if calendario:
+            for _n in (1, 2, 3, 4):
+                _fim = calendario.get(f'bimestre_{_n}_fim')
+                if _fim and str(_fim)[:10] <= _period_end_str:
+                    try:
+                        _dl = (_dtn.strptime(str(_fim)[:10], '%Y-%m-%d') + _tdn(days=7)).strftime('%Y-%m-%d')
+                        bim_note_deadlines[_n] = _dl
+                    except Exception:
+                        pass
+
+        # Agrega notas por (turma, componente): quais bimestres têm nota e o 1º created_at.
+        notas_by_cc = {}
+        if all_class_ids and bim_note_deadlines:
+            notas_pipeline = [
+                {'$match': {'class_id': {'$in': all_class_ids}, 'academic_year': year_filter(academic_year)}},
+                {'$group': {
+                    '_id': {'class_id': '$class_id', 'course_id': '$course_id'},
+                    'has_b1': {'$max': {'$cond': [{'$ne': ['$b1', None]}, 1, 0]}},
+                    'has_b2': {'$max': {'$cond': [{'$ne': ['$b2', None]}, 1, 0]}},
+                    'has_b3': {'$max': {'$cond': [{'$ne': ['$b3', None]}, 1, 0]}},
+                    'has_b4': {'$max': {'$cond': [{'$ne': ['$b4', None]}, 1, 0]}},
+                    'first_at': {'$min': '$created_at'},
+                }}
+            ]
+            async for doc in current_db.grades.aggregate(notas_pipeline):
+                k = (doc['_id'].get('class_id'), doc['_id'].get('course_id'))
+                notas_by_cc[k] = {
+                    'has': [doc.get('has_b1', 0), doc.get('has_b2', 0), doc.get('has_b3', 0), doc.get('has_b4', 0)],
+                    'first_at': str(doc.get('first_at') or '')[:10],
+                }
+
+
         # Para cada professor: calcular métricas
         result = []
         for tid, tdata in teachers.items():
@@ -1690,38 +1727,68 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             # 1. Diários (60%) = MÉDIA PONDERADA de 3 SLAs (normalizada 0–100):
             #    SLA Frequência (peso 4) + SLA Conteúdo (peso 3) + SLA Notas (peso 3)
 
-            # 1a. SLA Conteúdo (peso 3) = objetos de conhecimento registrados / previstos
+            # Dias letivos do PERÍODO (início do ano → hoje). Fallback: ano cheio.
+            dias_ref_periodo = dias_letivos_periodo if dias_letivos_periodo > 0 else total_dias_letivos
+
+            # 1a. SLA Conteúdo (peso 3) = objetos de conhecimento registrados / previstos NO PERÍODO
             lo_count = await current_db.learning_objects.count_documents({
                 'class_id': {'$in': class_ids},
                 'academic_year': year_filter(academic_year)
             })
-            expected_lo = n_turmas * total_dias_letivos
+            expected_lo = n_turmas * dias_ref_periodo
             sla_conteudo = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
             sla_conteudo = min(sla_conteudo, 100)
 
-            # 1b. Frequência (peso 4) — denominador = dias letivos JÁ VENCIDOS (prazo de 3 dias expirado).
-            # freq_total = lançamentos existentes p/ aulas vencidas; freq_on_time = lançados no prazo E não alterados/refeitos.
-            # Aulas vencidas e ainda NÃO lançadas entram no denominador e penalizam (contam como atraso).
+            # 1b. Frequência (peso 4) — denominador = dias letivos DO PERÍODO (até hoje).
+            # freq_total = lançamentos p/ aulas do período; freq_on_time = lançados no prazo (<=3d) E não alterados/refeitos.
+            # Aulas do período ainda NÃO lançadas entram no denominador e penalizam (contam como atraso).
             freq_total = sum(sla_freq_by_class.get(c, {}).get('total', 0) for c in class_ids)
             freq_on_time = sum(sla_freq_by_class.get(c, {}).get('on_time', 0) for c in class_ids)
-            dias_ref = dias_letivos_vencidos if dias_letivos_vencidos > 0 else total_dias_letivos
-            freq_expected = n_turmas * dias_ref
-            # Cobertura ("Diários", SEM prazo) = lançados / esperados (vencidos)
+            freq_expected = n_turmas * dias_ref_periodo
+            # Cobertura ("Diários", SEM prazo) = lançados / previstos no período
             freq_coverage = round(min(freq_total / freq_expected * 100, 100), 1) if freq_expected > 0 else 0
-            # SLA Frequência ("Diários 60%") = lançados NO PRAZO e não alterados / esperados (vencidos)
+            # SLA Frequência ("Diários 60%") = lançados NO PRAZO e não alterados / previstos no período
             sla_freq = round(min(freq_on_time / freq_expected * 100, 100), 1) if freq_expected > 0 else 0
 
-            # 1c. SLA Notas (peso 3) = placeholder 100% (workflow de prazo ainda não existe)
-            sla_notas = 100.0
+            # 1c. Notas (peso 3) — SLA de 7 dias após o FIM do bimestre.
+            # previstos = alocações (turma×componente) × bimestres ENCERRADOS no período.
+            # cobertura ("Diários") = notas lançadas / previstas; SLA ("Diários 60%") = lançadas no prazo / previstas.
+            if bim_note_deadlines:
+                notas_expected = 0
+                notas_launched = 0
+                notas_on_time = 0
+                _seen_cc = set()
+                for _p in tdata.get('class_course_pairs', []):
+                    _key = (_p.get('class_id'), _p.get('course_id'))
+                    if not _key[0] or not _key[1] or _key in _seen_cc:
+                        continue
+                    _seen_cc.add(_key)
+                    _cc = notas_by_cc.get(_key)
+                    for _n, _dl in bim_note_deadlines.items():
+                        notas_expected += 1
+                        if _cc and _cc['has'][_n - 1]:
+                            notas_launched += 1
+                            if _cc['first_at'] and _cc['first_at'] <= _dl:
+                                notas_on_time += 1
+                if notas_expected > 0:
+                    notas_coverage = round(notas_launched / notas_expected * 100, 1)
+                    sla_notas = round(notas_on_time / notas_expected * 100, 1)
+                else:
+                    notas_coverage = 100.0
+                    sla_notas = 100.0
+            else:
+                # Nenhum bimestre encerrado ainda → nada a cobrar de notas (neutro)
+                notas_coverage = 100.0
+                sla_notas = 100.0
 
-            # Coluna "Diários (60%)" = preenchimento COM SLA de prazo (freq penalizada por atraso)
+            # Coluna "Diários (60%)" = preenchimento COM SLA de prazo (freq e notas penalizadas por atraso)
             diario_pct = round((sla_freq * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
             diario_pct = min(diario_pct, 100)
 
-            # Coluna "Diários" = preenchimento REAL (mesma composição, freq = cobertura pura, SEM prazo).
-            # Como sla_freq <= freq_coverage e os demais termos são idênticos,
+            # Coluna "Diários" = preenchimento REAL (freq e notas = cobertura pura, SEM prazo).
+            # Como sla_freq <= freq_coverage e sla_notas <= notas_coverage e conteúdo é igual,
             # garante-se: Diários >= Diários (60%) (iguais quando tudo foi lançado no prazo).
-            diario_real_pct = round((freq_coverage * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
+            diario_real_pct = round((freq_coverage * 4 + sla_conteudo * 3 + notas_coverage * 3) / 10, 1)
             diario_real_pct = min(diario_real_pct, 100)
             
             # 2. Média de notas dos alunos (40%) — usa final_average (modelo real)

@@ -1,5 +1,14 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-10 — SLA Notas (7 dias) + denominador = "período" (início→hoje)
+- Denominador de TODOS os componentes passou a ser o "período" = início do 1º bimestre até HOJE (dias_letivos_periodo, date<=hoje). Conteúdo e Frequência também usam esse denominador.
+- Frequência (Conformidade): no prazo(<=3d, não alterado) / previstos no período × 100 (confirmado: 45/50=90%).
+- Conteúdo: registrados / previstos no período (SEM prazo — confirmado pelo usuário).
+- Notas: SLA de 7 dias após o FIM do bimestre (só bimestres encerrados). previstas = alocações (turma×componente) × bimestres encerrados. Cobertura (Diários)=lançadas/previstas; SLA (Diários 60%)=lançadas no prazo/previstas. Substitui o placeholder 100%.
+- Diários(60%) usa SLA (freq+notas); Diários usa cobertura → garante Diários >= Diários(60%). Validado (endpoint + testes focados: freq 60/30; notas 75/50). PDF idem.
+- LIMITAÇÃO Notas: grades só tem created_at/updated_at no nível do doc (sem timestamp por bimestre); usa-se o 1º created_at por (turma,componente) como referência de pontualidade — aproximação.
+
+
 ## 2026-08-10 — SLA Frequência: vencidos-não-lançados e alterados contam como atraso
 - Denominador da frequência mudou de "todos os dias letivos do ano" para "dias letivos JÁ VENCIDOS" (date <= hoje-3), acumulando automaticamente.
 - Aulas vencidas e ainda NÃO lançadas entram no denominador e penalizam o SLA (contam como atraso), conforme solicitado.
