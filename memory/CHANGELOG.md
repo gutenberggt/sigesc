@@ -1,5 +1,10 @@
 # CHANGELOG — SIGESC
 
+## 2026-08-10 — Desempenho dos Professores: botão "Gerar PDF" institucional
+- Novo GET /api/analytics/teachers/performance/pdf (reutiliza a computação/autorização do endpoint JSON): PDF institucional (brasão + mantenedora/município + secretaria + título "DESEMPENHO DOS PROFESSORES") com colunas #, Professor, Diários, Diários (60%), Média Notas (40%), Score + nota de rodapé. Respeita academic_year/school_id/limit. StreamingResponse (download automático).
+- Frontend (AnalyticsDashboard.jsx): botão roxo "Gerar PDF" exclusivo no header do card de professores (data-testid teachers-generate-pdf-button); baixa via downloadBlob com o teacherLimit atual.
+- Validado: PDF HTTP 200, render do cabeçalho institucional + tabela; botão visível na tela.
+
 ## 2026-08-10 — Desempenho dos Professores: coluna "Diários" (preenchimento real, sem regra de tempo)
 - Nova coluna "Diários" antes de "Diários (60%)": % real de preenchimento descartando a regra de prazo (SLA de 3 dias).
 - Backend (analytics.py teachers/performance): novo campo `diario_real_pct` = média ponderada (freq 4 / conteúdo 3 / notas 3) onde frequência = lançamentos existentes / dias letivos esperados (sem on-time). Conteúdo e Notas já são preenchimento puro.

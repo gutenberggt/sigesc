@@ -1748,6 +1748,152 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         result.sort(key=lambda x: x['score'], reverse=True)
         return {"data": result[:limit]}
 
+    @router.get("/teachers/performance/pdf")
+    async def get_teachers_performance_pdf(
+        request: Request,
+        academic_year: int = Query(..., description="Ano letivo"),
+        school_id: Optional[str] = Query(None),
+        limit: int = Query(10)
+    ):
+        """PDF institucional do Desempenho dos Professores (download automático)."""
+        # Reutiliza a mesma computação/autorização do endpoint JSON
+        payload = await get_teachers_performance(
+            request, academic_year=academic_year, school_id=school_id, limit=limit
+        )
+        data = payload.get("data", []) if isinstance(payload, dict) else []
+        current_db = get_current_db(request)
+
+        from io import BytesIO
+        from datetime import timezone
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm, cm
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_LEFT, TA_RIGHT
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from pdf.utils import get_logo_image
+        from fastapi.responses import StreamingResponse
+
+        # ===== Dados institucionais =====
+        _mant_scope = request.headers.get('X-Mantenedora-Id')
+        mantenedora = await current_db['mantenedora'].find_one({}, {'_id': 0})
+        if not mantenedora and _mant_scope:
+            mantenedora = await current_db['mantenedoras'].find_one({'id': _mant_scope}, {'_id': 0})
+        if not mantenedora:
+            mantenedora = await current_db['mantenedoras'].find_one({}, {'_id': 0})
+        mantenedora = mantenedora or {}
+        mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+        mant_estado = mantenedora.get('estado', 'PA')
+        mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
+        mant_secretaria = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
+        mant_slogan = mantenedora.get('slogan', '')
+        logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
+        logo = get_logo_image(width=2.3 * cm, height=2.7 * cm, logo_url=logo_url)
+
+        escola_nome = None
+        if school_id:
+            _sc = await current_db.schools.find_one({'id': school_id}, {'_id': 0, 'name': 1})
+            escola_nome = (_sc or {}).get('name')
+
+        styles = getSampleStyleSheet()
+        cell = ParagraphStyle('cell', parent=styles['Normal'], fontSize=8, leading=11)
+        left_style = ParagraphStyle('hleft', fontSize=10, alignment=TA_LEFT, leading=13)
+        right_style = ParagraphStyle('hright', fontSize=10, alignment=TA_RIGHT, leading=15)
+        ctx_style = ParagraphStyle('ctx', parent=styles['Normal'], fontSize=8, leading=11)
+
+        header = ['#', 'Professor', 'Diários', 'Diários (60%)', 'Média Notas (40%)', 'Score']
+        table_data = [header]
+        for i, t in enumerate(data, start=1):
+            table_data.append([
+                Paragraph(str(i), cell),
+                Paragraph(str(t.get('teacher_name') or '-'), cell),
+                Paragraph(f"{t.get('diario_real_pct', 0)}%", cell),
+                Paragraph(f"{t.get('diario_pct', 0)}%", cell),
+                Paragraph(f"{t.get('media_notas', 0)}", cell),
+                Paragraph(f"<b>{t.get('score', 0)}</b>", cell),
+            ])
+
+        buf = BytesIO()
+        doc = SimpleDocTemplate(
+            buf, pagesize=A4,
+            leftMargin=14 * mm, rightMargin=14 * mm, topMargin=10 * mm, bottomMargin=12 * mm,
+        )
+
+        slogan_html = f'<br/><font size="8" color="#666666"><i>"{mant_slogan}"</i></font>' if mant_slogan else ''
+        header_left = (
+            f'<font size="12"><b>{mant_nome.upper()}</b></font><br/>'
+            f'<font size="9"><i>{mant_secretaria}</i></font><br/>'
+            f'<font size="8" color="#555555">{mant_municipio} - {mant_estado}</font>'
+            f'{slogan_html}'
+        )
+        header_right = (
+            '<font size="14" color="#7c3aed"><b>DESEMPENHO DOS PROFESSORES</b></font><br/>'
+            f'<font size="9" color="#555555">Ano letivo {academic_year}</font>'
+        )
+        if logo:
+            head_table = Table(
+                [[logo, Paragraph(header_left, left_style), Paragraph(header_right, right_style)]],
+                colWidths=[2.8 * cm, 9.5 * cm, 6.7 * cm],
+            )
+        else:
+            head_table = Table(
+                [[Paragraph(header_left, left_style), Paragraph(header_right, right_style)]],
+                colWidths=[12.3 * cm, 6.7 * cm],
+            )
+        head_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (1 if logo else 0, 0), (1 if logo else 0, 0), 10),
+        ]))
+
+        gen_at = datetime.now(timezone.utc).astimezone().strftime('%d/%m/%Y %H:%M')
+        ctx_parts = []
+        if escola_nome:
+            ctx_parts.append(f'<b>Escola:</b> {escola_nome}')
+        ctx_parts.append(f'<b>Gerado em:</b> {gen_at}')
+        ctx_parts.append(f'<b>Professores:</b> {len(data)}')
+
+        note = ('<font size="7" color="#777777">Score = 60% Diários (com regra de prazo) + 40% Índice da Média. '
+                'A coluna "Diários" mostra o preenchimento real, sem a regra de tempo.</font>')
+
+        elements = [
+            head_table,
+            Table([['']], colWidths=[18 * cm], style=TableStyle([
+                ('LINEBELOW', (0, 0), (-1, -1), 1, colors.HexColor('#7c3aed')),
+                ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ])),
+            Spacer(1, 4),
+            Paragraph(' &nbsp;|&nbsp; '.join(ctx_parts), ctx_style),
+            Spacer(1, 6),
+        ]
+        col_widths = [10 * mm, 66 * mm, 24 * mm, 28 * mm, 32 * mm, 20 * mm]
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#7c3aed')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f3ff')]),
+            ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#d1d5db')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 8))
+        elements.append(Paragraph(note, ctx_style))
+        doc.build(elements)
+        buf.seek(0)
+
+        filename = f"desempenho_professores_{academic_year}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        return StreamingResponse(
+            buf, media_type='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+        )
+
+
     @router.post("/semed/accept-terms")
     async def accept_semed_terms(
         request: Request

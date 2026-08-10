@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { schoolsAPI, classesAPI, studentsAPI } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { downloadBlob } from '@/utils/downloadBlob';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
@@ -616,6 +618,26 @@ export function AnalyticsDashboard() {
   const [perfLimit, setPerfLimit] = useState(20); // Limite do ranking de desempenho (20/50/100/'all')
   const [perfGradeGroup, setPerfGradeGroup] = useState(''); // Filtro Série/Ano do ranking ('' = todas)
   const [teacherLimit, setTeacherLimit] = useState(10); // Limite do ranking de professores (10/20/50/100/'all')
+  const [teachersPdfLoading, setTeachersPdfLoading] = useState(false);
+
+  const handleGenerateTeachersPdf = async () => {
+    try {
+      setTeachersPdfLoading(true);
+      const params = new URLSearchParams();
+      params.append('academic_year', selectedYear);
+      if (selectedSchool) params.append('school_id', selectedSchool);
+      params.append('limit', teacherLimit === 'all' ? 100000 : teacherLimit);
+      const filename = `desempenho_professores_${selectedYear}.pdf`;
+      await downloadBlob(`${API_URL}/api/analytics/teachers/performance/pdf?${params}`, filename, {
+        Authorization: accessToken ? `Bearer ${accessToken}` : ''
+      });
+    } catch (e) {
+      console.error('Erro ao gerar PDF de professores:', e);
+      alert('Não foi possível gerar o PDF. Tente novamente.');
+    } finally {
+      setTeachersPdfLoading(false);
+    }
+  };
   const [teachersPerformance, setTeachersPerformance] = useState([]);
   const [gradesDistribution, setGradesDistribution] = useState([]);
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null); // Para o modal de drill-down
@@ -2321,6 +2343,16 @@ export function AnalyticsDashboard() {
                     </button>
                   ))}
                 </div>
+                <Button
+                  size="sm"
+                  onClick={handleGenerateTeachersPdf}
+                  disabled={teachersPdfLoading}
+                  className="ml-2 bg-purple-600 hover:bg-purple-700 text-white h-7 text-xs"
+                  data-testid="teachers-generate-pdf-button"
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1" />
+                  {teachersPdfLoading ? 'Gerando...' : 'Gerar PDF'}
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
