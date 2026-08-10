@@ -1636,51 +1636,139 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             total_dias_letivos = 200  # fallback
         
         # ============================================
-        # SLA FREQUÊNCIA (3 dias) — pré-agregado por turma
+        # SLA FREQUÊNCIA / CONTEÚDO — POR COMPONENTE (grade horária)
         # ============================================
         # Mede a PONTUALIDADE do lançamento da frequência: compara
-        # `attendance.created_at` (data do lançamento) com `attendance.date`
-        # (data da aula). Lançado em até 3 dias = no prazo.
-        # Usado SOMENTE no desempenho do professor (NÃO no Ranking de Escolas).
-        sla_freq_by_class = {}
+        # `attendance.created_at` (lançamento) com `attendance.date` (aula).
+        # Lançado em até 3 dias e não alterado = no prazo.
+        #
+        # A unidade correta é o DIÁRIO POR COMPONENTE (turma×componente×aula
+        # prevista na grade). Anos Iniciais/EJA/Infantil = regime de REGÊNCIA
+        # (1 diário por turma/dia). Anos Finais/EJA Final = POR COMPONENTE.
+        # O denominador vem da grade horária real (mesma fonte do Diário),
+        # evitando a inflação que fixava professores em 100%.
         all_class_ids = list({cid for t in teachers.values() for cid in t['class_ids'] if cid})
-        if all_class_ids:
-            sla_freq_pipeline = [
-                {'$match': {
-                    'class_id': {'$in': all_class_ids},
-                    'date': {'$regex': f'^{academic_year}', '$lte': _period_end_str},
-                    'created_at': {'$ne': None}
-                }},
-                {'$project': {
-                    'class_id': 1,
-                    'days_diff': {
-                        '$divide': [
-                            {'$subtract': [
-                                {'$dateFromString': {'dateString': '$created_at', 'onError': None}},
-                                {'$dateFromString': {'dateString': '$date', 'onError': None}}
-                            ]},
-                            86400000  # ms → dias
-                        ]
-                    },
-                    # "Alterada/refeita": versão > 1 ou possui updated_at → considerada FORA DO PRAZO
-                    '_modified': {'$or': [
-                        {'$gt': [{'$ifNull': ['$version', 1]}, 1]},
-                        {'$ne': [{'$ifNull': ['$updated_at', None]}, None]}
-                    ]}
-                }},
-                {'$match': {'days_diff': {'$ne': None}}},
-                {'$group': {
-                    '_id': '$class_id',
-                    'total': {'$sum': 1},
-                    'on_time': {'$sum': {'$cond': [
-                        {'$and': [{'$lte': ['$days_diff', 3]}, {'$eq': ['$_modified', False]}]}, 1, 0
-                    ]}}
-                }}
+
+        # --- Período: início do ano letivo (1º bimestre) → hoje ---
+        _bim1_ini = str((calendario or {}).get('bimestre_1_inicio') or '')[:10]
+        _period_start_str = _bim1_ini or f"{academic_year}-02-01"
+
+        # --- Turmas: nível de ensino (regime) e escola ---
+        class_docs = await current_db.classes.find(
+            {'id': {'$in': all_class_ids}},
+            {'_id': 0, 'id': 1, 'name': 1, 'education_level': 1, 'grade_level': 1,
+             'school_id': 1, 'mantenedora_id': 1, 'academic_year': 1, 'shift': 1}
+        ).to_list(5000) if all_class_ids else []
+        class_map = {c['id']: c for c in class_docs}
+
+        BYCOMPONENT_LEVELS = {'fundamental_anos_finais', 'eja_final'}
+
+        # --- Aulas previstas por componente (grade) + dias letivos por turma ---
+        from services.teacher_schedule_expected import compute_class_expected
+        from services.school_calendar_helper import load_school_calendar, get_saturday_weekday_map
+        _cal_cache = {}
+
+        async def _get_cal(school_id, mant_id):
+            key = school_id or '__none__'
+            if key in _cal_cache:
+                return _cal_cache[key]
+            sc = await load_school_calendar(
+                current_db, academic_year=academic_year,
+                period_from=_period_start_str, period_to=_period_end_str,
+                mantenedora_id=mant_id, school_id=school_id,
+            )
+            sm = await get_saturday_weekday_map(
+                current_db, academic_year=academic_year,
+                mantenedora_id=mant_id, school_id=school_id,
+            )
+            _cal_cache[key] = (sc, sm)
+            return _cal_cache[key]
+
+        class_expected = {}  # class_id -> {'regime', 'letivo_days', 'by_component'}
+        for cid in all_class_ids:
+            klass = class_map.get(cid)
+            if not klass:
+                class_expected[cid] = {'regime': 'daily', 'letivo_days': dias_letivos_periodo, 'by_component': {}}
+                continue
+            sc, sm = await _get_cal(klass.get('school_id'), klass.get('mantenedora_id'))
+            exp = await compute_class_expected(
+                current_db, klass, _period_start_str, _period_end_str,
+                sc['non_school_days'], sc['explicit_school_days'], sm,
+            )
+            edu = klass.get('education_level') or ''
+            regime = 'by_component' if edu in BYCOMPONENT_LEVELS else 'daily'
+            ld = exp['letivo_days'] or dias_letivos_periodo
+            class_expected[cid] = {'regime': regime, 'letivo_days': ld, 'by_component': exp['by_component']}
+
+        daily_class_ids = [c for c in all_class_ids if class_expected.get(c, {}).get('regime') == 'daily']
+        bycomp_class_ids = [c for c in all_class_ids if class_expected.get(c, {}).get('regime') == 'by_component']
+
+        _days_diff_expr = {
+            '$divide': [
+                {'$subtract': [
+                    {'$dateFromString': {'dateString': '$created_at', 'onError': None}},
+                    {'$dateFromString': {'dateString': '$date', 'onError': None}}
+                ]},
+                86400000
             ]
-            async for doc in current_db.attendance.aggregate(sla_freq_pipeline):
-                sla_freq_by_class[doc['_id']] = {
-                    'total': doc['total'], 'on_time': doc['on_time']
-                }
+        }
+        _modified_expr = {'$or': [
+            {'$gt': [{'$ifNull': ['$version', 1]}, 1]},
+            {'$ne': [{'$ifNull': ['$updated_at', None]}, None]}
+        ]}
+        _on_time_cond = {'$and': [{'$lte': ['$days_diff', 3]}, {'$eq': ['$_modified', False]}]}
+
+        # --- FREQUÊNCIA (regime diário): conta DIAS-TURMA DISTINTOS lançados ---
+        daily_freq = {}  # class_id -> {'total', 'on_time'}
+        if daily_class_ids:
+            async for doc in current_db.attendance.aggregate([
+                {'$match': {'class_id': {'$in': daily_class_ids},
+                            'date': {'$regex': f'^{academic_year}', '$lte': _period_end_str},
+                            'created_at': {'$ne': None}}},
+                {'$project': {'class_id': 1, 'date': 1, 'days_diff': _days_diff_expr, '_modified': _modified_expr}},
+                {'$match': {'days_diff': {'$ne': None}}},
+                {'$group': {'_id': '$class_id',
+                            'dates': {'$addToSet': '$date'},
+                            'ontime_dates': {'$addToSet': {'$cond': [_on_time_cond, '$date', '$$REMOVE']}}}}
+            ]):
+                daily_freq[doc['_id']] = {'total': len(doc.get('dates', [])), 'on_time': len(doc.get('ontime_dates', []))}
+
+        # --- FREQUÊNCIA (regime por componente): conta lançamentos por (turma, componente) ---
+        bycomp_freq = {}  # (class_id, course_id) -> {'total', 'on_time'}
+        if bycomp_class_ids:
+            async for doc in current_db.attendance.aggregate([
+                {'$match': {'class_id': {'$in': bycomp_class_ids},
+                            'date': {'$regex': f'^{academic_year}', '$lte': _period_end_str},
+                            'created_at': {'$ne': None}}},
+                {'$project': {'class_id': 1, 'course_id': 1, 'days_diff': _days_diff_expr, '_modified': _modified_expr}},
+                {'$match': {'days_diff': {'$ne': None}}},
+                {'$group': {'_id': {'c': '$class_id', 'k': '$course_id'},
+                            'total': {'$sum': 1},
+                            'on_time': {'$sum': {'$cond': [_on_time_cond, 1, 0]}}}}
+            ]):
+                bycomp_freq[(doc['_id'].get('c'), doc['_id'].get('k'))] = {'total': doc['total'], 'on_time': doc['on_time']}
+
+        # --- CONTEÚDO (regime diário): dias-turma distintos com registro ---
+        daily_content = {}  # class_id -> qtd dias distintos
+        if daily_class_ids:
+            async for doc in current_db.learning_objects.aggregate([
+                {'$match': {'class_id': {'$in': daily_class_ids},
+                            'academic_year': year_filter(academic_year),
+                            'date': {'$lte': _period_end_str}}},
+                {'$group': {'_id': '$class_id', 'dates': {'$addToSet': '$date'}}}
+            ]):
+                daily_content[doc['_id']] = len(doc.get('dates', []))
+
+        # --- CONTEÚDO (regime por componente): registros por (turma, componente) ---
+        bycomp_content = {}  # (class_id, course_id) -> qtd
+        if bycomp_class_ids:
+            async for doc in current_db.learning_objects.aggregate([
+                {'$match': {'class_id': {'$in': bycomp_class_ids},
+                            'academic_year': year_filter(academic_year),
+                            'date': {'$lte': _period_end_str}}},
+                {'$group': {'_id': {'c': '$class_id', 'k': '$course_id'}, 'n': {'$sum': 1}}}
+            ]):
+                bycomp_content[(doc['_id'].get('c'), doc['_id'].get('k'))] = doc['n']
 
         # ===== SLA Notas (7 dias após o FIM do bimestre) =====
         # Prazos apenas dos bimestres ENCERRADOS no período (fim <= hoje).
@@ -1730,25 +1818,51 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             # Dias letivos do PERÍODO (início do ano → hoje). Fallback: ano cheio.
             dias_ref_periodo = dias_letivos_periodo if dias_letivos_periodo > 0 else total_dias_letivos
 
-            # 1a. SLA Conteúdo (peso 3) = objetos de conhecimento registrados / previstos NO PERÍODO
-            lo_count = await current_db.learning_objects.count_documents({
-                'class_id': {'$in': class_ids},
-                'academic_year': year_filter(academic_year)
-            })
-            expected_lo = n_turmas * dias_ref_periodo
-            sla_conteudo = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
-            sla_conteudo = min(sla_conteudo, 100)
+            # Componentes que o professor leciona em cada turma (das alocações dele).
+            teacher_courses_by_class = {}
+            for _p in tdata.get('class_course_pairs', []):
+                _cid = _p.get('class_id')
+                if _cid:
+                    teacher_courses_by_class.setdefault(_cid, set()).add(_p.get('course_id'))
 
-            # 1b. Frequência (peso 4) — denominador = dias letivos DO PERÍODO (até hoje).
-            # freq_total = lançamentos p/ aulas do período; freq_on_time = lançados no prazo (<=3d) E não alterados/refeitos.
-            # Aulas do período ainda NÃO lançadas entram no denominador e penalizam (contam como atraso).
-            freq_total = sum(sla_freq_by_class.get(c, {}).get('total', 0) for c in class_ids)
-            freq_on_time = sum(sla_freq_by_class.get(c, {}).get('on_time', 0) for c in class_ids)
-            freq_expected = n_turmas * dias_ref_periodo
-            # Cobertura ("Diários", SEM prazo) = lançados / previstos no período
+            # 1a/1b. Frequência (peso 4) e Conteúdo (peso 3) — POR COMPONENTE (grade horária).
+            # Regime diário (Anos Iniciais/EJA/Infantil): 1 diário por turma/dia (regência).
+            # Regime por componente (Anos Finais/EJA Final): 1 diário por aula prevista de cada
+            # componente que o professor leciona. Denominador = aulas previstas na grade.
+            freq_total = freq_on_time = freq_expected = 0
+            cont_total = cont_expected = 0
+            for cid in class_ids:
+                ce = class_expected.get(cid, {})
+                regime = ce.get('regime', 'daily')
+                if regime == 'daily':
+                    ld = ce.get('letivo_days', 0) or dias_ref_periodo
+                    df = daily_freq.get(cid, {})
+                    freq_expected += ld
+                    freq_total += df.get('total', 0)
+                    freq_on_time += df.get('on_time', 0)
+                    cont_expected += ld
+                    cont_total += daily_content.get(cid, 0)
+                else:
+                    sched = ce.get('by_component', {})
+                    for course in teacher_courses_by_class.get(cid, set()):
+                        if not course:
+                            continue
+                        exp_c = sched.get(course, 0)
+                        fnum = bycomp_freq.get((cid, course), {})
+                        cnum = bycomp_content.get((cid, course), 0)
+                        # Sem grade para o componente → usa lançamentos como base (evita 0/0 e inflação).
+                        freq_expected += exp_c if exp_c > 0 else fnum.get('total', 0)
+                        freq_total += fnum.get('total', 0)
+                        freq_on_time += fnum.get('on_time', 0)
+                        cont_expected += exp_c if exp_c > 0 else cnum
+                        cont_total += cnum
+
+            # Cobertura ("Diários", SEM prazo) vs SLA ("Diários 60%", com prazo de 3 dias).
             freq_coverage = round(min(freq_total / freq_expected * 100, 100), 1) if freq_expected > 0 else 0
-            # SLA Frequência ("Diários 60%") = lançados NO PRAZO e não alterados / previstos no período
             sla_freq = round(min(freq_on_time / freq_expected * 100, 100), 1) if freq_expected > 0 else 0
+            # Conteúdo não tem regra de prazo → cobertura = SLA (usado nas duas colunas).
+            sla_conteudo = round(min(cont_total / cont_expected * 100, 100), 1) if cont_expected > 0 else 0
+
 
             # 1c. Notas (peso 3) — SLA de 7 dias após o FIM do bimestre.
             # previstos = alocações (turma×componente) × bimestres ENCERRADOS no período.

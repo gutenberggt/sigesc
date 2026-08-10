@@ -1,0 +1,56 @@
+{
+  "summary": "Backend-only. Validado o fix do endpoint GET /api/analytics/teachers/performance (medição POR COMPONENTE). 28 testes criados/executados (2 arquivos novos): 22 contra o seed real do preview + 6 com seed isolado que REPRODUZ a condição do bug antigo (muitos lançamentos de outros componentes na mesma turma). Resultado: invariante diario_real_pct >= diario_pct OK, sem inflação 100/100, PDF OK, filtros OK, ano sem dados OK, e os 8 demais endpoints do router analytics continuam 200. Encontrados 2 defeitos residuais de cálculo (não regressões do fix): (1) o período de referência não é limitado ao fim do ano letivo -> anos PASSADOS ficam com cobertura subestimada ~2,7x; (2) numerador não é restrito a dias letivos -> lançamentos em sábados/domingos/feriados ainda saturam em 100/100 no regime diário.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/analytics/teachers/performance",
+        "issue": "PERÍODO NÃO CLAMPADO AO ANO LETIVO: _period_end_str = hoje (linha ~1585) independente do academic_year. Para anos passados o denominador (compute_class_expected de {ano}-02-01 até HOJE) invade os anos seguintes, enquanto o numerador é filtrado por date ~ ^{ano}. Repro (seed isolado, ano 2024, 48/48 segundas previstas lançadas NO PRAZO): esperado sla_freq≈100, obtido sla_freq=36.4 / diario_real_pct=55.5 (denominador ≈132 segundas de 2024-02 até 2026-07). Fix sugerido: _period_end_str = min(hoje, bimestre_4_fim ou {ano}-12-31)."
+      },
+      {
+        "endpoint": "GET /api/analytics/teachers/performance",
+        "issue": "SATURAÇÃO RESIDUAL 100/100 no regime DIÁRIO: daily_freq/daily_content contam TODOS os dias-turma distintos (sem filtrar dias letivos), contra denominador = letivo_days. Repro (turma fundamental_anos_iniciais com frequência+conteúdo em todos os 191 dias corridos de 01/02 até hoje, incl. sábados/domingos/feriados): diario_real_pct=100.0, diario_pct=100.0, sla_freq=100, sla_conteudo=100 — lançamentos em dias NÃO letivos mascaram dias letivos faltantes. Mesma lógica vale para bycomp_freq/bycomp_content (lançamentos fora da grade elevam o numerador até o teto). Fix sugerido: interseccionar o numerador com o conjunto de dias letivos / aulas previstas."
+      },
+      {
+        "endpoint": "N/A (suíte antiga)",
+        "issue": "tests/test_teachers_performance_sla.py está OBSOLETO: semeia no ano 2099 (futuro) e 3 de 4 testes falham (sla_freq esperado 66.7 -> obtido 0.0; sla_conteudo 10.0 -> 0.0; diarios 59.7 -> 30.0), porque o período agora termina em HOJE e datas futuras são descartadas pelo filtro date <= hoje. Não é regressão do fix, mas a suíte precisa ser reescrita para um ano <= atual (o novo arquivo test_teachers_performance_bycomponent_seeded.py já cobre isso)."
+      },
+      {
+        "endpoint": "N/A (dados do preview)",
+        "issue": "Não existe calendario_letivo para ano_letivo=2026 (apenas 2025). Consequência: total_dias_letivos cai no fallback 200, dias_letivos_periodo=0 e bim_note_deadlines={} -> sla_notas fica neutro em 100.0 para todos os professores (peso 3 de 10 sempre cheio). Vale confirmar se é esperado no preview."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_teachers_performance_bycomponent.py",
+    "/app/backend/tests/test_teachers_performance_bycomponent_seeded.py",
+    "/app/test_reports/pytest/teachers_perf_bycomp.xml"
+  ],
+  "action_items": [
+    "Clampar _period_end_str ao fim do ano letivo (min(hoje, bimestre_4_fim/{ano}-12-31)) para não subestimar anos passados.",
+    "Restringir o numerador de frequência/conteúdo aos dias letivos (regime diário) e às aulas previstas na grade (regime por componente), evitando saturação em 100%.",
+    "Reescrever/remover tests/test_teachers_performance_sla.py (ano 2099 inválido após a mudança de janela de período)."
+  ],
+  "critical_code_review_comments": [
+    "routers/analytics.py: get_teachers_performance tem ~440 linhas em uma única função e analytics.py tem 2240 linhas — extrair o cálculo de SLA do professor para services/ (ex.: services/teacher_performance.py) para reduzir risco de regressão.",
+    "services/teacher_schedule_expected.py: loop O(dias × slots) re-itera _daterange para cada slot (linhas 86-95); pré-computar o mapa weekday -> [dias letivos] reduziria de O(n*m) para O(n+m) (relevante com muitas turmas).",
+    "services/teacher_schedule_expected.py: variável eff_wd calculada na linha 71 do loop de letivo_days nunca é usada (dead code).",
+    "daily_freq usa $addToSet em 'ontime_dates': um dia com um lançamento no prazo e outro atrasado conta como no prazo (otimista). Documentar ou usar o pior caso por dia.",
+    "get_teachers_performance não valida academic_year (ex.: ano 1999 aceito) — não quebra (retorna data vazia), mas um Query(ge=2000) evitaria varreduras inúteis."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_teachers_performance_bycomponent.py",
+    "/app/backend/tests/test_teachers_performance_bycomponent_seeded.py"
+  ],
+  "success_rate": {"backend": "100% (28/28 nos testes do fix); suíte antiga test_teachers_performance_sla.py 1/4", "frontend": "não testado (backend only)"},
+  "seed_data_creation": "Seed isolado e temporário marcado com test_perf_fixture=true (escola TEST_PERF_SCHOOL, turma fundamental_anos_finais, 2 professores, 124 attendance, 122 learning_objects) criado e REMOVIDO pelo teardown do módulo — verificado 0 documentos residuais. Diagnósticos de ano passado (2024) e de saturação diária também limpos (0 residuais).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Seed do preview tem APENAS 1 professor em 2026 e a turma dele é fundamental_anos_iniciais (regime DAILY); o caminho by_component NÃO é exercitado pelo seed real — use tests/test_teachers_performance_bycomponent_seeded.py (seed isolado com school_id TEST_PERF_SCHOOL, teardown automático) para validar by_component. Atenção: índice único ux_attendance_class_date_course_aula (class_id,date,course_id,aula_numero) impede datas duplicadas no seed. Não existe calendario_letivo para 2026. Resultado real atual: Professor Teste QA -> diario_real_pct=30.3, diario_pct=30.3, sla_freq=0.7, sla_conteudo=0.0, sla_notas=100.",
+  "rca_of_the_issue": "Fix confirmado: numerador e denominador agora estão no MESMO escopo (turma×componente via grade horária). No seed isolado, o professor A (1 componente, 4 lançamentos, 2 atrasados) ficou em sla_freq=7.1 / diario_real=37.9 / diario_pct=35.0, sem ser contaminado pelos 120 lançamentos do componente do professor B na mesma turma — exatamente a condição que antes cravava 100%. A invariante diario_real_pct >= diario_pct é garantida por construção (freq_coverage >= sla_freq, notas_coverage >= sla_notas, conteúdo idêntico nas duas colunas) e foi verificada em todos os professores retornados. Defeitos residuais encontrados são de JANELA (período até hoje mesmo em anos passados) e de NUMERADOR NÃO FILTRADO (dias/aulas fora do previsto), ambos independentes do fix por componente."
+}
