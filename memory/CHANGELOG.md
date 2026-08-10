@@ -1,6 +1,11 @@
 # CHANGELOG — SIGESC
 
-## 2026-08-10 — Desempenho dos Professores: botão "Gerar PDF" institucional
+## 2026-08-10 — FIX: coerência entre "Diários" e "Diários (60%)"
+- Problema: as colunas usavam métricas de frequência ortogonais — "Diários (60%)" usava só PONTUALIDADE (no prazo/total) e "Diários" usava COBERTURA (lançados/esperados) — logo uma podia ser maior que a outra sem relação lógica (ex.: Aline 81,2% vs 81,5%).
+- Correção (analytics.py teachers/performance): ambas medem COBERTURA. freq_coverage = lançados/esperados. freq_ontime_rate = no_prazo/total (0..1). SLA Frequência = freq_coverage × freq_ontime_rate (≤ cobertura). "Diários (60%)" usa sla_freq; "Diários" usa freq_coverage. Garante Diários ≥ Diários (60%), iguais quando tudo no prazo.
+- Vale também para o PDF (mesma função). Validado: Professor Teste QA (tudo no prazo) → 30,2% = 30,2%; 0 anomalias (real<sla).
+
+
 - Novo GET /api/analytics/teachers/performance/pdf (reutiliza a computação/autorização do endpoint JSON): PDF institucional (brasão + mantenedora/município + secretaria + título "DESEMPENHO DOS PROFESSORES") com colunas #, Professor, Diários, Diários (60%), Média Notas (40%), Score + nota de rodapé. Respeita academic_year/school_id/limit. StreamingResponse (download automático).
 - Frontend (AnalyticsDashboard.jsx): botão roxo "Gerar PDF" exclusivo no header do card de professores (data-testid teachers-generate-pdf-button); baixa via downloadBlob com o teacherLimit atual.
 - Validado: PDF HTTP 200, render do cabeçalho institucional + tabela; botão visível na tela.

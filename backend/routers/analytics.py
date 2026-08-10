@@ -1687,25 +1687,28 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             sla_conteudo = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
             sla_conteudo = min(sla_conteudo, 100)
 
-            # 1b. SLA Frequência (peso 4) = lançamentos em até 3 dias / total
+            # 1b. Frequência (peso 4)
             freq_total = sum(sla_freq_by_class.get(c, {}).get('total', 0) for c in class_ids)
             freq_on_time = sum(sla_freq_by_class.get(c, {}).get('on_time', 0) for c in class_ids)
-            sla_freq = round(freq_on_time / freq_total * 100, 1) if freq_total > 0 else 0
+            freq_expected = n_turmas * total_dias_letivos
+            # Cobertura = lançamentos existentes / dias letivos esperados (preenchimento puro, SEM prazo)
+            freq_coverage = round(min(freq_total / freq_expected * 100, 100), 1) if freq_expected > 0 else 0
+            # Pontualidade = fração dos lançamentos feitos no prazo (<= 3 dias); 0..1
+            freq_ontime_rate = (freq_on_time / freq_total) if freq_total > 0 else 0
+            # SLA Frequência = cobertura PENALIZADA pela pontualidade (sempre <= cobertura)
+            sla_freq = round(freq_coverage * freq_ontime_rate, 1)
 
             # 1c. SLA Notas (peso 3) = placeholder 100% (workflow de prazo ainda não existe)
             sla_notas = 100.0
 
-            # Média ponderada → coluna "Diários (60%)"
+            # Coluna "Diários (60%)" = preenchimento COM SLA de prazo (freq penalizada por atraso)
             diario_pct = round((sla_freq * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
             diario_pct = min(diario_pct, 100)
 
-            # Coluna "Diários" (preenchimento REAL, DESCARTANDO a regra de tempo):
-            # frequência = lançamentos existentes / dias letivos esperados (sem SLA de 3 dias).
-            # Conteúdo e Notas já são preenchimento puro (sem regra de prazo).
-            freq_expected = n_turmas * total_dias_letivos
-            fill_freq = round(freq_total / freq_expected * 100, 1) if freq_expected > 0 else 0
-            fill_freq = min(fill_freq, 100)
-            diario_real_pct = round((fill_freq * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
+            # Coluna "Diários" = preenchimento REAL (mesma composição, freq = cobertura pura, SEM prazo).
+            # Como sla_freq <= freq_coverage e os demais termos são idênticos,
+            # garante-se: Diários >= Diários (60%) (iguais quando tudo foi lançado no prazo).
+            diario_real_pct = round((freq_coverage * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
             diario_real_pct = min(diario_real_pct, 100)
             
             # 2. Média de notas dos alunos (40%) — usa final_average (modelo real)
