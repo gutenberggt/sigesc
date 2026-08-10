@@ -1,5 +1,9 @@
 # SIGESC - Product Requirements Document
 
+## 🐛 BUGFIX — Desempenho dos Professores 100%/100% corrigido (Jun/2026)
+Métrica de "Diários"/"Diários (60%)" no Dashboard Analítico deixou de estourar em 100%. Agora é medida POR COMPONENTE usando a grade horária real (`services/teacher_schedule_expected.py`): numerador (lançamentos de frequência/conteúdo do professor) interseccionado com as aulas previstas na grade (Anos Finais) ou dias letivos (regência/Anos Iniciais); período clampado ao ano letivo. Invariante "Diários ≥ Diários (60%)" garantida. Validado (testing_agent iter_117, 28/28). Detalhes em `CHANGELOG.md`.
+
+
 ## 📊 MIG SPRINT 002.f0 — GAP Analysis do Contrato Oficial CMDE CONCLUÍDA (Jun/2026, análise apenas)
 Análise (sem código) comparando a arquitetura 000–002.e com o contrato oficial do MEC Gestão
 Presente. Fatos oficiais confirmados por fontes públicas (Swagger `api-cmde.gestaopresente.mec.gov.br/v1`,

@@ -1581,8 +1581,12 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         # Calcular total de dias letivos no ano (e os já VENCIDOS = prazo de 3 dias expirado)
         from datetime import datetime as _dt2, timezone as _tz2
-        # "Período" = do início do ano letivo (1º bimestre) até a DATA ATUAL (hoje)
-        _period_end_str = _dt2.now(_tz2.utc).strftime('%Y-%m-%d')
+        # "Período" = do início do ano letivo (1º bimestre) até a DATA ATUAL (hoje),
+        # mas NUNCA além do fim do ano letivo (para anos passados o período termina no
+        # fim do 4º bimestre / 31/12 do ano, não em "hoje").
+        _today_str = _dt2.now(_tz2.utc).strftime('%Y-%m-%d')
+        _year_end_str = str((calendario or {}).get('bimestre_4_fim') or '')[:10] or f"{academic_year}-12-31"
+        _period_end_str = min(_today_str, _year_end_str)
         total_dias_letivos = 0
         dias_letivos_periodo = 0
         if calendario:
@@ -1684,11 +1688,12 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             _cal_cache[key] = (sc, sm)
             return _cal_cache[key]
 
-        class_expected = {}  # class_id -> {'regime', 'letivo_days', 'by_component'}
+        class_expected = {}  # class_id -> {'regime', 'letivo_days', 'letivo_dates', 'component_dates'}
         for cid in all_class_ids:
             klass = class_map.get(cid)
             if not klass:
-                class_expected[cid] = {'regime': 'daily', 'letivo_days': dias_letivos_periodo, 'by_component': {}}
+                class_expected[cid] = {'regime': 'daily', 'letivo_days': dias_letivos_periodo,
+                                       'letivo_dates': set(), 'component_dates': {}}
                 continue
             sc, sm = await _get_cal(klass.get('school_id'), klass.get('mantenedora_id'))
             exp = await compute_class_expected(
@@ -1698,7 +1703,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             edu = klass.get('education_level') or ''
             regime = 'by_component' if edu in BYCOMPONENT_LEVELS else 'daily'
             ld = exp['letivo_days'] or dias_letivos_periodo
-            class_expected[cid] = {'regime': regime, 'letivo_days': ld, 'by_component': exp['by_component']}
+            class_expected[cid] = {'regime': regime, 'letivo_days': ld,
+                                   'letivo_dates': exp['letivo_dates'], 'component_dates': exp['component_dates']}
 
         daily_class_ids = [c for c in all_class_ids if class_expected.get(c, {}).get('regime') == 'daily']
         bycomp_class_ids = [c for c in all_class_ids if class_expected.get(c, {}).get('regime') == 'by_component']
@@ -1718,8 +1724,12 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         ]}
         _on_time_cond = {'$and': [{'$lte': ['$days_diff', 3]}, {'$eq': ['$_modified', False]}]}
 
-        # --- FREQUÊNCIA (regime diário): conta DIAS-TURMA DISTINTOS lançados ---
-        daily_freq = {}  # class_id -> {'total', 'on_time'}
+        # NOTA: o numerador (datas lançadas) é interseccionado, no loop por professor,
+        # com o conjunto de dias letivos (regime diário) ou de datas previstas na grade
+        # (regime por componente). Assim lançamentos fora do previsto NÃO saturam em 100%.
+
+        # --- FREQUÊNCIA (regime diário): conjuntos de datas lançadas / no prazo por turma ---
+        daily_freq = {}  # class_id -> {'dates': set, 'ontime': set}
         if daily_class_ids:
             async for doc in current_db.attendance.aggregate([
                 {'$match': {'class_id': {'$in': daily_class_ids},
@@ -1731,25 +1741,26 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                             'dates': {'$addToSet': '$date'},
                             'ontime_dates': {'$addToSet': {'$cond': [_on_time_cond, '$date', '$$REMOVE']}}}}
             ]):
-                daily_freq[doc['_id']] = {'total': len(doc.get('dates', [])), 'on_time': len(doc.get('ontime_dates', []))}
+                daily_freq[doc['_id']] = {'dates': set(doc.get('dates', [])), 'ontime': set(doc.get('ontime_dates', []))}
 
-        # --- FREQUÊNCIA (regime por componente): conta lançamentos por (turma, componente) ---
-        bycomp_freq = {}  # (class_id, course_id) -> {'total', 'on_time'}
+        # --- FREQUÊNCIA (regime por componente): conjuntos de datas por (turma, componente) ---
+        bycomp_freq = {}  # (class_id, course_id) -> {'dates': set, 'ontime': set}
         if bycomp_class_ids:
             async for doc in current_db.attendance.aggregate([
                 {'$match': {'class_id': {'$in': bycomp_class_ids},
                             'date': {'$regex': f'^{academic_year}', '$lte': _period_end_str},
                             'created_at': {'$ne': None}}},
-                {'$project': {'class_id': 1, 'course_id': 1, 'days_diff': _days_diff_expr, '_modified': _modified_expr}},
+                {'$project': {'class_id': 1, 'course_id': 1, 'date': 1, 'days_diff': _days_diff_expr, '_modified': _modified_expr}},
                 {'$match': {'days_diff': {'$ne': None}}},
                 {'$group': {'_id': {'c': '$class_id', 'k': '$course_id'},
-                            'total': {'$sum': 1},
-                            'on_time': {'$sum': {'$cond': [_on_time_cond, 1, 0]}}}}
+                            'dates': {'$addToSet': '$date'},
+                            'ontime_dates': {'$addToSet': {'$cond': [_on_time_cond, '$date', '$$REMOVE']}}}}
             ]):
-                bycomp_freq[(doc['_id'].get('c'), doc['_id'].get('k'))] = {'total': doc['total'], 'on_time': doc['on_time']}
+                bycomp_freq[(doc['_id'].get('c'), doc['_id'].get('k'))] = {
+                    'dates': set(doc.get('dates', [])), 'ontime': set(doc.get('ontime_dates', []))}
 
-        # --- CONTEÚDO (regime diário): dias-turma distintos com registro ---
-        daily_content = {}  # class_id -> qtd dias distintos
+        # --- CONTEÚDO (regime diário): conjunto de datas com registro por turma ---
+        daily_content = {}  # class_id -> set(datas)
         if daily_class_ids:
             async for doc in current_db.learning_objects.aggregate([
                 {'$match': {'class_id': {'$in': daily_class_ids},
@@ -1757,18 +1768,19 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                             'date': {'$lte': _period_end_str}}},
                 {'$group': {'_id': '$class_id', 'dates': {'$addToSet': '$date'}}}
             ]):
-                daily_content[doc['_id']] = len(doc.get('dates', []))
+                daily_content[doc['_id']] = set(doc.get('dates', []))
 
-        # --- CONTEÚDO (regime por componente): registros por (turma, componente) ---
-        bycomp_content = {}  # (class_id, course_id) -> qtd
+        # --- CONTEÚDO (regime por componente): conjunto de datas por (turma, componente) ---
+        bycomp_content = {}  # (class_id, course_id) -> set(datas)
         if bycomp_class_ids:
             async for doc in current_db.learning_objects.aggregate([
                 {'$match': {'class_id': {'$in': bycomp_class_ids},
                             'academic_year': year_filter(academic_year),
                             'date': {'$lte': _period_end_str}}},
-                {'$group': {'_id': {'c': '$class_id', 'k': '$course_id'}, 'n': {'$sum': 1}}}
+                {'$group': {'_id': {'c': '$class_id', 'k': '$course_id'}, 'dates': {'$addToSet': '$date'}}}
             ]):
-                bycomp_content[(doc['_id'].get('c'), doc['_id'].get('k'))] = doc['n']
+                bycomp_content[(doc['_id'].get('c'), doc['_id'].get('k'))] = set(doc.get('dates', []))
+
 
         # ===== SLA Notas (7 dias após o FIM do bimestre) =====
         # Prazos apenas dos bimestres ENCERRADOS no período (fim <= hoje).
@@ -1835,27 +1847,48 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 ce = class_expected.get(cid, {})
                 regime = ce.get('regime', 'daily')
                 if regime == 'daily':
-                    ld = ce.get('letivo_days', 0) or dias_ref_periodo
+                    letivo_dates = ce.get('letivo_dates') or set()
+                    ld = len(letivo_dates) or (ce.get('letivo_days', 0) or dias_ref_periodo)
                     df = daily_freq.get(cid, {})
+                    # Numerador restrito aos DIAS LETIVOS (lançamentos fora do previsto não contam).
+                    if letivo_dates:
+                        f_dates = df.get('dates', set()) & letivo_dates
+                        f_ontime = df.get('ontime', set()) & letivo_dates
+                        c_dates = daily_content.get(cid, set()) & letivo_dates
+                    else:
+                        f_dates = df.get('dates', set())
+                        f_ontime = df.get('ontime', set())
+                        c_dates = daily_content.get(cid, set())
                     freq_expected += ld
-                    freq_total += df.get('total', 0)
-                    freq_on_time += df.get('on_time', 0)
+                    freq_total += len(f_dates)
+                    freq_on_time += len(f_ontime)
                     cont_expected += ld
-                    cont_total += daily_content.get(cid, 0)
+                    cont_total += len(c_dates)
                 else:
-                    sched = ce.get('by_component', {})
+                    comp_dates = ce.get('component_dates', {})
                     for course in teacher_courses_by_class.get(cid, set()):
                         if not course:
                             continue
-                        exp_c = sched.get(course, 0)
+                        exp_dates = comp_dates.get(course) or set()
                         fnum = bycomp_freq.get((cid, course), {})
-                        cnum = bycomp_content.get((cid, course), 0)
-                        # Sem grade para o componente → usa lançamentos como base (evita 0/0 e inflação).
-                        freq_expected += exp_c if exp_c > 0 else fnum.get('total', 0)
-                        freq_total += fnum.get('total', 0)
-                        freq_on_time += fnum.get('on_time', 0)
-                        cont_expected += exp_c if exp_c > 0 else cnum
-                        cont_total += cnum
+                        cnum_dates = bycomp_content.get((cid, course), set())
+                        if exp_dates:
+                            f_dates = fnum.get('dates', set()) & exp_dates
+                            f_ontime = fnum.get('ontime', set()) & exp_dates
+                            c_dates = cnum_dates & exp_dates
+                            freq_expected += len(exp_dates)
+                            cont_expected += len(exp_dates)
+                        else:
+                            # Sem grade para o componente → usa lançamentos como base (evita 0/0).
+                            f_dates = fnum.get('dates', set())
+                            f_ontime = fnum.get('ontime', set())
+                            c_dates = cnum_dates
+                            freq_expected += len(f_dates)
+                            cont_expected += len(c_dates)
+                        freq_total += len(f_dates)
+                        freq_on_time += len(f_ontime)
+                        cont_total += len(c_dates)
+
 
             # Cobertura ("Diários", SEM prazo) vs SLA ("Diários 60%", com prazo de 3 dias).
             freq_coverage = round(min(freq_total / freq_expected * 100, 100), 1) if freq_expected > 0 else 0

@@ -1,5 +1,17 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — BUGFIX: Desempenho dos Professores fixado em 100%/100% (Diários e Diários 60%)
+**Sintoma (reporte real — profa. Ivanilde):** professores apareciam com 100% cravado nas colunas "Diários" e "Diários (60%)".
+**Causa raiz (`routers/analytics.py::get_teachers_performance`):** o numerador de Frequência/Conteúdo somava TODOS os lançamentos da turma (todos os componentes, de todos os professores), enquanto o denominador era `nº turmas × dias letivos` (assume 1 diário/turma/dia). Em turmas de Anos Finais (`by_component`/`by_course`) há vários lançamentos por dia → numerador ≫ denominador → estouro do teto de 100% em ambas as colunas.
+**Correção (aprovada pelo owner — medir POR COMPONENTE usando a grade horária):**
+- Novo `services/teacher_schedule_expected.py::compute_class_expected`: expande a grade (`teacher_class_assignments` novo ou fallback `legacy_schedule_bridge`) sobre os dias letivos do período, retornando `letivo_dates` (regime diário) e `component_dates[course_id]` (datas com aula prevista por componente), respeitando feriados/recessos e rotação de sábado letivo.
+- Regime **diário** (Anos Iniciais/EJA/Infantil): 1 diário por turma/dia; numerador = dias-turma lançados ∩ dias letivos. Regime **por componente** (Anos Finais/EJA Final): numerador = datas lançadas do componente do professor ∩ datas previstas na grade; denominador = nº de aulas previstas do componente.
+- Numerador SEMPRE interseccionado com o previsto → lançamentos em dias não-letivos/fora da grade não saturam mais em 100%.
+- Período clampado ao ano letivo: `_period_end_str = min(hoje, bimestre_4_fim/{ano}-12-31)` (anos passados não invadem anos seguintes).
+- Invariante garantida: "Diários" (cobertura pura) ≥ "Diários (60%)" (penalizada por prazo 3d freq / 7d notas).
+**Validação:** `testing_agent` iter_117 (28/28 nos testes do fix; 8 demais endpoints do analytics seguem 200; PDF 200). Correções dos 2 defeitos residuais apontados (saturação diária + janela do período) verificadas com seeds isolados (by_component e domingos não contam). Testes: `tests/test_teachers_performance_bycomponent.py` + `tests/test_teachers_performance_bycomponent_seeded.py` (28 verdes). Removido `tests/test_teachers_performance_sla.py` (obsoleto — semeava ano 2099 e a fórmula antiga).
+
+
 ## 2026-08-10 — SLA Notas (7 dias) + denominador = "período" (início→hoje)
 - Denominador de TODOS os componentes passou a ser o "período" = início do 1º bimestre até HOJE (dias_letivos_periodo, date<=hoje). Conteúdo e Frequência também usam esse denominador.
 - Frequência (Conformidade): no prazo(<=3d, não alterado) / previstos no período × 100 (confirmado: 45/50=90%).
