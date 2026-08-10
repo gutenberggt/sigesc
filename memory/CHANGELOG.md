@@ -1,6 +1,12 @@
 # CHANGELOG — SIGESC
 
-## 2026-08-09 — Logs de Auditoria: PDF institucional (brasão + mantenedora)
+## 2026-08-10 — Desempenho dos Professores: coluna "Diários" (preenchimento real, sem regra de tempo)
+- Nova coluna "Diários" antes de "Diários (60%)": % real de preenchimento descartando a regra de prazo (SLA de 3 dias).
+- Backend (analytics.py teachers/performance): novo campo `diario_real_pct` = média ponderada (freq 4 / conteúdo 3 / notas 3) onde frequência = lançamentos existentes / dias letivos esperados (sem on-time). Conteúdo e Notas já são preenchimento puro.
+- Frontend (AnalyticsDashboard.jsx): coluna adicionada com mesma faixa de cores (verde/amarelo/vermelho). data-testid teacher-diario-real.
+- Validado: Professor Teste QA → Diários(real)=30,2% vs Diários(60%)=70% (sla_freq on-time=100%). UI confere.
+
+
 - PDF de auditoria (GET /api/audit-logs/pdf) agora com cabeçalho institucional igual aos demais documentos: brasão (get_logo_image), Prefeitura/Mantenedora (Município-UF), Secretaria, slogan, título "LOGS DE AUDITORIA".
 - Fonte da mantenedora: coleção 'mantenedora' (singular) → fallback por X-Mantenedora-Id em 'mantenedoras' → 1º doc. brasao_url/logotipo_url.
 - Linha de contexto conforme filtros: Escola (se school_id), Usuário + papel em PT (se user_id — cobre professor/coordenador/etc.), Período (se datas), Gerado em, Registros (x de y, limitado a 2000).

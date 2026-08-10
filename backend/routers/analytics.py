@@ -1698,6 +1698,15 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             # Média ponderada → coluna "Diários (60%)"
             diario_pct = round((sla_freq * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
             diario_pct = min(diario_pct, 100)
+
+            # Coluna "Diários" (preenchimento REAL, DESCARTANDO a regra de tempo):
+            # frequência = lançamentos existentes / dias letivos esperados (sem SLA de 3 dias).
+            # Conteúdo e Notas já são preenchimento puro (sem regra de prazo).
+            freq_expected = n_turmas * total_dias_letivos
+            fill_freq = round(freq_total / freq_expected * 100, 1) if freq_expected > 0 else 0
+            fill_freq = min(fill_freq, 100)
+            diario_real_pct = round((fill_freq * 4 + sla_conteudo * 3 + sla_notas * 3) / 10, 1)
+            diario_real_pct = min(diario_real_pct, 100)
             
             # 2. Média de notas dos alunos (40%) — usa final_average (modelo real)
             media_notas = 0
@@ -1725,6 +1734,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             result.append({
                 'teacher_id': tid,
                 'teacher_name': tdata['name'],
+                'diario_real_pct': diario_real_pct,
                 'diario_pct': diario_pct,
                 'sla_freq': sla_freq,
                 'sla_conteudo': sla_conteudo,

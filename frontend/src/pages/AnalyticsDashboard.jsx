@@ -2330,6 +2330,7 @@ export function AnalyticsDashboard() {
                     <tr className="border-b bg-gray-50">
                       <th className="text-left py-2 px-3 font-medium text-gray-600">#</th>
                       <th className="text-left py-2 px-3 font-medium text-gray-600">Professor</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Diários</th>
                       <th className="text-center py-2 px-3 font-medium text-gray-600">Diários (60%)</th>
                       <th className="text-center py-2 px-3 font-medium text-gray-600">Média Notas (40%)</th>
                       <th className="text-center py-2 px-3 font-medium text-gray-600">Score</th>
@@ -2340,6 +2341,11 @@ export function AnalyticsDashboard() {
                       <tr key={teacher.teacher_id} className="border-b hover:bg-gray-50">
                         <td className="py-2 px-3 font-medium text-gray-500">{index + 1}</td>
                         <td className="py-2 px-3 font-medium text-gray-800">{teacher.teacher_name}</td>
+                        <td className="py-2 px-3 text-center" data-testid="teacher-diario-real">
+                          <span className={`font-medium ${teacher.diario_real_pct >= 70 ? 'text-green-600' : teacher.diario_real_pct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {teacher.diario_real_pct}%
+                          </span>
+                        </td>
                         <td className="py-2 px-3 text-center">
                           <span className={`font-medium ${teacher.diario_pct >= 70 ? 'text-green-600' : teacher.diario_pct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
                             {teacher.diario_pct}%
