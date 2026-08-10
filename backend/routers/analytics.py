@@ -1579,8 +1579,11 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             {"ano_letivo": academic_year}, {"_id": 0}
         )
         
-        # Calcular total de dias letivos no ano
+        # Calcular total de dias letivos no ano (e os já VENCIDOS = prazo de 3 dias expirado)
+        from datetime import datetime as _dt2, timedelta as _td2, timezone as _tz2
+        _cutoff_str = (_dt2.now(_tz2.utc) - _td2(days=3)).strftime('%Y-%m-%d')
         total_dias_letivos = 0
+        dias_letivos_vencidos = 0
         if calendario:
             from datetime import datetime as dt, timedelta
             events = await current_db.calendar_events.find(
@@ -1623,6 +1626,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                             dow = d.weekday()
                             if dow != 6 and ds not in blocked and (dow != 5 or ds in sab_letivos):
                                 total_dias_letivos += 1
+                                if ds <= _cutoff_str:
+                                    dias_letivos_vencidos += 1
                             d += timedelta(days=1)
                     except: pass
         
@@ -1642,7 +1647,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             sla_freq_pipeline = [
                 {'$match': {
                     'class_id': {'$in': all_class_ids},
-                    'date': {'$regex': f'^{academic_year}'},
+                    'date': {'$regex': f'^{academic_year}', '$lte': _cutoff_str},
                     'created_at': {'$ne': None}
                 }},
                 {'$project': {
@@ -1655,13 +1660,20 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                             ]},
                             86400000  # ms → dias
                         ]
-                    }
+                    },
+                    # "Alterada/refeita": versão > 1 ou possui updated_at → considerada FORA DO PRAZO
+                    '_modified': {'$or': [
+                        {'$gt': [{'$ifNull': ['$version', 1]}, 1]},
+                        {'$ne': [{'$ifNull': ['$updated_at', None]}, None]}
+                    ]}
                 }},
                 {'$match': {'days_diff': {'$ne': None}}},
                 {'$group': {
                     '_id': '$class_id',
                     'total': {'$sum': 1},
-                    'on_time': {'$sum': {'$cond': [{'$lte': ['$days_diff', 3]}, 1, 0]}}
+                    'on_time': {'$sum': {'$cond': [
+                        {'$and': [{'$lte': ['$days_diff', 3]}, {'$eq': ['$_modified', False]}]}, 1, 0
+                    ]}}
                 }}
             ]
             async for doc in current_db.attendance.aggregate(sla_freq_pipeline):
@@ -1687,16 +1699,17 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             sla_conteudo = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
             sla_conteudo = min(sla_conteudo, 100)
 
-            # 1b. Frequência (peso 4)
+            # 1b. Frequência (peso 4) — denominador = dias letivos JÁ VENCIDOS (prazo de 3 dias expirado).
+            # freq_total = lançamentos existentes p/ aulas vencidas; freq_on_time = lançados no prazo E não alterados/refeitos.
+            # Aulas vencidas e ainda NÃO lançadas entram no denominador e penalizam (contam como atraso).
             freq_total = sum(sla_freq_by_class.get(c, {}).get('total', 0) for c in class_ids)
             freq_on_time = sum(sla_freq_by_class.get(c, {}).get('on_time', 0) for c in class_ids)
-            freq_expected = n_turmas * total_dias_letivos
-            # Cobertura = lançamentos existentes / dias letivos esperados (preenchimento puro, SEM prazo)
+            dias_ref = dias_letivos_vencidos if dias_letivos_vencidos > 0 else total_dias_letivos
+            freq_expected = n_turmas * dias_ref
+            # Cobertura ("Diários", SEM prazo) = lançados / esperados (vencidos)
             freq_coverage = round(min(freq_total / freq_expected * 100, 100), 1) if freq_expected > 0 else 0
-            # Pontualidade = fração dos lançamentos feitos no prazo (<= 3 dias); 0..1
-            freq_ontime_rate = (freq_on_time / freq_total) if freq_total > 0 else 0
-            # SLA Frequência = cobertura PENALIZADA pela pontualidade (sempre <= cobertura)
-            sla_freq = round(freq_coverage * freq_ontime_rate, 1)
+            # SLA Frequência ("Diários 60%") = lançados NO PRAZO e não alterados / esperados (vencidos)
+            sla_freq = round(min(freq_on_time / freq_expected * 100, 100), 1) if freq_expected > 0 else 0
 
             # 1c. SLA Notas (peso 3) = placeholder 100% (workflow de prazo ainda não existe)
             sla_notas = 100.0

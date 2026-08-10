@@ -1,6 +1,14 @@
 # CHANGELOG — SIGESC
 
-## 2026-08-10 — FIX: coerência entre "Diários" e "Diários (60%)"
+## 2026-08-10 — SLA Frequência: vencidos-não-lançados e alterados contam como atraso
+- Denominador da frequência mudou de "todos os dias letivos do ano" para "dias letivos JÁ VENCIDOS" (date <= hoje-3), acumulando automaticamente.
+- Aulas vencidas e ainda NÃO lançadas entram no denominador e penalizam o SLA (contam como atraso), conforme solicitado.
+- "Deletada e refeita/alterada": docs com version>1 ou updated_at presente são tratados como FORA DO PRAZO (excluídos do on_time). Pipeline filtra date<=cutoff e detecta _modified.
+- Fórmulas: Diários(60%) = lançados_no_prazo_e_não_alterados / esperados_vencidos; Diários = lançados / esperados_vencidos. Mantém Diários >= Diários(60%). Vale para tela e PDF.
+- Validado (teste focado): 6 lançados / 3 no prazo em 10 vencidos → Diários 60% vs 30%; late/version2/updated_at penalizam; vencidos-não-lançados penalizam ambos.
+- LIMITAÇÃO: delete físico + recriação dentro de 3 dias que reseta version=1 não é distinguível (sem rastro); refazer pelo fluxo normal incrementa version e é capturado.
+
+
 - Problema: as colunas usavam métricas de frequência ortogonais — "Diários (60%)" usava só PONTUALIDADE (no prazo/total) e "Diários" usava COBERTURA (lançados/esperados) — logo uma podia ser maior que a outra sem relação lógica (ex.: Aline 81,2% vs 81,5%).
 - Correção (analytics.py teachers/performance): ambas medem COBERTURA. freq_coverage = lançados/esperados. freq_ontime_rate = no_prazo/total (0..1). SLA Frequência = freq_coverage × freq_ontime_rate (≤ cobertura). "Diários (60%)" usa sla_freq; "Diários" usa freq_coverage. Garante Diários ≥ Diários (60%), iguais quando tudo no prazo.
 - Vale também para o PDF (mesma função). Validado: Professor Teste QA (tudo no prazo) → 30,2% = 30,2%; 0 anomalias (real<sla).
