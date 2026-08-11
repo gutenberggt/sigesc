@@ -1,5 +1,9 @@
 # CHANGELOG — SIGESC
 
+## 2026-06 — Frequência: toggle nos botões P/F/J (clicar de novo desmarca)
+Na página Controle de Frequência (`pages/Attendance.js::updateStudentStatus`), clicar no status já selecionado agora DESMARCA (volta ao cinza/`null`), tanto no diário quanto no multi-aula. Lógica centralizada — nenhum botão precisou mudar. Validado e2e: cinza → verde (1º clique) → cinza (2º clique).
+
+
 ## 2026-06 — BUGFIX: Desempenho dos Professores fixado em 100%/100% (Diários e Diários 60%)
 **Sintoma (reporte real — profa. Ivanilde):** professores apareciam com 100% cravado nas colunas "Diários" e "Diários (60%)".
 **Causa raiz (`routers/analytics.py::get_teachers_performance`):** o numerador de Frequência/Conteúdo somava TODOS os lançamentos da turma (todos os componentes, de todos os professores), enquanto o denominador era `nº turmas × dias letivos` (assume 1 diário/turma/dia). Em turmas de Anos Finais (`by_component`/`by_course`) há vários lançamentos por dia → numerador ≫ denominador → estouro do teto de 100% em ambas as colunas.

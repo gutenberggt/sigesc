@@ -602,18 +602,25 @@ export const Attendance = () => {
     }
     
     if (aulaNum !== null) {
-      // Multi-aula: atualizar aulaStatuses (já functional)
-      setAulaStatuses(prev => ({
-        ...prev,
-        [studentId]: { ...(prev[studentId] || {}), [aulaNum]: status }
-      }));
+      // Multi-aula: atualizar aulaStatuses (já functional).
+      // Toggle: clicar no status já selecionado desmarca (volta a cinza/null).
+      setAulaStatuses(prev => {
+        const current = prev[studentId]?.[aulaNum] ?? null;
+        const newStatus = current === status ? null : status;
+        return {
+          ...prev,
+          [studentId]: { ...(prev[studentId] || {}), [aulaNum]: newStatus }
+        };
+      });
     } else {
-      // Diário: atualizar student.status com functional setState (evita stale em cliques rápidos)
+      // Diário: atualizar student.status com functional setState (evita stale em cliques rápidos).
+      // Toggle: clicar no status já selecionado desmarca (volta a cinza/null).
       setAttendanceData(prev => {
         if (!prev) return prev;
         const newStudents = prev.students.map(s => {
           if (s.id !== studentId) return s;
-          return { ...s, status };
+          const newStatus = s.status === status ? null : status;
+          return { ...s, status: newStatus };
         });
         return { ...prev, students: newStudents };
       });
