@@ -111,6 +111,7 @@ const KIND_LABEL_PT = {
   OVERLAP: 'Sobreposição na grade',
   TEMPORAL_GAP: 'Lacuna na cobertura',
   CLASS_WITHOUT_ASSIGNMENT: 'Turma sem grade',
+  CLASS_WITHOUT_SCHEDULE: 'Turma sem horário',
   EXPIRED_NO_SUCCESSOR: 'Vínculo expirado sem substituto',
   ORPHAN_TEACHER: 'Professor inexistente',
   DUPLICATE_SLOT: 'Slots duplicados',

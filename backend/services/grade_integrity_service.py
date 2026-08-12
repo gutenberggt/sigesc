@@ -49,6 +49,7 @@ KIND_SEVERITY = {
     "OVERLAP": SEVERITY_HIGH,
     "TEACHER_DOUBLE_BOOKING": SEVERITY_HIGH,
     "CLASS_WITHOUT_ASSIGNMENT": SEVERITY_HIGH,
+    "CLASS_WITHOUT_SCHEDULE": SEVERITY_MEDIUM,
     "EXPIRED_NO_SUCCESSOR": SEVERITY_MEDIUM,
     "ORPHAN_TEACHER": SEVERITY_MEDIUM,
     "DUPLICATE_SLOT": SEVERITY_LOW,
@@ -60,6 +61,7 @@ KIND_RECOMMENDATION_PT = {
     "OVERLAP": "Defina is_substitute=True para o cobertor temporário OU encerre valid_until do anterior.",
     "TEACHER_DOUBLE_BOOKING": "Mesmo professor não pode reger 2 turmas simultaneamente. Reatribua.",
     "CLASS_WITHOUT_ASSIGNMENT": "Turma do ano corrente sem nenhum responsável. Cadastre a grade.",
+    "CLASS_WITHOUT_SCHEDULE": "A turma já tem professor(es)/componente(s) cadastrado(s); falta apenas cadastrar o HORÁRIO de aulas (grade horária) para o ano letivo.",
     "EXPIRED_NO_SUCCESSOR": "Assignment expirou sem sucessor. Estenda valid_until OU cadastre o sucessor.",
     "ORPHAN_TEACHER": "Professor não existe ou foi apagado. Reatribua o assignment a um usuário válido.",
     "DUPLICATE_SLOT": "Mesmo (weekday, aula_numero) duplicado em weekly_slots[]. Limpe.",
@@ -380,18 +382,38 @@ async def compute_integrity_report(
         classes_with_schedule_legacy = set()
     classes_with_any_schedule = classes_with_assignment_new | classes_with_schedule_legacy
 
+    # [Jun/2026 — correção do owner] Distinguir "SEM HORÁRIO" de "SEM VÍNCULO".
+    # A tela "Detalhes da Turma" lê o vínculo professor↔componente de
+    # `teacher_assignments` (legacy, SEM horário). Turmas que possuem esse
+    # vínculo mas ainda não têm grade horária (nem em `teacher_class_assignments`
+    # nem em `class_schedules`) NÃO estão "sem grade": falta apenas o HORÁRIO.
+    # Marcá-las como "sem nenhum vínculo" era um falso positivo crítico.
+    active_ids = [c["id"] for c in classes_active]
+    try:
+        ta_class_ids = await db.teacher_assignments.distinct(
+            "class_id", {"class_id": {"$in": active_ids}}
+        ) if active_ids else []
+        classes_with_teacher_link = {cid for cid in ta_class_ids if cid}
+    except Exception as e:
+        logger.warning(f"[grade_integrity] teacher_assignments.distinct falhou: {e}")
+        classes_with_teacher_link = set()
+
     for c in classes_active:
-        if c["id"] not in classes_with_any_schedule:
-            issues.append({
-                "kind": "CLASS_WITHOUT_ASSIGNMENT",
-                "severity": SEVERITY_HIGH,
-                "class_id": c["id"],
-                "class_name": c.get("name"),
-                "school_id": c.get("school_id"),
-                "academic_year": c.get("academic_year"),
-                "assignment_ids": [],
-                "recommendation": KIND_RECOMMENDATION_PT["CLASS_WITHOUT_ASSIGNMENT"],
-            })
+        if c["id"] in classes_with_any_schedule:
+            continue
+        # Tem professor↔componente (teacher_assignments) porém sem horário → SEM HORÁRIO.
+        # Não tem nem vínculo nem horário → SEM GRADE (crítico).
+        kind = "CLASS_WITHOUT_SCHEDULE" if c["id"] in classes_with_teacher_link else "CLASS_WITHOUT_ASSIGNMENT"
+        issues.append({
+            "kind": kind,
+            "severity": KIND_SEVERITY[kind],
+            "class_id": c["id"],
+            "class_name": c.get("name"),
+            "school_id": c.get("school_id"),
+            "academic_year": c.get("academic_year"),
+            "assignment_ids": [],
+            "recommendation": KIND_RECOMMENDATION_PT[kind],
+        })
 
     # =========================================================================
     # FINGERPRINT + HUMAN COPY + WORKFLOW STATE MERGE
@@ -482,7 +504,7 @@ def _compute_fingerprint(issue: dict) -> str:
             str(issue.get("aula_numero", "")),
             "|".join(sorted(issue.get("assignment_ids", []))),
         ]
-    elif kind == "CLASS_WITHOUT_ASSIGNMENT":
+    elif kind in ("CLASS_WITHOUT_ASSIGNMENT", "CLASS_WITHOUT_SCHEDULE"):
         parts += [issue.get("class_id", "")]
     elif kind in ("ORPHAN_TEACHER", "DUPLICATE_SLOT", "INVERTED_VALIDITY"):
         parts += ["|".join(sorted(issue.get("assignment_ids", [])))]
@@ -532,6 +554,18 @@ def _humanize(issue: dict) -> tuple[str, str, str]:
             "professor↔componente↔horário cadastrado.",
             "Todos os dias aparecem como 'sem aula esperada' — frequência "
             "e conteúdo não são exigidos pela arquitetura.",
+        )
+    if k == "CLASS_WITHOUT_SCHEDULE":
+        return (
+            "Turma sem Horário Cadastrado",
+            f"Turma {issue.get('class_name')} do ano letivo "
+            f"{issue.get('academic_year')} já possui professor(es) e "
+            "componente(s) vinculados, mas ainda NÃO tem o horário de aulas "
+            "(grade horária) cadastrado.",
+            "Turmas de regência diária (Educação Infantil / Anos Iniciais) "
+            "seguem lançando frequência normalmente; já em turmas por "
+            "componente, sem horário os dias podem aparecer como 'sem aula "
+            "esperada'. Cadastre o horário para completar a grade.",
         )
     if k == "EXPIRED_NO_SUCCESSOR":
         return (
