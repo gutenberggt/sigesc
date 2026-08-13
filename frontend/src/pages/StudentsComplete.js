@@ -21,27 +21,21 @@ import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { StudentDependencySection } from '@/components/StudentDependencySection';
 import { computeCompleteness, completenessColor } from '@/utils/registrationCompleteness';
+import {
+  SPECIAL_EDUCATION_TARGET_OPTIONS,
+  LEARNING_DISORDER_OPTIONS,
+  OTHER_CONDITION_OPTIONS,
+  LEGACY_SPECIAL_EDUCATION_OPTIONS,
+  hasAeeTargetCondition,
+  getLegacySpecialEducationValues,
+  hasCondition,
+  toggleCondition,
+} from '@/utils/specialEducation';
 
 // Estados brasileiros
 const STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
-];
-
-// Opções de deficiências/transtornos
-const DISABILITIES_OPTIONS = [
-  'Deficiência Física',
-  'Deficiência Intelectual',
-  'Deficiência Visual',
-  'Deficiência Auditiva',
-  'Deficiência Múltipla',
-  'Transtorno do Espectro Autista (TEA)',
-  'Altas Habilidades/Superdotação',
-  'Transtorno de Déficit de Atenção e Hiperatividade (TDAH)',
-  'Transtorno do Desenvolvimento da Linguagem (TDL)',
-  'Dislexia',
-  'Discalculia',
-  'Síndrome de Down'
 ];
 
 // Opções de benefícios
@@ -1415,6 +1409,15 @@ export function StudentsComplete() {
     });
   };
 
+  // Condições educacionais específicas usam normalização própria para manter
+  // compatibilidade com grafias legadas sem duplicar valores no cadastro.
+  const handleSpecialConditionChange = (option, checked) => {
+    setFormData(prev => ({
+      ...prev,
+      disabilities: toggleCondition(prev.disabilities || [], option, checked),
+    }));
+  };
+
   const addAuthorizedPerson = () => {
     if (formData.authorized_persons.length >= 5) {
       showAlert('error', 'Máximo de 5 pessoas autorizadas');
@@ -1462,9 +1465,16 @@ export function StudentsComplete() {
   );
   
   // Turmas de Atendimento/Programa filtradas por escola e tipo selecionado
+  const selectedSpecialConditions = formData.disabilities || [];
+  const hasAeeTarget = formData.has_disability && hasAeeTargetCondition(selectedSpecialConditions);
+  const legacySpecialEducationValues = getLegacySpecialEducationValues(selectedSpecialConditions);
+  const currentAeeRequiresReview = formData.atendimento_programa_tipo === 'aee' && !hasAeeTarget;
+
   const programSchool = schools.find(s => s.id === formData.atendimento_programa_school_id);
   const availableProgramTypes = programSchool ? [
-    ...(programSchool.aee ? [{ value: 'aee', label: 'Atendimento Educacional Especializado - AEE' }] : []),
+    ...(programSchool.aee && hasAeeTarget
+      ? [{ value: 'aee', label: 'Atendimento Educacional Especializado - AEE' }]
+      : []),
     ...(programSchool.reforco_escolar ? [{ value: 'reforco_escolar', label: 'Reforço Escolar' }] : []),
     ...(programSchool.recomposicao_aprendizagem ? [{ value: 'recomposicao_aprendizagem', label: 'Recomposição da Aprendizagem' }] : []),
   ] : [];
@@ -2626,47 +2636,104 @@ export function StudentsComplete() {
         ))}
       </div>
 
-      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Deficiências / Transtornos</h3>
-      <div className="flex items-center gap-2 mb-4">
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Condições Educacionais Específicas</h3>
+      <div className="flex items-start gap-2 mb-4">
         <input
           type="checkbox"
           id="has_disability"
           checked={formData.has_disability}
           onChange={(e) => updateFormData('has_disability', e.target.checked)}
           disabled={viewMode}
-          className="h-4 w-4 text-blue-600 rounded"
+          className="h-4 w-4 mt-0.5 text-blue-600 rounded"
         />
-        <label htmlFor="has_disability" className="text-sm text-gray-700">Possui deficiência ou transtorno</label>
+        <div>
+          <label htmlFor="has_disability" className="text-sm font-medium text-gray-700">
+            Possui condição de Educação Especial, transtorno de aprendizagem ou outra condição relevante
+          </label>
+          <p className="text-xs text-gray-500 mt-1">
+            As categorias abaixo são separadas para evitar que transtornos de aprendizagem sejam confundidos com o público da Educação Especial/AEE.
+          </p>
+        </div>
       </div>
       
       {formData.has_disability && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-            {DISABILITIES_OPTIONS.map(disability => (
-              <label key={disability} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.disabilities.some(d => d.toLowerCase() === disability.toLowerCase())}
-                  onChange={(e) => handleCheckboxChange('disabilities', disability, e.target.checked)}
-                  disabled={viewMode}
-                  className="h-4 w-4 text-blue-600 rounded"
-                />
-                <span className="text-sm text-gray-700">{disability}</span>
-              </label>
-            ))}
-          </div>
+        <div className="space-y-4">
+          <section className="rounded-lg border border-blue-200 bg-blue-50/40 p-4" data-testid="special-education-target-section">
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-blue-900">Público da Educação Especial / AEE</h4>
+              <p className="text-xs text-blue-700 mt-1">
+                Deficiências, Transtorno do Espectro Autista (TEA) e Altas Habilidades/Superdotação. A marcação identifica o público da Educação Especial; o atendimento AEE é vinculado separadamente conforme necessidade e oferta.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {SPECIAL_EDUCATION_TARGET_OPTIONS.map(option => (
+                <label key={option} className="flex items-start gap-2">
+                  <input type="checkbox" checked={hasCondition(selectedSpecialConditions, option)} onChange={(e) => handleSpecialConditionChange(option, e.target.checked)} disabled={viewMode} className="h-4 w-4 mt-0.5 text-blue-600 rounded" />
+                  <span className="text-sm text-gray-700">{option}</span>
+                </label>
+              ))}
+            </div>
+            {hasAeeTarget && (
+              <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800" data-testid="aee-eligibility-indicator">
+                <strong>✓ Público da Educação Especial identificado.</strong>{' '}O AEE pode ser vinculado conforme a necessidade educacional e a oferta da escola.
+              </div>
+            )}
+            {legacySpecialEducationValues.length > 0 && (
+              <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3" data-testid="legacy-special-education-warning">
+                <p className="text-sm font-semibold text-amber-900">Cadastro legado — revisão recomendada</p>
+                <p className="text-xs text-amber-800 mt-1">
+                  O SIGESC preservou classificações antigas para não perder informação histórica. “Deficiência Visual” deve ser detalhada como Baixa Visão, Cegueira ou Visão Monocular, quando cabível. “Deficiência Múltipla” não é marcada manualmente no padrão atual do Censo Escolar; ela decorre da associação de duas ou mais deficiências.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                  {LEGACY_SPECIAL_EDUCATION_OPTIONS.filter(option => legacySpecialEducationValues.includes(option)).map(option => (
+                    <label key={option} className="flex items-center gap-2 text-sm text-amber-900">
+                      <input type="checkbox" checked={hasCondition(selectedSpecialConditions, option)} onChange={(e) => handleSpecialConditionChange(option, e.target.checked)} disabled={viewMode} className="h-4 w-4 text-amber-600 rounded" />
+                      <span>{option} <em className="text-xs">(legado)</em></span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-slate-50/60 p-4" data-testid="learning-disorders-section">
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-slate-900">Transtornos que impactam o desenvolvimento da aprendizagem</h4>
+              <p className="text-xs text-slate-600 mt-1">Categorias coletadas pelo Censo Escolar desde 2025. Isoladamente, não caracterizam o estudante como público do AEE.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {LEARNING_DISORDER_OPTIONS.map(option => (
+                <label key={option} className="flex items-start gap-2">
+                  <input type="checkbox" checked={hasCondition(selectedSpecialConditions, option)} onChange={(e) => handleSpecialConditionChange(option, e.target.checked)} disabled={viewMode} className="h-4 w-4 mt-0.5 text-slate-600 rounded" />
+                  <span className="text-sm text-gray-700">{option}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-gray-200 bg-white p-4" data-testid="other-conditions-section">
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-gray-900">Outras condições relevantes ao acompanhamento pedagógico</h4>
+              <p className="text-xs text-gray-600 mt-1">São registradas para acompanhamento, mas não constituem, por si só, categoria autônoma de deficiência, TEA ou Altas Habilidades/Superdotação no Censo Escolar.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {OTHER_CONDITION_OPTIONS.map(option => (
+                <label key={option} className="flex items-start gap-2">
+                  <input type="checkbox" checked={hasCondition(selectedSpecialConditions, option)} onChange={(e) => handleSpecialConditionChange(option, e.target.checked)} disabled={viewMode} className="h-4 w-4 mt-0.5 text-gray-600 rounded" />
+                  <span className="text-sm text-gray-700">{option}</span>
+                </label>
+              ))}
+            </div>
+            {hasCondition(selectedSpecialConditions, 'Síndrome de Down') && (
+              <p className="text-xs text-amber-700 mt-3">Síndrome de Down é registrada como condição. Para fins de Educação Especial/Censo, informe também a deficiência efetivamente apresentada pelo estudante, quando houver.</p>
+            )}
+          </section>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes / Necessidades Especiais</label>
-            <SpellCheckTextarea
-              value={formData.disability_details}
-              onChange={(e) => updateFormData('disability_details', e.target.value)}
-              disabled={viewMode}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              placeholder="Descreva detalhes sobre as necessidades especiais do aluno..."
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes / Necessidades Educacionais Específicas</label>
+            <SpellCheckTextarea value={formData.disability_details} onChange={(e) => updateFormData('disability_details', e.target.value)} disabled={viewMode} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="Descreva necessidades educacionais, apoios, adaptações ou informações relevantes para o acompanhamento do aluno..." />
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -3236,14 +3303,14 @@ export function StudentsComplete() {
         </div>
       )}
 
-      {/* Matrícula em Atendimento/Programa (apenas para alunos com deficiência) */}
-      {formData.has_disability && formData.disabilities && formData.disabilities.length > 0 && (
+      {/* Matrícula em Atendimento/Programa. AEE é liberado apenas para o público da Educação Especial. */}
+      {formData.has_disability && selectedSpecialConditions.length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
             Matrícula em Atendimento/Programa
           </h3>
           <p className="text-sm text-gray-500 mt-2 mb-4">
-            Aluno(a) com deficiência/transtorno identificado. Selecione a escola que oferece o programa, o tipo de atendimento e a turma.
+            Selecione o atendimento disponível. O AEE só é oferecido como opção quando o cadastro contém condição do público da Educação Especial; transtornos de aprendizagem isolados não habilitam AEE.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-purple-50 p-4 rounded-lg border border-purple-200">
             <div>
@@ -3277,13 +3344,21 @@ export function StudentsComplete() {
                 data-testid="atendimento-programa-tipo"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
               >
+                {currentAeeRequiresReview && (
+                  <option value="aee" disabled>AEE — vínculo existente requer revisão</option>
+                )}
                 <option value="">{formData.atendimento_programa_school_id ? (availableProgramTypes.length > 0 ? 'Selecione o tipo' : 'Nenhum programa disponível') : 'Selecione a escola primeiro'}</option>
                 {availableProgramTypes.map(tipo => (
                   <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
                 ))}
               </select>
-              {formData.atendimento_programa_school_id && availableProgramTypes.length === 0 && (
-                <p className="text-sm text-yellow-600 mt-1">Esta escola não possui programas de atendimento cadastrados.</p>
+              {currentAeeRequiresReview && (
+                <p className="text-sm text-amber-700 mt-1" data-testid="aee-link-review-warning">
+                  O vínculo AEE existente foi preservado, mas o cadastro atual não contém condição que caracterize público da Educação Especial. Revise antes de alterar o atendimento.
+                </p>
+              )}
+              {formData.atendimento_programa_school_id && availableProgramTypes.length === 0 && !currentAeeRequiresReview && (
+                <p className="text-sm text-yellow-600 mt-1">Esta escola não possui programas de atendimento cadastrados compatíveis com este cadastro.</p>
               )}
             </div>
             <div>
@@ -4642,7 +4717,7 @@ export function StudentsComplete() {
                 { key: 'father_phone', label: 'Telefone do Pai' },
                 { key: 'mother_phone', label: 'Telefone da Mãe' },
                 { key: 'bolsa_familia', label: 'Bolsa Família' },
-                { key: 'has_disability', label: 'Deficiência/Transtorno' },
+                { key: 'has_disability', label: 'Condição educacional específica' },
                 { key: 'has_laudo', label: 'Laudo' },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
