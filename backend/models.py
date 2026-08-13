@@ -957,8 +957,9 @@ class StudentBase(BaseModel):
     
     # === DADOS PESSOAIS ===
     full_name: Optional[str] = None
+    social_name: Optional[str] = None  # Nome social, distinto do nome civil
     birth_date: Optional[str] = None  # dd/mm/aaaa
-    sex: Optional[Literal['masculino', 'feminino']] = None
+    sex: Optional[Literal['masculino', 'feminino', 'prefere_nao_informar']] = None
     nationality: Optional[str] = 'Brasileira'
     birth_city: Optional[str] = None  # Naturalidade
     birth_state: Optional[str] = None
@@ -1081,8 +1082,9 @@ class StudentUpdate(BaseModel):
     
     # Dados pessoais
     full_name: Optional[str] = None
+    social_name: Optional[str] = None  # Nome social, distinto do nome civil
     birth_date: Optional[str] = None
-    sex: Optional[Literal['masculino', 'feminino']] = None
+    sex: Optional[Literal['masculino', 'feminino', 'prefere_nao_informar']] = None
     nationality: Optional[str] = None
     birth_city: Optional[str] = None
     birth_state: Optional[str] = None

@@ -59,6 +59,7 @@ const initialFormData = {
   
   // Dados Pessoais
   full_name: '',
+  social_name: '',
   phone: '',
   email: '',
   birth_date: '',
@@ -1823,6 +1824,18 @@ export function StudentsComplete() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Social</label>
+            <input
+              type="text"
+              value={formData.social_name || ''}
+              onChange={(e) => updateFormData('social_name', e.target.value)}
+              disabled={viewMode}
+              placeholder="Preencha quando houver solicitação de uso do nome social"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+            <p className="text-xs text-gray-500 mt-1">O nome civil permanece preservado no cadastro.</p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Phone size={14} className="inline mr-1" />
@@ -1901,6 +1914,7 @@ export function StudentsComplete() {
             <option value="">Selecione</option>
             <option value="masculino">Masculino</option>
             <option value="feminino">Feminino</option>
+            <option value="prefere_nao_informar">Prefere não informar</option>
           </select>
         </div>
         <div>
