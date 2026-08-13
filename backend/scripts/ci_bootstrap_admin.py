@@ -10,7 +10,7 @@ o usuário é marcado com `ci_bootstrap: true`. Recusa-se a rodar se o banco já
 usuários reais e a env CI != 'true' (proteção contra uso acidental em produção).
 
 Env:
-  CI_ADMIN_EMAIL     (default: ci-admin@sigesc.local)
+  CI_ADMIN_EMAIL     (default: ci-admin@sigesc.aprenderdigital.top)
   CI_ADMIN_PASSWORD  (obrigatória)
   DB_NAME, MONGO_URL (do .env)
   CI                 (deve ser 'true')
@@ -28,7 +28,7 @@ from auth_utils import hash_password  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-email = os.environ.get("CI_ADMIN_EMAIL", "ci-admin@sigesc.local")
+email = os.environ.get("CI_ADMIN_EMAIL", "ci-admin@sigesc.aprenderdigital.top")
 password = os.environ.get("CI_ADMIN_PASSWORD")
 if not password:
     print("ERRO: CI_ADMIN_PASSWORD não definida."); sys.exit(2)

@@ -40,7 +40,7 @@ jobs:
       REACT_APP_BACKEND_URL: http://localhost:8001
       DISABLE_RENDER_WORKER: "true"
       CI: "true"
-      CI_ADMIN_EMAIL: ci-admin@sigesc.local
+      CI_ADMIN_EMAIL: ci-admin@sigesc.aprenderdigital.top
       CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD || 'CiRegress!2026' }}
     steps:
       - uses: actions/checkout@v4
