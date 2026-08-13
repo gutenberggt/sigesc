@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   apply-validate-commit:
-    if: github.event.head_commit.message == 'chore(sgp): executar alinhamento territorial'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout feature branch
