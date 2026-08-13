@@ -27,6 +27,9 @@ jobs:
       - name: Apply enrollment transformation
         run: python backend/scripts/apply_sgp_enrollment_alignment.py
 
+      - name: Update canonical matrix decision
+        run: python backend/scripts/update_sgp_matrix_address_decision.py
+
       - name: Validate Python syntax
         run: python -m py_compile backend/models.py backend/routers/mantenedora.py backend/routers/enrollments.py
 
@@ -56,7 +59,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/models.py backend/routers/mantenedora.py frontend/src/pages/Mantenedora.js frontend/src/pages/StudentsComplete.js
+          git add backend/models.py backend/routers/mantenedora.py frontend/src/pages/Mantenedora.js frontend/src/pages/StudentsComplete.js memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md
           if git diff --cached --quiet; then
             echo "No transformation changes to commit."
             exit 0
