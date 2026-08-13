@@ -60,7 +60,7 @@ Legenda: **OK** = existe; **DERIVAR** = calcular; **NOVO** = novo campo/modelo; 
 | Matrícula integral | Enrollment/Class | `shift`, programa | DERIVAR/CONTRATO | não criar checkbox redundante; confirmar regra oficial antes do mapper |
 | Participação em reforço escolar | Program enrollment | vínculo/programa | DERIVAR | derivar da existência de vínculo ativo de reforço; não depender apenas do campo visual corrente |
 | CEP | StudentAddress | inexistente no Student | NOVO | `address.zip_code` |
-| Estado de residência | StudentAddress | inexistente | NOVO | `address.state` |
+| Estado de residência | StudentAddress | inexistente | NOVO | `address.state` + `address.state_ibge_code` |
 | Município de residência | StudentAddress | inexistente | NOVO | `address.city` + `address.city_ibge_code` |
 | Bairro | StudentAddress | inexistente | NOVO | `address.neighborhood` |
 | Logradouro | StudentAddress | inexistente | NOVO | `address.street` |
@@ -90,6 +90,7 @@ Legenda: **OK** = existe; **DERIVAR** = calcular; **NOVO** = novo campo/modelo; 
 class StudentAddress(BaseModel):
     zip_code: Optional[str] = None
     state: Optional[str] = None
+    state_ibge_code: Optional[str] = None
     city: Optional[str] = None
     city_ibge_code: Optional[str] = None
     neighborhood: Optional[str] = None
@@ -101,6 +102,8 @@ class StudentAddress(BaseModel):
 ```
 
 O formulário poderá oferecer **“Copiar endereço do responsável principal”**, mas o endereço efetivamente salvo no estudante será a fonte da verdade. Não haverá sincronização automática permanente entre os dois cadastros.
+
+Os códigos IBGE de UF e município serão armazenados de forma explícita para evitar inferências por texto livre na integração.
 
 ### 4.2 StudentHealthProfile
 
@@ -170,7 +173,7 @@ Dados médicos terão implementação separada do cadastro geral e não serão e
 
 1. Nome social.
 2. Opção de sexo “Prefere não informar”.
-3. `StudentAddress` e formulário de endereço.
+3. `StudentAddress` e formulário de endereço, com códigos IBGE de UF/município.
 4. Responsável principal e segundo contato na entidade Guardian.
 5. Novos campos de matrícula: fim, conclusão EM/EJA e apoio pedagógico.
 6. Auditoria e correção de `color_race` × `comunidade_tradicional`.
@@ -200,6 +203,7 @@ Dados médicos terão implementação separada do cadastro geral e não serão e
 - O mapper não inventa dados.
 - TDAH isolado não gera deficiência/AEE no payload.
 - Comunidade tradicional não é raça/cor.
+- Códigos IBGE de UF/município não são inferidos por aproximação textual no momento do envio.
 - Dados de saúde não aparecem na API/listagem genérica de estudantes.
 - IDs externos não substituem IDs do domínio SIGESC.
 - Toda regra de derivação possui teste unitário.
