@@ -24,8 +24,11 @@ jobs:
       - name: Apply student identity transformation
         run: python backend/scripts/apply_sgp_student_identity_alignment.py
 
+      - name: Apply enrollment transformation
+        run: python backend/scripts/apply_sgp_enrollment_alignment.py
+
       - name: Validate Python syntax
-        run: python -m py_compile backend/models.py backend/routers/mantenedora.py
+        run: python -m py_compile backend/models.py backend/routers/mantenedora.py backend/routers/enrollments.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -58,5 +61,5 @@ jobs:
             echo "No transformation changes to commit."
             exit 0
           fi
-          git commit -m "feat(sgp): alinhar dados canônicos do estudante"
+          git commit -m "feat(sgp): alinhar dados canônicos do estudante e matrícula"
           git push origin HEAD:feat/sgp-student-canonical-alignment
