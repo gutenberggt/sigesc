@@ -101,9 +101,9 @@ class StudentAddress(BaseModel):
     differentiated_location: Optional[str] = None
 ```
 
-O formulário poderá oferecer **“Copiar endereço do responsável principal”**, mas o endereço efetivamente salvo no estudante será a fonte da verdade. Não haverá sincronização automática permanente entre os dois cadastros.
+Nos novos cadastros, **CEP, Município, UF e códigos IBGE de UF/município são pré-preenchidos a partir da Unidade Mantenedora**. Esses valores formam apenas uma cópia inicial: permanecem editáveis no cadastro do estudante e não existe sincronização automática posterior. Os demais componentes do endereço pertencem exclusivamente ao estudante.
 
-Os códigos IBGE de UF e município serão armazenados de forma explícita para evitar inferências por texto livre na integração.
+Os códigos IBGE de UF e município serão armazenados de forma explícita para evitar inferências por texto livre na integração. A Unidade Mantenedora passa a manter `codigo_ibge_uf` e `codigo_ibge_municipio`, usados como defaults territoriais do novo estudante.
 
 ### 4.2 StudentHealthProfile
 
