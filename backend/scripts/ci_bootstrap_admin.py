@@ -28,7 +28,7 @@ from auth_utils import hash_password  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-email = os.environ.get("CI_ADMIN_EMAIL", "ci-admin@sigesc.local")
+email = os.environ.get("CI_ADMIN_EMAIL", "ci-admin@sigesc.aprenderdigital.top")
 password = os.environ.get("CI_ADMIN_PASSWORD")
 if not password:
     print("ERRO: CI_ADMIN_PASSWORD não definida."); sys.exit(2)
