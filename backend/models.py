@@ -1703,6 +1703,10 @@ class EnrollmentBase(BaseModel):
     academic_year: int
     enrollment_date: Optional[str] = None
     enrollment_number: Optional[str] = None  # Número da matrícula
+    enrollment_end_date: Optional[str] = None
+    high_school_eja_completion_date: Optional[str] = None
+    needs_pedagogical_support: Optional[bool] = None
+    sgp_enrollment_id: Optional[str] = None  # ID externo; nunca substitui Enrollment.id
     
     # Série do aluno (para turmas multisseriadas - ex: "1º Ano", "2º Ano")
     student_series: Optional[str] = None
@@ -1731,6 +1735,10 @@ class EnrollmentUpdate(BaseModel):
     course_ids: Optional[List[str]] = None
     enrollment_date: Optional[str] = None
     enrollment_number: Optional[str] = None
+    enrollment_end_date: Optional[str] = None
+    high_school_eja_completion_date: Optional[str] = None
+    needs_pedagogical_support: Optional[bool] = None
+    sgp_enrollment_id: Optional[str] = None  # ID externo; nunca substitui Enrollment.id
     student_series: Optional[str] = None
     status: Optional[Literal['active', 'completed', 'cancelled', 'transferred', 'relocated', 'progressed', 'dropout']] = None
     observations: Optional[str] = None

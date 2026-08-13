@@ -146,6 +146,14 @@ const initialFormData = {
   enrollment_date: ''
 };
 
+const initialEnrollmentMetadata = {
+  id: '',
+  class_id: '',
+  enrollment_end_date: '',
+  high_school_eja_completion_date: '',
+  needs_pedagogical_support: '',
+};
+
 // Função para calcular a idade a partir da data de nascimento
 const normalizeDateToISO = (dateStr) => {
   if (!dateStr) return '';
@@ -292,6 +300,7 @@ export function StudentsComplete() {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
+  const [enrollmentMetadata, setEnrollmentMetadata] = useState(initialEnrollmentMetadata);
   // Controle da aba ativa do formulário (para navegar até campos obrigatórios faltantes)
   const [formTabIndex, setFormTabIndex] = useState(0);
   // Pop-up de campos obrigatórios ausentes ({ items: [{tab, label}] } | null)
@@ -599,9 +608,57 @@ export function StudentsComplete() {
     showAlert('error', message, true);
   };
 
+  const loadCurrentEnrollmentMetadata = async (student) => {
+    if (!student?.id) {
+      setEnrollmentMetadata(initialEnrollmentMetadata);
+      return;
+    }
+    try {
+      const result = await enrollmentsAPI.getAll(student.id, student.class_id || null);
+      const enrollments = Array.isArray(result) ? result : (result?.items || []);
+      const current = enrollments.find(e => e.class_id === student.class_id && e.status === 'active')
+        || enrollments.find(e => e.class_id === student.class_id)
+        || enrollments.find(e => e.status === 'active')
+        || null;
+      setEnrollmentMetadata(current ? {
+        id: current.id || '',
+        class_id: current.class_id || '',
+        enrollment_end_date: current.enrollment_end_date || '',
+        high_school_eja_completion_date: current.high_school_eja_completion_date || '',
+        needs_pedagogical_support: current.needs_pedagogical_support === true
+          ? true
+          : current.needs_pedagogical_support === false ? false : '',
+      } : initialEnrollmentMetadata);
+    } catch (error) {
+      console.warn('Não foi possível carregar metadados da matrícula:', error);
+      setEnrollmentMetadata(initialEnrollmentMetadata);
+    }
+  };
+
+  const persistCurrentEnrollmentMetadata = async (student) => {
+    if (!student?.id || !student?.class_id) return;
+    let enrollmentId = enrollmentMetadata.class_id === student.class_id ? enrollmentMetadata.id : '';
+    if (!enrollmentId) {
+      const result = await enrollmentsAPI.getAll(student.id, student.class_id);
+      const enrollments = Array.isArray(result) ? result : (result?.items || []);
+      const current = enrollments.find(e => e.class_id === student.class_id && e.status === 'active')
+        || enrollments.find(e => e.class_id === student.class_id);
+      enrollmentId = current?.id || '';
+    }
+    if (!enrollmentId) return;
+    await enrollmentsAPI.update(enrollmentId, {
+      enrollment_end_date: enrollmentMetadata.enrollment_end_date || null,
+      high_school_eja_completion_date: enrollmentMetadata.high_school_eja_completion_date || null,
+      needs_pedagogical_support: enrollmentMetadata.needs_pedagogical_support === ''
+        ? null
+        : enrollmentMetadata.needs_pedagogical_support,
+    });
+  };
+
   const handleCreate = () => {
     setEditingStudent(null);
     setViewMode(false);
+    setEnrollmentMetadata(initialEnrollmentMetadata);
     setFormData({
       ...initialFormData,
       school_id: schools.length > 0 ? schools[0].id : '',
@@ -633,6 +690,7 @@ export function StudentsComplete() {
       }
     });
     setFormData(mergedData);
+    await loadCurrentEnrollmentMetadata(freshStudent);
     setFormTabIndex(0);
     setIsModalOpen(true);
     
@@ -676,6 +734,7 @@ export function StudentsComplete() {
       }));
     }
     setFormData(mergedData);
+    await loadCurrentEnrollmentMetadata(freshStudent);
     setFormTabIndex(0);
     setIsModalOpen(true);
     
@@ -1306,10 +1365,12 @@ export function StudentsComplete() {
 
     try {
       if (editingStudent) {
-        await studentsAPI.update(editingStudent.id, cleanData);
+        const updatedStudent = await studentsAPI.update(editingStudent.id, cleanData);
+        await persistCurrentEnrollmentMetadata(updatedStudent || { ...editingStudent, ...cleanData });
         showAlert('success', 'Aluno atualizado com sucesso');
       } else {
-        await studentsAPI.create(cleanData);
+        const createdStudent = await studentsAPI.create(cleanData);
+        await persistCurrentEnrollmentMetadata(createdStudent);
         showAlert('success', 'Aluno cadastrado com sucesso');
       }
       setIsModalOpen(false);
@@ -3359,6 +3420,29 @@ export function StudentsComplete() {
         </div>
         </div>
       )}
+
+      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Dados Complementares da Matrícula</h3>
+        <p className="text-xs text-gray-600 mb-4">Estes dados pertencem à matrícula vigente e são mantidos separadamente do cadastro permanente do estudante.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data final da matrícula</label>
+            <input type="date" value={enrollmentMetadata.enrollment_end_date || ''} onChange={(e) => setEnrollmentMetadata(prev => ({ ...prev, enrollment_end_date: e.target.value }))} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Conclusão do Ensino Médio/EJA</label>
+            <input type="date" value={enrollmentMetadata.high_school_eja_completion_date || ''} onChange={(e) => setEnrollmentMetadata(prev => ({ ...prev, high_school_eja_completion_date: e.target.value }))} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Necessidade de apoio pedagógico</label>
+            <select value={enrollmentMetadata.needs_pedagogical_support === '' ? '' : String(enrollmentMetadata.needs_pedagogical_support)} onChange={(e) => setEnrollmentMetadata(prev => ({ ...prev, needs_pedagogical_support: e.target.value === '' ? '' : e.target.value === 'true' }))} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+              <option value="">Não informado</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       {/* Matrícula em Atendimento/Programa. AEE é liberado apenas para o público da Educação Especial. */}
       {formData.has_disability && selectedSpecialConditions.length > 0 && (
