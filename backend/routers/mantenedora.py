@@ -82,6 +82,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "bairro": "",
                 "municipio": "",
                 "estado": "PA",
+                "codigo_ibge_uf": "",
+                "codigo_ibge_municipio": "",
                 "telefone": "",
                 "celular": "",
                 "email": "",

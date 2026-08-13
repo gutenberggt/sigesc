@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { mantenedoraAPI, uploadAPI, schoolsAPI } from '@/services/api';
 import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatters';
+import { ibgeCodesFromViaCep } from '@/utils/ibgeAddress';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 
@@ -46,6 +47,8 @@ export default function Mantenedora() {
     bairro: '',
     municipio: '',
     estado: '',
+    codigo_ibge_uf: '',
+    codigo_ibge_municipio: '',
     
     // Contato
     telefone: '',
@@ -100,6 +103,8 @@ export default function Mantenedora() {
         bairro: data.bairro || '',
         municipio: data.municipio || '',
         estado: data.estado || '',
+        codigo_ibge_uf: data.codigo_ibge_uf || '',
+        codigo_ibge_municipio: data.codigo_ibge_municipio || '',
         telefone: data.telefone || '',
         celular: data.celular || '',
         email: data.email || '',
@@ -216,9 +221,22 @@ export default function Mantenedora() {
       formattedValue = formatCPF(value);
     } else if (field === 'cnpj') {
       formattedValue = formatCNPJ(value);
+    } else if (field === 'codigo_ibge_uf') {
+      formattedValue = String(value || '').replace(/\D/g, '').slice(0, 2);
+    } else if (field === 'codigo_ibge_municipio') {
+      formattedValue = String(value || '').replace(/\D/g, '').slice(0, 7);
     }
     
-    setFormData(prev => ({ ...prev, [field]: formattedValue }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: formattedValue };
+      if (field === 'estado' && formattedValue !== prev.estado) {
+        next.codigo_ibge_uf = '';
+        next.codigo_ibge_municipio = '';
+      } else if (field === 'municipio' && formattedValue !== prev.municipio) {
+        next.codigo_ibge_municipio = '';
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -261,12 +279,15 @@ export default function Mantenedora() {
         const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const data = await response.json();
         if (!data.erro) {
+          const { cityIbgeCode, stateIbgeCode } = ibgeCodesFromViaCep(data);
           setFormData(prev => ({
             ...prev,
             logradouro: data.logradouro || prev.logradouro,
             bairro: data.bairro || prev.bairro,
             municipio: data.localidade || prev.municipio,
-            estado: data.uf || prev.estado
+            estado: data.uf || prev.estado,
+            codigo_ibge_uf: stateIbgeCode || prev.codigo_ibge_uf,
+            codigo_ibge_municipio: cityIbgeCode || prev.codigo_ibge_municipio
           }));
         }
       } catch (error) {
@@ -731,6 +752,17 @@ export default function Mantenedora() {
                   </select>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="codigo_ibge_uf">Código IBGE da UF</Label>
+                  <Input id="codigo_ibge_uf" value={formData.codigo_ibge_uf} onChange={(e) => handleInputChange('codigo_ibge_uf', e.target.value)} inputMode="numeric" maxLength={2} placeholder="Ex: 15" />
+                </div>
+                <div>
+                  <Label htmlFor="codigo_ibge_municipio">Código IBGE do Município</Label>
+                  <Input id="codigo_ibge_municipio" value={formData.codigo_ibge_municipio} onChange={(e) => handleInputChange('codigo_ibge_municipio', e.target.value)} inputMode="numeric" maxLength={7} placeholder="7 dígitos" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">Preenchidos automaticamente pelo CEP quando disponíveis e editáveis para conferência.</p>
             </CardContent>
           </Card>
 

@@ -934,6 +934,21 @@ class AuthorizedPerson(BaseModel):
     phone: Optional[str] = None
     document: Optional[str] = None  # CPF ou RG
 
+class StudentAddress(BaseModel):
+    """Endereço residencial estruturado do estudante."""
+    zip_code: Optional[str] = None
+    state: Optional[str] = None
+    state_ibge_code: Optional[str] = None
+    city: Optional[str] = None
+    city_ibge_code: Optional[str] = None
+    neighborhood: Optional[str] = None
+    street: Optional[str] = None
+    number: Optional[str] = None
+    complement: Optional[str] = None
+    geographic_location: Optional[str] = None
+    differentiated_location: Optional[str] = None
+
+
 class StudentBase(BaseModel):
     # === IDENTIFICAÇÃO ===
     school_id: Optional[str] = None
@@ -951,6 +966,7 @@ class StudentBase(BaseModel):
     comunidade_tradicional: Optional[Literal['nao_pertence', 'quilombola', 'cigano', 'ribeirinho', 'extrativista']] = None
     phone: Optional[str] = None  # Telefone do aluno
     email: Optional[str] = None  # Email do aluno
+    address: Optional[StudentAddress] = None
     
     # === DOCUMENTOS ===
     cpf: Optional[str] = None
@@ -1074,6 +1090,7 @@ class StudentUpdate(BaseModel):
     comunidade_tradicional: Optional[Literal['nao_pertence', 'quilombola', 'cigano', 'ribeirinho', 'extrativista']] = None
     phone: Optional[str] = None  # Telefone do aluno
     email: Optional[str] = None  # Email do aluno
+    address: Optional[StudentAddress] = None
     
     # Documentos
     cpf: Optional[str] = None
@@ -2289,6 +2306,8 @@ class MantenedoraBase(BaseModel):
     bairro: Optional[str] = None
     municipio: Optional[str] = None
     estado: Optional[str] = None
+    codigo_ibge_uf: Optional[str] = None
+    codigo_ibge_municipio: Optional[str] = None
     
     # Contato
     telefone: Optional[str] = None
@@ -2336,6 +2355,8 @@ class MantenedoraUpdate(BaseModel):
     bairro: Optional[str] = None
     municipio: Optional[str] = None
     estado: Optional[str] = None
+    codigo_ibge_uf: Optional[str] = None
+    codigo_ibge_municipio: Optional[str] = None
     
     telefone: Optional[str] = None
     celular: Optional[str] = None

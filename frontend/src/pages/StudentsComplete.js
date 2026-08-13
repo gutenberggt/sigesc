@@ -31,6 +31,7 @@ import {
   hasCondition,
   toggleCondition,
 } from '@/utils/specialEducation';
+import { EMPTY_STUDENT_ADDRESS, buildStudentAddressDefaultsFromMantenedora, ibgeCodesFromViaCep, updateStudentAddressField } from '@/utils/ibgeAddress';
 
 // Estados brasileiros
 const STATES = [
@@ -67,6 +68,7 @@ const initialFormData = {
   birth_state: '',
   color_race: '',
   comunidade_tradicional: 'nao_pertence',
+  address: { ...EMPTY_STUDENT_ADDRESS },
   
   // Documentos
   cpf: '',
@@ -604,7 +606,8 @@ export function StudentsComplete() {
       school_id: schools.length > 0 ? schools[0].id : '',
       // Matrícula NÃO é gerada no frontend. O backend é a fonte ÚNICA atômica
       // (utils/enrollment.py) e atribui a matrícula ao matricular o aluno.
-      enrollment_number: ''
+      enrollment_number: '',
+      address: buildStudentAddressDefaultsFromMantenedora(mantenedoraConfig)
     });
     setFormTabIndex(0);
     setIsModalOpen(true);
@@ -1340,6 +1343,32 @@ export function StudentsComplete() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const updateAddressData = (field, value) => {
+    setFormData(prev => ({ ...prev, address: updateStudentAddressField(prev.address, field, value) }));
+  };
+
+  const handleStudentAddressCEPBlur = async () => {
+    const cep = String(formData.address?.zip_code || '').replace(/\D/g, '');
+    if (cep.length !== 8) return;
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      if (data.erro) return;
+      const { cityIbgeCode, stateIbgeCode } = ibgeCodesFromViaCep(data);
+      setFormData(prev => ({ ...prev, address: {
+        ...EMPTY_STUDENT_ADDRESS, ...(prev.address || {}), zip_code: cep,
+        street: data.logradouro || prev.address?.street || '',
+        neighborhood: data.bairro || prev.address?.neighborhood || '',
+        city: data.localidade || prev.address?.city || '',
+        state: data.uf || prev.address?.state || '',
+        state_ibge_code: stateIbgeCode || prev.address?.state_ibge_code || '',
+        city_ibge_code: cityIbgeCode || prev.address?.city_ibge_code || ''
+      }}));
+    } catch (error) {
+      console.error('Erro ao buscar CEP do estudante:', error);
+    }
+  };
+
   // Função para validar CPF e verificar duplicidade
   const validateCpfField = useCallback(async (field, cpfValue) => {
     if (!cpfValue || cpfValue.length < 11) {
@@ -1945,6 +1974,20 @@ export function StudentsComplete() {
             ))}
           </select>
         </div>
+      </div>
+
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-6">Endereço do Estudante</h3>
+      <p className="text-xs text-gray-500 -mt-3">Em novos cadastros, CEP, Município, UF e códigos IBGE são pré-preenchidos pela Unidade Mantenedora e permanecem editáveis.</p>
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">CEP</label><input type="text" value={formatCEP(formData.address?.zip_code || '')} onChange={(e) => updateAddressData('zip_code', e.target.value)} onBlur={handleStudentAddressCEPBlur} disabled={viewMode} maxLength={9} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div className="md:col-span-3"><label className="block text-sm font-medium text-gray-700 mb-1">Logradouro</label><input type="text" value={formData.address?.street || ''} onChange={(e) => updateAddressData('street', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Número</label><input type="text" value={formData.address?.number || ''} onChange={(e) => updateAddressData('number', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label><input type="text" value={formData.address?.complement || ''} onChange={(e) => updateAddressData('complement', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label><input type="text" value={formData.address?.neighborhood || ''} onChange={(e) => updateAddressData('neighborhood', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Município</label><input type="text" value={formData.address?.city || ''} onChange={(e) => updateAddressData('city', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">UF</label><select value={formData.address?.state || ''} onChange={(e) => updateAddressData('state', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"><option value="">UF</option>{STATES.map(state => (<option key={state} value={state}>{state}</option>))}</select></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE da UF</label><input type="text" inputMode="numeric" maxLength={2} value={formData.address?.state_ibge_code || ''} onChange={(e) => updateAddressData('state_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE do Município</label><input type="text" inputMode="numeric" maxLength={7} value={formData.address?.city_ibge_code || ''} onChange={(e) => updateAddressData('city_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
       </div>
     </div>
   );
