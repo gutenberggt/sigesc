@@ -1,0 +1,60 @@
+name: SGP Territorial Feature Validation
+
+on:
+  push:
+    branches:
+      - feat/sgp-student-canonical-alignment
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-commit:
+    if: github.event.head_commit.message == 'chore(sgp): executar alinhamento territorial'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/sgp-student-canonical-alignment
+          fetch-depth: 0
+
+      - name: Apply deterministic transformation
+        run: python backend/scripts/apply_sgp_territorial_alignment.py
+
+      - name: Validate Python syntax
+        run: python -m py_compile backend/models.py backend/routers/mantenedora.py
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile --network-timeout 600000 || yarn install --network-timeout 600000
+
+      - name: Run territorial unit tests
+        working-directory: frontend
+        run: yarn test src/utils/ibgeAddress.test.js --watchAll=false --runInBand
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          GENERATE_SOURCEMAP: 'false'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+        run: yarn build
+
+      - name: Commit validated transformation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/models.py backend/routers/mantenedora.py frontend/src/pages/Mantenedora.js frontend/src/pages/StudentsComplete.js
+          if git diff --cached --quiet; then
+            echo "No transformation changes to commit."
+            exit 0
+          fi
+          git commit -m "feat(sgp): alinhar endereço do estudante à mantenedora"
+          git push origin HEAD:feat/sgp-student-canonical-alignment
