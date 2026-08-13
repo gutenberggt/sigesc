@@ -1,4 +1,4 @@
-name: SGP Territorial Feature Validation
+name: SGP Student Canonical Feature Validation
 
 on:
   push:
@@ -18,8 +18,11 @@ jobs:
           ref: feat/sgp-student-canonical-alignment
           fetch-depth: 0
 
-      - name: Apply deterministic transformation
+      - name: Apply territorial transformation
         run: python backend/scripts/apply_sgp_territorial_alignment.py
+
+      - name: Apply student identity transformation
+        run: python backend/scripts/apply_sgp_student_identity_alignment.py
 
       - name: Validate Python syntax
         run: python -m py_compile backend/models.py backend/routers/mantenedora.py
@@ -35,9 +38,9 @@ jobs:
         working-directory: frontend
         run: yarn install --frozen-lockfile --network-timeout 600000 || yarn install --network-timeout 600000
 
-      - name: Run territorial unit tests
+      - name: Run canonical unit tests
         working-directory: frontend
-        run: yarn test src/utils/ibgeAddress.test.js --watchAll=false --runInBand
+        run: yarn test src/utils/ibgeAddress.test.js src/utils/specialEducation.test.js --watchAll=false --runInBand
 
       - name: Build frontend
         working-directory: frontend
@@ -55,5 +58,5 @@ jobs:
             echo "No transformation changes to commit."
             exit 0
           fi
-          git commit -m "feat(sgp): alinhar endereço do estudante à mantenedora"
+          git commit -m "feat(sgp): alinhar dados canônicos do estudante"
           git push origin HEAD:feat/sgp-student-canonical-alignment
