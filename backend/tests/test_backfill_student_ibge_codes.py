@@ -61,3 +61,24 @@ def test_text_comparison_is_case_and_accent_insensitive():
         'address.state_ibge_code': '15',
         'address.city_ibge_code': '1502939',
     }
+
+
+def test_skips_non_structured_legacy_string_address_without_crashing():
+    student = {'address': 'Rua Exemplo, 123 - Centro'}
+
+    assert build_student_ibge_patch(student, MANTENEDORA) == {}
+
+
+def test_skips_null_address_parent_to_avoid_unsafe_dotted_write():
+    student = {'address': None}
+
+    assert build_student_ibge_patch(student, MANTENEDORA) == {}
+
+
+def test_missing_address_field_can_receive_codes():
+    student = {}
+
+    assert build_student_ibge_patch(student, MANTENEDORA) == {
+        'address.state_ibge_code': '15',
+        'address.city_ibge_code': '1502939',
+    }

@@ -43,9 +43,30 @@ def _same_or_blank(current: object, expected: object) -> bool:
     return not current_text or bool(expected_text and current_text == expected_text)
 
 
+def _structured_address(student: dict) -> dict | None:
+    """Retorna um endereço estruturado ou sinaliza formato legado inseguro.
+
+    Se o campo ainda não existe, um objeto vazio é seguro porque o MongoDB pode
+    criar o subdocumento via ``$set`` pontuado. Se ``address`` já existe, apenas
+    ``dict`` é aceito: ``None``, strings, listas e outros formatos legados são
+    ignorados para evitar interpretação automática e falha de escrita em campo pai
+    não estruturado.
+    """
+    if 'address' not in student:
+        return {}
+
+    address = student.get('address')
+    if isinstance(address, dict):
+        return address
+    return None
+
+
 def build_student_ibge_patch(student: dict, mantenedora: dict) -> dict:
     """Retorna somente os campos IBGE ausentes que podem ser preenchidos com segurança."""
-    address = student.get('address') or {}
+    address = _structured_address(student)
+    if address is None:
+        return {}
+
     state_matches = _same_or_blank(address.get('state'), mantenedora.get('estado'))
     city_matches = _same_or_blank(address.get('city'), mantenedora.get('municipio'))
 
@@ -124,6 +145,7 @@ async def run(*, apply: bool, tenant: str | None, limit: int | None) -> None:
     skipped_no_tenant = 0
     skipped_no_config = 0
     skipped_incompatible = 0
+    skipped_legacy_address = 0
 
     async for student in cursor:
         scanned += 1
@@ -146,6 +168,10 @@ async def run(*, apply: bool, tenant: str | None, limit: int | None) -> None:
             skipped_no_config += 1
             continue
 
+        if _structured_address(student) is None:
+            skipped_legacy_address += 1
+            continue
+
         patch = build_student_ibge_patch(student, mantenedora)
         if not patch:
             skipped_incompatible += 1
@@ -163,6 +189,7 @@ async def run(*, apply: bool, tenant: str | None, limit: int | None) -> None:
     print(f'Atualizados: {updated if apply else 0}')
     print(f'Sem tenant identificável: {skipped_no_tenant}')
     print(f'Sem configuração de mantenedora: {skipped_no_config}')
+    print(f'Endereço legado não estruturado: {skipped_legacy_address}')
     print(f'Ignorados por incompatibilidade ou ausência de código-fonte: {skipped_incompatible}')
     if not apply and eligible:
         print('\nNenhuma escrita foi feita. Execute novamente com --apply para persistir.')
