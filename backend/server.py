@@ -36,6 +36,7 @@ from routers import (
 )
 from routers.sync import setup_sync_router
 from routers.medical_certificates import setup_medical_certificates_router
+from routers.student_health import setup_student_health_router, ensure_student_health_indexes
 from routers.student_dependencies import setup_student_dependencies_router
 from routers.class_schedule import setup_class_schedule_router
 from routers.diary_dashboard import create_diary_dashboard_router
@@ -197,6 +198,7 @@ async def create_indexes():
         # Índices MongoDB
         from startup.indexes import create_all_indexes
         await create_all_indexes(db)
+        await ensure_student_health_indexes(db)
 
         # Bootstrap multi-tenant + self-heal idempotente
         from startup.multi_tenant import bootstrap_initial_mantenedora, self_heal_tenant_data
@@ -205,6 +207,7 @@ async def create_indexes():
 
         # Sandbox + token blacklist
         await sandbox_service.initialize(client)
+        await ensure_student_health_indexes(sandbox_db)
         token_blacklist.set_db(db)
         await token_blacklist.ensure_index()
 
@@ -421,6 +424,7 @@ class_schedule_router = setup_class_schedule_router(db, audit_service, sandbox_d
 # Roteadores especiais
 sync_router = setup_sync_router(db, AuthMiddleware, limiter)
 medical_certificates_router = setup_medical_certificates_router(db, AuthMiddleware)
+student_health_router = setup_student_health_router(db, AuthMiddleware, audit_service, sandbox_db)
 
 # Dependência de Estudos (Fase 1) — entidade própria, ver /app/docs/STUDENT_DEPENDENCY.md
 from tenant_scope import apply_tenant_filter as _apply_tenant_filter_for_deps
@@ -508,6 +512,7 @@ app.include_router(guardians_router, prefix="/api")
 app.include_router(enrollments_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(medical_certificates_router, prefix="/api")
+app.include_router(student_health_router, prefix="/api")
 app.include_router(student_dependencies_router, prefix="/api")
 app.include_router(class_schedule_router, prefix="/api")
 app.include_router(diary_dashboard_router, prefix="/api")
