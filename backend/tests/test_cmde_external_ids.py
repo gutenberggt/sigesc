@@ -312,3 +312,37 @@ def test_resolve_pair_preserves_none_when_external_link_is_unknown():
 
     assert pair.student_external_id is None
     assert pair.enrollment_external_id is None
+
+
+def test_invalid_entity_type_is_rejected_before_any_write():
+    db, _, store = build_store()
+
+    with pytest.raises(SgpExternalIdError, match="entity_type"):
+        run(
+            store.link(
+                tenant_id="tenant-a",
+                entity_type="class",
+                internal_id="class-1",
+                external_id=123456,
+                source="cmde_lookup",
+            )
+        )
+
+    assert db[COLLECTION].docs == []
+
+
+def test_invalid_source_is_rejected_before_any_write():
+    db, _, store = build_store()
+
+    with pytest.raises(SgpExternalIdError, match="source"):
+        run(
+            store.link(
+                tenant_id="tenant-a",
+                entity_type="student",
+                internal_id="student-1",
+                external_id=123456,
+                source="automatic_guess",
+            )
+        )
+
+    assert db[COLLECTION].docs == []
