@@ -21,6 +21,7 @@ import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { StudentDependencySection } from '@/components/StudentDependencySection';
 import { StudentHealthSection } from '@/components/students/StudentHealthSection';
+import { StudentDemographicAuditPanel } from '@/components/students/StudentDemographicAuditPanel';
 import { computeCompleteness, completenessColor } from '@/utils/registrationCompleteness';
 import {
   SPECIAL_EDUCATION_TARGET_OPTIONS,
@@ -33,6 +34,7 @@ import {
   toggleCondition,
 } from '@/utils/specialEducation';
 import { EMPTY_STUDENT_ADDRESS, buildStudentAddressDefaultsFromMantenedora, ibgeCodesFromViaCep, updateStudentAddressField } from '@/utils/ibgeAddress';
+import { DIFFERENTIATED_LOCATION_OPTIONS, GEOGRAPHIC_LOCATION_OPTIONS } from '@/utils/studentLocation';
 
 // Estados brasileiros
 const STATES = [
@@ -2077,6 +2079,21 @@ export function StudentsComplete() {
         <div><label className="block text-sm font-medium text-gray-700 mb-1">UF</label><select value={formData.address?.state || ''} onChange={(e) => updateAddressData('state', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"><option value="">UF</option>{STATES.map(state => (<option key={state} value={state}>{state}</option>))}</select></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE da UF</label><input type="text" inputMode="numeric" maxLength={2} value={formData.address?.state_ibge_code || ''} onChange={(e) => updateAddressData('state_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE do Município</label><input type="text" inputMode="numeric" maxLength={7} value={formData.address?.city_ibge_code || ''} onChange={(e) => updateAddressData('city_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Localização geográfica da residência</label>
+          <select value={formData.address?.geographic_location || ''} onChange={(e) => updateAddressData('geographic_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+            <option value="">Não informado</option>
+            {GEOGRAPHIC_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Localização diferenciada</label>
+          <select value={formData.address?.differentiated_location || ''} onChange={(e) => updateAddressData('differentiated_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+            <option value="">Não informado</option>
+            {DIFFERENTIATED_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">Opcional. “Não informado” permanece distinto de “Não está em localização diferenciada”.</p>
+        </div>
       </div>
     </div>
   );
@@ -4026,6 +4043,8 @@ export function StudentsComplete() {
               <span>{serverActiveCount} aluno(s) ativo(s)</span>
             </div>
           )}
+
+          <StudentDemographicAuditPanel user={user} onReviewStudent={handleEdit} />
 
           {/* Painel "Indicadores da Rede" — accordion único agrupando
               cor/raça, Ensino Fundamental, Educação Infantil, Etapas EJA + Modalidades.

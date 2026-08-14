@@ -66,8 +66,8 @@ Legenda: **OK** = existe; **DERIVAR** = calcular; **NOVO** = novo campo/modelo; 
 | Logradouro | StudentAddress | inexistente | NOVO | `address.street` |
 | Número | StudentAddress | inexistente | NOVO | `address.number` |
 | Complemento | StudentAddress | inexistente | NOVO | `address.complement` |
-| Localização geográfica | StudentAddress | inexistente | NOVO/CONTRATO | campo canônico próprio; domínio somente após confirmar tabela oficial |
-| Localização diferenciada | StudentAddress | inexistente | NOVO/CONTRATO | campo canônico próprio; domínio somente após confirmar tabela oficial |
+| Localização geográfica | StudentAddress | `address.geographic_location` | OK/CONTRATO | domínio interno `urbana`/`rural`; mapper confirma/converte o contrato CMDE vigente |
+| Localização diferenciada | StudentAddress | `address.differentiated_location` | OK/CONTRATO | domínio interno explícito, inclusive `nao_se_aplica`; mapper confirma/converte códigos CMDE |
 | Responsável legal principal | Guardian link | existe responsável, mas pode haver `both` | REMODELAR | vínculo deve eleger exatamente um `is_primary_legal_guardian` |
 | Nome do responsável | Guardian | `guardian_name`/cadastro de responsáveis | OK | preferir entidade Guardian como SSoT |
 | Vínculo com estudante | Guardian link | `guardian_relationship` | OK/CONTRATO | manter texto/domínio interno; mapear para código oficial |
@@ -224,3 +224,8 @@ Dados médicos terão implementação separada do cadastro geral e não serão e
 ## 10. Decisão
 
 Esta matriz passa a ser o contrato interno para a evolução do cadastro do estudante e para o futuro mapper oficial do MIG/CMDE. Divergências descobertas no contrato oficial devem atualizar primeiro esta matriz, depois o código.
+### Fase A2 — Fechamento Cadastral
+
+- Localização geográfica e diferenciada passam a ser coletadas na ficha do aluno por domínio canônico interno, sem acoplamento aos códigos externos do MEC.
+- A auditoria `race-community-audit` ganha acesso pela interface administrativa para revisão assistida. A correção continua manual no cadastro individual: comunidade tradicional nunca autoriza inferir raça/cor.
+- Nenhuma migração automática de registros demográficos é executada por esta fase.
