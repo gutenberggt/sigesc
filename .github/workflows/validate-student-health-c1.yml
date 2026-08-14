@@ -159,7 +159,7 @@ jobs:
       - name: Backend syntax and health tests
         run: |
           python -m py_compile backend/routers/student_health.py backend/utils/student_health.py backend/audit_service.py backend/server.py
-          python -m pytest backend/tests/test_student_health_profile.py -q
+          python -m pytest --noconftest backend/tests/test_student_health_profile.py -q
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
