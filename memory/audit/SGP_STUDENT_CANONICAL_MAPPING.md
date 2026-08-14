@@ -151,6 +151,8 @@ Ampliar `sex` com `prefere_nao_informar`, preservando `None` para dado ausente.
 
 ### 5.1 Raça/cor × comunidade tradicional
 
+**Implementação de contenção:** novos cadastros deixam de oferecer `quilombola`, `cigano`, `ribeirinho` e `extrativista` como opções de raça/cor. Registros legados continuam legíveis e são sinalizados para revisão. O endpoint administrativo somente leitura `/students/race-community-audit` mede os registros afetados e conflitos antes de qualquer migração. Nenhuma correção automática de raça/cor é permitida, pois comunidade tradicional não permite inferir raça/cor.
+
 `color_race` não deve guardar quilombola, cigano, ribeirinho ou extrativista como raça/cor. Esses valores pertencem a dimensões próprias. Antes de estreitar o enum, executar auditoria dos registros legados e migrá-los sem perda de informação.
 
 ### 5.2 Deficiência/AEE

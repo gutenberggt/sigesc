@@ -252,6 +252,79 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         return student_obj
 
+    @router.get("/race-community-audit")
+    async def get_race_community_audit(request: Request):
+        """Auditoria somente leitura de raça/cor x comunidade tradicional.
+
+        Não altera nem reinterpreta registros. O objetivo é medir o legado antes
+        de estreitar o domínio de ``color_race`` e planejar revisão assistida.
+        """
+        current_user = await AuthMiddleware.require_roles(
+            ['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']
+        )(request)
+        current_db = get_db_for_user(current_user)
+
+        from utils.student_demographics import audit_race_community_record
+
+        base_filter = {}
+        if current_user.get('role') != 'super_admin':
+            tenant_id = current_user.get('mantenedora_id')
+            if tenant_id:
+                base_filter['mantenedora_id'] = tenant_id
+
+        color_counts = {}
+        community_counts = {}
+        issue_counts = {}
+        samples = []
+        total_scanned = 0
+        needs_review_total = 0
+
+        projection = {
+            "_id": 0,
+            "id": 1,
+            "full_name": 1,
+            "school_id": 1,
+            "color_race": 1,
+            "comunidade_tradicional": 1,
+        }
+        cursor = current_db.students.find(base_filter, projection).sort("full_name", 1)
+        async for student in cursor:
+            total_scanned += 1
+            color_key = student.get("color_race") or "__nao_informado__"
+            community_key = student.get("comunidade_tradicional") or "__nao_informado__"
+            color_counts[color_key] = color_counts.get(color_key, 0) + 1
+            community_counts[community_key] = community_counts.get(community_key, 0) + 1
+
+            audit = audit_race_community_record(student)
+            if not audit["needs_review"]:
+                continue
+
+            needs_review_total += 1
+            for issue in audit["issues"]:
+                issue_counts[issue] = issue_counts.get(issue, 0) + 1
+
+            if len(samples) < 100:
+                samples.append({
+                    "id": student.get("id"),
+                    "full_name": student.get("full_name"),
+                    "school_id": student.get("school_id"),
+                    "color_race": audit["color_race"],
+                    "comunidade_tradicional": audit["comunidade_tradicional"],
+                    "issues": audit["issues"],
+                })
+
+        return {
+            "mode": "read_only",
+            "total_scanned": total_scanned,
+            "needs_review_total": needs_review_total,
+            "migration_ready": needs_review_total == 0,
+            "color_race_counts": color_counts,
+            "traditional_community_counts": community_counts,
+            "issue_counts": issue_counts,
+            "sample_limit": 100,
+            "samples": samples,
+        }
+
     @router.get("/inconsistencies")
     async def get_student_inconsistencies(request: Request):
         """

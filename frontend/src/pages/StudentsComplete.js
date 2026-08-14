@@ -48,6 +48,13 @@ const BENEFITS_OPTIONS = [
   'Outros'
 ];
 
+const LEGACY_RACE_LABELS = {
+  cigano: 'Cigano',
+  quilombola: 'Quilombola',
+  ribeirinho: 'Ribeirinho',
+  extrativista: 'Extrativista',
+};
+
 const initialFormData = {
   // Identificação
   school_id: '',
@@ -2002,12 +2009,18 @@ export function StudentsComplete() {
             <option value="parda">Parda</option>
             <option value="amarela">Amarela</option>
             <option value="indigena">Indígena</option>
-            <option value="cigano">Cigano</option>
-            <option value="quilombola">Quilombola</option>
-            <option value="ribeirinho">Ribeirinho</option>
-            <option value="extrativista">Extrativista</option>
             <option value="nao_declarada">Não Declarada</option>
+            {LEGACY_RACE_LABELS[formData.color_race] && (
+              <option value={formData.color_race} disabled>
+                Legado: {LEGACY_RACE_LABELS[formData.color_race]} — revisar
+              </option>
+            )}
           </select>
+          {LEGACY_RACE_LABELS[formData.color_race] && (
+            <p className="text-xs text-amber-700 mt-1">
+              Este valor pertence a Comunidade Tradicional, não a Cor/Raça. Selecione a raça/cor correta e confira o campo ao lado.
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Comunidade Tradicional *</label>
