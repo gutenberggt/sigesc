@@ -15,7 +15,8 @@ Invariantes:
 - não cria fila, lote, idempotency key ou audit event;
 - não grava/atualiza Student, Enrollment ou mig_sgp_external_ids;
 - coleção B.5 é a única fonte dos IDs externos no preview;
-- um lote parcial nunca é apresentado como payload pronto para envio.
+- um lote parcial nunca é apresentado como payload pronto para envio;
+- identidade já conciliada no SGP não é candidata a lote de cadastro novo.
 """
 from __future__ import annotations
 
@@ -51,6 +52,12 @@ from mig.core.exceptions import MigConfigError, MigForbiddenError
 
 CMDE_OPERATIONAL_PREVIEW_VERSION = "cmdeb-v2.preview.2026-08-14"
 _ACTIVE_ENROLLMENT_STATUSES = ("active", "Ativo")
+_CREATE_LOT_TYPES = frozenset(
+    {
+        CmdeLotType.STUDENT_WITHOUT_CLASS_CREATE.value,
+        CmdeLotType.STUDENT_WITH_CLASS_CREATE.value,
+    }
+)
 
 
 class _FrozenModel(BaseModel):
@@ -149,6 +156,18 @@ def _serialization_issue() -> CmdeReadinessIssue:
         message=(
             "o registro passou pelo gate de prontidão, mas o serializer recusou "
             "a geração do candidato de payload"
+        ),
+    )
+
+
+def _external_identity_issue() -> CmdeReadinessIssue:
+    return CmdeReadinessIssue(
+        code="external_identity_already_exists",
+        field="external_ids",
+        severity="error",
+        message=(
+            "há identidade SGP já conciliada pela B.5; lote de cadastro novo não "
+            "é aplicável a este registro"
         ),
     )
 
@@ -381,6 +400,16 @@ class CmdeOperationalPreviewService:
             candidate_payload_record: Optional[dict[str, Any]] = None
             mapped_record = None
             ready = readiness.ready
+
+            # Guarda operacional B.5: create não deve sugerir recadastro de uma
+            # identidade já conhecida no SGP. Fluxos de edição/matrícula futuros
+            # usarão esses IDs quando seus lot_types forem implementados.
+            if lot_type in _CREATE_LOT_TYPES and (
+                pair.student_external_id is not None
+                or pair.enrollment_external_id is not None
+            ):
+                issues.append(_external_identity_issue())
+                ready = False
 
             if ready:
                 try:
