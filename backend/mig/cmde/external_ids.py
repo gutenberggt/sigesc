@@ -41,6 +41,14 @@ LinkSource = Literal[
     "legacy_compatibility",
 ]
 
+_ALLOWED_ENTITY_TYPES = {"student", "enrollment"}
+_ALLOWED_SOURCES = {
+    "cmde_lookup",
+    "lot_reconciliation",
+    "manual_reconciliation",
+    "legacy_compatibility",
+}
+
 
 class SgpExternalIdError(ValueError):
     """Erro base da camada de identidade externa SGP."""
@@ -95,6 +103,20 @@ def _required_text(value: Any, field_name: str) -> str:
     if not normalized:
         raise SgpExternalIdError(f"{field_name}: valor não pode ser vazio")
     return normalized
+
+
+def _validate_entity_type(value: Any) -> EntityType:
+    if value not in _ALLOWED_ENTITY_TYPES:
+        raise SgpExternalIdError(
+            "entity_type: somente student ou enrollment são suportados na B.5"
+        )
+    return value
+
+
+def _validate_source(value: Any) -> LinkSource:
+    if value not in _ALLOWED_SOURCES:
+        raise SgpExternalIdError("source: origem de vínculo SGP não suportada")
+    return value
 
 
 def normalize_sgp_external_id(value: Any) -> str:
@@ -178,6 +200,7 @@ class SgpExternalIdStore:
 
     @staticmethod
     def _base_query(*, tenant_id: str, entity_type: EntityType) -> dict[str, Any]:
+        _validate_entity_type(entity_type)
         return {
             "provider": PROVIDER,
             "namespace": NAMESPACE,
@@ -251,6 +274,8 @@ class SgpExternalIdStore:
         Repetir exatamente o mesmo vínculo é idempotente. Qualquer tentativa de
         reatribuir um dos lados gera ``SgpExternalIdConflict``.
         """
+        _validate_entity_type(entity_type)
+        _validate_source(source)
         tenant = _required_text(tenant_id, "tenant_id")
         internal = _required_text(internal_id, "internal_id")
         external = normalize_sgp_external_id(external_id)
