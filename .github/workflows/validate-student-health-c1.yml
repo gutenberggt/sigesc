@@ -1,0 +1,81 @@
+name: Validate Student Health C1
+
+on:
+  push:
+    branches:
+      - feat/student-health-profile
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply controlled patch
+        run: |
+          git apply --check .github/patches/student-health-c1.patch
+          git apply .github/patches/student-health-c1.patch
+          git diff --check
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "fastapi==0.110.1" "pydantic>=2.6.4" "pymongo==4.5.0" "pytest>=8.0.0" "pytest-asyncio>=0.23"
+
+      - name: Backend syntax and health tests
+        run: |
+          python -m py_compile backend/routers/student_health.py backend/utils/student_health.py backend/audit_service.py backend/server.py
+          python -m pytest backend/tests/test_student_health_profile.py -q
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Frontend canonical tests
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: yarn test src/utils/studentHealth.test.js src/utils/ibgeAddress.test.js src/utils/specialEducation.test.js --watchAll=false --runInBand
+
+      - name: Frontend production build
+        working-directory: frontend
+        env:
+          CI: 'false'
+          GENERATE_SOURCEMAP: 'false'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+        run: yarn build
+
+      - name: Remove temporary validation assets
+        run: |
+          rm -f .github/patches/student-health-c1.patch
+          rm -f .github/workflows/validate-student-health-c1.yml
+          rmdir .github/patches 2>/dev/null || true
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat(health): adicionar ficha de saúde do estudante"
+          git push origin HEAD:feat/student-health-profile

@@ -1,0 +1,106 @@
+diff --git a/backend/server.py b/backend/server.py
+--- a/backend/server.py
++++ b/backend/server.py
+@@
+ from routers.sync import setup_sync_router
+ from routers.medical_certificates import setup_medical_certificates_router
++from routers.student_health import setup_student_health_router, ensure_student_health_indexes
+ from routers.student_dependencies import setup_student_dependencies_router
+@@
+         # Índices MongoDB
+         from startup.indexes import create_all_indexes
+         await create_all_indexes(db)
++        await ensure_student_health_indexes(db)
+@@
+         # Sandbox + token blacklist
+         await sandbox_service.initialize(client)
++        await ensure_student_health_indexes(sandbox_db)
+         token_blacklist.set_db(db)
+@@
+ sync_router = setup_sync_router(db, AuthMiddleware, limiter)
+ medical_certificates_router = setup_medical_certificates_router(db, AuthMiddleware)
++student_health_router = setup_student_health_router(db, AuthMiddleware, audit_service, sandbox_db)
+@@
+ app.include_router(sync_router, prefix="/api")
+ app.include_router(medical_certificates_router, prefix="/api")
++app.include_router(student_health_router, prefix="/api")
+ app.include_router(student_dependencies_router, prefix="/api")
+diff --git a/backend/audit_service.py b/backend/audit_service.py
+--- a/backend/audit_service.py
++++ b/backend/audit_service.py
+@@
+     'attendance': {'severity': 'critical', 'category': 'academic'},
+     'students': {'severity': 'warning', 'category': 'administrative'},
++    'student_health_profiles': {'severity': 'critical', 'category': 'health'},
+     'enrollments': {'severity': 'warning', 'category': 'administrative'},
+@@
+     'approve': 'aprovou',
+     'reject': 'rejeitou',
++    'access': 'acessou',
+ }
+@@
+     'grades': 'notas',
+     'attendance': 'frequência',
+     'students': 'aluno',
++    'student_health_profiles': 'ficha de saúde do aluno',
+     'enrollments': 'matrícula',
+@@
+-        action: Literal['create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'approve', 'reject'],
++        action: Literal['create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'approve', 'reject', 'access'],
+@@
+-        sensitive_fields = {'password', 'password_hash', 'token', 'access_token', 'refresh_token', 'secret'}
++        sensitive_fields = {
++            'password', 'password_hash', 'token', 'access_token', 'refresh_token', 'secret',
++            'blood_type', 'has_allergies', 'allergies_description',
++            'has_comorbidities', 'comorbidities_description',
++            'uses_continuous_medication', 'continuous_medication_description',
++            'continuous_medication_instructions', 'individualized_nutritional_need',
++            'nutritional_need_details', 'health_notes',
++        }
+diff --git a/frontend/src/services/api.js b/frontend/src/services/api.js
+--- a/frontend/src/services/api.js
++++ b/frontend/src/services/api.js
+@@
+-// ============= ATESTADOS MÉDICOS =============
++// ============= FICHA DE SAÚDE DO ESTUDANTE =============
++export const studentHealthAPI = {
++  getByStudent: async (studentId) => {
++    const response = await axios.get(`${API}/student-health/student/${studentId}`);
++    return response.data;
++  },
++  save: async (studentId, data) => {
++    const response = await axios.put(`${API}/student-health/student/${studentId}`, data);
++    return response.data;
++  },
++};
++
++// ============= ATESTADOS MÉDICOS =============
+ export const medicalCertificatesAPI = {
+diff --git a/frontend/src/pages/StudentsComplete.js b/frontend/src/pages/StudentsComplete.js
+--- a/frontend/src/pages/StudentsComplete.js
++++ b/frontend/src/pages/StudentsComplete.js
+@@
+ import { DocumentGeneratorModal } from '@/components/documents';
+ import { CityAutocomplete } from '@/components/CityAutocomplete';
+ import { StudentDependencySection } from '@/components/StudentDependencySection';
++import { StudentHealthSection } from '@/components/students/StudentHealthSection';
+ import { computeCompleteness, completenessColor } from '@/utils/registrationCompleteness';
+@@
+-      {/* Seção de Atestados Médicos */}
++      <StudentHealthSection
++        studentId={editingStudent?.id}
++        studentName={editingStudent?.full_name || formData.full_name}
++        viewMode={viewMode}
++      />
++
++      {/* Seção de Atestados Médicos */}
+       {editingStudent && (
+diff --git a/memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md b/memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md
+--- a/memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md
++++ b/memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md
+@@
+ ### 4.2 StudentHealthProfile
+ 
++**Fase C1:** implementação em coleção própria `student_health_profiles`, com acesso restrito, auditoria de leitura/escrita sem conteúdo clínico e exclusão de listagens/exports genéricos.
++
+ Dados de saúde não entram no `StudentBase` genérico nem nas listagens comuns.
