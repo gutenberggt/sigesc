@@ -67,14 +67,25 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
         run: yarn build
 
-      - name: Commit validated transformation
+      - name: Remove temporary feature tooling
+        run: |
+          rm -f \
+            backend/scripts/apply_sgp_territorial_alignment.py \
+            backend/scripts/apply_sgp_student_identity_alignment.py \
+            backend/scripts/apply_sgp_enrollment_alignment.py \
+            backend/scripts/apply_sgp_guardian_alignment.py \
+            backend/scripts/apply_sgp_demographic_audit.py \
+            backend/scripts/update_sgp_matrix_address_decision.py \
+            .github/workflows/sgp-territorial-feature.yml
+
+      - name: Commit clean feature state
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/models.py backend/routers/mantenedora.py backend/routers/guardians.py backend/routers/students.py backend/utils/guardian_links.py backend/utils/student_demographics.py backend/tests/test_guardian_links.py backend/tests/test_student_demographics.py frontend/src/pages/Mantenedora.js frontend/src/pages/StudentsComplete.js frontend/src/pages/Guardians.js memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md
+          git add -A
           if git diff --cached --quiet; then
-            echo "No transformation changes to commit."
+            echo "No cleanup changes to commit."
             exit 0
           fi
-          git commit -m "feat(sgp): concluir contenção canônica da fase A"
+          git commit -m "chore(sgp): remover ferramentas temporárias da feature"
           git push origin HEAD:feat/sgp-student-canonical-alignment
