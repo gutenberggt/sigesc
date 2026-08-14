@@ -107,6 +107,8 @@ Os códigos IBGE de UF e município serão armazenados de forma explícita para 
 
 ### 4.2 StudentHealthProfile
 
+**Fase C1:** implementação em coleção própria `student_health_profiles`, com acesso restrito, auditoria de leitura/escrita sem conteúdo clínico e exclusão de listagens/exports genéricos.
+
 Dados de saúde não entram no `StudentBase` genérico nem nas listagens comuns.
 
 ```python

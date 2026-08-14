@@ -1309,6 +1309,18 @@ export const getWebSocketUrl = () => {
 };
 
 
+// ============= FICHA DE SAÚDE DO ESTUDANTE =============
+export const studentHealthAPI = {
+  getByStudent: async (studentId) => {
+    const response = await axios.get(`${API}/student-health/student/${studentId}`);
+    return response.data;
+  },
+  save: async (studentId, data) => {
+    const response = await axios.put(`${API}/student-health/student/${studentId}`, data);
+    return response.data;
+  },
+};
+
 // ============= ATESTADOS MÉDICOS =============
 export const medicalCertificatesAPI = {
   // Criar atestado médico

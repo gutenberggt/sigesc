@@ -20,6 +20,7 @@ import { Plus, AlertCircle, AlertTriangle, CheckCircle, Home, User, Trash2, Uplo
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { StudentDependencySection } from '@/components/StudentDependencySection';
+import { StudentHealthSection } from '@/components/students/StudentHealthSection';
 import { computeCompleteness, completenessColor } from '@/utils/registrationCompleteness';
 import {
   SPECIAL_EDUCATION_TARGET_OPTIONS,
@@ -3039,6 +3040,12 @@ export function StudentsComplete() {
           </label>
         )}
       </div>
+
+      <StudentHealthSection
+        studentId={editingStudent?.id}
+        studentName={editingStudent?.full_name || formData.full_name}
+        viewMode={viewMode}
+      />
 
       {/* Seção de Atestados Médicos */}
       {editingStudent && (

@@ -29,6 +29,7 @@ AUDITED_COLLECTIONS = {
     'grades': {'severity': 'critical', 'category': 'academic'},
     'attendance': {'severity': 'critical', 'category': 'academic'},
     'students': {'severity': 'warning', 'category': 'administrative'},
+    'student_health_profiles': {'severity': 'critical', 'category': 'health'},
     'enrollments': {'severity': 'warning', 'category': 'administrative'},
     'staff': {'severity': 'warning', 'category': 'administrative'},
     'school_assignments': {'severity': 'warning', 'category': 'administrative'},
@@ -52,6 +53,7 @@ ACTION_DESCRIPTIONS = {
     'import': 'importou',
     'approve': 'aprovou',
     'reject': 'rejeitou',
+    'access': 'acessou',
 }
 
 # Nomes legíveis das coleções
@@ -59,6 +61,7 @@ COLLECTION_NAMES = {
     'grades': 'notas',
     'attendance': 'frequência',
     'students': 'aluno',
+    'student_health_profiles': 'ficha de saúde do aluno',
     'enrollments': 'matrícula',
     'staff': 'servidor',
     'school_assignments': 'lotação',
@@ -94,7 +97,7 @@ class AuditService:
     
     async def log(
         self,
-        action: Literal['create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'approve', 'reject'],
+        action: Literal['create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'approve', 'reject', 'access'],
         collection: str,
         user: dict,
         request: Request = None,
@@ -218,7 +221,14 @@ class AuditService:
             return None
         
         # Campos sensíveis que não devem ser logados
-        sensitive_fields = {'password', 'password_hash', 'token', 'access_token', 'refresh_token', 'secret'}
+        sensitive_fields = {
+            'password', 'password_hash', 'token', 'access_token', 'refresh_token', 'secret',
+            'blood_type', 'has_allergies', 'allergies_description',
+            'has_comorbidities', 'comorbidities_description',
+            'uses_continuous_medication', 'continuous_medication_description',
+            'continuous_medication_instructions', 'individualized_nutritional_need',
+            'nutritional_need_details', 'health_notes',
+        }
         
         sanitized = {}
         for key, val in value.items():
