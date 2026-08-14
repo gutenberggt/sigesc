@@ -1,17 +1,30 @@
 """Testes da Fase C1 — Ficha de Saúde do Estudante."""
+import importlib.util
 import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BACKEND_DIR))
 
 from audit_service import AuditService
-from routers.student_health import StudentHealthPayload, setup_student_health_router
 from utils.student_health import changed_health_fields, normalize_health_payload
+
+# Carrega somente o arquivo do router em teste, sem executar routers/__init__.py.
+_SPEC = importlib.util.spec_from_file_location(
+    "student_health_router_under_test",
+    BACKEND_DIR / "routers" / "student_health.py",
+)
+_MODULE = importlib.util.module_from_spec(_SPEC)
+assert _SPEC and _SPEC.loader
+_SPEC.loader.exec_module(_MODULE)
+StudentHealthPayload = _MODULE.StudentHealthPayload
+setup_student_health_router = _MODULE.setup_student_health_router
 
 
 def test_normalize_health_payload_clears_orphan_details():
@@ -93,6 +106,7 @@ async def test_secretary_requires_school_assignment_to_read():
         'staff_id': 'st-1',
         'role': 'secretario',
         'mantenedora_id': 'm-1',
+        'school_ids': [],
     })
     audit = MagicMock()
     audit.log = AsyncMock()
