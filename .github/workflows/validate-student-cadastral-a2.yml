@@ -1,0 +1,165 @@
+name: Validate Student Cadastral A2
+
+on:
+  push:
+    branches:
+      - feat/student-cadastral-close-a2
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply deterministic A2 integration
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_str, old, new, label):
+              path = Path(path_str)
+              text = path.read_text(encoding='utf-8')
+              if new in text:
+                  print(f'[ok] {label}: already applied')
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected exactly 1 match, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+              print(f'[ok] {label}')
+
+          # Backend: validação canônica dos dois campos territoriais apenas em escrita.
+          replace_once(
+              'backend/routers/students.py',
+              'from utils.serie_canonical import canonicalize_serie, UNRECOGNIZED_KEY\n',
+              'from utils.serie_canonical import canonicalize_serie, UNRECOGNIZED_KEY\nfrom utils.student_location import normalize_student_address_location\n',
+              'students import location validator',
+          )
+          replace_once(
+              'backend/routers/students.py',
+              '        student_dict = student_data.model_dump()\n',
+              '        student_dict = student_data.model_dump()\n        if "address" in student_dict:\n            try:\n                student_dict["address"] = normalize_student_address_location(student_dict.get("address"))\n            except ValueError as exc:\n                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc\n',
+              'create student address location validation',
+          )
+          replace_once(
+              'backend/routers/students.py',
+              '        update_data = student_update.model_dump(exclude_unset=True)\n        \n        if not update_data:\n',
+              '        update_data = student_update.model_dump(exclude_unset=True)\n        if "address" in update_data:\n            try:\n                update_data["address"] = normalize_student_address_location(update_data.get("address"))\n            except ValueError as exc:\n                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc\n        \n        if not update_data:\n',
+              'update student address location validation',
+          )
+
+          # Frontend API: expõe auditoria somente leitura já existente.
+          replace_once(
+              'frontend/src/services/api.js',
+              'export const studentsAPI = {\n  getAll: async (params = {}) => {\n    const response = await axios.get(`${API}/students`, { params });\n    return response.data;\n  },\n  \n  getById: async (id) => {\n',
+              'export const studentsAPI = {\n  getAll: async (params = {}) => {\n    const response = await axios.get(`${API}/students`, { params });\n    return response.data;\n  },\n\n  getRaceCommunityAudit: async () => {\n    const response = await axios.get(`${API}/students/race-community-audit`);\n    return response.data;\n  },\n  \n  getById: async (id) => {\n',
+              'students audit api',
+          )
+
+          # Frontend: importa opções territoriais e painel de revisão assistida.
+          replace_once(
+              'frontend/src/pages/StudentsComplete.js',
+              "import { StudentHealthSection } from '@/components/students/StudentHealthSection';\n",
+              "import { StudentHealthSection } from '@/components/students/StudentHealthSection';\nimport { StudentDemographicAuditPanel } from '@/components/students/StudentDemographicAuditPanel';\n",
+              'students demographic audit import',
+          )
+          replace_once(
+              'frontend/src/pages/StudentsComplete.js',
+              "import { EMPTY_STUDENT_ADDRESS, buildStudentAddressDefaultsFromMantenedora, ibgeCodesFromViaCep, updateStudentAddressField } from '@/utils/ibgeAddress';\n",
+              "import { EMPTY_STUDENT_ADDRESS, buildStudentAddressDefaultsFromMantenedora, ibgeCodesFromViaCep, updateStudentAddressField } from '@/utils/ibgeAddress';\nimport { DIFFERENTIATED_LOCATION_OPTIONS, GEOGRAPHIC_LOCATION_OPTIONS } from '@/utils/studentLocation';\n",
+              'students location options import',
+          )
+
+          address_marker = '''        <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE do Município</label><input type="text" inputMode="numeric" maxLength={7} value={formData.address?.city_ibge_code || ''} onChange={(e) => updateAddressData('city_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>\n      </div>\n'''
+          address_new = '''        <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE do Município</label><input type="text" inputMode="numeric" maxLength={7} value={formData.address?.city_ibge_code || ''} onChange={(e) => updateAddressData('city_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>\n        <div>\n          <label className="block text-sm font-medium text-gray-700 mb-1">Localização geográfica da residência</label>\n          <select value={formData.address?.geographic_location || ''} onChange={(e) => updateAddressData('geographic_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">\n            <option value="">Não informado</option>\n            {GEOGRAPHIC_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}\n          </select>\n        </div>\n        <div>\n          <label className="block text-sm font-medium text-gray-700 mb-1">Localização diferenciada</label>\n          <select value={formData.address?.differentiated_location || ''} onChange={(e) => updateAddressData('differentiated_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">\n            <option value="">Não informado</option>\n            {DIFFERENTIATED_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}\n          </select>\n          <p className="mt-1 text-xs text-gray-500">Opcional. “Não informado” permanece distinto de “Não está em localização diferenciada”.</p>\n        </div>\n      </div>\n'''
+          replace_once(
+              'frontend/src/pages/StudentsComplete.js',
+              address_marker,
+              address_new,
+              'student address territorial selects',
+          )
+
+          indicators_marker = '''          {/* Painel "Indicadores da Rede" — accordion único agrupando\n'''
+          indicators_new = '''          <StudentDemographicAuditPanel user={user} onReviewStudent={handleEdit} />\n\n          {/* Painel "Indicadores da Rede" — accordion único agrupando\n'''
+          replace_once(
+              'frontend/src/pages/StudentsComplete.js',
+              indicators_marker,
+              indicators_new,
+              'demographic audit panel render',
+          )
+
+          # Matriz canônica: A2 fecha a coleta interna; códigos de integração continuam no mapper.
+          matrix = Path('memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md')
+          text = matrix.read_text(encoding='utf-8')
+          old1 = '| Localização geográfica | StudentAddress | inexistente | NOVO/CONTRATO | campo canônico próprio; domínio somente após confirmar tabela oficial |'
+          new1 = '| Localização geográfica | StudentAddress | `address.geographic_location` | OK/CONTRATO | domínio interno `urbana`/`rural`; mapper confirma/converte o contrato CMDE vigente |'
+          old2 = '| Localização diferenciada | StudentAddress | inexistente | NOVO/CONTRATO | campo canônico próprio; domínio somente após confirmar tabela oficial |'
+          new2 = '| Localização diferenciada | StudentAddress | `address.differentiated_location` | OK/CONTRATO | domínio interno explícito, inclusive `nao_se_aplica`; mapper confirma/converte códigos CMDE |'
+          for old, new, label in [(old1, new1, 'matrix geographic'), (old2, new2, 'matrix differentiated')]:
+              if new not in text:
+                  if text.count(old) != 1:
+                      raise RuntimeError(f'{label}: expected exactly 1 match, found {text.count(old)}')
+                  text = text.replace(old, new, 1)
+          note = '''\n### Fase A2 — Fechamento Cadastral\n\n- Localização geográfica e diferenciada passam a ser coletadas na ficha do aluno por domínio canônico interno, sem acoplamento aos códigos externos do MEC.\n- A auditoria `race-community-audit` ganha acesso pela interface administrativa para revisão assistida. A correção continua manual no cadastro individual: comunidade tradicional nunca autoriza inferir raça/cor.\n- Nenhuma migração automática de registros demográficos é executada por esta fase.\n'''
+          if '### Fase A2 — Fechamento Cadastral' not in text:
+              text += note
+          matrix.write_text(text, encoding='utf-8')
+          print('[ok] canonical mapping A2')
+          PY
+          git diff --check
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Backend A2 tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          python -m py_compile backend/routers/students.py backend/utils/student_location.py backend/utils/student_demographics.py
+          python -m pytest --noconftest backend/tests/test_student_location.py backend/tests/test_student_demographics.py -q
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Frontend A2 tests
+        working-directory: frontend
+        run: yarn test src/utils/studentLocation.test.js src/utils/ibgeAddress.test.js src/utils/specialEducation.test.js src/utils/studentHealth.test.js --watchAll=false --runInBand
+
+      - name: Frontend production build
+        working-directory: frontend
+        env:
+          GENERATE_SOURCEMAP: 'false'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+        run: yarn build
+
+      - name: Remove temporary workflow and commit validated A2
+        shell: bash
+        run: |
+          rm -f .github/workflows/validate-student-cadastral-a2.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No validated changes to commit"
+          else
+            git commit -m "feat(student): concluir fechamento cadastral A2"
+            git push origin HEAD:feat/student-cadastral-close-a2
+          fi
