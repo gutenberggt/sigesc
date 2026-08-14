@@ -164,11 +164,11 @@ def external_id_doc(entity_type, internal_id, external_id):
 def build_db(*, students=None, enrollments=None, external_ids=None):
     return FakeDB(
         {
-            "students": students or [base_student()],
-            "enrollments": enrollments or [base_enrollment()],
+            "students": [base_student()] if students is None else students,
+            "enrollments": [base_enrollment()] if enrollments is None else enrollments,
             "schools": [base_school()],
             "classes": [],
-            EXTERNAL_IDS_COLLECTION: external_ids or [],
+            EXTERNAL_IDS_COLLECTION: [] if external_ids is None else external_ids,
         }
     )
 
