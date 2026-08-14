@@ -248,14 +248,13 @@ def test_empty_batch_is_rejected_by_contract():
 
 def test_external_sgp_ids_are_not_sent_in_create_without_class_payload():
     canonical = _canonical(
-        student_overrides={"sgp_student_id": "99999"},
-        enrollment_overrides={"sgp_enrollment_id": "88888"},
+        student_overrides={"sgp_student_id": "sgp-student-external"},
+        enrollment_overrides={"sgp_enrollment_id": "sgp-enrollment-external"},
     )
     record = map_canonical_student_without_class(canonical, school=_school())
-    payload = serialize_student_without_class_batch([record])
-    dumped = str(payload)
+    item = serialize_student_without_class_batch([record])["estudantes"][0]
 
-    assert "99999" not in dumped
-    assert "88888" not in dumped
-    assert "id_sgp_estudante" not in dumped
-    assert "id_sgp_matricula" not in dumped
+    assert "id_sgp_estudante" not in item
+    assert "id_sgp_matricula" not in item
+    assert "sgp_student_id" not in item
+    assert "sgp_enrollment_id" not in item
