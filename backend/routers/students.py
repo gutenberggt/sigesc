@@ -25,6 +25,7 @@ from models import Student, StudentCreate, StudentUpdate
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 from utils.serie_canonical import canonicalize_serie, UNRECOGNIZED_KEY
+from utils.student_location import normalize_student_address_location
 from services.pedagogical_consolidation import consolidate_student_movement
 
 router = APIRouter(prefix="/students", tags=["Alunos"])
@@ -170,6 +171,11 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 )
         
         student_dict = student_data.model_dump()
+        if "address" in student_dict:
+            try:
+                student_dict["address"] = normalize_student_address_location(student_dict.get("address"))
+            except ValueError as exc:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
         # Matrícula é SEMPRE gerada pelo backend (fonte ÚNICA atômica).
         # Ignora qualquer valor enviado pelo cliente para impedir colisões.
         student_dict['enrollment_number'] = None
@@ -1577,6 +1583,11 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 )
         
         update_data = student_update.model_dump(exclude_unset=True)
+        if "address" in update_data:
+            try:
+                update_data["address"] = normalize_student_address_location(update_data.get("address"))
+            except ValueError as exc:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
         
         if not update_data:
             return Student(**student_doc)

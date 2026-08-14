@@ -388,6 +388,11 @@ export const studentsAPI = {
     const response = await axios.get(`${API}/students`, { params });
     return response.data;
   },
+
+  getRaceCommunityAudit: async () => {
+    const response = await axios.get(`${API}/students/race-community-audit`);
+    return response.data;
+  },
   
   getById: async (id) => {
     const response = await axios.get(`${API}/students/${id}`);
