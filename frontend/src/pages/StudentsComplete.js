@@ -34,6 +34,7 @@ import {
   toggleCondition,
 } from '@/utils/specialEducation';
 import { EMPTY_STUDENT_ADDRESS, buildStudentAddressDefaultsFromMantenedora, ibgeCodesFromViaCep, updateStudentAddressField } from '@/utils/ibgeAddress';
+import { mergeMissingIbgeCodesFromMantenedora } from '@/utils/studentIbgeBackfill';
 import { DIFFERENTIATED_LOCATION_OPTIONS, GEOGRAPHIC_LOCATION_OPTIONS } from '@/utils/studentLocation';
 
 // Estados brasileiros
@@ -699,6 +700,10 @@ export function StudentsComplete() {
         mergedData[key] = value;
       }
     });
+    mergedData.address = mergeMissingIbgeCodesFromMantenedora(
+      freshStudent.address,
+      mantenedoraConfig
+    );
     setFormData(mergedData);
     await loadCurrentEnrollmentMetadata(freshStudent);
     setFormTabIndex(0);
@@ -735,6 +740,10 @@ export function StudentsComplete() {
         mergedData[key] = value;
       }
     });
+    mergedData.address = mergeMissingIbgeCodesFromMantenedora(
+      freshStudent.address,
+      mantenedoraConfig
+    );
     // Injeta _key estável em authorized_persons carregados do backend
     // (necessário pois React precisa de chave estável; backend não persiste _key)
     if (Array.isArray(mergedData.authorized_persons)) {
@@ -2068,7 +2077,7 @@ export function StudentsComplete() {
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-6">Endereço do Estudante</h3>
-      <p className="text-xs text-gray-500 -mt-3">Em novos cadastros, CEP, Município, UF e códigos IBGE são pré-preenchidos pela Unidade Mantenedora e permanecem editáveis.</p>
+      <p className="text-xs text-gray-500 -mt-3">Em novos cadastros, CEP, Município, UF e códigos IBGE são pré-preenchidos pela Unidade Mantenedora. Em cadastros existentes, códigos IBGE ausentes são completados quando UF/Município forem compatíveis com a mantenedora.</p>
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div><label className="block text-sm font-medium text-gray-700 mb-1">CEP</label><input type="text" value={formatCEP(formData.address?.zip_code || '')} onChange={(e) => updateAddressData('zip_code', e.target.value)} onBlur={handleStudentAddressCEPBlur} disabled={viewMode} maxLength={9} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
         <div className="md:col-span-3"><label className="block text-sm font-medium text-gray-700 mb-1">Logradouro</label><input type="text" value={formData.address?.street || ''} onChange={(e) => updateAddressData('street', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
@@ -2078,21 +2087,23 @@ export function StudentsComplete() {
         <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Município</label><input type="text" value={formData.address?.city || ''} onChange={(e) => updateAddressData('city', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">UF</label><select value={formData.address?.state || ''} onChange={(e) => updateAddressData('state', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"><option value="">UF</option>{STATES.map(state => (<option key={state} value={state}>{state}</option>))}</select></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE da UF</label><input type="text" inputMode="numeric" maxLength={2} value={formData.address?.state_ibge_code || ''} onChange={(e) => updateAddressData('state_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE do Município</label><input type="text" inputMode="numeric" maxLength={7} value={formData.address?.city_ibge_code || ''} onChange={(e) => updateAddressData('city_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Localização geográfica da residência</label>
-          <select value={formData.address?.geographic_location || ''} onChange={(e) => updateAddressData('geographic_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
-            <option value="">Não informado</option>
-            {GEOGRAPHIC_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Localização diferenciada</label>
-          <select value={formData.address?.differentiated_location || ''} onChange={(e) => updateAddressData('differentiated_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
-            <option value="">Não informado</option>
-            {DIFFERENTIATED_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
-          </select>
-          <p className="mt-1 text-xs text-gray-500">Opcional. “Não informado” permanece distinto de “Não está em localização diferenciada”.</p>
+        <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE do Município</label><input type="text" inputMode="numeric" maxLength={7} value={formData.address?.city_ibge_code || ''} onChange={(e) => updateAddressData('city_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Localização geográfica da residência</label>
+            <select value={formData.address?.geographic_location || ''} onChange={(e) => updateAddressData('geographic_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+              <option value="">Não informado</option>
+              {GEOGRAPHIC_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+            </select>
+          </div>
+          <div className="md:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Localização diferenciada</label>
+            <select value={formData.address?.differentiated_location || ''} onChange={(e) => updateAddressData('differentiated_location', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+              <option value="">Não informado</option>
+              {DIFFERENTIATED_LOCATION_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">Opcional. “Não informado” permanece distinto de “Não está em localização diferenciada”.</p>
+          </div>
         </div>
       </div>
     </div>
