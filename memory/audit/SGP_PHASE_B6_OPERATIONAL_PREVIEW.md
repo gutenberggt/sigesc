@@ -86,8 +86,9 @@ Para cada matrícula selecionada:
 3. resolve `id_sgp_estudante`/`id_sgp_matricula` somente pela coleção B.5 `mig_sgp_external_ids`;
 4. hidrata os slots externos do DTO canônico, substituindo inclusive eventual valor legado por `None` quando não houver vínculo B.5;
 5. executa o validador B.4 para o `lot_type` solicitado;
-6. somente se o registro estiver pronto, executa o mapper B.3 e produz `candidate_payload_record`;
-7. agrega bloqueios/avisos sem chamar provider.
+6. aplica guardas operacionais B.6 de aplicabilidade do tipo de lote;
+7. somente se o registro continuar pronto, executa o mapper B.3 e produz `candidate_payload_record`;
+8. agrega bloqueios/avisos sem chamar provider.
 
 ## 6. B.5 como SSoT de identidade externa
 
@@ -111,7 +112,37 @@ Resposta por registro:
 }
 ```
 
-Esses IDs aparecem apenas como metadados de reconciliação no preview. No cadastro inicial sem turma, o serializer B.3 continua sem incluí-los no payload quando o contrato daquele lote não os utiliza.
+No cadastro inicial sem turma, os IDs externos não são serializados no payload quando o contrato daquele lote não os utiliza.
+
+### 6.1 Guarda contra recadastro de identidade conciliada
+
+A B.6 adiciona uma guarda operacional além da prontidão estrutural B.4:
+
+```text
+external_identity_already_exists
+```
+
+Para lotes de **cadastro novo**, se a B.5 já conhece `id_sgp_estudante` ou `id_sgp_matricula`, o registro não pode ser classificado como pronto para novo cadastro.
+
+Exemplo:
+
+```json
+{
+  "ready": false,
+  "issues": [
+    {
+      "code": "external_identity_already_exists",
+      "field": "external_ids",
+      "severity": "error"
+    }
+  ],
+  "candidate_payload_record": null
+}
+```
+
+A existência do ID externo não é interpretada automaticamente como autorização para editar, enturmar ou movimentar. Esses fluxos permanecem bloqueados até seus respectivos `lot_type` + readiness + serializer serem implementados.
+
+Essa guarda evita que um Student/Enrollment já conciliado seja sugerido como candidato a recadastro apenas porque seus dados cadastrais passam nas validações B.4.
 
 ## 7. Fail-closed de página mista
 
@@ -201,7 +232,7 @@ A B.4 conhece outros endpoints oficiais. A B.6 aceita o `lot_type`, mas mantém 
 - tipo desconhecido → `unknown_lot_type`;
 - nenhum payload é produzido.
 
-Na B.6 inicial, somente `student_without_class_create` pode chegar a `ready=true` e produzir payload.
+Na B.6 inicial, somente `student_without_class_create` pode chegar a `ready=true` e produzir payload — e apenas quando não houver identidade externa B.5 já conciliada.
 
 ## 12. Segurança e minimização
 
@@ -220,6 +251,8 @@ Na B.6 inicial, somente `student_without_class_create` pode chegar a `ready=true
 - nenhuma escrita no banco;
 - nenhuma fila tocada;
 - IDs externos vêm exclusivamente da B.5;
+- ID externo legado não substitui a SSoT B.5;
+- identidade já conciliada bloqueia lote de cadastro novo;
 - registro bloqueado exibe motivo por campo;
 - registro pronto exibe candidato de payload;
 - página mista nunca gera lote parcial;
