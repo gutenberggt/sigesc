@@ -24,7 +24,8 @@ jobs:
         run: pip install 'pydantic>=2,<3' pytest pymongo python-dotenv
 
       - name: Run B1 canonical DTO tests
-        run: pytest -q tests/test_mig_canonical_student.py
+        run: python -m pytest -q tests/test_mig_canonical_student.py
         env:
+          PYTHONPATH: .
           MONGO_URL: mongodb://127.0.0.1:27017
           DB_NAME: sigesc_b1_ci
