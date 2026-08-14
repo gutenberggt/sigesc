@@ -30,14 +30,20 @@ jobs:
       - name: Apply guardian transformation
         run: python backend/scripts/apply_sgp_guardian_alignment.py
 
+      - name: Apply demographic audit containment
+        run: python backend/scripts/apply_sgp_demographic_audit.py
+
       - name: Update canonical matrix decision
         run: python backend/scripts/update_sgp_matrix_address_decision.py
 
       - name: Validate Python syntax
-        run: python -m py_compile backend/models.py backend/routers/mantenedora.py backend/routers/enrollments.py backend/routers/guardians.py backend/utils/guardian_links.py
+        run: python -m py_compile backend/models.py backend/routers/mantenedora.py backend/routers/enrollments.py backend/routers/guardians.py backend/routers/students.py backend/utils/guardian_links.py backend/utils/student_demographics.py
 
       - name: Test guardian canonical links
         run: python backend/tests/test_guardian_links.py
+
+      - name: Test demographic audit rules
+        run: python backend/tests/test_student_demographics.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -65,10 +71,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/models.py backend/routers/mantenedora.py backend/routers/guardians.py backend/utils/guardian_links.py backend/tests/test_guardian_links.py frontend/src/pages/Mantenedora.js frontend/src/pages/StudentsComplete.js frontend/src/pages/Guardians.js memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md
+          git add backend/models.py backend/routers/mantenedora.py backend/routers/guardians.py backend/routers/students.py backend/utils/guardian_links.py backend/utils/student_demographics.py backend/tests/test_guardian_links.py backend/tests/test_student_demographics.py frontend/src/pages/Mantenedora.js frontend/src/pages/StudentsComplete.js frontend/src/pages/Guardians.js memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md
           if git diff --cached --quiet; then
             echo "No transformation changes to commit."
             exit 0
           fi
-          git commit -m "feat(sgp): alinhar estudante matrícula e responsável"
+          git commit -m "feat(sgp): concluir contenção canônica da fase A"
           git push origin HEAD:feat/sgp-student-canonical-alignment
