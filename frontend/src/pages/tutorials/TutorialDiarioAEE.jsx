@@ -3,568 +3,658 @@
  *
  * Faz parte do módulo Diário AEE (bloqueado). NÃO altere sem autorização
  * explícita do usuário. Veja /app/memory/PRD.md → "MÓDULOS BLOQUEADOS".
+ *
+ * Alteração autorizada explicitamente pelo proprietário em 14/08/2026:
+ * revisão pedagógica e visual APENAS deste tutorial, sem mudança funcional
+ * no Diário AEE.
  */
 import { Link } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  BookOpen, 
-  GraduationCap,
-  Users,
-  Calendar,
-  Target,
+import {
   Activity,
-  MessageSquare,
-  FileText,
+  AlertCircle,
+  ArrowLeft,
+  Award,
+  BookOpen,
+  Calendar,
   CheckSquare,
+  ChevronRight,
   Clock,
-  Printer,
+  Download,
+  Eye,
+  FileText,
+  GraduationCap,
   HelpCircle,
   Lightbulb,
-  ChevronRight,
-  Award
+  Printer,
+  School,
+  Target,
+  Users,
 } from 'lucide-react';
 
-export default function TutorialDiárioAEE() {
+const navItems = [
+  { href: '#comece-aqui', label: 'Comece por aqui' },
+  { href: '#mapa-tela', label: 'Conheça a tela' },
+  { href: '#plano', label: '1. Criar o Plano de AEE' },
+  { href: '#atendimento', label: '2. Registrar um Atendimento' },
+  { href: '#diario', label: '3. Acompanhar o Diário' },
+  { href: '#pdf', label: '4. Gerar o PDF' },
+  { href: '#modelos', label: 'Atalho: usar Modelos' },
+  { href: '#duvidas', label: 'Dúvidas e erros comuns' },
+  { href: '#checklist', label: 'Checklist final' },
+];
+
+const screenAreas = [
+  {
+    icon: School,
+    title: 'Escola/Polo AEE',
+    text: 'Define em qual unidade você está trabalhando. Confira este campo antes de iniciar.',
+    tone: 'blue',
+  },
+  {
+    icon: Calendar,
+    title: 'Ano Letivo',
+    text: 'Garante que planos, atendimentos e relatórios sejam consultados no ano correto.',
+    tone: 'purple',
+  },
+  {
+    icon: Users,
+    title: 'Turma AEE',
+    text: 'Quando disponível, filtra estudantes, planos e atendimentos da turma selecionada.',
+    tone: 'cyan',
+  },
+];
+
+const tabs = [
+  {
+    icon: Users,
+    title: 'Estudantes',
+    text: 'Veja quem possui Plano de AEE e acesse ações rápidas do estudante.',
+    className: 'border-blue-500/30 bg-blue-500/10',
+    iconClassName: 'text-blue-400',
+  },
+  {
+    icon: FileText,
+    title: 'Planos de AEE',
+    text: 'Crie, consulte, edite e acompanhe os planos pedagógicos.',
+    className: 'border-green-500/30 bg-green-500/10',
+    iconClassName: 'text-green-400',
+  },
+  {
+    icon: CheckSquare,
+    title: 'Atendimentos',
+    text: 'Registre cada encontro realizado e mantenha o histórico pedagógico atualizado.',
+    className: 'border-orange-500/30 bg-orange-500/10',
+    iconClassName: 'text-orange-400',
+  },
+  {
+    icon: BookOpen,
+    title: 'Diário Consolidado',
+    text: 'Acompanhe estudantes, atendimentos, planos, carga horária e frequência.',
+    className: 'border-pink-500/30 bg-pink-500/10',
+    iconClassName: 'text-pink-400',
+  },
+  {
+    icon: Award,
+    title: 'Modelos',
+    text: 'Quando disponível para o seu perfil, permite iniciar um plano a partir de um modelo pronto.',
+    className: 'border-teal-500/30 bg-teal-500/10',
+    iconClassName: 'text-teal-400',
+  },
+];
+
+const planGroups = [
+  {
+    number: '1',
+    title: 'Identifique o estudante',
+    text: 'Selecione o aluno e confira turma de origem, professor regente, público-alvo e informações básicas.',
+  },
+  {
+    number: '2',
+    title: 'Descreva a situação inicial',
+    text: 'Registre potencialidades, barreiras observadas, formas de comunicação e como o estudante participa hoje.',
+  },
+  {
+    number: '3',
+    title: 'Defina o atendimento',
+    text: 'Informe modalidade, dias, horários, carga horária semanal e local do atendimento.',
+  },
+  {
+    number: '4',
+    title: 'Estabeleça objetivos e estratégias',
+    text: 'Transforme as necessidades observadas em objetivos claros, recursos de acessibilidade e ações pedagógicas.',
+  },
+  {
+    number: '5',
+    title: 'Planeje o acompanhamento',
+    text: 'Defina indicadores de progresso, frequência de revisão e articulação com a sala comum.',
+  },
+];
+
+const attendanceFields = [
+  ['Plano/Estudante', 'Escolha o plano do estudante atendido.'],
+  ['Data e horário', 'Informe quando o atendimento ocorreu.'],
+  ['Presença', 'Mantenha marcado se o estudante compareceu; em caso de ausência, registre o motivo.'],
+  ['Objetivo trabalhado', 'Indique qual objetivo do Plano de AEE foi trabalhado naquele encontro.'],
+  ['Atividade/Estratégia realizada', 'Descreva de forma objetiva o que foi feito.'],
+  ['Nível de apoio', 'Registre o grau de apoio necessário: independente, mínimo, moderado ou total.'],
+  ['Resposta do estudante', 'Anote como o estudante participou e respondeu à proposta.'],
+  ['Próximo encontro', 'Deixe indicado o encaminhamento para a continuidade do trabalho.'],
+];
+
+const commonQuestions = [
+  {
+    question: 'O botão “Novo Atendimento” está desabilitado. O que faço?',
+    answer: 'Primeiro crie um Plano de AEE para pelo menos um estudante. O atendimento precisa estar vinculado a um plano.',
+  },
+  {
+    question: 'O estudante faltou. Devo deixar de registrar?',
+    answer: 'Não. Abra o atendimento, desmarque “Presente” e informe o motivo da ausência. Assim o histórico fica completo.',
+  },
+  {
+    question: 'Preciso criar um novo plano a cada bimestre?',
+    answer: 'Não necessariamente. O plano pode ser revisado e atualizado. Um novo plano deve ser criado quando o fluxo pedagógico da rede ou uma mudança relevante justificar isso.',
+  },
+  {
+    question: 'Posso corrigir um atendimento já salvo?',
+    answer: 'Quando seu perfil possuir permissão de edição, use o ícone de editar no registro do atendimento e faça a correção necessária.',
+  },
+  {
+    question: 'Não encontro a aba “Modelos”. Há algum problema?',
+    answer: 'Não necessariamente. A aba é exibida conforme a permissão do seu perfil. Se ela não aparecer, siga normalmente pelo botão “Novo Plano de AEE”.',
+  },
+];
+
+function StepBadge({ children }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <Link to="/" className="flex items-center gap-3">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-2 rounded-xl">
-                  <GraduationCap className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white">SIGESC</h1>
-                  <p className="text-xs text-slate-400">Sistema de Gestão Escolar</p>
-                </div>
-              </Link>
+    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-teal-500/20 font-bold text-teal-300">
+      {children}
+    </span>
+  );
+}
+
+function Tip({ children, tone = 'yellow' }) {
+  const styles = tone === 'green'
+    ? 'border-green-500/30 bg-green-500/10 text-green-200'
+    : tone === 'blue'
+      ? 'border-blue-500/30 bg-blue-500/10 text-blue-200'
+      : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-200';
+
+  return (
+    <div className={`rounded-xl border p-4 ${styles}`}>
+      <div className="flex items-start gap-3 text-sm leading-relaxed">
+        <Lightbulb size={18} className="mt-0.5 flex-shrink-0" />
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ icon: Icon, kicker, title, description }) {
+  return (
+    <div className="mb-6">
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-300">
+        <Icon size={18} />
+        {kicker}
+      </div>
+      <h2 className="text-2xl font-bold text-white sm:text-3xl">{title}</h2>
+      {description && <p className="mt-3 max-w-3xl leading-relaxed text-slate-400">{description}</p>}
+    </div>
+  );
+}
+
+export default function TutorialDiarioAEE() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-slate-700/50 bg-slate-950/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 p-2">
+              <GraduationCap className="h-8 w-8 text-white" />
             </div>
-            <div className="flex items-center gap-4">
-              <Link
-                to="/tutoriais"
-                className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors"
-              >
-                <ArrowLeft size={18} />
-                <span className="text-sm">Voltar aos Tutoriais</span>
-              </Link>
+            <div>
+              <h1 className="text-xl font-bold text-white">SIGESC</h1>
+              <p className="text-xs text-slate-400">Sistema de Gestão Escolar</p>
             </div>
-          </div>
+          </Link>
+
+          <Link
+            to="/tutoriais"
+            className="flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-white"
+          >
+            <ArrowLeft size={18} />
+            <span className="hidden sm:inline">Voltar aos Tutoriais</span>
+            <span className="sm:hidden">Voltar</span>
+          </Link>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="pt-24 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          
-          {/* Header do Tutorial */}
-          <div className="mb-12">
-            <div className="inline-flex items-center gap-2 bg-teal-500/10 border border-teal-500/20 rounded-full px-4 py-2 mb-6">
+      <main className="px-4 pb-20 pt-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl">
+          <section className="mb-10 overflow-hidden rounded-3xl border border-teal-500/20 bg-gradient-to-br from-teal-500/10 via-slate-900 to-blue-500/10 p-6 sm:p-9">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/10 px-4 py-2">
               <Award size={16} className="text-teal-400" />
-              <span className="text-teal-300 text-sm font-medium">Professor(a) AEE</span>
+              <span className="text-sm font-medium text-teal-200">Professor(a) AEE • Guia passo a passo</span>
             </div>
-            
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Guia Prático do Diário AEE
-            </h1>
-            
-            <p className="text-lg text-slate-400">
-              Passo a passó completo para o Professor de Atendimento Educacional Especializado
-            </p>
-          </div>
 
-          {/* Índice */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 mb-10">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <BookOpen size={20} className="text-teal-400" />
-              Índice
-            </h2>
-            <nav className="space-y-2">
+            <h1 className="max-w-4xl text-3xl font-bold leading-tight text-white sm:text-5xl">
+              Diário AEE: do primeiro acesso ao PDF, sem complicação
+            </h1>
+            <p className="mt-5 max-w-3xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              Este guia foi organizado na mesma ordem em que o trabalho acontece no dia a dia. Você vai aprender o que conferir, onde clicar, o que escrever e como saber se concluiu cada etapa corretamente.
+            </p>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { href: '#acesso', label: 'Como Acessar' },
-                { href: '#abas', label: 'Entendendo as Abas' },
-                { href: '#plano', label: 'Passo 1: Criar um Plano de AEE' },
-                { href: '#atendimentos', label: 'Passo 2: Registrar Atendimentos' },
-                { href: '#diario', label: 'Passo 3: Acompanhar o Diário' },
-                { href: '#fluxo', label: 'Resumo: Fluxo de Trabalho' },
-                { href: '#faq', label: 'Perguntas Frequentes' },
-              ].map((item) => (
-                <a 
+                ['1', 'Selecionar escola e ano'],
+                ['2', 'Criar o Plano de AEE'],
+                ['3', 'Registrar atendimentos'],
+                ['4', 'Acompanhar e gerar PDF'],
+              ].map(([number, text]) => (
+                <div key={number} className="flex items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-950/40 p-3">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-sm font-bold text-teal-300">
+                    {number}
+                  </span>
+                  <span className="text-sm font-medium text-slate-200">{text}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="mb-10 rounded-2xl border border-slate-700/60 bg-slate-800/40 p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <BookOpen size={20} className="text-teal-400" />
+              <h2 className="text-lg font-semibold text-white">Ir direto ao que você precisa</h2>
+            </div>
+            <nav className="grid gap-2 sm:grid-cols-2">
+              {navItems.map((item) => (
+                <a
                   key={item.href}
-                  href={item.href} 
-                  className="flex items-center gap-2 text-slate-300 hover:text-teal-400 transition-colors py-1"
+                  href={item.href}
+                  className="group flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-700/50 hover:text-teal-300"
                 >
-                  <ChevronRight size={16} className="text-slate-600" />
+                  <ChevronRight size={16} className="text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-teal-400" />
                   {item.label}
                 </a>
               ))}
             </nav>
-          </div>
+          </section>
 
-          {/* Seção: Como Acessar */}
-          <section id="acesso" className="mb-12">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <div className="p-2 bg-teal-500/20 rounded-lg">
-                  <GraduationCap size={24} className="text-teal-400" />
+          <section id="comece-aqui" className="mb-12 scroll-mt-24 rounded-2xl border border-slate-700/60 bg-slate-800/40 p-6 sm:p-8">
+            <SectionTitle
+              icon={CheckSquare}
+              kicker="Antes de começar"
+              title="Faça três conferências rápidas"
+              description="A maior parte das dúvidas no início acontece porque a pessoa está olhando a escola, o ano ou a turma errados. Confira estes pontos primeiro."
+            />
+
+            <div className="space-y-4">
+              {[
+                ['1', 'Entre no SIGESC e abra o Diário AEE.', 'No menu do sistema, acesse o módulo Diário AEE.'],
+                ['2', 'Confira a Escola/Polo AEE.', 'Selecione a unidade em que o atendimento está sendo registrado.'],
+                ['3', 'Confira o Ano Letivo e, se aparecer, a Turma AEE.', 'Os dados exibidos abaixo obedecem a esses filtros.'],
+              ].map(([number, title, text]) => (
+                <div key={number} className="flex gap-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+                  <StepBadge>{number}</StepBadge>
+                  <div>
+                    <h3 className="font-semibold text-white">{title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-400">{text}</p>
+                  </div>
                 </div>
-                Como Acessar
-              </h2>
-              
-              <ol className="space-y-4 text-slate-300">
-                <li className="flex gap-3">
-                  <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">1</span>
-                  <span>Faça login no SIGESC com seu usuário e senha</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">2</span>
-                  <span>No <strong className="text-white">Menu de Administração</strong>, clique em <strong className="text-white">"Diário AEE"</strong></span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">3</span>
-                  <span>Selecione sua <strong className="text-white">escola</strong> no campo superior</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">4</span>
-                  <span>Confirme se o <strong className="text-white">ano letivo</strong> está correto</span>
-                </li>
-              </ol>
+              ))}
+            </div>
+
+            <div className="mt-5">
+              <Tip tone="blue">
+                <strong>Se nenhuma escola aparecer:</strong> a unidade precisa estar habilitada para AEE no cadastro de escolas. Nesse caso, procure a gestão da rede ou um usuário responsável pelo cadastro.
+              </Tip>
             </div>
           </section>
 
-          {/* Seção: Entendendo as Abas */}
-          <section id="abas" className="mb-12">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <div className="p-2 bg-purple-500/20 rounded-lg">
-                  <BookOpen size={24} className="text-purple-400" />
-                </div>
-                Entendendo as Abas
-              </h2>
-              
-              <p className="text-slate-400 mb-6">O Diário AEE possui <strong className="text-white">4 abas</strong> na parte inferior da tela:</p>
-              
-              <div className="grid gap-4">
-                {[
-                  { icon: Users, color: 'blue', title: 'Estudantes AEE', desc: 'Ver todos os alunos que você atende' },
-                  { icon: FileText, color: 'green', title: 'Planos de AEE', desc: 'Criar e gerenciar os planos de cada aluno' },
-                  { icon: CheckSquare, color: 'orange', title: 'Atendimentos', desc: 'Registrar cada sessão realizada' },
-                  { icon: Calendar, color: 'pink', title: 'Diário', desc: 'Visualizar o consolidado e gerar PDF' },
-                ].map((item, index) => {
-                  const Icon = item.icon;
+          <section id="mapa-tela" className="mb-12 scroll-mt-24">
+            <SectionTitle
+              icon={Eye}
+              kicker="Conheça a tela"
+              title="Primeiro entenda onde cada coisa fica"
+              description="Você não precisa memorizar tudo. Pense na tela em duas partes: filtros na parte superior e abas de trabalho logo abaixo."
+            />
+
+            <div className="mb-5 grid gap-4 md:grid-cols-3">
+              {screenAreas.map((item) => {
+                const Icon = item.icon;
+                const toneClasses = {
+                  blue: 'border-blue-500/30 bg-blue-500/10 text-blue-400',
+                  purple: 'border-purple-500/30 bg-purple-500/10 text-purple-400',
+                  cyan: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400',
+                };
+                return (
+                  <div key={item.title} className={`rounded-2xl border p-5 ${toneClasses[item.tone]}`}>
+                    <Icon size={22} className="mb-3" />
+                    <h3 className="font-semibold text-white">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-400">{item.text}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-800/40 p-5 sm:p-6">
+              <h3 className="mb-4 font-semibold text-white">As abas do Diário AEE</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
                   return (
-                    <div key={item.title} className={`bg-${item.color}-500/10 border border-${item.color}-500/20 rounded-xl p-4 flex items-center gap-4`}>
-                      <div className={`p-2 bg-${item.color}-500/20 rounded-lg`}>
-                        <Icon size={20} className={`text-${item.color}-400`} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-white">{item.title}</h3>
-                        <p className="text-sm text-slate-400">{item.desc}</p>
+                    <div key={tab.title} className={`rounded-xl border p-4 ${tab.className}`}>
+                      <div className="flex items-start gap-3">
+                        <Icon size={20} className={`mt-0.5 flex-shrink-0 ${tab.iconClassName}`} />
+                        <div>
+                          <h4 className="font-semibold text-white">{tab.title}</h4>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-400">{tab.text}</p>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              <p className="mt-4 text-xs leading-relaxed text-slate-500">
+                A aba “Modelos” depende da permissão do seu perfil. Se ela não aparecer, isso não impede o uso normal do Diário AEE.
+              </p>
             </div>
           </section>
 
-          {/* Seção: Criar Plano */}
-          <section id="plano" className="mb-12">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <div className="p-2 bg-green-500/20 rounded-lg">
-                  <FileText size={24} className="text-green-400" />
-                </div>
-                Passo 1: Criar um Plano de AEE
-              </h2>
-              
-              <p className="text-slate-400 mb-6">
-                O Plano de AEE é o documento que organiza todo o atendimento do estudante. 
-                Você deve criar <strong className="text-white">um plano para cada aluno</strong> que atende.
-              </p>
+          <section id="plano" className="mb-12 scroll-mt-24 rounded-2xl border border-green-500/20 bg-green-500/5 p-6 sm:p-8">
+            <SectionTitle
+              icon={FileText}
+              kicker="Passo 1"
+              title="Crie o Plano de AEE do estudante"
+              description="O plano é a base do trabalho. Ele organiza o ponto de partida, os objetivos, a rotina de atendimento e como o progresso será acompanhado."
+            />
 
-              <div className="bg-slate-900/50 rounded-xl p-4 mb-6">
-                <h3 className="font-semibold text-white mb-3">Como criar:</h3>
-                <ol className="space-y-2 text-slate-300 text-sm">
-                  <li>1. Clique na aba <strong className="text-green-400">"Planos de AEE"</strong></li>
-                  <li>2. Clique no botão <strong className="text-green-400">"Novo Plano de AEE"</strong></li>
-                  <li>3. Preencha as informações em cada seção</li>
-                </ol>
-              </div>
-
-              {/* Subsecoes do Plano */}
-              <div className="space-y-6">
-                
-                {/* Seção 1 */}
-                <div className="border-l-4 border-blue-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <Users size={18} className="text-blue-400" />
-                    Seção 1: Identificação do Estudante
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Aluno:</strong> Selecione o nome do estudante na lista</p>
-                    <p><strong className="text-slate-200">Público-Alvo (PAEE):</strong> Escolha a categoria (Ex: TEA, Deficiência Intelectual, etc.)</p>
-                    <p><strong className="text-slate-200">Turma de Origem:</strong> Informe a turma regular do aluno (Ex: 3o Ano A)</p>
-                    <p><strong className="text-slate-200">Professor Regente:</strong> Nome do professor da sala regular</p>
-                    <p><strong className="text-slate-200">Justificativa Pedagógica:</strong> Descreva as barreiras e necessidades de apoio</p>
-                  </div>
-                  <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                    <p className="text-sm text-yellow-300 flex items-start gap-2">
-                      <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                      <span><strong>Dica:</strong> Não mencione CID ou laudo médico na justificativa - foque no que o aluno precisa para aprender.</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Seção 2 */}
-                <div className="border-l-4 border-purple-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <Calendar size={18} className="text-purple-400" />
-                    Seção 2: Vigência do Plano
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Data de Elaboração:</strong> Data em que você está criando o plano</p>
-                    <p><strong className="text-slate-200">Período de Vigência:</strong> Por quanto tempo este plano vale (bimestre, semestre ou ano)</p>
-                    <p><strong className="text-slate-200">Próxima Revisão:</strong> Quando você vai revisar e atualizar este plano</p>
-                  </div>
-                  <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                    <p className="text-sm text-yellow-300 flex items-start gap-2">
-                      <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                      <span><strong>Dica:</strong> E recomendado revisar o plano pelo menos a cada bimestre para ajustar as estratégias.</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Seção 3 */}
-                <div className="border-l-4 border-cyan-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <Activity size={18} className="text-cyan-400" />
-                    Seção 3: Linha de Base (Situação Inicial)
-                  </h3>
-                  <p className="text-sm text-slate-400 mb-3">
-                    Aqui você registra <strong className="text-white">como o aluno está HOJE</strong>, antes de iniciar as intervenções. Isso permite medir o progresso depois.
-                  </p>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Situação Atual:</strong> Como o estudante está hoje em relação a aprendizagem?</p>
-                    <p><strong className="text-slate-200">Potencialidades:</strong> Quais são os pontos fortes do aluno? Do que ele gosta?</p>
-                    <p><strong className="text-slate-200">Dificuldades Observadas:</strong> Quais são as principais barreiras que ele enfrenta?</p>
-                    <p><strong className="text-slate-200">Formas de Comunicação:</strong> Como o aluno se comunica e participa das atividades?</p>
-                  </div>
-                  <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                    <p className="text-sm text-yellow-300 flex items-start gap-2">
-                      <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                      <span><strong>Dica:</strong> Seja específico! Em vez de "tem dificuldade em português", escreva "ainda não reconhece todas as letras do alfabeto".</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Seção 4 */}
-                <div className="border-l-4 border-orange-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <Clock size={18} className="text-orange-400" />
-                    Seção 4: Cronograma de Atendimento
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Dias de Atendimento:</strong> Marque os dias da semana que o aluno e atendido</p>
-                    <p><strong className="text-slate-200">Modalidade:</strong> Individual, Pequeno Grupo, Coensino ou Mista</p>
-                    <p><strong className="text-slate-200">Horário Início/Fim:</strong> Horário do atendimento</p>
-                    <p><strong className="text-slate-200">Carga Horaria Semanal:</strong> Total de horas por semana (Ex: 4 horas)</p>
-                    <p><strong className="text-slate-200">Local:</strong> Onde acontecé o atendimento</p>
-                  </div>
-                </div>
-
-                {/* Seção 5 */}
-                <div className="border-l-4 border-green-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <Target size={18} className="text-green-400" />
-                    Seção 5: Objetivos e Barreiras
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Barreiras Identificadas:</strong> Liste as barreiras que impedem a participação e aprendizagem (uma por linha)</p>
-                    <p><strong className="text-slate-200">Objetivos do Atendimento:</strong> O que você quer que o aluno alcance? Seja específico!</p>
-                    <p><strong className="text-slate-200">Recursos de Acessibilidade:</strong> Quais recursos serão usados?</p>
-                  </div>
-                  <div className="mt-3 bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-                    <p className="text-sm text-green-300 mb-2"><strong>Exemplo de objetivos:</strong></p>
-                    <p className="text-sm text-slate-400">❌ Evite: "Melhorar a leitura"</p>
-                    <p className="text-sm text-slate-400">✅ Prefira: "Reconhecer e nomear todas as letras do alfabeto até o final do bimestre"</p>
-                  </div>
-                </div>
-
-                {/* Seção 6 */}
-                <div className="border-l-4 border-pink-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <Activity size={18} className="text-pink-400" />
-                    Seção 6: Estratégias de Acompanhamento
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Indicadores de Progresso:</strong> Como você vai saber se o aluno está avançando?</p>
-                    <p><strong className="text-slate-200">Frequência de Revisão:</strong> De quanto em quanto tempo vai revisar o plano</p>
-                    <p><strong className="text-slate-200">Critérios para Ajustar:</strong> Em que situações vai mudar as estratégias?</p>
-                  </div>
-                </div>
-
-                {/* Seção 7 */}
-                <div className="border-l-4 border-teal-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <MessageSquare size={18} className="text-teal-400" />
-                    Seção 7: Articulação com Sala Comum
-                  </h3>
-                  <p className="text-sm text-slate-400 mb-3">Esta seção conecta o AEE com a sala de aula regular.</p>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Orientações para Sala Comum:</strong> Orientações gerais para o professor regente</p>
-                    <p><strong className="text-slate-200">Combinados com Professor Regente:</strong> Acordos específicos entre você com o professor da sala regular</p>
-                    <p><strong className="text-slate-200">Adaptações por Componente:</strong> Adaptações específicas por disciplina</p>
-                    <p><strong className="text-slate-200">Adequações Curriculares:</strong> Ajustes no currículo para garantir o acesso a aprendizagem</p>
-                  </div>
-                </div>
-
-                {/* Seção 8 */}
-                <div className="border-l-4 border-slate-500 pl-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <CheckSquare size={18} className="text-slate-400" />
-                    Seção 8: Status do Plano
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-yellow-400">Rascunho:</strong> Ainda está em elaboração</p>
-                    <p><strong className="text-green-400">Ativo:</strong> Plano em vigor, sendo executado</p>
-                    <p><strong className="text-orange-400">Em Revisão:</strong> Está sendo atualizado</p>
-                    <p><strong className="text-red-400">Encerrado:</strong> Plano finalizado</p>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Finalizar */}
-              <div className="mt-6 bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-                <h3 className="font-semibold text-white mb-3">Finalizando o Plano:</h3>
-                <ol className="space-y-2 text-sm text-slate-300">
-                  <li>1. Revise todas as informações</li>
-                  <li>2. Clique em <strong className="text-green-400">"Salvar"</strong></li>
-                  <li>3. O plano aparecerá na lista da aba "Planos de AEE"</li>
-                </ol>
+            <div className="mb-6 rounded-xl border border-green-500/20 bg-slate-950/40 p-5">
+              <h3 className="font-semibold text-white">Caminho na tela</h3>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-lg bg-slate-800 px-3 py-2 text-slate-200">Estudantes ou Planos de AEE</span>
+                <ChevronRight size={16} className="text-slate-500" />
+                <span className="rounded-lg bg-green-500/15 px-3 py-2 font-semibold text-green-300">Novo Plano de AEE</span>
+                <ChevronRight size={16} className="text-slate-500" />
+                <span className="rounded-lg bg-slate-800 px-3 py-2 text-slate-200">Preencher e salvar</span>
               </div>
             </div>
-          </section>
 
-          {/* Seção: Registrar Atendimentos */}
-          <section id="atendimentos" className="mb-12">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <div className="p-2 bg-orange-500/20 rounded-lg">
-                  <CheckSquare size={24} className="text-orange-400" />
-                </div>
-                Passo 2: Registrar Atendimentos
-              </h2>
-              
-              <p className="text-slate-400 mb-6">
-                Após criar o plano, você deve registrar <strong className="text-white">cada sessão de atendimento</strong> realizada.
-              </p>
-
-              <div className="bg-slate-900/50 rounded-xl p-4 mb-6">
-                <h3 className="font-semibold text-white mb-3">Como registrar:</h3>
-                <ol className="space-y-2 text-slate-300 text-sm">
-                  <li>1. Clique na aba <strong className="text-orange-400">"Atendimentos"</strong></li>
-                  <li>2. Clique em <strong className="text-orange-400">"Registrar Atendimento"</strong></li>
-                  <li>3. Preencha os campos</li>
-                  <li>4. Clique em <strong className="text-orange-400">"Salvar"</strong></li>
-                </ol>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <h3 className="font-semibold text-white mb-3">Campos do atendimento:</h3>
-                {[
-                  { label: 'Plano/Estudante', desc: 'Selecione o aluno que foi atendido' },
-                  { label: 'Data', desc: 'Data do atendimento' },
-                  { label: 'Horário', desc: 'Início e fim da sessão' },
-                  { label: 'Presença', desc: 'O aluno compareceu? Se nao, informe o motivo' },
-                  { label: 'Objetivo Trabalhado', desc: 'Qual objetivo do plano foi trabalhado hoje?' },
-                  { label: 'Atividade Realizada', desc: 'Descreva o que foi feito na sessão' },
-                  { label: 'Recursos Utilizados', desc: 'Quais materiais/recursos foram usados?' },
-                  { label: 'Nivel de Apoio', desc: 'Quanto apoio o aluno precisou? (Independente, Mínimo, Moderado ou Total)' },
-                  { label: 'Resposta do Estudante', desc: 'Como o aluno reagiu? Participou bem?' },
-                  { label: 'Evidências', desc: 'Registre observações sobre o progresso' },
-                  { label: 'Próximo Atendimento', desc: 'O que será trabalhado na próxima sessão?' },
-                ].map((item, index) => (
-                  <div key={item.label} className="flex gap-2 text-slate-300">
-                    <span className="text-slate-200 font-medium min-w-[160px]">{item.label}:</span>
-                    <span className="text-slate-400">{item.desc}</span>
+            <h3 className="mb-4 text-lg font-semibold text-white">Em vez de pensar em muitos campos, pense em 5 perguntas:</h3>
+            <div className="space-y-3">
+              {planGroups.map((group) => (
+                <div key={group.number} className="flex gap-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-green-500/15 font-bold text-green-300">
+                    {group.number}
+                  </span>
+                  <div>
+                    <h4 className="font-semibold text-white">{group.title}</h4>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-400">{group.text}</p>
                   </div>
-                ))}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-700/60 bg-slate-950/40 p-5">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200">
+                  <Target size={18} className="text-green-400" />
+                  Exemplo de objetivo bem escrito
+                </div>
+                <p className="mb-2 text-sm text-red-300">Evite: “Melhorar a leitura.”</p>
+                <p className="text-sm leading-relaxed text-green-200">
+                  Prefira: “Reconhecer e nomear as letras do alfabeto trabalhadas, com redução progressiva de apoio, até a próxima revisão do plano.”
+                </p>
               </div>
 
-              <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                <p className="text-sm text-yellow-300 flex items-start gap-2">
-                  <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                  <span><strong>Dica:</strong> Registre o atendimento logo após a sessão, enquanto as informações estão frescas na memória!</span>
+              <div className="rounded-xl border border-slate-700/60 bg-slate-950/40 p-5">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200">
+                  <Activity size={18} className="text-cyan-400" />
+                  Exemplo de linha de base
+                </div>
+                <p className="text-sm leading-relaxed text-slate-300">
+                  “Reconhece o próprio nome e algumas letras. Participa melhor com apoio visual e instruções curtas. Mantém atenção por períodos breves e responde positivamente a atividades com material concreto.”
                 </p>
               </div>
             </div>
-          </section>
 
-          {/* Seção: Acompanhar Diário */}
-          <section id="diario" className="mb-12">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <div className="p-2 bg-pink-500/20 rounded-lg">
-                  <Calendar size={24} className="text-pink-400" />
-                </div>
-                Passo 3: Acompanhar o Diário
-              </h2>
-              
-              <p className="text-slate-400 mb-6">
-                A aba <strong className="text-white">"Diário"</strong> mostra o consolidado de todos os atendimentos.
+            <div className="mt-5">
+              <Tip>
+                <strong>Escreva sobre aprendizagem e participação.</strong> Na justificativa pedagógica, descreva barreiras, apoios e necessidades observadas no contexto escolar. Evite transformar o campo em reprodução de laudo ou CID.
+              </Tip>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
+              <p className="text-sm text-green-100">
+                <strong>Você concluiu este passo quando:</strong> o plano aparece na aba “Planos de AEE” e pode ser associado a um novo atendimento.
               </p>
-
-              <div className="grid md:grid-cols-2 gap-4 mb-6">
-                <div className="bg-slate-900/50 rounded-xl p-4">
-                  <h3 className="font-semibold text-white mb-3">O que você encontra:</h3>
-                  <ul className="space-y-2 text-sm text-slate-300">
-                    <li>• Resumo dos atendimentos por período</li>
-                    <li>• Estatísticas de frequência</li>
-                    <li>• Visão geral do progresso dos alunos</li>
-                  </ul>
-                </div>
-                <div className="bg-slate-900/50 rounded-xl p-4">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <Printer size={18} className="text-pink-400" />
-                    Gerar PDF:
-                  </h3>
-                  <ol className="space-y-2 text-sm text-slate-300">
-                    <li>1. Clique na aba "Diário"</li>
-                    <li>2. Clique em <strong className="text-pink-400">"Gerar PDF"</strong></li>
-                    <li>3. O sistema criara um documento com todos os registros</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                <p className="text-sm text-yellow-300 flex items-start gap-2">
-                  <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                  <span><strong>Dica:</strong> Gere o PDF mensalmente para ter um arquivo de acompanhamento e para reuniões pedagógicas.</span>
-                </p>
-              </div>
             </div>
           </section>
 
-          {/* Seção: Fluxo de Trabalho */}
-          <section id="fluxo" className="mb-12">
-            <div className="bg-gradient-to-br from-teal-500/10 to-blue-500/10 border border-teal-500/30 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <div className="p-2 bg-teal-500/20 rounded-lg">
-                  <Activity size={24} className="text-teal-400" />
-                </div>
-                Resumo: Fluxo de Trabalho
-              </h2>
-              
-              <div className="space-y-4">
-                {[
-                  { num: '1', title: 'CRIAR PLANO DE AEE', desc: '(uma vez por aluno/período)', color: 'green' },
-                  { num: '2', title: 'REGISTRAR ATENDIMENTOS', desc: '(após cada sessão)', color: 'orange' },
-                  { num: '3', title: 'ACOMPANHAR DIARIO', desc: '(semanalmente)', color: 'pink' },
-                  { num: '4', title: 'GERAR PDF', desc: '(mensalmente ou quando necessário)', color: 'purple' },
-                  { num: '5', title: 'REVISAR PLANO', desc: '(conforme frequência definida)', color: 'blue' },
-                ].map((item, index) => (
-                  <div key={item.num} className="flex items-center gap-4">
-                    <div className={`w-10 h-10 bg-${item.color}-500/20 text-${item.color}-400 rounded-full flex items-center justify-center font-bold text-lg`}>
-                      {item.num}
-                    </div>
-                    <div className="flex-1 bg-slate-800/50 rounded-lg p-3">
-                      <span className="text-white font-medium">{item.title}</span>
-                      <span className="text-slate-400 text-sm ml-2">{item.desc}</span>
-                    </div>
-                    {index < 4 && (
-                      <div className="text-slate-600">↓</div>
-                    )}
-                  </div>
-                ))}
+          <section id="atendimento" className="mb-12 scroll-mt-24 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 sm:p-8">
+            <SectionTitle
+              icon={CheckSquare}
+              kicker="Passo 2"
+              title="Registre cada atendimento realizado"
+              description="O atendimento é o registro do que realmente aconteceu. Faça o lançamento logo após o encontro sempre que possível, enquanto as informações ainda estão claras."
+            />
+
+            <div className="mb-6 rounded-xl border border-orange-500/20 bg-slate-950/40 p-5">
+              <h3 className="font-semibold text-white">Caminho mais simples</h3>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-lg bg-slate-800 px-3 py-2 text-slate-200">Atendimentos</span>
+                <ChevronRight size={16} className="text-slate-500" />
+                <span className="rounded-lg bg-orange-500/15 px-3 py-2 font-semibold text-orange-300">Novo Atendimento</span>
+                <ChevronRight size={16} className="text-slate-500" />
+                <span className="rounded-lg bg-slate-800 px-3 py-2 text-slate-200">Preencher</span>
+                <ChevronRight size={16} className="text-slate-500" />
+                <span className="rounded-lg bg-slate-800 px-3 py-2 text-slate-200">Salvar</span>
               </div>
             </div>
-          </section>
 
-          {/* Seção: FAQ */}
-          <section id="faq" className="mb-12">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <div className="p-2 bg-blue-500/20 rounded-lg">
-                  <HelpCircle size={24} className="text-blue-400" />
+            <div className="overflow-hidden rounded-xl border border-slate-700/60">
+              {attendanceFields.map(([label, text], index) => (
+                <div
+                  key={label}
+                  className={`grid gap-1 bg-slate-900/40 p-4 sm:grid-cols-[190px_1fr] sm:gap-4 ${index > 0 ? 'border-t border-slate-700/60' : ''}`}
+                >
+                  <span className="text-sm font-semibold text-slate-200">{label}</span>
+                  <span className="text-sm leading-relaxed text-slate-400">{text}</span>
                 </div>
-                Perguntas Frequentes
-              </h2>
-              
-              <div className="space-y-4">
-                {[
-                  { 
-                    q: 'Preciso criar um plano novo a cada bimestre?',
-                    a: 'Não necessariamente. Você pode editar o plano existente e atualizar as informações. Crie um novo apenas se houver mudanças significativas ou no início de um novo ano letivo.'
-                  },
-                  { 
-                    q: 'E se o aluno faltar?',
-                    a: 'Registre o atendimento normalmente, marque "Ausente" no campo de presenca e informe o motivo da falta.'
-                  },
-                  { 
-                    q: 'Posso editar um atendimento já registrado?',
-                    a: 'Sim! Na lista de atendimentos, clique no ícone de editar (lápis) ao lado do registro.'
-                  },
-                  { 
-                    q: 'O que faco se o aluno mudar de turma?',
-                    a: 'Edite o plano e atualize as informações de turma e professor regente.'
-                  },
-                ].map((item, index) => (
-                  <div key={item.q || `faq-${index}`} className="bg-slate-900/50 rounded-xl p-4">
-                    <h3 className="font-semibold text-white mb-2 flex items-start gap-2">
-                      <span className="text-blue-400">P:</span>
-                      {item.q}
-                    </h3>
-                    <p className="text-slate-400 text-sm flex items-start gap-2">
-                      <span className="text-green-400">R:</span>
-                      {item.a}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
-          </section>
 
-          {/* Ajuda */}
-          <section className="mb-12">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
-              <HelpCircle size={48} className="text-teal-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">Precisa de mais ajuda?</h3>
-              <p className="text-slate-400 mb-4">
-                Entre em contato com a coordenação pedagógica ou o suporte técnico da sua rede de ensino.
+            <details className="mt-6 rounded-xl border border-orange-500/20 bg-orange-500/10 p-4 open:bg-orange-500/15">
+              <summary className="cursor-pointer font-semibold text-orange-200">Ver exemplo de um registro pedagógico objetivo</summary>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300">
+                <p><strong className="text-white">Objetivo trabalhado:</strong> ampliar a autonomia na identificação de palavras do cotidiano.</p>
+                <p><strong className="text-white">Atividade:</strong> pareamento entre imagens e palavras com apoio de cartões visuais; leitura mediada de cinco palavras familiares.</p>
+                <p><strong className="text-white">Resposta do estudante:</strong> realizou três associações de forma independente e duas com pista verbal.</p>
+                <p><strong className="text-white">Próximo encontro:</strong> retomar as cinco palavras e introduzir duas novas, reduzindo gradualmente as pistas.</p>
+              </div>
+            </details>
+
+            <div className="mt-5">
+              <Tip>
+                <strong>Se o estudante faltar, registre mesmo assim.</strong> Desmarque “Presente” e informe o motivo da ausência. O histórico do Diário fica mais fiel quando presenças e ausências estão documentadas.
+              </Tip>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
+              <p className="text-sm text-orange-100">
+                <strong>Você concluiu este passo quando:</strong> o atendimento aparece na lista com estudante, data, horário, objetivo e atividade registrados.
               </p>
+            </div>
+          </section>
+
+          <section id="diario" className="mb-12 scroll-mt-24 rounded-2xl border border-pink-500/20 bg-pink-500/5 p-6 sm:p-8">
+            <SectionTitle
+              icon={BookOpen}
+              kicker="Passo 3"
+              title="Use o Diário Consolidado para acompanhar o trabalho"
+              description="Esta aba transforma os registros individuais em uma visão geral do AEE. Ela serve para acompanhamento pedagógico, conferência da rotina e preparação de relatórios."
+            />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                ['Estudantes', 'Quantidade de estudantes atendidos no filtro selecionado.'],
+                ['Atendimentos', 'Total de registros realizados no período consultado.'],
+                ['Planos Ativos', 'Quantidade de planos considerados na visão atual.'],
+                ['Carga Horária', 'Soma do tempo registrado nos atendimentos.'],
+                ['Grade de Atendimentos', 'Organização dos horários por dia da semana.'],
+                ['Fichas Individuais', 'Resumo de presença, carga horária e dados de cada estudante.'],
+              ].map(([title, text]) => (
+                <div key={title} className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
+                  <h3 className="font-semibold text-white">{title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-400">{text}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5">
+              <Tip tone="blue">
+                <strong>Faça uma conferência periódica.</strong> Se a carga horária, a frequência ou a quantidade de atendimentos parecer diferente do esperado, volte à aba “Atendimentos” e confira os registros antes de gerar o PDF.
+              </Tip>
+            </div>
+          </section>
+
+          <section id="pdf" className="mb-12 scroll-mt-24 rounded-2xl border border-purple-500/20 bg-purple-500/5 p-6 sm:p-8">
+            <SectionTitle
+              icon={Printer}
+              kicker="Passo 4"
+              title="Gere o PDF somente depois de conferir os registros"
+              description="O PDF é o resultado documental do trabalho registrado. Por isso, a melhor sequência é: registrar → conferir → gerar."
+            />
+
+            <div className="space-y-4">
+              {[
+                ['1', 'Abra a aba “Diário Consolidado”.'],
+                ['2', 'Confira se Escola/Polo AEE, Ano Letivo e Turma AEE estão corretos.'],
+                ['3', 'Revise os indicadores e as fichas individuais.'],
+                ['4', 'Clique em “Baixar PDF Completo”.'],
+                ['5', 'Escolha o período solicitado quando o sistema apresentar as opções e conclua o download.'],
+              ].map(([number, text]) => (
+                <div key={number} className="flex items-start gap-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+                  <StepBadge>{number}</StepBadge>
+                  <p className="pt-1 text-sm leading-relaxed text-slate-300">{text}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 rounded-xl border border-purple-500/30 bg-purple-500/10 p-4">
+              <p className="text-sm text-purple-100">
+                <strong>Também existe PDF individual:</strong> nas fichas do estudante, o ícone de download permite gerar o documento de um aluno específico.
+              </p>
+            </div>
+          </section>
+
+          <section id="modelos" className="mb-12 scroll-mt-24 rounded-2xl border border-teal-500/20 bg-teal-500/5 p-6 sm:p-8">
+            <SectionTitle
+              icon={Award}
+              kicker="Atalho opcional"
+              title="Se a aba Modelos aparecer, use-a para ganhar tempo"
+              description="Os modelos ajudam a iniciar um plano com uma estrutura previamente preparada. Eles são um ponto de partida — o plano do estudante continua precisando ser conferido e personalizado."
+            />
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                ['1', 'Abra “Modelos” ou escolha a opção de criar plano a partir de modelo.'],
+                ['2', 'Selecione o modelo adequado e o estudante.'],
+                ['3', 'Revise o plano criado, personalize o que for necessário e salve.'],
+              ].map(([number, text]) => (
+                <div key={number} className="rounded-xl border border-teal-500/20 bg-slate-900/50 p-5">
+                  <span className="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-teal-500/20 text-sm font-bold text-teal-300">{number}</span>
+                  <p className="text-sm leading-relaxed text-slate-300">{text}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5">
+              <Tip tone="green">
+                <strong>Modelo não é plano pronto.</strong> Ele acelera o preenchimento, mas a observação do estudante, os objetivos e as estratégias precisam representar a situação real daquele aluno.
+              </Tip>
+            </div>
+          </section>
+
+          <section id="duvidas" className="mb-12 scroll-mt-24 rounded-2xl border border-slate-700/60 bg-slate-800/40 p-6 sm:p-8">
+            <SectionTitle
+              icon={HelpCircle}
+              kicker="Quando algo não sair como esperado"
+              title="Dúvidas e erros comuns"
+              description="Abra apenas a pergunta que corresponde ao seu problema."
+            />
+
+            <div className="space-y-3">
+              {commonQuestions.map((item) => (
+                <details key={item.question} className="group rounded-xl border border-slate-700/60 bg-slate-900/50 p-4 open:border-blue-500/30 open:bg-blue-500/5">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4 font-semibold text-white">
+                    <span>{item.question}</span>
+                    <ChevronRight size={18} className="mt-0.5 flex-shrink-0 text-slate-500 transition-transform group-open:rotate-90 group-open:text-blue-400" />
+                  </summary>
+                  <p className="mt-3 border-t border-slate-700/50 pt-3 text-sm leading-relaxed text-slate-400">{item.answer}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+
+          <section id="checklist" className="mb-12 scroll-mt-24 overflow-hidden rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-teal-500/10 p-6 sm:p-8">
+            <SectionTitle
+              icon={CheckSquare}
+              kicker="Antes de encerrar"
+              title="Checklist do Diário AEE em dia"
+              description="Use esta lista como uma conferência rápida da sua rotina."
+            />
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {[
+                'Escola/Polo AEE, ano letivo e turma conferidos.',
+                'Cada estudante atendido possui Plano de AEE adequado ao período.',
+                'Os objetivos do plano estão claros e observáveis.',
+                'Cada atendimento realizado — inclusive ausência — foi registrado.',
+                'Objetivo, atividade, resposta do estudante e encaminhamento foram descritos.',
+                'O Diário Consolidado foi conferido antes da emissão do PDF.',
+                'O PDF foi gerado no período correto quando necessário.',
+                'O plano será revisado conforme a frequência definida.',
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3 rounded-xl border border-green-500/20 bg-slate-950/30 p-4">
+                  <CheckSquare size={18} className="mt-0.5 flex-shrink-0 text-green-400" />
+                  <span className="text-sm leading-relaxed text-slate-200">{item}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-700/60 bg-slate-800/40 p-7 text-center sm:p-9">
+            <HelpCircle size={44} className="mx-auto mb-4 text-teal-400" />
+            <h2 className="text-xl font-bold text-white">Ainda ficou com alguma dúvida?</h2>
+            <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
+              Procure a coordenação pedagógica ou o suporte técnico da sua rede. Ao pedir ajuda, informe em qual etapa você estava e o que apareceu na tela — isso facilita muito a orientação.
+            </p>
+            <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
                 to="/tutoriais"
-                className="inline-flex items-center gap-2 text-teal-400 hover:text-teal-300 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700/60"
               >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={17} />
                 Voltar aos Tutoriais
+              </Link>
+              <Link
+                to="/login"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-500"
+              >
+                <BookOpen size={17} />
+                Acessar o SIGESC
               </Link>
             </div>
           </section>
-
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="py-8 px-4 sm:px-6 lg:px-8 border-t border-slate-700/50">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-slate-400 text-sm">
-            <span>© {new Date().getFullYear()} SIGESC - Sistema de Gestão Escolar</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-            <span>Desenvolvido por</span>
-            <a 
-              href="https://www.facebook.com/prof.gutenbergbarroso" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
-            >
-              Gutenberg Barroso
-            </a>
+      <footer className="border-t border-slate-700/50 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-sm sm:flex-row">
+          <span className="text-slate-400">© {new Date().getFullYear()} SIGESC - Sistema de Gestão Escolar</span>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Clock size={15} />
+            <span>Guia do Diário AEE</span>
           </div>
         </div>
       </footer>
