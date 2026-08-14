@@ -266,11 +266,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
 
         from utils.student_demographics import audit_race_community_record
 
-        base_filter = {}
-        if current_user.get('role') != 'super_admin':
-            tenant_id = current_user.get('mantenedora_id')
-            if tenant_id:
-                base_filter['mantenedora_id'] = tenant_id
+        # Usa o helper canônico de multi-tenancy: super_admin respeita
+        # escopo ativo e demais perfis operam em modo fail-closed.
+        base_filter = apply_tenant_filter({}, current_user, request)
 
         color_counts = {}
         community_counts = {}
