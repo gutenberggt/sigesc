@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+from pydantic import ValidationError
 
 from mig.cmde.external_ids import COLLECTION as EXTERNAL_IDS_COLLECTION
 from mig.cmde.preview import (
@@ -174,13 +175,8 @@ def build_db(*, students=None, enrollments=None, external_ids=None):
 
 
 def test_preview_ready_page_builds_exact_candidate_and_batch_payload_without_writes():
-    db = build_db(
-        enrollments=[base_enrollment(legacy_sgp_id="999999")],
-        external_ids=[
-            external_id_doc("student", "student-1", "123456"),
-            external_id_doc("enrollment", "enrollment-1", "987654"),
-        ],
-    )
+    # O valor legado não é SSoT. Sem vínculo B.5, o registro continua candidato a create.
+    db = build_db(enrollments=[base_enrollment(legacy_sgp_id="999999")])
     service = CmdeOperationalPreviewService(db)
 
     report = run(
@@ -204,9 +200,8 @@ def test_preview_ready_page_builds_exact_candidate_and_batch_payload_without_wri
 
     record = report.records[0]
     assert record.ready is True
-    assert record.external_ids.student_external_id == "123456"
-    # B.5 é SSoT: o legado 999999 não pode vencer o vínculo MIG 987654.
-    assert record.external_ids.enrollment_external_id == "987654"
+    assert record.external_ids.student_external_id is None
+    assert record.external_ids.enrollment_external_id is None
     assert record.candidate_payload_record == report.page_payload["estudantes"][0]
 
     payload = record.candidate_payload_record
@@ -220,6 +215,37 @@ def test_preview_ready_page_builds_exact_candidate_and_batch_payload_without_wri
     assert "enrollment_id" not in payload
     assert "id_sgp_estudante" not in payload
     assert "id_sgp_matricula" not in payload
+    assert db.total_write_attempts() == 0
+
+
+def test_b5_external_identity_blocks_new_registration_and_overrides_legacy_source():
+    db = build_db(
+        enrollments=[base_enrollment(legacy_sgp_id="999999")],
+        external_ids=[
+            external_id_doc("student", "student-1", "123456"),
+            external_id_doc("enrollment", "enrollment-1", "987654"),
+        ],
+    )
+    service = CmdeOperationalPreviewService(db)
+
+    report = run(
+        service.build(
+            CmdeStudentPreviewRequestDTO(),
+            context={"tenant": "tenant-a"},
+        )
+    )
+
+    assert report.ready_records == 0
+    assert report.blocked_records == 1
+    assert report.page_ready is False
+    assert report.page_payload is None
+    assert report.blocker_counts["external_identity_already_exists"] == 1
+
+    record = report.records[0]
+    assert record.external_ids.student_external_id == "123456"
+    assert record.external_ids.enrollment_external_id == "987654"
+    assert record.candidate_payload_record is None
+    assert any(issue.code == "external_identity_already_exists" for issue in record.issues)
     assert db.total_write_attempts() == 0
 
 
@@ -311,7 +337,7 @@ def test_preview_rejects_tenant_override_that_diverges_from_authenticated_scope(
 
 
 def test_dry_run_false_is_rejected_by_request_contract():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         CmdeStudentPreviewRequestDTO(dry_run=False)
 
 
