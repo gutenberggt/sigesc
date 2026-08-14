@@ -1,6 +1,5 @@
 """Testes da Fase C1 — Ficha de Saúde do Estudante."""
 import importlib.util
-import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -16,12 +15,14 @@ from audit_service import AuditService
 from utils.student_health import changed_health_fields, normalize_health_payload
 
 # Carrega somente o arquivo do router em teste, sem executar routers/__init__.py.
+_MODULE_NAME = "student_health_router_under_test"
 _SPEC = importlib.util.spec_from_file_location(
-    "student_health_router_under_test",
+    _MODULE_NAME,
     BACKEND_DIR / "routers" / "student_health.py",
 )
-_MODULE = importlib.util.module_from_spec(_SPEC)
 assert _SPEC and _SPEC.loader
+_MODULE = importlib.util.module_from_spec(_SPEC)
+sys.modules[_MODULE_NAME] = _MODULE
 _SPEC.loader.exec_module(_MODULE)
 StudentHealthPayload = _MODULE.StudentHealthPayload
 setup_student_health_router = _MODULE.setup_student_health_router
