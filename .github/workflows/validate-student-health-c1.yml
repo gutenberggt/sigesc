@@ -19,10 +19,131 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply controlled patch
+      - name: Apply deterministic integration edits
+        shell: bash
         run: |
-          git apply --check .github/patches/student-health-c1.patch
-          git apply .github/patches/student-health-c1.patch
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_str, old, new, label):
+              path = Path(path_str)
+              text = path.read_text(encoding='utf-8')
+              if new in text:
+                  print(f'[ok] {label}: already applied')
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected exactly 1 match, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+              print(f'[ok] {label}')
+
+          replace_once(
+              'backend/server.py',
+              'from routers.medical_certificates import setup_medical_certificates_router\n',
+              'from routers.medical_certificates import setup_medical_certificates_router\n'
+              'from routers.student_health import setup_student_health_router, ensure_student_health_indexes\n',
+              'server import',
+          )
+          replace_once(
+              'backend/server.py',
+              '        from startup.indexes import create_all_indexes\n        await create_all_indexes(db)\n',
+              '        from startup.indexes import create_all_indexes\n        await create_all_indexes(db)\n'
+              '        await ensure_student_health_indexes(db)\n',
+              'main db indexes',
+          )
+          replace_once(
+              'backend/server.py',
+              '        await sandbox_service.initialize(client)\n',
+              '        await sandbox_service.initialize(client)\n        await ensure_student_health_indexes(sandbox_db)\n',
+              'sandbox indexes',
+          )
+          replace_once(
+              'backend/server.py',
+              'medical_certificates_router = setup_medical_certificates_router(db, AuthMiddleware)\n',
+              'medical_certificates_router = setup_medical_certificates_router(db, AuthMiddleware)\n'
+              'student_health_router = setup_student_health_router(db, AuthMiddleware, audit_service, sandbox_db)\n',
+              'router setup',
+          )
+          replace_once(
+              'backend/server.py',
+              'app.include_router(medical_certificates_router, prefix="/api")\n',
+              'app.include_router(medical_certificates_router, prefix="/api")\n'
+              'app.include_router(student_health_router, prefix="/api")\n',
+              'router include',
+          )
+
+          replace_once(
+              'backend/audit_service.py',
+              "    'students': {'severity': 'warning', 'category': 'administrative'},\n",
+              "    'students': {'severity': 'warning', 'category': 'administrative'},\n"
+              "    'student_health_profiles': {'severity': 'critical', 'category': 'health'},\n",
+              'audit collection',
+          )
+          replace_once(
+              'backend/audit_service.py',
+              "    'reject': 'rejeitou',\n",
+              "    'reject': 'rejeitou',\n    'access': 'acessou',\n",
+              'audit access action',
+          )
+          replace_once(
+              'backend/audit_service.py',
+              "    'students': 'aluno',\n",
+              "    'students': 'aluno',\n    'student_health_profiles': 'ficha de saúde do aluno',\n",
+              'audit collection label',
+          )
+          replace_once(
+              'backend/audit_service.py',
+              "        action: Literal['create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'approve', 'reject'],\n",
+              "        action: Literal['create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'approve', 'reject', 'access'],\n",
+              'audit action type',
+          )
+          replace_once(
+              'backend/audit_service.py',
+              "        sensitive_fields = {'password', 'password_hash', 'token', 'access_token', 'refresh_token', 'secret'}\n",
+              "        sensitive_fields = {\n"
+              "            'password', 'password_hash', 'token', 'access_token', 'refresh_token', 'secret',\n"
+              "            'blood_type', 'has_allergies', 'allergies_description',\n"
+              "            'has_comorbidities', 'comorbidities_description',\n"
+              "            'uses_continuous_medication', 'continuous_medication_description',\n"
+              "            'continuous_medication_instructions', 'individualized_nutritional_need',\n"
+              "            'nutritional_need_details', 'health_notes',\n"
+              "        }\n",
+              'audit redaction',
+          )
+
+          api_marker = '// ============= ATESTADOS MÉDICOS =============\n'
+          health_api = '''// ============= FICHA DE SAÚDE DO ESTUDANTE =============\nexport const studentHealthAPI = {\n  getByStudent: async (studentId) => {\n    const response = await axios.get(`${API}/student-health/student/${studentId}`);\n    return response.data;\n  },\n  save: async (studentId, data) => {\n    const response = await axios.put(`${API}/student-health/student/${studentId}`, data);\n    return response.data;\n  },\n};\n\n'''
+          replace_once(
+              'frontend/src/services/api.js',
+              api_marker,
+              health_api + api_marker,
+              'frontend api',
+          )
+
+          replace_once(
+              'frontend/src/pages/StudentsComplete.js',
+              "import { StudentDependencySection } from '@/components/StudentDependencySection';\n",
+              "import { StudentDependencySection } from '@/components/StudentDependencySection';\n"
+              "import { StudentHealthSection } from '@/components/students/StudentHealthSection';\n",
+              'students import',
+          )
+          health_section = '''      <StudentHealthSection\n        studentId={editingStudent?.id}\n        studentName={editingStudent?.full_name || formData.full_name}\n        viewMode={viewMode}\n      />\n\n'''
+          replace_once(
+              'frontend/src/pages/StudentsComplete.js',
+              '      {/* Seção de Atestados Médicos */}\n',
+              health_section + '      {/* Seção de Atestados Médicos */}\n',
+              'students health section',
+          )
+
+          replace_once(
+              'memory/audit/SGP_STUDENT_CANONICAL_MAPPING.md',
+              '### 4.2 StudentHealthProfile\n\nDados de saúde não entram no `StudentBase` genérico nem nas listagens comuns.\n',
+              '### 4.2 StudentHealthProfile\n\n'
+              '**Fase C1:** implementação em coleção própria `student_health_profiles`, com acesso restrito, auditoria de leitura/escrita sem conteúdo clínico e exclusão de listagens/exports genéricos.\n\n'
+              'Dados de saúde não entram no `StudentBase` genérico nem nas listagens comuns.\n',
+              'canonical mapping',
+          )
+          PY
           git diff --check
 
       - name: Setup Python
