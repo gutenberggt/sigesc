@@ -44,15 +44,18 @@ def _same_or_blank(current: object, expected: object) -> bool:
 
 
 def _structured_address(student: dict) -> dict | None:
-    """Normaliza endereço vazio e rejeita formatos legados não estruturados.
+    """Retorna um endereço estruturado ou sinaliza formato legado inseguro.
 
-    Endereços ausentes ou valores vazios continuam equivalentes a um objeto vazio,
-    preservando o comportamento anterior. Strings/listas/objetos não vazios são
-    considerados legados e não são interpretados automaticamente.
+    Se o campo ainda não existe, um objeto vazio é seguro porque o MongoDB pode
+    criar o subdocumento via ``$set`` pontuado. Se ``address`` já existe, apenas
+    ``dict`` é aceito: ``None``, strings, listas e outros formatos legados são
+    ignorados para evitar interpretação automática e falha de escrita em campo pai
+    não estruturado.
     """
-    address = student.get('address')
-    if not address:
+    if 'address' not in student:
         return {}
+
+    address = student.get('address')
     if isinstance(address, dict):
         return address
     return None
