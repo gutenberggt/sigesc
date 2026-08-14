@@ -1290,6 +1290,7 @@ class GuardianBase(BaseModel):
     # Contato
     phone: Optional[str] = None
     cell_phone: Optional[str] = None
+    secondary_cell_phone: Optional[str] = None
     email: Optional[str] = None
     
     # Endereço
@@ -1309,6 +1310,7 @@ class GuardianBase(BaseModel):
     # Vínculo
     relationship: Literal['pai', 'mae', 'avo', 'tio', 'irmao', 'responsavel', 'outro'] = 'responsavel'
     student_ids: List[str] = []
+    primary_student_ids: List[str] = []  # Subconjunto de student_ids: vínculo legal principal
     user_id: Optional[str] = None  # Se o responsável tem acesso ao portal
     
     # Status
@@ -1319,7 +1321,32 @@ class GuardianCreate(GuardianBase):
     pass
 
 class GuardianUpdate(BaseModel):
+    # Todos os campos editáveis de GuardianBase precisam ser aceitos no PATCH/PUT.
+    # Antes, apenas full_name persistia apesar de a UI permitir editar os demais.
     full_name: Optional[str] = None
+    cpf: Optional[str] = None
+    rg: Optional[str] = None
+    birth_date: Optional[str] = None
+    phone: Optional[str] = None
+    cell_phone: Optional[str] = None
+    secondary_cell_phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    address_number: Optional[str] = None
+    address_complement: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    occupation: Optional[str] = None
+    workplace: Optional[str] = None
+    work_phone: Optional[str] = None
+    relationship: Optional[Literal['pai', 'mae', 'avo', 'tio', 'irmao', 'responsavel', 'outro']] = None
+    student_ids: Optional[List[str]] = None
+    primary_student_ids: Optional[List[str]] = None
+    user_id: Optional[str] = None
+    status: Optional[Literal['active', 'inactive']] = None
+    observations: Optional[str] = None
 
 
 # ============= AEE (ATENDIMENTO EDUCACIONAL ESPECIALIZADO) MODELS =============

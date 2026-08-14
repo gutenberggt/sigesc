@@ -31,6 +31,7 @@ const initialFormData = {
   birth_date: '',
   phone: '',
   cell_phone: '',
+  secondary_cell_phone: '',
   email: '',
   address: '',
   address_number: '',
@@ -44,6 +45,7 @@ const initialFormData = {
   work_phone: '',
   relationship: 'responsavel',
   student_ids: [],
+  primary_student_ids: [],
   user_id: null,
   status: 'active',
   observations: ''
@@ -164,11 +166,30 @@ export const Guardians = () => {
   const handleStudentToggle = (studentId) => {
     setFormData(prev => {
       const currentIds = prev.student_ids || [];
+      const currentPrimaryIds = prev.primary_student_ids || [];
       if (currentIds.includes(studentId)) {
-        return { ...prev, student_ids: currentIds.filter(id => id !== studentId) };
-      } else {
-        return { ...prev, student_ids: [...currentIds, studentId] };
+        return {
+          ...prev,
+          student_ids: currentIds.filter(id => id !== studentId),
+          primary_student_ids: currentPrimaryIds.filter(id => id !== studentId)
+        };
       }
+      return { ...prev, student_ids: [...currentIds, studentId] };
+    });
+  };
+
+  const handlePrimaryStudentToggle = (studentId, checked) => {
+    setFormData(prev => {
+      const linked = prev.student_ids || [];
+      const primary = prev.primary_student_ids || [];
+      if (checked) {
+        return {
+          ...prev,
+          student_ids: linked.includes(studentId) ? linked : [...linked, studentId],
+          primary_student_ids: primary.includes(studentId) ? primary : [...primary, studentId]
+        };
+      }
+      return { ...prev, primary_student_ids: primary.filter(id => id !== studentId) };
     });
   };
 
@@ -270,7 +291,7 @@ export const Guardians = () => {
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-6">Contato</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Telefone Fixo</label>
           <input
@@ -289,6 +310,18 @@ export const Guardians = () => {
             type="text"
             value={formatPhone(formData.cell_phone || '')}
             onChange={(e) => updateFormData('cell_phone', e.target.value.replace(/\D/g, '').slice(0, 11))}
+            disabled={viewMode}
+            maxLength={14}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            placeholder="(00)00000-0000"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Celular 2</label>
+          <input
+            type="text"
+            value={formatPhone(formData.secondary_cell_phone || '')}
+            onChange={(e) => updateFormData('secondary_cell_phone', e.target.value.replace(/\D/g, '').slice(0, 11))}
             disabled={viewMode}
             maxLength={14}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
@@ -448,34 +481,48 @@ export const Guardians = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-          {students.map(student => (
-            <label
-              key={student.id}
-              className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                formData.student_ids?.includes(student.id)
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              } ${viewMode ? 'cursor-default' : ''}`}
-            >
-              <input
-                type="checkbox"
-                checked={formData.student_ids?.includes(student.id) || false}
-                onChange={() => !viewMode && handleStudentToggle(student.id)}
-                disabled={viewMode}
-                className="h-4 w-4 text-blue-600 rounded mr-3"
-              />
-              <div>
-                <p className="font-medium text-gray-900">{student.full_name || 'Sem nome'}</p>
-                <p className="text-xs text-gray-500">Matrícula: {student.enrollment_number}</p>
+          {students.map(student => {
+            const isLinked = formData.student_ids?.includes(student.id) || false;
+            const isPrimary = formData.primary_student_ids?.includes(student.id) || false;
+            return (
+              <div
+                key={student.id}
+                className={`p-3 border rounded-lg transition-colors ${
+                  isLinked ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                }`}
+              >
+                <label className={`flex items-center ${viewMode ? 'cursor-default' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    checked={isLinked}
+                    onChange={() => !viewMode && handleStudentToggle(student.id)}
+                    disabled={viewMode}
+                    className="h-4 w-4 text-blue-600 rounded mr-3"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">{student.full_name || 'Sem nome'}</p>
+                    <p className="text-xs text-gray-500">Matrícula: {student.enrollment_number}</p>
+                  </div>
+                </label>
+                <label className={`mt-3 flex items-center gap-2 text-xs ${isLinked ? 'text-gray-700' : 'text-gray-400'} ${viewMode || !isLinked ? 'cursor-default' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    checked={isPrimary}
+                    onChange={(e) => handlePrimaryStudentToggle(student.id, e.target.checked)}
+                    disabled={viewMode || !isLinked}
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+                  Responsável legal principal deste estudante
+                </label>
               </div>
-            </label>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
         <p className="text-sm text-gray-700">
-          <strong>Total selecionado:</strong> {formData.student_ids?.length || 0} aluno(s)
+          <strong>Total selecionado:</strong> {formData.student_ids?.length || 0} aluno(s) · <strong>Principal para:</strong> {formData.primary_student_ids?.length || 0}
         </p>
       </div>
     </div>
