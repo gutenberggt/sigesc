@@ -7,6 +7,7 @@ Contratos dos 5 endpoints originais preservados. Sprint 001 adiciona endpoints o
 (métricas/auditoria/flags) sem alterar os existentes.
 """
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import ValidationError
 from typing import Optional
 import logging
 
@@ -14,6 +15,7 @@ from auth_middleware import AuthMiddleware
 from tenant_scope import get_mantenedora_scope
 from mig.cmde.service import CmdeService
 from mig.cmde.dtos import FrequencyBatchRequestDTO
+from mig.cmde.preview import CmdeOperationalPreviewService, CmdeStudentPreviewRequestDTO
 from mig.core.exceptions import MigError
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,7 @@ router = APIRouter(tags=["MEC Integration"])
 
 def setup_router(db, **kwargs):
     service = CmdeService(db)
+    preview_service = CmdeOperationalPreviewService(db)
 
     async def _guard(request: Request) -> dict:
         """Valida permissão e retorna contexto {actor, tenant}."""
@@ -59,6 +62,21 @@ def setup_router(db, **kwargs):
     async def get_students_mapping(request: Request, school_id: Optional[str] = None):
         await _guard(request)
         return await service.students_mapping(school_id=school_id)
+
+    # ---------- Preview operacional Student + Enrollment (Fase B.6) ----------
+    @router.post("/mec/students/preview")
+    async def students_preview(request: Request):
+        ctx = await _guard(request)
+        body = await request.json()
+        try:
+            req = CmdeStudentPreviewRequestDTO.model_validate(body or {})
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors())
+        try:
+            report = await preview_service.build(req, context=ctx)
+            return report.model_dump(mode="json")
+        except MigError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.message)
 
     @router.get("/mec/sync/status")
     async def get_sync_status(request: Request):
