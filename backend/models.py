@@ -934,6 +934,21 @@ class AuthorizedPerson(BaseModel):
     phone: Optional[str] = None
     document: Optional[str] = None  # CPF ou RG
 
+class StudentAddress(BaseModel):
+    """Endereço residencial estruturado do estudante."""
+    zip_code: Optional[str] = None
+    state: Optional[str] = None
+    state_ibge_code: Optional[str] = None
+    city: Optional[str] = None
+    city_ibge_code: Optional[str] = None
+    neighborhood: Optional[str] = None
+    street: Optional[str] = None
+    number: Optional[str] = None
+    complement: Optional[str] = None
+    geographic_location: Optional[str] = None
+    differentiated_location: Optional[str] = None
+
+
 class StudentBase(BaseModel):
     # === IDENTIFICAÇÃO ===
     school_id: Optional[str] = None
@@ -942,8 +957,9 @@ class StudentBase(BaseModel):
     
     # === DADOS PESSOAIS ===
     full_name: Optional[str] = None
+    social_name: Optional[str] = None  # Nome social, distinto do nome civil
     birth_date: Optional[str] = None  # dd/mm/aaaa
-    sex: Optional[Literal['masculino', 'feminino']] = None
+    sex: Optional[Literal['masculino', 'feminino', 'prefere_nao_informar']] = None
     nationality: Optional[str] = 'Brasileira'
     birth_city: Optional[str] = None  # Naturalidade
     birth_state: Optional[str] = None
@@ -951,6 +967,7 @@ class StudentBase(BaseModel):
     comunidade_tradicional: Optional[Literal['nao_pertence', 'quilombola', 'cigano', 'ribeirinho', 'extrativista']] = None
     phone: Optional[str] = None  # Telefone do aluno
     email: Optional[str] = None  # Email do aluno
+    address: Optional[StudentAddress] = None
     
     # === DOCUMENTOS ===
     cpf: Optional[str] = None
@@ -1065,8 +1082,9 @@ class StudentUpdate(BaseModel):
     
     # Dados pessoais
     full_name: Optional[str] = None
+    social_name: Optional[str] = None  # Nome social, distinto do nome civil
     birth_date: Optional[str] = None
-    sex: Optional[Literal['masculino', 'feminino']] = None
+    sex: Optional[Literal['masculino', 'feminino', 'prefere_nao_informar']] = None
     nationality: Optional[str] = None
     birth_city: Optional[str] = None
     birth_state: Optional[str] = None
@@ -1074,6 +1092,7 @@ class StudentUpdate(BaseModel):
     comunidade_tradicional: Optional[Literal['nao_pertence', 'quilombola', 'cigano', 'ribeirinho', 'extrativista']] = None
     phone: Optional[str] = None  # Telefone do aluno
     email: Optional[str] = None  # Email do aluno
+    address: Optional[StudentAddress] = None
     
     # Documentos
     cpf: Optional[str] = None
@@ -1271,6 +1290,7 @@ class GuardianBase(BaseModel):
     # Contato
     phone: Optional[str] = None
     cell_phone: Optional[str] = None
+    secondary_cell_phone: Optional[str] = None
     email: Optional[str] = None
     
     # Endereço
@@ -1290,6 +1310,7 @@ class GuardianBase(BaseModel):
     # Vínculo
     relationship: Literal['pai', 'mae', 'avo', 'tio', 'irmao', 'responsavel', 'outro'] = 'responsavel'
     student_ids: List[str] = []
+    primary_student_ids: List[str] = []  # Subconjunto de student_ids: vínculo legal principal
     user_id: Optional[str] = None  # Se o responsável tem acesso ao portal
     
     # Status
@@ -1300,7 +1321,32 @@ class GuardianCreate(GuardianBase):
     pass
 
 class GuardianUpdate(BaseModel):
+    # Todos os campos editáveis de GuardianBase precisam ser aceitos no PATCH/PUT.
+    # Antes, apenas full_name persistia apesar de a UI permitir editar os demais.
     full_name: Optional[str] = None
+    cpf: Optional[str] = None
+    rg: Optional[str] = None
+    birth_date: Optional[str] = None
+    phone: Optional[str] = None
+    cell_phone: Optional[str] = None
+    secondary_cell_phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    address_number: Optional[str] = None
+    address_complement: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    occupation: Optional[str] = None
+    workplace: Optional[str] = None
+    work_phone: Optional[str] = None
+    relationship: Optional[Literal['pai', 'mae', 'avo', 'tio', 'irmao', 'responsavel', 'outro']] = None
+    student_ids: Optional[List[str]] = None
+    primary_student_ids: Optional[List[str]] = None
+    user_id: Optional[str] = None
+    status: Optional[Literal['active', 'inactive']] = None
+    observations: Optional[str] = None
 
 
 # ============= AEE (ATENDIMENTO EDUCACIONAL ESPECIALIZADO) MODELS =============
@@ -1684,6 +1730,10 @@ class EnrollmentBase(BaseModel):
     academic_year: int
     enrollment_date: Optional[str] = None
     enrollment_number: Optional[str] = None  # Número da matrícula
+    enrollment_end_date: Optional[str] = None
+    high_school_eja_completion_date: Optional[str] = None
+    needs_pedagogical_support: Optional[bool] = None
+    sgp_enrollment_id: Optional[str] = None  # ID externo; nunca substitui Enrollment.id
     
     # Série do aluno (para turmas multisseriadas - ex: "1º Ano", "2º Ano")
     student_series: Optional[str] = None
@@ -1712,6 +1762,10 @@ class EnrollmentUpdate(BaseModel):
     course_ids: Optional[List[str]] = None
     enrollment_date: Optional[str] = None
     enrollment_number: Optional[str] = None
+    enrollment_end_date: Optional[str] = None
+    high_school_eja_completion_date: Optional[str] = None
+    needs_pedagogical_support: Optional[bool] = None
+    sgp_enrollment_id: Optional[str] = None  # ID externo; nunca substitui Enrollment.id
     student_series: Optional[str] = None
     status: Optional[Literal['active', 'completed', 'cancelled', 'transferred', 'relocated', 'progressed', 'dropout']] = None
     observations: Optional[str] = None
@@ -2289,6 +2343,8 @@ class MantenedoraBase(BaseModel):
     bairro: Optional[str] = None
     municipio: Optional[str] = None
     estado: Optional[str] = None
+    codigo_ibge_uf: Optional[str] = None
+    codigo_ibge_municipio: Optional[str] = None
     
     # Contato
     telefone: Optional[str] = None
@@ -2336,6 +2392,8 @@ class MantenedoraUpdate(BaseModel):
     bairro: Optional[str] = None
     municipio: Optional[str] = None
     estado: Optional[str] = None
+    codigo_ibge_uf: Optional[str] = None
+    codigo_ibge_municipio: Optional[str] = None
     
     telefone: Optional[str] = None
     celular: Optional[str] = None

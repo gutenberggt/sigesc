@@ -31,6 +31,7 @@ import {
   hasCondition,
   toggleCondition,
 } from '@/utils/specialEducation';
+import { EMPTY_STUDENT_ADDRESS, buildStudentAddressDefaultsFromMantenedora, ibgeCodesFromViaCep, updateStudentAddressField } from '@/utils/ibgeAddress';
 
 // Estados brasileiros
 const STATES = [
@@ -47,6 +48,13 @@ const BENEFITS_OPTIONS = [
   'Outros'
 ];
 
+const LEGACY_RACE_LABELS = {
+  cigano: 'Cigano',
+  quilombola: 'Quilombola',
+  ribeirinho: 'Ribeirinho',
+  extrativista: 'Extrativista',
+};
+
 const initialFormData = {
   // Identificação
   school_id: '',
@@ -58,6 +66,7 @@ const initialFormData = {
   
   // Dados Pessoais
   full_name: '',
+  social_name: '',
   phone: '',
   email: '',
   birth_date: '',
@@ -67,6 +76,7 @@ const initialFormData = {
   birth_state: '',
   color_race: '',
   comunidade_tradicional: 'nao_pertence',
+  address: { ...EMPTY_STUDENT_ADDRESS },
   
   // Documentos
   cpf: '',
@@ -141,6 +151,14 @@ const initialFormData = {
   observations: '',
   status: 'active',
   enrollment_date: ''
+};
+
+const initialEnrollmentMetadata = {
+  id: '',
+  class_id: '',
+  enrollment_end_date: '',
+  high_school_eja_completion_date: '',
+  needs_pedagogical_support: '',
 };
 
 // Função para calcular a idade a partir da data de nascimento
@@ -289,6 +307,7 @@ export function StudentsComplete() {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
+  const [enrollmentMetadata, setEnrollmentMetadata] = useState(initialEnrollmentMetadata);
   // Controle da aba ativa do formulário (para navegar até campos obrigatórios faltantes)
   const [formTabIndex, setFormTabIndex] = useState(0);
   // Pop-up de campos obrigatórios ausentes ({ items: [{tab, label}] } | null)
@@ -596,15 +615,64 @@ export function StudentsComplete() {
     showAlert('error', message, true);
   };
 
+  const loadCurrentEnrollmentMetadata = async (student) => {
+    if (!student?.id) {
+      setEnrollmentMetadata(initialEnrollmentMetadata);
+      return;
+    }
+    try {
+      const result = await enrollmentsAPI.getAll(student.id, student.class_id || null);
+      const enrollments = Array.isArray(result) ? result : (result?.items || []);
+      const current = enrollments.find(e => e.class_id === student.class_id && e.status === 'active')
+        || enrollments.find(e => e.class_id === student.class_id)
+        || enrollments.find(e => e.status === 'active')
+        || null;
+      setEnrollmentMetadata(current ? {
+        id: current.id || '',
+        class_id: current.class_id || '',
+        enrollment_end_date: current.enrollment_end_date || '',
+        high_school_eja_completion_date: current.high_school_eja_completion_date || '',
+        needs_pedagogical_support: current.needs_pedagogical_support === true
+          ? true
+          : current.needs_pedagogical_support === false ? false : '',
+      } : initialEnrollmentMetadata);
+    } catch (error) {
+      console.warn('Não foi possível carregar metadados da matrícula:', error);
+      setEnrollmentMetadata(initialEnrollmentMetadata);
+    }
+  };
+
+  const persistCurrentEnrollmentMetadata = async (student) => {
+    if (!student?.id || !student?.class_id) return;
+    let enrollmentId = enrollmentMetadata.class_id === student.class_id ? enrollmentMetadata.id : '';
+    if (!enrollmentId) {
+      const result = await enrollmentsAPI.getAll(student.id, student.class_id);
+      const enrollments = Array.isArray(result) ? result : (result?.items || []);
+      const current = enrollments.find(e => e.class_id === student.class_id && e.status === 'active')
+        || enrollments.find(e => e.class_id === student.class_id);
+      enrollmentId = current?.id || '';
+    }
+    if (!enrollmentId) return;
+    await enrollmentsAPI.update(enrollmentId, {
+      enrollment_end_date: enrollmentMetadata.enrollment_end_date || null,
+      high_school_eja_completion_date: enrollmentMetadata.high_school_eja_completion_date || null,
+      needs_pedagogical_support: enrollmentMetadata.needs_pedagogical_support === ''
+        ? null
+        : enrollmentMetadata.needs_pedagogical_support,
+    });
+  };
+
   const handleCreate = () => {
     setEditingStudent(null);
     setViewMode(false);
+    setEnrollmentMetadata(initialEnrollmentMetadata);
     setFormData({
       ...initialFormData,
       school_id: schools.length > 0 ? schools[0].id : '',
       // Matrícula NÃO é gerada no frontend. O backend é a fonte ÚNICA atômica
       // (utils/enrollment.py) e atribui a matrícula ao matricular o aluno.
-      enrollment_number: ''
+      enrollment_number: '',
+      address: buildStudentAddressDefaultsFromMantenedora(mantenedoraConfig)
     });
     setFormTabIndex(0);
     setIsModalOpen(true);
@@ -629,6 +697,7 @@ export function StudentsComplete() {
       }
     });
     setFormData(mergedData);
+    await loadCurrentEnrollmentMetadata(freshStudent);
     setFormTabIndex(0);
     setIsModalOpen(true);
     
@@ -672,6 +741,7 @@ export function StudentsComplete() {
       }));
     }
     setFormData(mergedData);
+    await loadCurrentEnrollmentMetadata(freshStudent);
     setFormTabIndex(0);
     setIsModalOpen(true);
     
@@ -1302,10 +1372,12 @@ export function StudentsComplete() {
 
     try {
       if (editingStudent) {
-        await studentsAPI.update(editingStudent.id, cleanData);
+        const updatedStudent = await studentsAPI.update(editingStudent.id, cleanData);
+        await persistCurrentEnrollmentMetadata(updatedStudent || { ...editingStudent, ...cleanData });
         showAlert('success', 'Aluno atualizado com sucesso');
       } else {
-        await studentsAPI.create(cleanData);
+        const createdStudent = await studentsAPI.create(cleanData);
+        await persistCurrentEnrollmentMetadata(createdStudent);
         showAlert('success', 'Aluno cadastrado com sucesso');
       }
       setIsModalOpen(false);
@@ -1338,6 +1410,32 @@ export function StudentsComplete() {
 
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateAddressData = (field, value) => {
+    setFormData(prev => ({ ...prev, address: updateStudentAddressField(prev.address, field, value) }));
+  };
+
+  const handleStudentAddressCEPBlur = async () => {
+    const cep = String(formData.address?.zip_code || '').replace(/\D/g, '');
+    if (cep.length !== 8) return;
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      if (data.erro) return;
+      const { cityIbgeCode, stateIbgeCode } = ibgeCodesFromViaCep(data);
+      setFormData(prev => ({ ...prev, address: {
+        ...EMPTY_STUDENT_ADDRESS, ...(prev.address || {}), zip_code: cep,
+        street: data.logradouro || prev.address?.street || '',
+        neighborhood: data.bairro || prev.address?.neighborhood || '',
+        city: data.localidade || prev.address?.city || '',
+        state: data.uf || prev.address?.state || '',
+        state_ibge_code: stateIbgeCode || prev.address?.state_ibge_code || '',
+        city_ibge_code: cityIbgeCode || prev.address?.city_ibge_code || ''
+      }}));
+    } catch (error) {
+      console.error('Erro ao buscar CEP do estudante:', error);
+    }
   };
 
   // Função para validar CPF e verificar duplicidade
@@ -1794,6 +1892,18 @@ export function StudentsComplete() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Social</label>
+            <input
+              type="text"
+              value={formData.social_name || ''}
+              onChange={(e) => updateFormData('social_name', e.target.value)}
+              disabled={viewMode}
+              placeholder="Preencha quando houver solicitação de uso do nome social"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+            <p className="text-xs text-gray-500 mt-1">O nome civil permanece preservado no cadastro.</p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Phone size={14} className="inline mr-1" />
@@ -1872,6 +1982,7 @@ export function StudentsComplete() {
             <option value="">Selecione</option>
             <option value="masculino">Masculino</option>
             <option value="feminino">Feminino</option>
+            <option value="prefere_nao_informar">Prefere não informar</option>
           </select>
         </div>
         <div>
@@ -1898,12 +2009,18 @@ export function StudentsComplete() {
             <option value="parda">Parda</option>
             <option value="amarela">Amarela</option>
             <option value="indigena">Indígena</option>
-            <option value="cigano">Cigano</option>
-            <option value="quilombola">Quilombola</option>
-            <option value="ribeirinho">Ribeirinho</option>
-            <option value="extrativista">Extrativista</option>
             <option value="nao_declarada">Não Declarada</option>
+            {LEGACY_RACE_LABELS[formData.color_race] && (
+              <option value={formData.color_race} disabled>
+                Legado: {LEGACY_RACE_LABELS[formData.color_race]} — revisar
+              </option>
+            )}
           </select>
+          {LEGACY_RACE_LABELS[formData.color_race] && (
+            <p className="text-xs text-amber-700 mt-1">
+              Este valor pertence a Comunidade Tradicional, não a Cor/Raça. Selecione a raça/cor correta e confira o campo ao lado.
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Comunidade Tradicional *</label>
@@ -1945,6 +2062,20 @@ export function StudentsComplete() {
             ))}
           </select>
         </div>
+      </div>
+
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-6">Endereço do Estudante</h3>
+      <p className="text-xs text-gray-500 -mt-3">Em novos cadastros, CEP, Município, UF e códigos IBGE são pré-preenchidos pela Unidade Mantenedora e permanecem editáveis.</p>
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">CEP</label><input type="text" value={formatCEP(formData.address?.zip_code || '')} onChange={(e) => updateAddressData('zip_code', e.target.value)} onBlur={handleStudentAddressCEPBlur} disabled={viewMode} maxLength={9} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div className="md:col-span-3"><label className="block text-sm font-medium text-gray-700 mb-1">Logradouro</label><input type="text" value={formData.address?.street || ''} onChange={(e) => updateAddressData('street', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Número</label><input type="text" value={formData.address?.number || ''} onChange={(e) => updateAddressData('number', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label><input type="text" value={formData.address?.complement || ''} onChange={(e) => updateAddressData('complement', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label><input type="text" value={formData.address?.neighborhood || ''} onChange={(e) => updateAddressData('neighborhood', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Município</label><input type="text" value={formData.address?.city || ''} onChange={(e) => updateAddressData('city', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">UF</label><select value={formData.address?.state || ''} onChange={(e) => updateAddressData('state', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"><option value="">UF</option>{STATES.map(state => (<option key={state} value={state}>{state}</option>))}</select></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE da UF</label><input type="text" inputMode="numeric" maxLength={2} value={formData.address?.state_ibge_code || ''} onChange={(e) => updateAddressData('state_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Código IBGE do Município</label><input type="text" inputMode="numeric" maxLength={7} value={formData.address?.city_ibge_code || ''} onChange={(e) => updateAddressData('city_ibge_code', e.target.value)} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" /></div>
       </div>
     </div>
   );
@@ -3302,6 +3433,29 @@ export function StudentsComplete() {
         </div>
         </div>
       )}
+
+      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Dados Complementares da Matrícula</h3>
+        <p className="text-xs text-gray-600 mb-4">Estes dados pertencem à matrícula vigente e são mantidos separadamente do cadastro permanente do estudante.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data final da matrícula</label>
+            <input type="date" value={enrollmentMetadata.enrollment_end_date || ''} onChange={(e) => setEnrollmentMetadata(prev => ({ ...prev, enrollment_end_date: e.target.value }))} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Conclusão do Ensino Médio/EJA</label>
+            <input type="date" value={enrollmentMetadata.high_school_eja_completion_date || ''} onChange={(e) => setEnrollmentMetadata(prev => ({ ...prev, high_school_eja_completion_date: e.target.value }))} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Necessidade de apoio pedagógico</label>
+            <select value={enrollmentMetadata.needs_pedagogical_support === '' ? '' : String(enrollmentMetadata.needs_pedagogical_support)} onChange={(e) => setEnrollmentMetadata(prev => ({ ...prev, needs_pedagogical_support: e.target.value === '' ? '' : e.target.value === 'true' }))} disabled={viewMode} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+              <option value="">Não informado</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       {/* Matrícula em Atendimento/Programa. AEE é liberado apenas para o público da Educação Especial. */}
       {formData.has_disability && selectedSpecialConditions.length > 0 && (
