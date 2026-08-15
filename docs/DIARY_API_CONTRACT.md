@@ -3,6 +3,7 @@
 > **Status**: 🔒 Congelado em Fev/2026 — `contract_version: 1`.
 > **Antes de qualquer mudança neste contrato**: bumpar versão, manter compatibilidade ou criar V2 paralelo.
 > **Pré-requisito**: Fase 1 da Dependência de Estudos validada (ver `STUDENT_DEPENDENCY.md`).
+> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 
 ---
 
@@ -153,7 +154,7 @@ Isso permite, futuramente, separar boletim regular vs boletim de dependência **
 // Exemplo de POST /api/attendance/lançar
 {
   "student_id": "stu_2",
-  "dependency_id": "dep_9",  // null se aluno regular
+  "dependency_id": "dep_9",  // null se estudante regular
   "class_id": "cl_1",
   "course_id": "co_1",
   "date": "2026-03-15",

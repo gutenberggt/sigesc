@@ -2,6 +2,7 @@
 
 > **Status**: Fase 1 implementada (Fev/2026). Fases 2-4 no roadmap.
 > Dependência **NÃO** é matrícula simplificada — é entidade acadêmica própria.
+> **Nota editorial (Ago/2026):** nomenclatura institucional padronizada para **Estudante**, sem alteração de modelo, endpoints ou regras.
 
 ---
 

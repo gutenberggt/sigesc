@@ -3,6 +3,7 @@
 > **Status: CONGELADO V1 (Fev/2026).**
 > Documento normativo. Mudanças exigem PR explícito + bump de `contract_version`.
 > Este contrato precede qualquer implementação de movimentação acadêmica.
+> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 
 ```yaml
 contract_version: 1
@@ -219,7 +220,7 @@ Content-Type: application/json
     "reason_code": "AFTER_EFFECTIVE_DATE",
     "event_id": "...",
     "effective_date": "2026-08-15",
-    "message": "Aluno foi movimentado em 15/08/2026. Edição bloqueada."
+    "message": "Estudante foi movimentado em 15/08/2026. Edição bloqueada."
   }
 }
 ```
@@ -232,7 +233,7 @@ insiste em editar registro alheio).
 
 ## 9. Read-model temporal (implementação obrigatória)
 
-Para o estudante tem evento ativo, queries de listagem/diário consultam ambas
+Quando o estudante tem evento ativo, queries de listagem/diário consultam ambas
 as turmas e marcam herança:
 
 ```python
@@ -242,7 +243,7 @@ async def list_diary_items_with_event_lens(
     # 1. Itens canônicos da turma alvo
     items = await load_diary_items(db, class_id=class_id, ...)
 
-    # 2. Eventos ATIVOS do aluno onde target_date está no intervalo herdado
+    # 2. Eventos ATIVOS do estudante onde target_date está no intervalo herdado
     events = await db.academic_events.find({
         "$or": [
             {"origin_class_id": class_id},
@@ -251,7 +252,7 @@ async def list_diary_items_with_event_lens(
         "approval_status": "approved",
     }).to_list(...)
 
-    # 3. Aplica lente: marca _inherited, _locked, etc. por aluno
+    # 3. Aplica lente: marca _inherited, _locked, etc. por estudante
     for item in items:
         ev = next((e for e in events if e["student_id"] == item["student_id"]), None)
         if not ev: continue
