@@ -3,6 +3,7 @@
 > **Status: CONGELADO V1 (Fev/2026).**
 > Documento normativo. Mudanças exigem PR explícito + bump de `contract_version`.
 > Este contrato precede qualquer implementação de movimentação acadêmica.
+> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato. <!-- nomenclature-allow: registro editorial da migração terminológica -->
 
 ```yaml
 contract_version: 1
@@ -13,7 +14,7 @@ status: FROZEN
 
 ## 1. Princípio fundador
 
-> **Movimentações escolares NÃO removem o aluno da turma de origem.**
+> **Movimentações escolares NÃO removem o estudante da turma de origem.**
 
 Toda movimentação acadêmica é evento **temporalmente delimitado** —
 nunca uma "transferência física" de registros entre turmas. O sistema
@@ -36,8 +37,8 @@ preserva:
 |---|---|---|
 | `transfer` | Transferência intra-rede entre escolas/turmas | Sim |
 | `remanejamento` | Mudança de turma na mesma escola | Sim |
-| `reclassificacao` | Aluno avança/regride por avaliação especial | Sim |
-| `progressao_parcial` | Aluno avança com pendências (≠ dependência) | Sim |
+| `reclassificacao` | Estudante avança/regride por avaliação especial | Sim |
+| `progressao_parcial` | Estudante avança com pendências (≠ dependência) | Sim |
 
 Eventos NÃO cobertos nesta V1 (escopo futuro):
 - abandono escolar
@@ -93,7 +94,7 @@ Para todo lançamento (frequência, nota) com `date < effective_date`:
 ### 4.1 Turma de origem
 - ✅ Editável pelo professor de origem (mantém autoria).
 - ✅ Permanece visível no diário da origem.
-- ✅ Continua compondo histórico do aluno.
+- ✅ Continua compondo histórico do estudante.
 - ✅ Compõe fechamento da turma de origem proporcionalmente até `effective_date`.
 
 ### 4.2 Turma de destino
@@ -109,7 +110,7 @@ Para todo lançamento (frequência, nota) com `date < effective_date`:
 - Destino consulta via **read-model temporal**:
   - `db.attendance.find({"student_id": sid, "date": {"$lt": effective_date}, "class_id": {"$in": [origin, destination]}})` retorna registros da origem mas com flag `_inherited=true`.
 - Implementação: middleware/service `academic_event_lens.py` que reescreve
-  queries quando o aluno tem evento ativo.
+  queries quando o estudante tem evento ativo.
 
 ---
 
@@ -118,10 +119,10 @@ Para todo lançamento (frequência, nota) com `date < effective_date`:
 Para todo lançamento (frequência, nota) com `date >= effective_date`:
 
 ### 5.1 Turma de origem
-- 👤 Aluno permanece listado no diário (não some).
-- 🔒 Frequência/notas ficam **bloqueadas** para o aluno.
-- 🏷️ Marcador visual: **"Aluno movimentado em DD/MM/AAAA"**.
-- ❌ Professor origem **não pode editar** registros do aluno após data.
+- 👤 Estudante permanece listado no diário (não some).
+- 🔒 Frequência/notas ficam **bloqueadas** para o estudante.
+- 🏷️ Marcador visual: **"Estudante movimentado em DD/MM/AAAA"**.
+- ❌ Professor origem **não pode editar** registros do estudante após data.
 
 ### 5.2 Turma de destino
 - ✅ Registros são **exclusivos** da destino.
@@ -146,7 +147,7 @@ imutável. Qualquer reescrita de `class_id` em registros existentes é proibida.
 ### 6.3 Proibido reatribuir frequência/notas antigas
 Mesmo após movimentação, registros mantêm `class_id` e `course_id` originais.
 
-### 6.4 Proibido apagar vínculo do aluno com turma de origem
+### 6.4 Proibido apagar vínculo do estudante com turma de origem
 `enrollments` da origem **não vão para `status='cancelled'`** após
 movimentação. Recebem `status='moved_out'` com `moved_out_event_id`
 referenciando o evento.
@@ -219,7 +220,7 @@ Content-Type: application/json
     "reason_code": "AFTER_EFFECTIVE_DATE",
     "event_id": "...",
     "effective_date": "2026-08-15",
-    "message": "Aluno foi movimentado em 15/08/2026. Edição bloqueada."
+    "message": "Estudante foi movimentado em 15/08/2026. Edição bloqueada."
   }
 }
 ```
@@ -232,7 +233,7 @@ insiste em editar registro alheio).
 
 ## 9. Read-model temporal (implementação obrigatória)
 
-Para o aluno tem evento ativo, queries de listagem/diário consultam ambas
+Quando o estudante tem evento ativo, queries de listagem/diário consultam ambas
 as turmas e marcam herança:
 
 ```python
@@ -242,7 +243,7 @@ async def list_diary_items_with_event_lens(
     # 1. Itens canônicos da turma alvo
     items = await load_diary_items(db, class_id=class_id, ...)
 
-    # 2. Eventos ATIVOS do aluno onde target_date está no intervalo herdado
+    # 2. Eventos ATIVOS do estudante onde target_date está no intervalo herdado
     events = await db.academic_events.find({
         "$or": [
             {"origin_class_id": class_id},
@@ -251,7 +252,7 @@ async def list_diary_items_with_event_lens(
         "approval_status": "approved",
     }).to_list(...)
 
-    # 3. Aplica lente: marca _inherited, _locked, etc. por aluno
+    # 3. Aplica lente: marca _inherited, _locked, etc. por estudante
     for item in items:
         ev = next((e for e in events if e["student_id"] == item["student_id"]), None)
         if not ev: continue
@@ -310,13 +311,13 @@ Este contrato **impactará** os seguintes módulos quando implementados:
 | Diário | Lente temporal em `/api/diary/...` filtra registros por evento |
 | Frequência | Bloqueio HTTP 409 + auditoria em escritas após `effective_date` |
 | Notas | Mesmo |
-| Boletim | Snapshot por turma onde o aluno cumpriu cada período |
+| Boletim | Snapshot por turma onde o estudante cumpriu cada período |
 | Histórico Escolar | Campo `class_label_at_issue` é a turma de origem ou destino conforme o período |
 | Ficha Individual | Mesma lógica do boletim |
-| Censo | Aluno aparece na turma de destino a partir de `effective_date` |
+| Censo | Estudante aparece na turma de destino a partir de `effective_date` |
 | Relatórios | Queries pré-`effective_date` retornam dados da origem mesmo se filtrarem por destino |
-| Fechamento anual | Cada turma fecha **seus** períodos; aluno movimentado tem fechamento composto |
-| Dependência | Movimentação durante dependência ativa ⇒ aluno mantém vínculo da dep com escola/turma onde foi reprovado originalmente |
+| Fechamento anual | Cada turma fecha **seus** períodos; estudante movimentado tem fechamento composto |
+| Dependência | Movimentação durante dependência ativa ⇒ estudante mantém vínculo da dep com escola/turma onde foi reprovado originalmente |
 | Reclassificação | Caso especial deste contrato — `effective_date = data_da_avaliacao` |
 | Progressão parcial | Idem |
 | Transferência intra-rede | Idem |
@@ -341,11 +342,11 @@ Este contrato **impactará** os seguintes módulos quando implementados:
 4. Tentativa de editar registro pré-data pelo professor origem → 200 OK.
 5. Tentativa de editar registro pós-data pelo professor origem → 409.
 6. Sync unidirecional: professor origem edita registro pré-data → reflete em destino em ≤1min.
-7. Aluno com 2 movimentações no ano — 3 turmas, 3 períodos.
+7. Estudante com 2 movimentações no ano — 3 turmas, 3 períodos.
 8. Movimentação durante dependência ativa — dep não migra.
 9. Supersedência: substituir evento aprovado por novo → antigo vira `superseded`.
 10. Auditoria: tentativa bloqueada gera registro com `reason_code` correto.
-11. Read-model temporal: query no diário do destino antes de `effective_date` retorna 0 alunos para aquele aluno.
+11. Read-model temporal: query no diário do destino antes de `effective_date` retorna 0 estudantes para aquele estudante.
 12. Read-model temporal: query no diário do destino após `effective_date` retorna registros exclusivos.
 
 ---
@@ -368,7 +369,7 @@ Templates antigos NUNCA são deletados — apenas marcados como
 
 ## 15. Precedência entre eventos concorrentes (Fev/2026)
 
-Eventos múltiplos para o mesmo aluno em janelas sobrepostas devem resolver
+Eventos múltiplos para o mesmo estudante em janelas sobrepostas devem resolver
 para um **único** evento governante via precedência fixa:
 
 ```
@@ -393,7 +394,7 @@ Eventos `pending` ou `superseded` são ignorados pela lens.
 > Movimentações acadêmicas **NÃO removem** rastreabilidade pedagógica histórica.
 
 1. Transferência, remanejamento, reclassificação e progressão parcial NÃO
-   removem o aluno das listagens históricas da turma/componente de origem.
+   removem o estudante das listagens históricas da turma/componente de origem.
 2. Registros anteriores à `effective_date` permanecem visíveis e editáveis
    exclusivamente pelo contexto proprietário definido pela lens temporal.
 3. Registros posteriores à `effective_date` ficam bloqueados no contexto
@@ -408,7 +409,7 @@ Eventos `pending` ou `superseded` são ignorados pela lens.
 ### 16.1 Implicações técnicas
 
 - Campo `visible` no retorno da lens é **sempre** `true` para o contexto
-  proprietário OU herdado. NUNCA usar `visible: false` para "esconder" um aluno.
+  proprietário OU herdado. NUNCA usar `visible: false` para "esconder" um estudante.
 - Frontend NÃO infere lock localmente. Toda decisão vem do backend via lens.
 - Coleção `enrollments` da origem NÃO recebe `status: 'cancelled'` em
   movimentação — recebe `status: 'moved_out'` com `moved_out_event_id`.
@@ -502,7 +503,7 @@ Nunca calcula `effective_date < today` no cliente. Nunca compara datas no JS.
 
 > Regra pátria do domínio acadêmico — ao lado de §16 (Persistência Pedagógica).
 
-1. O aluno movimentado permanece **visível em ambas as estruturas pedagógicas**
+1. O estudante movimentado permanece **visível em ambas as estruturas pedagógicas**
    conforme a lente temporal: nunca some da origem nem aparece como "novo" no destino.
 
 2. A **origem é autora canônica** dos registros anteriores à `effective_date`.
@@ -616,9 +617,9 @@ quando e por quê" em qualquer ponto futuro do tempo. Cobertura via
 > em `routers/closure.py` (somente leitura nesta V1).
 
 ### 21.1 Princípio
-Todo aluno movimentado tem fechamento **composto** — uma sequência de
+Todo estudante movimentado tem fechamento **composto** — uma sequência de
 janelas (`periods`) onde cada turma é dona apenas do intervalo em que
-o aluno lhe pertenceu segundo a lente temporal (§7).
+o estudante lhe pertenceu segundo a lente temporal (§7).
 
 ```
 period = {
@@ -631,7 +632,7 @@ period = {
 ```
 
 ### 21.2 Algoritmo
-1. Coleta TODOS os eventos aprovados, não-superseded do aluno no `academic_year`.
+1. Coleta TODOS os eventos aprovados, não-superseded do estudante no `academic_year`.
 2. Constrói breakpoints = `{year_start, *each effective_date, year_end+1}`.
 3. Para cada segmento `[seg_start, seg_end]`, escolhe governante via
    `pick_governing_event(active_events_at_seg_start)`.
@@ -642,19 +643,19 @@ period = {
 ### 21.3 Atribuição de bimestres
 Bimestre B com `[b.start, b.end]` pertence ao período P se P contém `b.end`
 (data de fechamento do bimestre). Bimestres cuja data final cai fora de
-qualquer período do aluno ficam órfãos (`period_index = None` — caso
-patológico, indica aluno saiu antes do fechamento).
+qualquer período do estudante ficam órfãos (`period_index = None` — caso
+patológico, indica estudante saiu antes do fechamento).
 
 ### 21.4 Endpoints
 | Endpoint | Retorno |
 |---|---|
 | `GET /api/closure/student/{sid}/composite?academic_year=Y` | `{periods, bimesters, is_composite}` |
 | `GET /api/closure/student/{sid}/window?academic_year=Y&class_id=C` | `{class_id, envelope_start, envelope_end, segments}` ou 404 `NO_WINDOW_FOR_CLASS` |
-| `GET /api/closure/class/{cid}/students?academic_year=Y` | lista de `{student_id, envelope_*, segments}` para alunos com janela na turma |
+| `GET /api/closure/class/{cid}/students?academic_year=Y` | lista de `{student_id, envelope_*, segments}` para estudantes com janela na turma |
 | `GET /api/closure/student/{sid}/periods?academic_year=Y` | lista enxuta apenas de períodos |
 
 ### 21.5 Invariantes
-- Períodos cobrem `[year_start, year_end]` SEM gaps (a menos que aluno não tenha matrícula nem evento).
+- Períodos cobrem `[year_start, year_end]` SEM gaps (a menos que estudante não tenha matrícula nem evento).
 - Eventos `pending` ou `superseded` NUNCA aparecem como governantes.
 - Precedência §15 aplicada idêntica à `resolve_student_ownership`.
 - Closure é **read-model derivado** — nunca persiste janelas. Snapshot

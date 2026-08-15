@@ -2,7 +2,7 @@
 
 > **Status**: Diretriz arquitetural **OBRIGATÓRIA** desde Fev/2026.
 > Aplicável a toda nova feature ou refatoração que envolva busca de entidades
-> (alunos, servidores, escolas, turmas, responsáveis, planos AEE etc.).
+> (estudantes, servidores, escolas, turmas, responsáveis, planos AEE etc.).
 
 ---
 
@@ -15,7 +15,7 @@ O frontend apenas dispara queries com debounce/cancelamento e renderiza resultad
 
 ### Por quê?
 
-- Performance: bases de prefeituras grandes podem ter dezenas de milhares de alunos.
+- Performance: bases de prefeituras grandes podem ter dezenas de milhares de estudantes.
 - Memória: mantém o navegador leve, mesmo em dispositivos modestos.
 - LGPD: frontend só recebe o estritamente necessário (CPF mascarado, sem dados sensíveis extras).
 - Multi-tenancy: tenant scope é aplicado **no backend**, fonte de verdade.
@@ -271,7 +271,7 @@ tokens_query = {"$all": [f"^{t}" for t in q.split()]}  # com regex de prefix
 |---|---|---|
 | `AssocialDashboard` | ✅ Migrado (Fev/2026) | Caso piloto |
 | `BolsaFamilia` | 📋 Pendente | Alta — mesma área operacional |
-| `VaccineDashboard` | 📋 Pendente | Alta — usuários consultam aluno individual |
+| `VaccineDashboard` | 📋 Pendente | Alta — usuários consultam estudante individual |
 | `Grades` | 📋 Pendente | Média — geralmente já tem turma como filtro |
 | `Enrollments` | 📋 Pendente | Média |
 | `StudentsComplete` | 📋 Pendente | Média |

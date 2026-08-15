@@ -9,7 +9,7 @@ Guia prático para páginas grandes (≥ 800 linhas) com múltiplas abas/filtros
 Use quando uma página apresentar ≥ 2 dos sintomas:
 
 - Arquivo `.js` da página > 800 linhas
-- Mesmo componente renderiza múltiplas abas/modos (ex: "Por Turma" / "Por Aluno")
+- Mesmo componente renderiza múltiplas abas/modos (ex: "Por Turma" / "Por Estudante")
 - Muitos `useState` (> 20) compartilhados entre seções
 - Props drilling explícito (> 10 props passadas para sub-componentes)
 - Fetches inline com `fetch()` ou `axios.get()` duplicando a camada de serviço
