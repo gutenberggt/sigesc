@@ -94,7 +94,7 @@ Páginas reais que VOCÊ PODE citar em recomendações:
   /admin/permission-matrix — matriz de permissões
   /admin/staff — gestão de servidores (lotações)
   /admin/users — gestão de usuários
-  /admin/students — estudantes
+  /admin/students — alunos
 
 NUNCA sugira (não existe no sistema):
   - "configurar alertas" / "calibrar sensores" / "regras de alerta personalizadas"
