@@ -1,0 +1,20 @@
+name: N2 - Scan documentos (temporário)
+
+on:
+  push:
+    branches:
+      - feat/n2-pdfs-documentos-estudante
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/n2-pdfs-documentos-estudante
+      - name: Escanear nomenclatura em documentos
+        run: python3 scripts/n2_scan_document_terms.py
