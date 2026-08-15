@@ -210,7 +210,7 @@ export const Guardians = () => {
       accessor: 'student_ids', 
       render: (row) => {
         const count = row.student_ids?.length || 0;
-        return <span className="text-blue-600 font-medium">{count} aluno(s)</span>;
+        return <span className="text-blue-600 font-medium">{count} estudante(s)</span>;
       }
     },
     { 
@@ -522,7 +522,7 @@ export const Guardians = () => {
 
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
         <p className="text-sm text-gray-700">
-          <strong>Total selecionado:</strong> {formData.student_ids?.length || 0} aluno(s) · <strong>Principal para:</strong> {formData.primary_student_ids?.length || 0}
+          <strong>Total selecionado:</strong> {formData.student_ids?.length || 0} estudante(s) · <strong>Principal para:</strong> {formData.primary_student_ids?.length || 0}
         </p>
       </div>
     </div>

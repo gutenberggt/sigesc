@@ -494,7 +494,7 @@ export default function SchoolDocuments() {
                     <CheckCircle2 className="h-4 w-4" /> Declaração emitida com sucesso
                   </div>
                   <div className="text-xs text-gray-700 space-y-0.5">
-                    <div>Aluno: <strong>{lastIssued.studentName}</strong></div>
+                    <div>Estudante: <strong>{lastIssued.studentName}</strong></div>
                     <div>Tipo: <strong>{DOC_TYPES.find(t => t.value === lastIssued.docType)?.label}</strong></div>
                     <div>Código: <code className="font-mono bg-white border border-gray-300 rounded px-1">{lastIssued.code}</code></div>
                     <div>Válido até: <strong>{new Date(lastIssued.validUntil).toLocaleDateString('pt-BR')}</strong></div>

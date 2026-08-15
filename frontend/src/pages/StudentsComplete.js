@@ -3943,7 +3943,7 @@ export function StudentsComplete() {
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Printer size={18} />
-                <span>Imprimir Turma ({serverTotal} alunos)</span>
+                <span>Imprimir Turma ({serverTotal} estudantes)</span>
               </button>
             )}
           </div>
@@ -4051,7 +4051,7 @@ export function StudentsComplete() {
                 </>
               )}
               <span className="text-gray-400">|</span>
-              <span>{serverActiveCount} aluno(s) ativo(s)</span>
+              <span>{serverActiveCount} estudante(s) ativo(s)</span>
             </div>
           )}
 
@@ -4740,7 +4740,7 @@ export function StudentsComplete() {
           <div className="space-y-4">
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
               <p className="text-sm text-orange-800">
-                Você está prestes a <strong>cancelar o vínculo</strong> do aluno <strong>{cancelModal.student?.full_name}</strong> com a turma <strong>{getClassName(filterClassId)}</strong>.
+                Você está prestes a <strong>cancelar o vínculo</strong> do estudante <strong>{cancelModal.student?.full_name}</strong> com a turma <strong>{getClassName(filterClassId)}</strong>.
               </p>
               <p className="text-xs text-orange-600 mt-1">
                 O registro será mantido no histórico para fins de auditoria, mas o aluno será removido de todas as listas desta turma.

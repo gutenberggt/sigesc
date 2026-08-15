@@ -200,7 +200,7 @@ export default function SchoolTransferWizard() {
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                 <p className="font-medium flex items-center gap-1"><ShieldAlert size={15} /> Impacto previsto</p>
-                <p className="text-xs mt-1">Serão movidos: {effectiveClassIds.length} turma(s) e todo o histórico vinculado (alunos, matrículas, frequência, notas, conteúdos, AEE e Bolsa Família). Os números exatos aparecem na simulação.</p>
+                <p className="text-xs mt-1">Serão movidos: {effectiveClassIds.length} turma(s) e todo o histórico vinculado (estudantes, matrículas, frequência, notas, conteúdos, AEE e Bolsa Família). Os números exatos aparecem na simulação.</p>
               </div>
 
               <div className="flex justify-between">

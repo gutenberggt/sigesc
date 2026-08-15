@@ -216,7 +216,7 @@ export default function PmeAnosFinais() {
                 <div className="flex items-center justify-center h-[260px]">
                   <div className="text-center">
                     <p className="text-5xl font-bold text-indigo-600">{data.socioeconomico?.percentual ?? 0}%</p>
-                    <p className="text-sm text-gray-500 mt-2">{data.socioeconomico?.com_nis || 0} de {data.socioeconomico?.total_ativos || 0} alunos com NIS registrado</p>
+                    <p className="text-sm text-gray-500 mt-2">{data.socioeconomico?.com_nis || 0} de {data.socioeconomico?.total_ativos || 0} estudantes com NIS registrado</p>
                   </div>
                 </div>
               </Block>

@@ -61,7 +61,7 @@ export const InformacoesTab = () => {
         <div className="bg-white rounded-xl border overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
             <h3 className="font-semibold text-gray-900">Informações dos Estudantes</h3>
-            <span className="text-sm text-gray-500">{infoStudents.length} aluno(s)</span>
+            <span className="text-sm text-gray-500">{infoStudents.length} estudante(s)</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
