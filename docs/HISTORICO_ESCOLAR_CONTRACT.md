@@ -9,7 +9,7 @@
 
 ## 1. Princípio fundador
 
-> **Histórico escolar registra a vida acadêmica REAL do aluno, não a vida acadêmica DESEJADA.**
+> **Histórico escolar registra a vida acadêmica REAL do estudante, não a vida acadêmica DESEJADA.**
 
 Toda dependência é evento **complementar**, jamais substitutivo. Reprovação
 permanece. Aprovação posterior (via dependência) é registrada **separadamente**,
@@ -227,7 +227,7 @@ NÃO aparece no histórico. Permanece apenas no log/auditoria interna.
 ### 5.3 Dependência reprovada
 
 Aparece no histórico no ano da tentativa, com `result: "reprovado_em_dependencia"`.
-A linha de origem permanece marcada como `REPROVADO EM DEPENDÊNCIA`. O aluno
+A linha de origem permanece marcada como `REPROVADO EM DEPENDÊNCIA`. O estudante
 pode tentar nova dependência em ano subsequente — cada tentativa gera linha
 própria.
 
@@ -290,13 +290,13 @@ Templates antigos NUNCA são deletados. Apenas marcados como `deprecated_for_new
 
 ## 8. Cenários a cobrir nos testes (Fase 4)
 
-1. Aluno sem reprovações — histórico simples regular
-2. Aluno com reprovação em dependência (sem ainda ter cursado a dependência)
-3. Aluno com dependência concluída no mesmo ano da matrícula regular (ano subsequente)
-4. Aluno com dependência cancelada — NÃO aparece
-5. Aluno com dependência reprovada (precisa nova tentativa)
-6. Aluno com 2 dependências em anos diferentes (anos 2023 + 2024 → conclusão 2025)
-7. Aluno transferido entre escolas durante uma dependência
+1. Estudante sem reprovações — histórico simples regular
+2. Estudante com reprovação em dependência (sem ainda ter cursado a dependência)
+3. Estudante com dependência concluída no mesmo ano da matrícula regular (ano subsequente)
+4. Estudante com dependência cancelada — NÃO aparece
+5. Estudante com dependência reprovada (precisa nova tentativa)
+6. Estudante com 2 dependências em anos diferentes (anos 2023 + 2024 → conclusão 2025)
+7. Estudante transferido entre escolas durante uma dependência
 8. Mantenedora com mudança de curriculum_version entre o ano original e ano de conclusão
 9. Componente curricular extinto entre o ano original e ano atual (preservar nome snapshot)
 10. Reemissão de histórico antigo deve gerar PDF idêntico ao original (checksum equal)
@@ -365,7 +365,7 @@ Sem isso, a Fase 4 não tem fonte de verdade para emitir o histórico.
 5. Renderer único `pdf/history_renderer.py` (template HTML + Chromium/WeasyPrint).
 6. Endpoint público de verificação `GET /api/public/history/verify/{token}`.
 7. Testes E2E cobrindo os 10 cenários de §8.
-8. Bloqueio: histórico só pode ser emitido se aluno tiver `enrollments_history`
+8. Bloqueio: histórico só pode ser emitido se estudante tiver `enrollments_history`
    completo (não há lacunas anuais não justificadas).
 
 ---
@@ -468,7 +468,7 @@ super_admin/admin/gerente/diretor):
 ```
 
 NÃO expõe `completion_result` interno (mapeia para `document_status`
-jurídico-amigável). NÃO expõe nome do aluno, CPF, ou outros PII.
+jurídico-amigável). NÃO expõe nome do estudante, CPF, ou outros PII.
 
 ### 14.7 Backfill retroativo
 

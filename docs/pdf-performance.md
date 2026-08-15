@@ -125,7 +125,7 @@ Ver `/app/backend/server.py::create_indexes()` (bloco marcado
 ## ⚠️ Se precisar gerar PDF muito pesado (> 100 páginas)
 
 ReportLab é CPU-bound. Para relatórios em massa (ex.: boletim de todos os
-alunos de uma escola), preferir:
+estudantes de uma escola), preferir:
 
 1. **Async worker + status polling** — retornar `202 Accepted` com job_id;
    frontend faz polling até ficar pronto.

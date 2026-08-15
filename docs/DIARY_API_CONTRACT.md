@@ -10,8 +10,8 @@
 
 Definir um contrato estável entre backend e frontend para o Diário, suportando coexistência de:
 
-- alunos regulares (via `enrollments`);
-- alunos em dependência (via `student_dependencies`);
+- estudantes regulares (via `enrollments`);
+- estudantes em dependência (via `student_dependencies`);
 - frequência, notas, fechamento;
 - observabilidade;
 - escalabilidade futura.
@@ -62,8 +62,8 @@ Backend entrega a lista **já pronta** para renderização.
 
 O backend ordena:
 
-1. **Alunos regulares** (sort alfabético por `student_name`).
-2. **Alunos em dependência** (sort alfabético por `student_name`).
+1. **Estudantes regulares** (sort alfabético por `student_name`).
+2. **Estudantes em dependência** (sort alfabético por `student_name`).
 
 > Nunca deixar essa decisão para o frontend. O frontend pode reordenar **localmente apenas para UI** (ex.: clique no header da coluna), mas o **default** vem ordenado.
 
@@ -121,7 +121,7 @@ Cada item do diário **deve** conter:
 student.dependency_mode
 ```
 
-para carregar alunos.
+para carregar estudantes.
 
 ### ✅ O diário SEMPRE usa
 
@@ -165,7 +165,7 @@ Isso permite, futuramente, separar boletim regular vs boletim de dependência **
 
 ## 6. Anti-duplicidade — garantida pelo backend
 
-Um aluno:
+Um estudante:
 
 - ❌ **NÃO** pode aparecer duas vezes no mesmo componente da mesma turma;
 - ❌ **NÃO** pode aparecer como regular **E** dependência simultaneamente no mesmo componente;
@@ -304,11 +304,11 @@ O contrato só é considerado **estável** após validar todos:
 
 | # | Cenário | Esperado |
 |---|---|---|
-| 1 | Aluno regular puro | aparece com `is_dependency=false` |
-| 2 | Aluno apenas dependência (`dependency_only`) | só aparece nos componentes vinculados |
-| 3 | Aluno `with_dependency` | aparece em regulares + dependência |
+| 1 | Estudante regular puro | aparece com `is_dependency=false` |
+| 2 | Estudante apenas dependência (`dependency_only`) | só aparece nos componentes vinculados |
+| 3 | Estudante `with_dependency` | aparece em regulares + dependência |
 | 4 | Turma sem dependências | `items` só com regulares |
-| 5 | Múltiplas dependências do mesmo aluno | cada uma em seu componente |
+| 5 | Múltiplas dependências do mesmo estudante | cada uma em seu componente |
 | 6 | Dep cancelada | NÃO aparece no diário |
 | 7 | Dep concluída | NÃO aparece OU aparece com `attendance_enabled=false` (decidir Fase 4) |
 | 8 | Exclusão de turma com dep ativa | bloqueada (HTTP 409 — já implementado Fase 1) |
@@ -430,7 +430,7 @@ Use sempre este helper. Não chame `diary_metrics.record` diretamente — o help
 ## 17. Ordenação rígida — divisor decidido pelo FRONTEND a partir de `meta`
 
 **Atualização Fev/2026 (exigência operacional do owner):** o divisor visual NÃO faz parte
-do array `items`. Misturar item fake `is_divider` com alunos reais gera bugs de
+do array `items`. Misturar item fake `is_divider` com estudantes reais gera bugs de
 `map`/`filter`/exportação/render condicional/cálculos de presença. O backend devolve
 metadados em `meta` e o frontend decide onde renderizar o separador.
 
@@ -476,7 +476,7 @@ Frontend renderiza o separador imediatamente antes do primeiro item com
 
 ## 18. Limite defensivo — `MAX_DEPENDENCY_STUDENTS_PER_DIARY = 30`
 
-Se um diário receber mais de 30 alunos em dependência ativa:
+Se um diário receber mais de 30 estudantes em dependência ativa:
 
 - Não quebra renderização (todos ainda são retornados).
 - Backend adiciona ao response:
@@ -566,7 +566,7 @@ wc -c /app/baselines/diary_response.json   # tamanho bruto
 Registrar em `/app/baselines/diary_baseline.md`:
 - Tamanho bruto / gzip
 - Tempo médio (10 chamadas)
-- Quantidade de alunos (regulares + deps)
+- Quantidade de estudantes (regulares + deps)
 - Quantidade de componentes consultados
 - p95 / p99 medidos
 
@@ -673,7 +673,7 @@ o blast radius de bugs estruturais.
 ## 27. Dependência NÃO contamina cálculo regular (P0)
 
 **Atualização Fev/2026 — exigência do owner.** Notas e frequências registradas
-com `dependency_id != null` representam o aluno cumprindo dependência de **ano
+com `dependency_id != null` representam o estudante cumprindo dependência de **ano
 anterior**. Estes registros NÃO entram em:
 
 - médias finais regulares da turma

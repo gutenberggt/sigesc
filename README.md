@@ -1,7 +1,7 @@
 # SIGESC — Sistema Integrado de Gestão Escolar
 
 Plataforma SaaS multi-tenant para Secretarias Municipais de Educação (SEMED) e
-mantenedoras escolares. Engloba gestão de alunos, professores, AEE, currículo
+mantenedoras escolares. Engloba gestão de estudantes, professores, AEE, currículo
 multi-camadas, folha de pagamento docente, declarações oficiais (matrícula,
 transferência, frequência, histórico), filas de revisão de conteúdo e relatórios.
 

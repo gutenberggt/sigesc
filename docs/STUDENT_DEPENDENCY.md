@@ -7,7 +7,7 @@
 
 ## 1. Conceito
 
-Dependência de Estudos representa o **vínculo acadêmico parcial** de um aluno a um componente curricular específico em regime especial. O aluno pode:
+Dependência de Estudos representa o **vínculo acadêmico parcial** de um estudante a um componente curricular específico em regime especial. O estudante pode:
 
 - Estar **com dependência** (`with_dependency`): aprovado parcialmente, mas com componentes pendentes.
 - Estar **em dependência** (`dependency_only`): matrícula exclusiva para cursar dependências, sem turma regular.
@@ -73,9 +73,9 @@ db.student_dependencies.create_index(
 | Método | Path | Permissão | Descrição |
 |---|---|---|---|
 | POST | `/api/student-dependencies` | manage | Cria dependência (valida mode, limite, duplicidade) |
-| GET | `/api/student-dependencies/student/{student_id}` | view | Lista dependências do aluno (enriquecido com class/course names) |
+| GET | `/api/student-dependencies/student/{student_id}` | view | Lista dependências do estudante (enriquecido com class/course names) |
 | GET | `/api/student-dependencies/student/{student_id}/summary` | view | Resumo (active/completed/failed/cancelled + limite + mode) |
-| GET | `/api/student-dependencies/class/{class_id}/course/{course_id}` | view | **Fase 2 (diário)** — alunos em dep ativa nesta turma+componente |
+| GET | `/api/student-dependencies/class/{class_id}/course/{course_id}` | view | **Fase 2 (diário)** — estudantes em dep ativa nesta turma+componente |
 | PUT | `/api/student-dependencies/{id}` | manage | Atualiza status/grade/observações |
 | DELETE | `/api/student-dependencies/{id}` | manage | Remove dependência (audit log obrigatório) |
 
@@ -90,7 +90,7 @@ DEPENDENCY_VIEW_ROLES   = MANAGE | {"coordenador", "apoio_pedagogico", "professo
 
 ## 4. Validações obrigatórias
 
-1. **Aluno deve ter `dependency_mode != 'none'`** antes de vincular componente. Caso contrário 400.
+1. **Estudante deve ter `dependency_mode != 'none'`** antes de vincular componente. Caso contrário 400.
 2. **Mantenedora deve permitir o modo** (`aprovacao_com_dependencia` ou `cursar_apenas_dependencia`).
 3. **Limite de componentes** lendo da config da mantenedora (`max_componentes_dependencia` / `qtd_componentes_apenas_dependencia`).
 4. **Duplicidade**: não pode haver 2 dependências `active` para o mesmo `(student_id, course_id, origin_academic_year)`. Imposto via índice único parcial.
@@ -126,7 +126,7 @@ DEPENDENCY_VIEW_ROLES   = MANAGE | {"coordenador", "apoio_pedagogico", "professo
 > 🔒 **Contrato congelado**: `/app/docs/DIARY_API_CONTRACT.md` (`contract_version: 1`).
 > Antes de codar, ler integralmente. Frontend e backend devem aderir.
 
-- Aluno com dep aparece **apenas** no diário do componente vinculado.
+- Estudante com dep aparece **apenas** no diário do componente vinculado.
 - Sufixo `(Dependência)` no nome.
 - Listagem visualmente separada (preferencialmente no final).
 - Anti-duplicidade: nunca aparecer em outros componentes da turma.
@@ -153,7 +153,7 @@ student_dependencies.find({
 Razão:
 - `dependency_mode` é **estado administrativo** (intenção do secretário).
 - `student_dependencies` é o **vínculo pedagógico real** (concreto).
-- Misturar os dois cria inconsistência invisível: aluno com `mode=with_dependency` mas sem componente vinculado → apareceria em diário errado.
+- Misturar os dois cria inconsistência invisível: estudante com `mode=with_dependency` mas sem componente vinculado → apareceria em diário errado.
 
 ##### 2. Padrão `regular + dependency = view_model` (não fundir)
 
@@ -248,7 +248,7 @@ Justificativa: conselho, recuperação, histórico e transferência exigirão se
 
 1. Leitura (GET endpoint do diário com regulares + deps separados).
 2. Renderização (lista única derivada, ordem visual, badge).
-3. Frequência (lançamento por aluno × dia, com `dependency_id` quando aplicável).
+3. Frequência (lançamento por estudante × dia, com `dependency_id` quando aplicável).
 4. Notas (idem).
 5. Fechamento (Fase 4 — evento separado).
 
