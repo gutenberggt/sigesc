@@ -285,7 +285,7 @@ export default function BuscaAtivaDashboard() {
                   <>
                     <p className="text-sm text-amber-800 mt-1">
                       Há <strong>{stats.total_pending} registros sem motivo informado</strong>.
-                      Os motivos MEC são obrigatórios para alunos com frequência abaixo de
+                      Os motivos MEC são obrigatórios para estudantes com frequência abaixo de
                       75%. Acesse a tela de Bolsa Família para preencher.
                     </p>
                     <button
@@ -299,7 +299,7 @@ export default function BuscaAtivaDashboard() {
                 ) : (
                   <p className="text-sm text-amber-800 mt-1">
                     Nenhum acompanhamento de Bolsa Família foi salvo no ano letivo de {academicYear}.
-                    Quando o secretário/admin classificar alunos com baixa frequência usando o
+                    Quando o secretário/admin classificar estudantes com baixa frequência usando o
                     Combobox de Motivos MEC, este painel passará a refletir a rede.
                   </p>
                 )}

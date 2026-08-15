@@ -878,7 +878,7 @@ export default function BulletinViewer() {
                     <strong>Boletim de Dependência</strong> · {bulletin.primary_class?.name || ''}
                     {bulletin.primary_school?.name ? ` · ${bulletin.primary_school.name}` : ''}
                     <div className="text-amber-700 mt-0.5">
-                      Componentes isolados — não compõem o boletim regular do aluno.
+                      Componentes isolados — não compõem o boletim regular do estudante.
                     </div>
                   </div>
                   <Button
@@ -965,7 +965,7 @@ export default function BulletinViewer() {
 
         {!loading && !bulletin && !error && (
           <div className="text-sm text-zinc-500 italic py-12 text-center">
-            Selecione um aluno acima para visualizar o boletim.
+            Selecione um estudante acima para visualizar o boletim.
           </div>
         )}
       </div>

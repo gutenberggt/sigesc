@@ -397,7 +397,7 @@ export default function BolsaFamilia() {
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-sm text-gray-600">
-                <strong>{students.length}</strong> aluno(s) com Bolsa Família
+                <strong>{students.length}</strong> estudante(s) com Bolsa Família
                 {allSchoolsMode && (
                   <span
                     className="ml-2 inline-flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-0.5 font-medium"
@@ -491,7 +491,7 @@ export default function BolsaFamilia() {
                 className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500"
                 data-testid="bf-summary-filter-empty"
               >
-                Nenhum aluno corresponde ao filtro selecionado.
+                Nenhum estudante corresponde ao filtro selecionado.
               </div>
             )}
 

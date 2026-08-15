@@ -2910,7 +2910,7 @@ export function SchoolsComplete() {
             </h4>
             <p className="text-sm text-gray-600 mb-4">
               Quando ativada, esta escola aparecerá na página pública de <strong>Pré-Matrícula</strong>, 
-              permitindo que responsáveis realizem o cadastro prévio de novos alunos.
+              permitindo que responsáveis realizem o cadastro prévio de novos estudantes.
             </p>
             
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">

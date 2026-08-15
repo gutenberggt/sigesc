@@ -909,7 +909,7 @@ export const Classes = () => {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Users size={18} />
-                  Alunos Matriculados ({classDetails.total_students || 0})
+                  Estudantes Matriculados ({classDetails.total_students || 0})
                 </h3>
                 {classDetails.students?.length > 0 ? (
                   <div className="overflow-x-auto">

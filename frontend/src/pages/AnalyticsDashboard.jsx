@@ -2142,7 +2142,7 @@ export function AnalyticsDashboard() {
                         {selectedSchoolDetail.indicators?.distorcao_idade_serie_pct || 0}%
                       </div>
                       <div className="text-xs text-amber-600">
-                        dos alunos com 2+ anos acima da idade esperada
+                        dos estudantes com 2+ anos acima da idade esperada
                       </div>
                     </div>
                   </div>
@@ -2192,7 +2192,7 @@ export function AnalyticsDashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2 flex-wrap">
                 <Users className="h-5 w-5 text-green-600" />
-                Desempenho dos Alunos
+                Desempenho dos Estudantes
                 {isProfessor && !selectedClass && (
                   <span className="text-xs font-normal text-amber-600 ml-2">(Selecione uma turma)</span>
                 )}

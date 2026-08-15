@@ -336,7 +336,7 @@ export function StudentsComplete() {
   const [indicatorsCollapsed, setIndicatorsCollapsed] = useState(true);
   const toggleIndicators = () => setIndicatorsCollapsed((prev) => !prev);
 
-  // [Fase 0 — Contenção] Inconsistências de integridade (alunos ATIVOS
+  // [Fase 0 — Contenção] Inconsistências de integridade (estudantes ATIVOS
   // sem turma / com turma órfã / etc.). Buscado uma vez ao montar.
   const [inconsistencies, setInconsistencies] = useState(null);
   const [showInconsistenciesList, setShowInconsistenciesList] = useState(false);
@@ -3338,7 +3338,7 @@ export function StudentsComplete() {
           </div>
         </div>
       ) : (
-        /* Novo aluno - campos editáveis */
+        /* Novo estudante - campos editáveis */
         <div className="space-y-4">
           {/* Linha com título e seletor de ano */}
           <div className="flex items-center justify-between">
@@ -3575,7 +3575,7 @@ export function StudentsComplete() {
             {formData.atendimento_programa_tipo === 'aee' && formData.atendimento_programa_class_id && (
               <div className="flex items-end">
                 <p className="text-sm text-purple-700 bg-purple-100 px-3 py-2 rounded-lg">
-                  Este aluno aparecerá no <strong>Diário AEE</strong> da escola.
+                  Este estudante aparecerá no <strong>Diário AEE</strong> da escola.
                 </p>
               </div>
             )}
@@ -3596,7 +3596,7 @@ export function StudentsComplete() {
       {/* Histórico do Aluno */}
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8 flex items-center gap-2">
         <Calendar size={18} />
-        Histórico do Aluno
+        Histórico do Estudante
       </h3>
       {loadingHistory ? (
         <div className="flex items-center justify-center py-4">
@@ -3960,10 +3960,10 @@ export function StudentsComplete() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-red-900 text-sm">
-                    {inconsistencies.total} aluno(s) ativo(s) com inconsistência de cadastro
+                    {inconsistencies.total} estudante(s) ativo(s) com inconsistência de cadastro
                   </p>
                   <p className="text-xs text-red-700 mt-1">
-                    Esses alunos contaminam relatórios, dashboards e censo. Resolva antes do fechamento do ano letivo.
+                    Esses estudantes contaminam relatórios, dashboards e censo. Resolva antes do fechamento do ano letivo.
                   </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-red-800">
                     {inconsistencies.counts_by_issue?.sem_turma > 0 && (
@@ -4219,7 +4219,7 @@ export function StudentsComplete() {
                         <AlertTriangle size={13} /> Série não reconhecida: {seriesCounts['SÉRIE NÃO RECONHECIDA']}
                       </p>
                       <p className="text-xs text-red-700">
-                        Esses alunos não foram classificados por série (nomenclatura de cadastro não mapeada). Corrija o cadastro/turma para reconciliar os indicadores.
+                        Esses estudantes não foram classificados por série (nomenclatura de cadastro não mapeada). Corrija o cadastro/turma para reconciliar os indicadores.
                       </p>
                       {Object.keys(unmappedSeries || {}).length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -4471,7 +4471,7 @@ export function StudentsComplete() {
                 ) : students.length === 0 ? (
                   <tr>
                     <td colSpan={batchMode ? 8 : 7} className="px-4 py-8 text-center text-gray-500">
-                      Nenhum aluno encontrado
+                      Nenhum estudante encontrado
                     </td>
                   </tr>
                 ) : (
@@ -4743,7 +4743,7 @@ export function StudentsComplete() {
                 Você está prestes a <strong>cancelar o vínculo</strong> do estudante <strong>{cancelModal.student?.full_name}</strong> com a turma <strong>{getClassName(filterClassId)}</strong>.
               </p>
               <p className="text-xs text-orange-600 mt-1">
-                O registro será mantido no histórico para fins de auditoria, mas o aluno será removido de todas as listas desta turma.
+                O registro será mantido no histórico para fins de auditoria, mas o estudante será removido de todas as listas desta turma.
               </p>
             </div>
             <div>
@@ -5155,8 +5155,8 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-sm text-red-800">
-                    <strong>⚠️ Cancelar Matrícula:</strong> O aluno terá sua matrícula cancelada nesta escola. 
-                    Ele continuará na listagem de alunos com status "Cancelado", mas <strong>não aparecerá</strong> em:
+                    <strong>⚠️ Cancelar Matrícula:</strong> O estudante terá sua matrícula cancelada nesta escola. 
+                    Ele continuará na listagem de estudantes com status "Cancelado", mas <strong>não aparecerá</strong> em:
                   </p>
                   <ul className="text-sm text-red-700 mt-2 list-disc list-inside">
                     <li>Listagem de frequência</li>
@@ -5164,7 +5164,7 @@ export function StudentsComplete() {
                     <li>Relatórios e documentos oficiais</li>
                   </ul>
                   <p className="text-sm text-red-800 mt-2">
-                    O aluno poderá ser matriculado em outra escola da rede posteriormente.
+                    O estudante poderá ser matriculado em outra escola da rede posteriormente.
                   </p>
                 </div>
                 
@@ -5188,7 +5188,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <p className="text-sm text-green-800">
-                    <strong>ℹ️ Matricular:</strong> O aluno será reativado e matriculado na escola/turma selecionada.
+                    <strong>ℹ️ Matricular:</strong> O estudante será reativado e matriculado na escola/turma selecionada.
                   </p>
                 </div>
                 
@@ -5265,7 +5265,7 @@ export function StudentsComplete() {
                     return (
                       <div className="mt-3">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Série do Aluno <span className="text-red-500">*</span>
+                          Série do Estudante <span className="text-red-500">*</span>
                           <span className="text-xs text-indigo-600 font-normal ml-2">
                             (turma multisseriada)
                           </span>
@@ -5296,7 +5296,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                   <p className="text-sm text-orange-800">
-                    <strong>⚠️ Transferir:</strong> O aluno será marcado como "Transferido" e não aparecerá mais nas listas de alunos ativos.
+                    <strong>⚠️ Transferir:</strong> O estudante será marcado como "Transferido" e não aparecerá mais nas listas de estudantes ativos.
                   </p>
                 </div>
                 
@@ -5326,7 +5326,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
-                    <strong>ℹ️ Remanejar:</strong> O aluno será movido para outra turma na mesma escola.
+                    <strong>ℹ️ Remanejar:</strong> O estudante será movido para outra turma na mesma escola.
                   </p>
                 </div>
                 
@@ -5367,7 +5367,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                   <p className="text-sm text-purple-800">
-                    <strong>ℹ️ Progredir:</strong> O aluno avançará para a próxima série/turma ou será concluído com emissão de histórico.
+                    <strong>ℹ️ Progredir:</strong> O estudante avançará para a próxima série/turma ou será concluído com emissão de histórico.
                   </p>
                 </div>
                 
@@ -5391,7 +5391,7 @@ export function StudentsComplete() {
                 {actionData.emitirHistorico ? (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                     <p className="text-sm text-yellow-800">
-                      <strong>📄 Conclusão:</strong> O aluno será marcado como "Transferido" (concluído) e o histórico escolar deverá ser gerado manualmente.
+                      <strong>📄 Conclusão:</strong> O estudante será marcado como "Transferido" (concluído) e o histórico escolar deverá ser gerado manualmente.
                     </p>
                   </div>
                 ) : (
@@ -5422,8 +5422,8 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
                   <p className="text-sm text-indigo-800">
-                    <strong>🎓 Reclassificar:</strong> O aluno será reclassificado para outra série/turma com base em avaliação de conhecimento (Art. 23 da LDB).
-                    É semelhante à Progressão, porém usado quando o aluno demonstra domínio de conteúdo de série diferente da sua idade/matrícula atual.
+                    <strong>🎓 Reclassificar:</strong> O estudante será reclassificado para outra série/turma com base em avaliação de conhecimento (Art. 23 da LDB).
+                    É semelhante à Progressão, porém usado quando o estudante demonstra domínio de conteúdo de série diferente da sua idade/matrícula atual.
                   </p>
                 </div>
 
@@ -5473,7 +5473,7 @@ export function StudentsComplete() {
                 </div>
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
-                  ⚠️ <strong>Atenção:</strong> Após a reclassificação, na turma de <em>origem</em> o diário (frequência e notas) do aluno ficará bloqueado a partir desta data.
+                  ⚠️ <strong>Atenção:</strong> Após a reclassificação, na turma de <em>origem</em> o diário (frequência e notas) do estudante ficará bloqueado a partir desta data.
                   Na turma de <em>destino</em>, o diário só aceitará lançamentos a partir desta data; a frequência anterior será migrada e ficará bloqueada para edição.
                 </div>
               </div>

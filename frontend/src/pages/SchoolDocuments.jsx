@@ -285,7 +285,7 @@ export default function SchoolDocuments() {
         {/* Seleção aluno */}
         <div className="lg:col-span-1 bg-white border border-gray-200 rounded-lg p-4">
           <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-1">
-            <User className="h-4 w-4" /> 1. Selecione o aluno
+            <User className="h-4 w-4" /> 1. Selecione o estudante
           </h2>
 
           <div className="relative" ref={searchBoxRef}>
@@ -344,7 +344,7 @@ export default function SchoolDocuments() {
               >
                 {!searching && suggestions.length === 0 ? (
                   <div className="px-3 py-3 text-xs text-gray-500 text-center">
-                    Nenhum aluno encontrado para “{studentQuery}”.
+                    Nenhum estudante encontrado para “{studentQuery}”.
                   </div>
                 ) : (
                   suggestions.map((s, idx) => (
@@ -400,7 +400,7 @@ export default function SchoolDocuments() {
           </h2>
           {!selectedStudent ? (
             <div className="bg-gray-50 border border-dashed border-gray-300 rounded p-6 text-center text-sm text-gray-500">
-              Selecione um aluno à esquerda para habilitar a emissão.
+              Selecione um estudante à esquerda para habilitar a emissão.
             </div>
           ) : (
             <form onSubmit={issue} className="space-y-4">

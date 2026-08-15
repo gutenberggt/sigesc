@@ -190,7 +190,7 @@ export const EnrollmentAudit = () => {
               Auditoria de Matrículas
             </h1>
             <p className="text-slate-500 mt-1 text-sm">
-              Acompanhe matrículas ausentes e duplicadas em tempo real. Use “Corrigir” para numerar automaticamente alunos sem matrícula.
+              Acompanhe matrículas ausentes e duplicadas em tempo real. Use “Corrigir” para numerar automaticamente estudantes sem matrícula.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export const EnrollmentAudit = () => {
               ) : (
                 <>
                   <p className="px-5 pt-3 text-xs text-slate-500">
-                    Estes alunos têm a série salva no cadastro, mas a matrícula está sem série — por isso somem dos diários/PDFs por etapa. Clique em “Sincronizar séries” para copiar a série do cadastro para a matrícula.
+                    Estes estudantes têm a série salva no cadastro, mas a matrícula está sem série — por isso somem dos diários/PDFs por etapa. Clique em “Sincronizar séries” para copiar a série do cadastro para a matrícula.
                   </p>
                   <div className="overflow-x-auto max-h-96 overflow-y-auto">
                     <table className="w-full text-sm">

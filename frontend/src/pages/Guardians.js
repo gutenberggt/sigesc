@@ -476,7 +476,7 @@ export const Guardians = () => {
             onClick={() => navigate('/admin/students')}
             className="mt-2 text-blue-600 hover:underline"
           >
-            Cadastrar alunos
+            Cadastrar estudantes
           </button>
         </div>
       ) : (

@@ -53,7 +53,7 @@ export const InformacoesTab = () => {
 
       {!infoLoading && infoClass && infoStudents.length === 0 && (
         <div className="bg-white rounded-xl border p-8 text-center text-gray-500">
-          Nenhum aluno encontrado nesta turma.
+          Nenhum estudante encontrado nesta turma.
         </div>
       )}
 
@@ -113,7 +113,7 @@ export const InformacoesTab = () => {
 
       {!infoClass && !infoLoading && (
         <div className="bg-white rounded-xl border p-8 text-center text-gray-400">
-          Selecione uma escola e turma para visualizar as informações dos alunos.
+          Selecione uma escola e turma para visualizar as informações dos estudantes.
         </div>
       )}
     </div>

@@ -1069,7 +1069,7 @@ export function Promotion() {
                     onClick={() => setQuickFilter('TODOS')}
                     className="mt-3 text-sm text-emerald-700 hover:text-emerald-800 underline"
                   >
-                    Mostrar todos os alunos
+                    Mostrar todos os estudantes
                   </button>
                 </div>
               ) : (

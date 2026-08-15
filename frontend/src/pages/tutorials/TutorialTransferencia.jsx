@@ -69,7 +69,7 @@ export default function TutorialTransferencia() {
             </div>
             <p className="text-slate-400 text-lg">
               Tutorial rápido: a transferência acontece em <strong className="text-white">2 etapas</strong> —
-              primeiro você marca o aluno como <strong className="text-white">Transferido</strong> na escola de
+              primeiro você marca o estudante como <strong className="text-white">Transferido</strong> na escola de
               origem e, em seguida, o <strong className="text-white">Matricula</strong> na escola de destino.
             </p>
           </div>
@@ -80,7 +80,7 @@ export default function TutorialTransferencia() {
             <div>
               <p className="text-blue-200 font-medium">Antes de começar</p>
               <p className="text-blue-200/70 text-sm mt-1">
-                A ação <strong>"Transferir"</strong> só fica disponível para alunos com status
+                A ação <strong>"Transferir"</strong> só fica disponível para estudantes com status
                 <strong> "Ativo"</strong>. Você precisa ter perfil de <strong>Secretário</strong> ou
                 <strong> Administrador</strong>.
               </p>
@@ -95,11 +95,11 @@ export default function TutorialTransferencia() {
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">1</span>
                 <School size={22} className="text-green-400" />
-                Etapa 1 — Marcar o aluno como "Transferido"
+                Etapa 1 — Marcar o estudante como "Transferido"
               </h2>
               <ol className="space-y-4 text-slate-300 list-none">
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
-                  <strong className="text-white">1.1</strong> No menu, acesse <strong className="text-white">Estudantes</strong> (Gestão de Alunos).
+                  <strong className="text-white">1.1</strong> No menu, acesse <strong className="text-white">Estudantes</strong> (Gestão de Estudantes).
                 </li>
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
                   <strong className="text-white">1.2</strong> Use a <strong className="text-white">busca</strong> ou os filtros para localizar o estudante e clique em <strong className="text-blue-400">"Editar"</strong>.
@@ -171,7 +171,7 @@ export default function TutorialTransferencia() {
                 <div>
                   <p className="text-yellow-200 font-medium">Transferência para fora da rede</p>
                   <p className="text-yellow-200/70 text-sm mt-1">
-                    Se o aluno saiu para uma escola que <strong>não pertence à rede</strong> (outro município
+                    Se o estudante saiu para uma escola que <strong>não pertence à rede</strong> (outro município
                     ou rede privada/estadual), basta concluir a <strong>Etapa 1</strong>. Ele permanece com
                     status "Transferido" e aparece como <strong>"Fora da rede"</strong> nos relatórios.
                   </p>

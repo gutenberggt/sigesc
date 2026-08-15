@@ -235,7 +235,7 @@ const AdminTools = () => {
                     Converte todos os nomes e campos de texto para letras maiúsculas no banco de dados.
                   </p>
                   <p className="text-xs text-gray-400 mt-2">
-                    Afeta: Alunos, Servidores, Escolas, Turmas, Componentes Curriculares
+                    Afeta: Estudantes, Servidores, Escolas, Turmas, Componentes Curriculares
                   </p>
                 </div>
               </div>
@@ -422,8 +422,8 @@ const AdminTools = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900">Criar Usuários dos Estudantes (em lote)</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Gera contas de acesso (role=aluno) para todos os alunos <strong>ativos</strong> que ainda não têm usuário.
-                    É <strong>idempotente</strong> — pode rodar novamente a qualquer momento para atualizar com novos alunos.
+                    Gera contas de acesso (role=estudante) para todos os estudantes <strong>ativos</strong> que ainda não têm usuário.
+                    É <strong>idempotente</strong> — pode rodar novamente a qualquer momento para atualizar com novos estudantes.
                   </p>
                   <div className="text-xs text-gray-500 mt-2 bg-gray-50 rounded p-2 space-y-0.5">
                     <p>• <strong>E-mail</strong>: primeironome + últimosobrenome + mês de nascimento (MM) @sigesc.com</p>
@@ -500,7 +500,7 @@ const AdminTools = () => {
                 {bulkStudentPlan.skipped && bulkStudentPlan.skipped.length > 0 && (
                   <details className="mb-3">
                     <summary className="text-xs text-amber-700 cursor-pointer font-medium">
-                      Ver {bulkStudentPlan.skipped.length} aluno(s) ignorado(s)
+                      Ver {bulkStudentPlan.skipped.length} estudante(s) ignorado(s)
                     </summary>
                     <div className="max-h-40 overflow-y-auto mt-2 border rounded bg-amber-50/50">
                       <table className="w-full text-xs">
@@ -559,7 +559,7 @@ const AdminTools = () => {
 
                 {bulkStudentPlan.totals.to_create === 0 && !bulkStudentResult && (
                   <p className="text-sm text-blue-700 bg-blue-50 p-2 rounded">
-                    ✅ Todos os alunos ativos já possuem usuário.
+                    ✅ Todos os estudantes ativos já possuem usuário.
                   </p>
                 )}
 
@@ -592,7 +592,7 @@ const AdminTools = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900">Limpar Matrículas Canceladas</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Remove dados de alunos com matrícula cancelada: frequências, notas e matrículas.
+                    Remove dados de estudantes com matrícula cancelada: frequências, notas e matrículas.
                     Define o status como inativo e limpa escola/turma.
                   </p>
                   <p className="text-xs text-gray-400 mt-2">

@@ -272,7 +272,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                 />
                 {!editingPlano && (
                   <p className="text-[11px] text-gray-500 mt-1">
-                    Alunos que já possuem plano em {academicYear || 'no ano vigente'} aparecem
+                    Estudantes que já possuem plano em {academicYear || 'no ano vigente'} aparecem
                     desabilitados — edite o plano existente pela aba "Planos de AEE".
                   </p>
                 )}

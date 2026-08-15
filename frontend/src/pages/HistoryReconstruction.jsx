@@ -147,7 +147,7 @@ export default function HistoryReconstruction() {
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-sm text-amber-800">
           <AlertTriangle size={18} className="mt-0.5 shrink-0" />
           <p>
-            Esta ferramenta reprocessa (de forma <strong>idempotente</strong>) a consolidação pedagógica de alunos que
+            Esta ferramenta reprocessa (de forma <strong>idempotente</strong>) a consolidação pedagógica de estudantes que
             mudaram de turma no mesmo ano letivo, copiando <strong>frequência, notas e conteúdo</strong> das turmas de
             origem para a turma atual. <strong>Não altera os dados de origem</strong>. Sempre execute a <strong>simulação</strong> antes.
           </p>

@@ -523,7 +523,7 @@ export default function Mantenedora() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Média mínima necessária para aprovação do aluno
+                  Média mínima necessária para aprovação do estudante
                 </p>
               </div>
 
@@ -636,7 +636,7 @@ export default function Mantenedora() {
               </div>
               
               <p className="text-xs text-gray-500 border-t pt-3 mt-3">
-                Estas regras serão consideradas no resultado final do aluno
+                Estas regras serão consideradas no resultado final do estudante
               </p>
             </CardContent>
           </Card>
@@ -929,7 +929,7 @@ export default function Mantenedora() {
                 </Label>
               </div>
               <p className="text-xs text-gray-500">
-                Quando habilitado, o botão de pré-matrícula será exibido na tela de login para os responsáveis realizarem a pré-matrícula de novos alunos.
+                Quando habilitado, o botão de pré-matrícula será exibido na tela de login para os responsáveis realizarem a pré-matrícula de novos estudantes.
               </p>
 
               <div className="pt-4 border-t">

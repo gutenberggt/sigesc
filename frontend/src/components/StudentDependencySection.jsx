@@ -581,7 +581,7 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
         />
         <p className="text-[10px] text-gray-500 mb-4 italic" data-testid="dep-origin-year-hint">
           Preenchido automaticamente com o ano anterior. Histórico do componente reprovado
-          é mantido apenas para registro — não interfere na busca do aluno.
+          é mantido apenas para registro — não interfere na busca do estudante.
         </p>
 
         <div className="flex gap-2 justify-end">

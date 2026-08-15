@@ -221,7 +221,7 @@ export default function AssocialDashboard() {
 
           {searchTerm.length >= 2 && searchResults.length === 0 && !loading && (
             <div className="mt-4 text-center py-4 text-gray-500">
-              Nenhum aluno encontrado com os criterios informados.
+              Nenhum estudante encontrado com os criterios informados.
             </div>
           )}
 
@@ -382,7 +382,7 @@ export default function AssocialDashboard() {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Busque um estudante</h3>
             <p className="text-gray-500 max-w-md mx-auto">
-              Digite o nome ou CPF do aluno no campo de busca acima para visualizar suas informações 
+              Digite o nome ou CPF do estudante no campo de busca acima para visualizar suas informações 
               e acompanhamento de frequência.
             </p>
           </div>

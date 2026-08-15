@@ -401,7 +401,7 @@ const DiarioAEE = () => {
         ? blob
         : new Blob([blob], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(pdfBlob);
-      const studentName = (estudantes.find(e => e.student_id === plano.student_id)?.full_name || 'aluno')
+      const studentName = (estudantes.find(e => e.student_id === plano.student_id)?.full_name || 'estudante')
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       const filename = `plano_aee_${studentName}.pdf`;
       // Força download com extensão .pdf para que o navegador ofereça "PDF" ao salvar
@@ -1786,8 +1786,8 @@ const DiarioAEE = () => {
                     ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  São listados apenas alunos AEE da escola atual.
-                  Se o aluno já tiver plano no mesmo ano letivo, a duplicação será bloqueada.
+                  São listados apenas estudantes AEE da escola atual.
+                  Se o estudante já tiver plano no mesmo ano letivo, a duplicação será bloqueada.
                 </p>
               </div>
             )}

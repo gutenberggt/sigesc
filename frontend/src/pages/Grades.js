@@ -816,7 +816,7 @@ export function Grades() {
                 }`}
               >
                 <User className="inline mr-2" size={18} />
-                Por Aluno
+                Por Estudante
               </button>
             </nav>
           </div>
