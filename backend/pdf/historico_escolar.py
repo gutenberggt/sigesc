@@ -282,7 +282,7 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     rg = str(student.get('rg') or '')
 
     student_data = [
-        [p_lbl('ALUNO(A)'), p_val(nome), p_lbl('NASCIMENTO'), p_val(nascimento)],
+        [p_lbl('ESTUDANTE'), p_val(nome), p_lbl('NASCIMENTO'), p_val(nascimento)],
         [p_lbl('FILIAÇÃO'), p_val(f"Pai: {pai}"), p_lbl('CPF'), p_val(cpf)],
         [p_lbl(''), p_val(f"Mãe: {mae}"), p_lbl('RG'), p_val(rg)],
         [p_lbl('NATURALIDADE'), p_val(f"{naturalidade} - {uf_nasc}"), p_lbl('CÓD. INEP'), p_val(inep)],

@@ -449,7 +449,7 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         ]))
 
         info_line = Paragraph(
-            f'Documento gerado em {gen_time} | Total de alunos(as): {total_alunos:02d}',
+            f'Documento gerado em {gen_time} | Total de estudantes: {total_alunos:02d}',
             info_style,
         )
 

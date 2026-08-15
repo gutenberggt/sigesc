@@ -294,7 +294,7 @@ def _build_receipt_pdf(audit: dict, code: str, token: str) -> bytes:
         ("Protocolo", audit.get("protocol")),
         ("Escopo", audit.get("scope")),
         ("Ano letivo", str(audit.get("academic_year") or "Todos")),
-        ("Alunos processados", str(audit.get("students_processed"))),
+        ("Estudantes processados", str(audit.get("students_processed"))),
         ("Movimentações processadas", str(audit.get("movements_processed"))),
         ("Frequência consolidada", str(ac.get("attendance", 0))),
         ("Notas consolidadas", str(ac.get("grades", 0))),

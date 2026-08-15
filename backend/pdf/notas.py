@@ -134,7 +134,7 @@ def generate_grades_report_pdf(
         [
             Paragraph(f"<b>Componente:</b> {safe(course.get('name'))}", info_style),
             '',
-            Paragraph(f"<b>Total de Alunos:</b> {len(students_data)}", info_style),
+            Paragraph(f"<b>Total de Estudantes:</b> {len(students_data)}", info_style),
             Paragraph(f"<b>Tipo:</b> {'Conceitual' if is_conceitual else 'Numérica'}", info_style),
         ]
     ]
@@ -159,7 +159,7 @@ def generate_grades_report_pdf(
     # Cabeçalho dinâmico baseado nos bimestres selecionados
     header_cells = [
         Paragraph('<b>Nº</b>', small_center),
-        Paragraph('<b>ALUNO(A)</b>', content_bold),
+        Paragraph('<b>ESTUDANTE</b>', content_bold),
     ]
     for b in sorted(bimestres):
         header_cells.append(Paragraph(f'<b>B{b}</b>', small_center))
@@ -210,7 +210,7 @@ def generate_grades_report_pdf(
         table_data.append(row)
 
     if len(table_data) == 1:
-        empty_row = ['', Paragraph('Nenhum aluno encontrado.', content_style)]
+        empty_row = ['', Paragraph('Nenhum estudante encontrado.', content_style)]
         empty_row.extend([''] * (len(header_cells) - 2))
         table_data.append(empty_row)
 

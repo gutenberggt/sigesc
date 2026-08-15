@@ -167,7 +167,7 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
     # === 1. Identificação do Estudante ===
     elements.append(Paragraph('1. IDENTIFICAÇÃO DO ESTUDANTE', section))
     ident_rows = [
-        [Paragraph('Aluno(a):', label),
+        [Paragraph('Estudante:', label),
          Paragraph(student.get('full_name') or '-', value_style),
          Paragraph('Matrícula:', label),
          Paragraph(str(student.get('enrollment_number') or '-'), value_style)],

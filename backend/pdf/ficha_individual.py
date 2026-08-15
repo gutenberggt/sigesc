@@ -290,7 +290,7 @@ def generate_ficha_individual_pdf(
     # Linha 2: Nome aluno, sexo, INEP
     info_row2 = Table([
         [
-            Paragraph(f"<b>NOME DO(A) ALUNO(A):</b> {student_name}", info_style),
+            Paragraph(f"<b>NOME DO ESTUDANTE:</b> {student_name}", info_style),
             Paragraph(f"<b>SEXO:</b> {student_sex}", info_style),
             Paragraph(f"<b>Nº INEP:</b> {inep_number}", info_style),
         ]
