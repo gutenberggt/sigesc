@@ -59,7 +59,7 @@ db.student_dependencies.create_index("id", unique=True)
 db.student_dependencies.create_index([("student_id", 1), ("status", 1)])
 db.student_dependencies.create_index([("class_id", 1), ("course_id", 1), ("status", 1)])  # diário
 db.student_dependencies.create_index([("mantenedora_id", 1), ("school_id", 1), ("academic_year", 1)])
-# Duplicidade: 1 dep ativa por aluno×componente×ano de origem
+# Duplicidade: 1 dep ativa por estudante×componente×ano de origem
 db.student_dependencies.create_index(
     [("student_id", 1), ("course_id", 1), ("origin_academic_year", 1)],
     unique=True,
@@ -171,7 +171,7 @@ NÃO mexer no enrollment para forçar dependência (cria duplicidade estrutural)
 ##### 3. Ordem visual obrigatória no diário
 
 ```text
-1. alunos regulares (sort alfabético do nome)
+1. estudantes regulares (sort alfabético do nome)
 2. dependências (no final, sort alfabético separado)
 3. badge discreta "(Dependência)"
 ```

@@ -3,7 +3,7 @@
 > **Status**: 🔒 Congelado em Fev/2026 — `contract_version: 1`.
 > **Antes de qualquer mudança neste contrato**: bumpar versão, manter compatibilidade ou criar V2 paralelo.
 > **Pré-requisito**: Fase 1 da Dependência de Estudos validada (ver `STUDENT_DEPENDENCY.md`).
-> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
+> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato. <!-- nomenclature-allow: registro editorial da migração terminológica -->
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
@@ -490,7 +490,7 @@ Se um diário receber mais de 30 estudantes em dependência ativa:
       "code": "EXCESS_DEPENDENCY_LOAD",
       "count": 47,
       "threshold": 30,
-      "message": "Volume anômalo de alunos em dependência neste componente."
+      "message": "Volume anômalo de estudantes em dependência neste componente."
     }]
   }
   ```
@@ -534,7 +534,7 @@ Dataset fixo para testes de regressão de TODA Fase 2+:
 1 turma "5º ano A" (cl_fix_1)
 2 componentes: Matemática (co_fix_mat), Português (co_fix_pt)
 
-Alunos:
+Estudantes:
 - 5 regulares (Ana, Bruno, Carlos, Diana, Eva) — enrollment ativo.
 - 2 com dependência (Felipe e Gabriela) — enrollment ativo + 1 dep ativa em Matemática (origem 2025).
 - 1 apenas dependência (Heitor) — sem enrollment regular + 2 deps ativas.

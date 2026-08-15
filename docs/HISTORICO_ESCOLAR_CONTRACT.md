@@ -6,7 +6,7 @@
 > documento — preservar fidelidade temporal é requisito jurídico.
 >
 > Rotas de implementação: Fase 4 (depois do Boletim — Fase 3).
-> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
+> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato. <!-- nomenclature-allow: registro editorial da migração terminológica -->
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
@@ -458,7 +458,7 @@ super_admin/admin/gerente/diretor):
   "document_status": "valido | valido_reprovado | cancelado_administrativamente | revogado | nao_encontrado",
   "document_hash": "...",
   "issued_at": "...",
-  "school_name": "...",          // sem nome do aluno
+  "school_name": "...",          // sem nome do estudante
   "course_name": "...",
   "original_academic_year": 2024,
   "completion_academic_year": 2025,
