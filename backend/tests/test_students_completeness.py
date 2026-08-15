@@ -100,7 +100,7 @@ def test_counts_match_active_count(auth_headers):
     counts = data["completeness_counts"]
     active = data.get("active_count")
     assert active is not None, "active_count ausente na resposta"
-    assert active == counts["green"] + counts["yellow"] + counts["red"], \
+    assert active == counts["green"] + counts["yellow"] + counts["red"],\
         f"active_count={active}, counts={counts}"
 
 
@@ -156,7 +156,7 @@ def test_list_includes_completeness_source_fields_for_client_recompute(auth_head
     assert r.status_code == 200, r.text[:300]
     items = r.json().get("items") or r.json().get("students") or []
     if not items:
-        pytest.skip("Sem alunos para validar")
+        pytest.skip("Sem estudantes para validar")
     required = [
         "full_name", "birth_date", "sex", "nationality", "color_race",
         "comunidade_tradicional", "birth_city", "birth_state", "mother_name",

@@ -191,7 +191,7 @@ def test_is_empty_handles_none_empty_and_whitespace():
 
 def test_category_A_regular_class_fills_with_grade_level():
     db = _FakeDB(
-        students=[{"id": "s1", "full_name": "Aluno A", "status": "active",
+        students=[{"id": "s1", "full_name": "Estudante A", "status": "active",
                    "student_series": None, "school_id": "sch1"}],
         enrollments=[{"id": "e1", "student_id": "s1", "class_id": "c1", "status": "active"}],
         classes=[{"id": "c1", "name": "1A", "grade_level": "1º Ano",

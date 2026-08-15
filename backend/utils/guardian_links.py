@@ -30,6 +30,6 @@ def normalize_guardian_student_links(student_ids, primary_student_ids):
     if missing:
         raise ValueError(
             "Todo estudante marcado como responsável legal principal deve estar "
-            "também na lista de alunos vinculados."
+            "também na lista de estudantes vinculados."
         )
     return linked, primary

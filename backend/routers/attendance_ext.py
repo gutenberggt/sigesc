@@ -50,7 +50,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Busca dados do aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Busca a turma do aluno (pode vir da matrícula ativa ou do campo class_id)
         class_id = student.get('class_id')

@@ -771,7 +771,7 @@ def setup_router(db, **kwargs):
         request: Request,
         school_id: Optional[str] = Query(None, description="ID da escola; omitir para listar TODAS (apenas super_admin/admin/gerente/semed3)"),
         academic_year: Optional[int] = None,
-        class_id: Optional[str] = Query(None, description="Filtra alunos por turma específica"),
+        class_id: Optional[str] = Query(None, description="Filtra estudantes por turma específica"),
     ):
         """Lista alunos com Bolsa Família de uma escola.
 
@@ -1106,9 +1106,9 @@ def setup_router(db, **kwargs):
 
         if not students:
             detail = (
-                "Nenhum aluno com Bolsa Família encontrado nesta turma"
+                "Nenhum estudante com Bolsa Família encontrado nesta turma"
                 if class_id
-                else "Nenhum aluno com Bolsa Família encontrado nesta escola"
+                else "Nenhum estudante com Bolsa Família encontrado nesta escola"
             )
             raise HTTPException(status_code=404, detail=detail)
 

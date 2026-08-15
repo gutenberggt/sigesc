@@ -32,7 +32,7 @@ _SCHOOL_DOC_ROLES = (
 
 
 class IssueRequest(BaseModel):
-    student_id: str = Field(..., description="ID do aluno (students.id)")
+    student_id: str = Field(..., description="ID do estudante (students.id)")
     doc_type: str = Field(..., description="matricula | frequencia | escolaridade")
     purpose: str = Field("", description="Finalidade (banco, benefício, etc.)")
     class_id: Optional[str] = None

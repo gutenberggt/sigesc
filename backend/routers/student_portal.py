@@ -88,7 +88,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         pode ter os dados do aluno (caso legacy).
         """
         if user.get("role") not in ("aluno", "student"):
-            raise HTTPException(status_code=403, detail="Apenas alunos acessam esta rota")
+            raise HTTPException(status_code=403, detail="Apenas estudantes acessam esta rota")
         # JWT não carrega student_id — busca no user doc
         user_doc = await current_db.users.find_one(
             {"id": user.get("id")}, {"_id": 0, "student_id": 1, "email": 1}
@@ -106,7 +106,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 return st
         raise HTTPException(
             status_code=404,
-            detail="Aluno sem vínculo no sistema. Contate a secretaria para vincular seu cadastro.",
+            detail="Estudante sem vínculo no sistema. Contate a secretaria para vincular seu cadastro.",
         )
 
     @router.get("/me")
@@ -507,7 +507,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def get_my_announcements(request: Request, limit: int = 10):
         user = await AuthMiddleware.get_current_user(request)
         if user.get("role") not in ("aluno", "student"):
-            raise HTTPException(status_code=403, detail="Apenas alunos acessam esta rota")
+            raise HTTPException(status_code=403, detail="Apenas estudantes acessam esta rota")
         current_db = _get_db(user)
 
         announcements = await current_db.announcements.find(

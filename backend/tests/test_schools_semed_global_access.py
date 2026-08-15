@@ -168,9 +168,9 @@ def seeded_world_full():
          "academic_year": 2026, "mantenedora_id": tenant_id, "grade_level": "5º ano"},
     ]
     students = [
-        {"id": f"fstu_a_{suf}", "full_name": "ALUNO A", "class_id": classes[0]["id"],
+        {"id": f"fstu_a_{suf}", "full_name": "ESTUDANTE A", "class_id": classes[0]["id"],
          "school_id": schools[0]["id"], "mantenedora_id": tenant_id, "status": "active"},
-        {"id": f"fstu_b_{suf}", "full_name": "ALUNO B", "class_id": classes[1]["id"],
+        {"id": f"fstu_b_{suf}", "full_name": "ESTUDANTE B", "class_id": classes[1]["id"],
          "school_id": schools[1]["id"], "mantenedora_id": tenant_id, "status": "active"},
     ]
     user_doc = {

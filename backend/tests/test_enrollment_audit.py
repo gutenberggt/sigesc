@@ -98,7 +98,7 @@ class TestEnrollmentAuditResponse:
         mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
         db_name = os.environ.get("DB_NAME", "sigesc")
         demo_id = "TMP_AUDIT_PYTEST_DEMO"
-        demo_name = "ALUNO PYTEST AUDITORIA"
+        demo_name = "ESTUDANTE PYTEST AUDITORIA"
 
         async def _seed():
             db = AsyncIOMotorClient(mongo_url)[db_name]

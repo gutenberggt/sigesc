@@ -14,8 +14,8 @@ from utils.text_normalize import (
 )
 
 
-CAPS_INPUT = "O ALUNO APRESENTA DIFICULDADES DE ATENÇÃO E NECESSITA DE ACOMPANHAMENTO INDIVIDUALIZADO DURANTE AS ATIVIDADES PEDAGÓGICAS."
-LOWER_INPUT = "o aluno apresenta dificuldades de atenção"
+CAPS_INPUT = "O ESTUDANTE APRESENTA DIFICULDADES DE ATENÇÃO E NECESSITA DE ACOMPANHAMENTO INDIVIDUALIZADO DURANTE AS ATIVIDADES PEDAGÓGICAS."
+LOWER_INPUT = "o estudante apresenta dificuldades de atenção"
 
 
 def test_blocklist_inclui_aee_essencial():

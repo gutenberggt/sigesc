@@ -67,7 +67,7 @@ class TestRelocateStudent:
         """Remanejar aluno ativo de uma turma para outra deve retornar 200 (não 500)."""
         created = self._create_active_student_in(REGULAR_CLASS_ID)
         original_number = created.get("enrollment_number")
-        assert original_number, "Aluno matriculado deve ter enrollment_number"
+        assert original_number, "Estudante matriculado deve ter enrollment_number"
 
         # Remaneja para outra turma (mesma escola)
         relocate = self.session.put(f"{BASE_URL}/api/students/{self.student_id}", json={
@@ -75,10 +75,10 @@ class TestRelocateStudent:
         })
         assert relocate.status_code == 200, f"Remanejamento deve retornar 200, veio {relocate.status_code}: {relocate.text}"
         body = relocate.json()
-        assert body.get("class_id") == REGULAR_CLASS_2_ID, "Aluno deve estar na turma de destino"
+        assert body.get("class_id") == REGULAR_CLASS_2_ID, "Estudante deve estar na turma de destino"
         assert body.get("status") == "active"
         # O número da matrícula é a identidade do aluno e é transferido para a nova matrícula ativa.
-        assert body.get("enrollment_number") == original_number, \
+        assert body.get("enrollment_number") == original_number,\
             "O número de matrícula deve ser carregado para a nova matrícula ativa"
         print(f"✓ Remanejamento OK — número {original_number} preservado na matrícula ativa")
 

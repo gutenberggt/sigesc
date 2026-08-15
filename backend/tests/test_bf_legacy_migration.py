@@ -33,7 +33,7 @@ ACADEMIC_YEAR = 2094
 # ============================================================================
 
 @pytest.mark.parametrize("text,expected_subcode", [
-    ("Aluno com atestado médico", "1a"),
+    ("Estudante com atestado médico", "1a"),
     ("Está doente", "1a"),
     ("Gripe forte", "1a"),
     ("Tinha consulta no hospital", "1a"),
@@ -48,7 +48,7 @@ ACADEMIC_YEAR = 2094
     ("Ônibus quebrou", "3b"),
     ("Estrada interditada por causa da lama", "3c"),
     ("Mora longe da escola", "3f"),
-    ("Aluno suspenso", "4a"),
+    ("Estudante suspenso", "4a"),
     ("Viagem escolar/olimpíada", "5a"),
     ("Sofreu bullying", "6a"),
     ("Gravidez de risco", "8a"),
@@ -71,9 +71,9 @@ ACADEMIC_YEAR = 2094
     ("Greve dos professores", "20a"),
     ("Escola fechada para reforma", "20c"),
     ("Sem merenda", "20d"),
-    ("Aluno não localizado", "21a"),
+    ("Estudante não localizado", "21a"),
     ("Calamidade pública", "22a"),
-    ("Aluno preso na FUNASE", "23a"),
+    ("Estudante preso na FUNASE", "23a"),
 ])
 def test_classify_legacy_keyword_matches(text, expected_subcode):
     result = classify_legacy_text(text)
@@ -145,7 +145,7 @@ def seeded_legacy():
         docs = [
             {"student_id": f"{QA_PREFIX}1", "school_id": "sch", "month": "3",
              "academic_year": ACADEMIC_YEAR, "reason_id": None,
-             "motive_legacy": "Aluno com atestado médico", "updated_at": now},
+             "motive_legacy": "Estudante com atestado médico", "updated_at": now},
             {"student_id": f"{QA_PREFIX}2", "school_id": "sch", "month": "3",
              "academic_year": ACADEMIC_YEAR, "reason_id": None,
              "motive_legacy": "Faltou transporte escolar", "updated_at": now},
@@ -266,4 +266,4 @@ def test_apply_persists_audit_metadata(auth, seeded_legacy):
     assert "engine_version" in audit
     assert "confidence" in audit
     assert "original_legacy_text" in audit
-    assert audit["original_legacy_text"] == "Aluno com atestado médico"
+    assert audit["original_legacy_text"] == "Estudante com atestado médico"

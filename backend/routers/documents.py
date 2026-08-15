@@ -204,13 +204,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def validate_student_for_document(student: dict, current_user: dict) -> tuple:
         """Valida se o aluno pode ter documentos gerados e se o usuário tem permissão."""
         if not student.get('class_id'):
-            return False, "Aluno(a) sem matrícula"
+            return False, "Estudante sem matrícula"
         if current_user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente']:
             return True, None
         user_school_id = current_user.get('school_id')
         student_school_id = student.get('school_id')
         if user_school_id and student_school_id and user_school_id != student_school_id:
-            return False, "Aluno não matriculado nesta escola"
+            return False, "Estudante não matriculado nesta escola"
         return True, None
 
 
@@ -229,7 +229,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Buscar dados do aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Validar permissão para gerar documento
         is_valid, error_message = await validate_student_for_document(student, current_user)
@@ -598,7 +598,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Buscar dados do aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Validar permissão para gerar documento
         is_valid, error_message = await validate_student_for_document(student, current_user)
@@ -719,7 +719,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         is_valid, error_message = await validate_student_for_document(student, current_user)
         if not is_valid:
@@ -838,7 +838,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Buscar dados do aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Validar permissão para gerar documento
         is_valid, error_message = await validate_student_for_document(student, current_user)
@@ -1114,7 +1114,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Buscar aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Validar permissão para gerar documento
         is_valid, error_message = await validate_student_for_document(student, current_user)
@@ -1699,7 +1699,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # 1) Aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # 1.1) Validação de permissão de documento — adaptada para dependência:
         # `dependency_only` student não tem class_id regular; sua "matrícula"
@@ -1711,7 +1711,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             student_school_id = student.get('school_id')
             if user_school_id and student_school_id and user_school_id != student_school_id:
                 raise HTTPException(
-                    status_code=403, detail="Aluno não matriculado nesta escola"
+                    status_code=403, detail="Estudante não matriculado nesta escola"
                 )
 
         # 2) Turma alvo (a que hospeda a dependência)
@@ -1733,7 +1733,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Aluno não possui dependências ativas nesta turma para o ano informado. "
+                    "Estudante não possui dependências ativas nesta turma para o ano informado. "
                     "Cadastre dependências antes de emitir a ficha."
                 )
             )
@@ -1854,7 +1854,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Buscar aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Validar permissão para gerar documento
         is_valid, error_message = await validate_student_for_document(student, current_user)
@@ -2098,7 +2098,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     students_map[s.get("id")] = s
 
             if not students_map:
-                raise HTTPException(status_code=404, detail="Nenhum aluno vinculado a esta turma")
+                raise HTTPException(status_code=404, detail="Nenhum estudante vinculado a esta turma")
 
             # Buscar componentes curriculares filtrados pelas alocações de professores
             nivel_ensino = class_info.get('education_level', '')
@@ -2170,7 +2170,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     courses_map[c.get("id")] = c
                 if not courses:
                     courses = extra
-            _p(45, 'Carregando notas dos alunos...')
+            _p(45, 'Carregando notas dos estudantes...')
 
             # Mapa de enrollments por student_id (para resolver status)
             enrollments_by_sid = {e.get("student_id"): e for e in enrollments}
@@ -2554,7 +2554,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ).to_list(1000)
 
         if not enrollments:
-            raise HTTPException(status_code=404, detail="Nenhum aluno matriculado nesta turma")
+            raise HTTPException(status_code=404, detail="Nenhum estudante matriculado nesta turma")
 
         student_ids = [e['student_id'] for e in enrollments]
         enrollment_map = {e['student_id']: e for e in enrollments}
@@ -2565,7 +2565,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
         if not students:
-            raise HTTPException(status_code=404, detail="Alunos não encontrados")
+            raise HTTPException(status_code=404, detail="Estudantes não encontrados")
 
         # ===== FILTRAR COMPONENTES CURRICULARES PELA TURMA (mesma lógica do individual) =====
         courses = []
@@ -2786,7 +2786,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Buscar escola do aluno
         enrollment = await db.enrollments.find_one(

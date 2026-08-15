@@ -857,7 +857,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         )
         if not student:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Aluno não encontrado"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado"
             )
 
         # Resolve class_id e academic_year
@@ -876,7 +876,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "error": "STUDENT_HAS_NO_CLASS",
-                    "message": "Aluno sem turma vinculada — resolução curricular impossível.",
+                    "message": "Estudante sem turma vinculada — resolução curricular impossível.",
                 },
             )
 

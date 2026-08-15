@@ -60,7 +60,7 @@ def setup_bulletins_router(db) -> APIRouter:
             if not user_student_id or user_student_id != student_id:
                 raise HTTPException(
                     status_code=403,
-                    detail="Aluno só pode acessar o próprio boletim.",
+                    detail="Estudante só pode acessar o próprio boletim.",
                 )
         # Responsável só vê alunos vinculados (relação guardian-student)
         elif role == "responsavel":
@@ -68,14 +68,14 @@ def setup_bulletins_router(db) -> APIRouter:
             if student_id not in allowed_ids:
                 raise HTTPException(
                     status_code=403,
-                    detail="Responsável só pode acessar alunos vinculados.",
+                    detail="Responsável só pode acessar estudantes vinculados.",
                 )
         else:
             # Demais roles: validar tenant scope
             stu_filter = apply_tenant_filter({"id": student_id}, user, request)
             student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
             if not student:
-                raise HTTPException(status_code=404, detail="Aluno não encontrado")
+                raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         tenant = get_mantenedora_scope(user, request)
         bulletin = await build_student_bulletin(
@@ -86,7 +86,7 @@ def setup_bulletins_router(db) -> APIRouter:
         )
         # Caso aluno not found (skipped tenant filter para aluno/responsavel)
         if bulletin.get("student") is None:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         return bulletin
 
     # ----------------------------------------------------------------------
@@ -99,16 +99,16 @@ def setup_bulletins_router(db) -> APIRouter:
         if role == "aluno":
             uid = user.get("student_id") or user.get("linked_student_id")
             if not uid or uid != student_id:
-                raise HTTPException(status_code=403, detail="Aluno só vê o próprio boletim.")
+                raise HTTPException(status_code=403, detail="Estudante só vê o próprio boletim.")
         elif role == "responsavel":
             allowed = set(user.get("dependents") or user.get("student_ids") or [])
             if student_id not in allowed:
-                raise HTTPException(status_code=403, detail="Responsável só vê alunos vinculados.")
+                raise HTTPException(status_code=403, detail="Responsável só vê estudantes vinculados.")
         else:
             stu_filter = apply_tenant_filter({"id": student_id}, user, request)
             student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
             if not student:
-                raise HTTPException(status_code=404, detail="Aluno não encontrado")
+                raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
     @router.get("/{student_id}/bulletins-index")
     async def get_student_bulletins_index(
@@ -153,7 +153,7 @@ def setup_bulletins_router(db) -> APIRouter:
             mantenedora_id=tenant,
         )
         if bulletin.get("student") is None:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         return bulletin
 
     return router
@@ -191,7 +191,7 @@ def setup_admin_bulletins_router(db) -> APIRouter:
             stu_filter = apply_tenant_filter({"id": student_id}, user, request)
             student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
             if not student:
-                raise HTTPException(status_code=404, detail="Aluno não encontrado")
+                raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         tenant = get_mantenedora_scope(user, request)
         bulletin = await _build(
@@ -199,7 +199,7 @@ def setup_admin_bulletins_router(db) -> APIRouter:
             mantenedora_id=tenant,
         )
         if bulletin.get("student") is None:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         return bulletin
 
     return router

@@ -143,7 +143,7 @@ def test_attendance_pdf_renders_A_for_certificate_days(super_token, setup_attend
     pdf = PdfReader(BytesIO(r.content))
     full_text = "".join(p.extract_text() or "" for p in pdf.pages)
 
-    assert "TEST_ATESTADO_ALUNO" in full_text, "aluno não apareceu no PDF"
+    assert "TEST_ATESTADO_ALUNO" in full_text, "estudante não apareceu no PDF"
     # No PDF, na linha do aluno, deve haver 'A' substituindo o 'F' lançado pelo professor
     # (e também substituindo o 'P' do dia 09 que estava em atestado)
     assert " A " in full_text or "\nA" in full_text or "A " in full_text, (

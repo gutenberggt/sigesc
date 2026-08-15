@@ -74,7 +74,7 @@ def fixture_doc():
             "code": code,
             "doc_type": "matricula",
             "student_id": "fix_stu_ana",
-            "student_name": "Aluno Teste DEL",
+            "student_name": "Estudante Teste DEL",
             "purpose": "TESTE",
             "school_id": "any",
             "mantenedora_id": TENANT,

@@ -44,7 +44,7 @@ ALLOWED_TYPES = tuple(DEFAULT_VALIDITY_DAYS.keys())
 async def _load_student(db, student_id: str) -> dict:
     student = await db.students.find_one({"id": student_id}, {"_id": 0})
     if not student:
-        raise HTTPException(404, "Aluno não encontrado")
+        raise HTTPException(404, "Estudante não encontrado")
     return student
 
 

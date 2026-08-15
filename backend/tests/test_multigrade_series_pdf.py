@@ -171,7 +171,7 @@ def test_pdf_excludes_unclassified_then_includes_after_edit(scenario, admin_head
     r2 = requests.get(f"{BASE_URL}/api/grades/pdf/{CLASS_ID}/{COURSE_ID}?academic_year={YEAR}&student_series=Etapa%20I",
                       headers=admin_headers, timeout=60)
     present2 = _pdf_names(r2.content, all_names)
-    assert present2["QA SER E"], "E deveria aparecer no PDF após edição em Editar Aluno"
+    assert present2["QA SER E"], "E deveria aparecer no PDF após edição em Editar Estudante"
 
 
 @pytest.mark.skipif(not _HAS_PDFPLUMBER, reason="pdfplumber não instalado")

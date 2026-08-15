@@ -134,7 +134,7 @@ async def save_attendance_canonical(current_db, current_user, request, attendanc
                     "event_id": ownership.get("governing_event_id"),
                     "student_id": r.student_id,
                     "effective_date": ownership.get("governing_effective_date"),
-                    "message": "Frequência bloqueada por evento acadêmico para este aluno.",
+                    "message": "Frequência bloqueada por evento acadêmico para este estudante.",
                 },
             )
 
@@ -971,7 +971,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         
         # Busca todos os registros de frequência do aluno
         attendances = await current_db.attendance.find(

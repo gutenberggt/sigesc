@@ -102,7 +102,7 @@ def test_students_performance_media_preenchida():
                      headers=_h(), timeout=60)
     assert r.status_code == 200, r.text[:300]
     data = r.json().get("data", [])
-    assert len(data) > 0, "Nenhum aluno no desempenho"
+    assert len(data) > 0, "Nenhum estudante no desempenho"
     # Pelo menos um aluno com média (60%) > 0
-    assert any((s.get("avg_grade") or 0) > 0 for s in data), \
+    assert any((s.get("avg_grade") or 0) > 0 for s in data),\
         f"Coluna Média(60%) zerada para todos: {[s.get('avg_grade') for s in data]}"

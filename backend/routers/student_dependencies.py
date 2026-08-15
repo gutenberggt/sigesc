@@ -86,12 +86,12 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
             {"_id": 0, "id": 1, "dependency_mode": 1},
         )
         if not student:
-            raise HTTPException(404, detail="Aluno não encontrado.")
+            raise HTTPException(404, detail="Estudante não encontrado.")
         mode = student.get("dependency_mode") or "none"
         if mode == "none":
             raise HTTPException(
                 400,
-                detail="Aluno não possui modalidade de dependência configurada. Defina 'Com dependência' ou 'Apenas dependência' no cadastro do aluno antes de vincular componentes."
+                detail="Estudante não possui modalidade de dependência configurada. Defina 'Com dependência' ou 'Apenas dependência' no cadastro do estudante antes de vincular componentes."
             )
         config = await _get_mantenedora_config(mantenedora_id, request)
         if mode == "with_dependency":
@@ -292,7 +292,7 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
             {"_id": 0, "id": 1, "dependency_mode": 1},
         )
         if not student:
-            raise HTTPException(404, detail="Aluno não encontrado.")
+            raise HTTPException(404, detail="Estudante não encontrado.")
         mode = student.get("dependency_mode") or "none"
         config = await _get_mantenedora_config(user.get("mantenedora_id"), request)
         limit = None

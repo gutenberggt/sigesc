@@ -478,7 +478,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         
         student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         
         grades = await current_db.grades.find(
             {"student_id": student_id, "academic_year": academic_year},

@@ -87,7 +87,7 @@ async def validate_dependency_link(
             status_code=422,
             detail={
                 "code": "DEPENDENCY_COHERENCE_STUDENT_MISMATCH",
-                "message": "dependency_id não pertence a este aluno.",
+                "message": "dependency_id não pertence a este estudante.",
             },
         )
 

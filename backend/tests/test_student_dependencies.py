@@ -233,7 +233,7 @@ async def test_update_aceita_status_reason():
     handler = _get_handler(router, "PUT", "/{dep_id}")
 
     from models import StudentDependencyUpdate
-    payload = StudentDependencyUpdate(status="cancelled", status_reason="[transferencia] aluno transferido para outra rede")
+    payload = StudentDependencyUpdate(status="cancelled", status_reason="[transferencia] estudante transferido para outra rede")
     result = await handler(request=MagicMock(), dep_id="d1", payload=payload)
     assert "sucesso" in result.get("message", "").lower()
 

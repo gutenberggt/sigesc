@@ -78,7 +78,7 @@ async def _seed_basic(db, ids, *, course_ids=None, nivel_ensino="fundamental_ano
         "atendimento_programa": "regular",
     })
     await db.students.insert_one({
-        "id": ids["student"], "full_name": "ALUNO TESTE CR",
+        "id": ids["student"], "full_name": "ESTUDANTE TESTE CR",
         "class_id": ids["class"], "school_id": ids["school"],
         "student_series": "7º ano",
     })

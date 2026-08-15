@@ -67,9 +67,9 @@ async def _seed():
     ])
     await db.students.insert_many([
         {"id": S1, "mantenedora_id": TENANT, "school_id": SCHOOL, "class_id": CLASS_DAILY,
-         "full_name": "Aluno Um", "status": "active"},
+         "full_name": "Estudante Um", "status": "active"},
         {"id": S2, "mantenedora_id": TENANT, "school_id": SCHOOL, "class_id": CLASS_DAILY,
-         "full_name": "Aluno Dois", "status": "active"},
+         "full_name": "Estudante Dois", "status": "active"},
     ])
     db.client.close()
 

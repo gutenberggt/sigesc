@@ -152,7 +152,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def convert_pre_matricula_to_student(
         pre_matricula_id: str,
         request: Request,
-        class_id: Optional[str] = Query(None, description="ID da turma para matricular o aluno")
+        class_id: Optional[str] = Query(None, description="ID da turma para matricular o estudante")
     ):
         """
         Converte uma pré-matrícula aprovada em um novo aluno.
@@ -175,14 +175,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if pre_matricula.get('status') != 'aprovada':
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Apenas pré-matrículas aprovadas podem ser convertidas em alunos"
+                detail="Apenas pré-matrículas aprovadas podem ser convertidas em estudantes"
             )
 
         # Verificar se já foi convertida
         if pre_matricula.get('converted_student_id'):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Esta pré-matrícula já foi convertida em aluno"
+                detail="Esta pré-matrícula já foi convertida em estudante"
             )
 
         # Buscar a escola para obter o próximo número de matrícula
@@ -302,7 +302,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         })
 
         return {
-            "message": "Pré-matrícula convertida em aluno com sucesso",
+            "message": "Pré-matrícula convertida em estudante com sucesso",
             "student_id": student_id,
             "enrollment_number": enrollment_number,
             "student_name": pre_matricula.get('aluno_nome')

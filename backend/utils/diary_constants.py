@@ -15,7 +15,7 @@ DEPENDENCY_DISPLAY_LABEL = "Dependência"
 
 # Variantes proibidas (validação automática em testes/lint).
 FORBIDDEN_DEPENDENCY_LABELS = {
-    "DP", "Dep.", "Depend.", "Dependente", "Aluno dependência",
+    "DP", "Dep.", "Depend.", "Dependente", "Estudante dependência",
     "(Dep.)", "(DP)", "Em DP", "EM DP",
 }
 

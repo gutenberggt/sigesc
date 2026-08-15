@@ -123,7 +123,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             'approve': 'Aprovação', 'reject': 'Rejeição',
         }
         collection_labels = {
-            'users': 'Usuários', 'students': 'Alunos(as)', 'grades': 'Notas',
+            'users': 'Usuários', 'students': 'Estudantes', 'grades': 'Notas',
             'attendance': 'Frequência', 'content_entries': 'Conteúdos', 'staff': 'Servidores(as)',
             'schools': 'Escolas', 'classes': 'Turmas', 'courses': 'Componentes',
             'enrollments': 'Matrículas', 'school_assignments': 'Lotações',

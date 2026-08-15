@@ -61,7 +61,7 @@ COLLECTION_NAMES = {
     'grades': 'notas',
     'attendance': 'frequência',
     'students': 'aluno',
-    'student_health_profiles': 'ficha de saúde do aluno',
+    'student_health_profiles': 'ficha de saúde do estudante',
     'enrollments': 'matrícula',
     'staff': 'servidor',
     'school_assignments': 'lotação',

@@ -55,7 +55,7 @@ def setup_medical_certificates_router(db, auth_middleware):
         if not student:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
         
         # Verificar sobreposição de atestados
@@ -273,7 +273,7 @@ def setup_medical_certificates_router(db, auth_middleware):
                 {"_id": 0, "school_id": 1}
             )
             if not enrollment:
-                raise HTTPException(status_code=403, detail="Aluno sem matrícula ativa")
+                raise HTTPException(status_code=403, detail="Estudante sem matrícula ativa")
             
             school_assignment = await db.school_assignments.find_one({
                 "staff_id": current_user.get('staff_id', current_user['id']),
@@ -281,7 +281,7 @@ def setup_medical_certificates_router(db, auth_middleware):
                 "status": {"$in": ["active", "Ativo"]}
             })
             if not school_assignment:
-                raise HTTPException(status_code=403, detail="Sem permissão: você não está vinculado à escola deste aluno")
+                raise HTTPException(status_code=403, detail="Sem permissão: você não está vinculado à escola deste estudante")
         else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -153,7 +153,7 @@ def test_c1_get_students_returns_canonical_shape(auth):
     body = r.json()
     assert "students" in body
     if not body["students"]:
-        pytest.skip("Escola sem alunos BF — não foi possível validar shape")
+        pytest.skip("Escola sem estudantes BF — não foi possível validar shape")
     s = body["students"][0]
     # Cada aluno deve trazer months dict
     assert "months" in s
@@ -205,7 +205,7 @@ def test_c2_medical_certificate_creates_badge_and_counts(auth, mongo, created_ce
     if target is None:
         pytest.skip(f"Aluno alvo {STUDENT_ID} não está na escola BF — não foi possível auditar badge")
     m3 = target["months"].get("3") or target["months"].get(3)
-    assert m3 is not None, "mês 3 ausente para aluno alvo"
+    assert m3 is not None, "mês 3 ausente para estudante alvo"
     assert m3["medical_days_count"] > 0, f"medical_days_count deveria ser > 0, foi {m3['medical_days_count']}"
     assert m3["has_medical_certificate"] is True
 
@@ -254,7 +254,7 @@ def test_c4_pdf_renders_subcode_name_notes(auth):
         timeout=30,
     ).json()
     if not students_rsp.get("students"):
-        pytest.skip("Escola sem alunos BF para teste de PDF")
+        pytest.skip("Escola sem estudantes BF para teste de PDF")
     target_sid = students_rsp["students"][0]["id"]
 
     unique_note = f"qa-pdf-note-iter76-{uuid.uuid4().hex[:8]}"
@@ -333,7 +333,7 @@ def test_c8_badge_and_reason_coexist(auth, created_cert_ids):
         None,
     )
     if target is None:
-        pytest.skip("Aluno alvo não está na escola BF")
+        pytest.skip("Estudante alvo não está na escola BF")
     m3 = target["months"].get("3") or target["months"].get(3)
     # Badge (informativo) deve continuar
     if created_cert_ids:  # só valida se C2 rodou

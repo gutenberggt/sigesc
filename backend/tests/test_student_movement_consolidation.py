@@ -58,7 +58,7 @@ def world():
                                 "grade_level": "1º Ano", "education_level": "fundamental_anos_iniciais",
                                 "academic_year": YEAR, "shift": "morning", "course_ids": [course],
                                 "school_history": [{"school_id": sch, "start_date": f"{YEAR}-01-01", "end_date": None}]})
-    _db.students.insert_one({"id": sid, "full_name": "Aluno Mov", "birth_date": "2017-05-01", "sex": "masculino",
+    _db.students.insert_one({"id": sid, "full_name": "Estudante Mov", "birth_date": "2017-05-01", "sex": "masculino",
                              "school_id": sch, "class_id": f"{P}CLASS-A", "mantenedora_id": mant, "status": "active"})
     _db.enrollments.insert_one({"id": f"{P}ENR", "student_id": sid, "school_id": sch, "class_id": f"{P}CLASS-A",
                                 "academic_year": YEAR, "status": "active", "enrollment_number": "MOV1", "created_at": now})

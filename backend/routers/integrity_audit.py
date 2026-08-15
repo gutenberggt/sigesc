@@ -46,18 +46,18 @@ SEVERITY_BY_TYPE = {
 }
 
 TYPE_LABELS = {
-    "aluno_sem_turma": "Aluno ativo sem turma",
+    "aluno_sem_turma": "Estudante ativo sem turma",
     "turma_inexistente": "Turma inexistente",
     "escola_inexistente": "Escola inexistente",
     "atendimento_aee_orfao": "Atendimento AEE sem plano",
     "matricula_duplicada": "2+ matrículas ativas",
     "turma_outra_escola": "Turma de outra escola",
     "disabilities_duplicadas": "disabilities[] duplicadas",
-    "atendimento_aee_aluno_inconsistente": "Atendimento AEE com aluno divergente do plano",
-    "student_series_vazio": "Aluno ativo com série vazia",
+    "atendimento_aee_aluno_inconsistente": "Atendimento AEE com estudante divergente do plano",
+    "student_series_vazio": "Estudante ativo com série vazia",
     "has_disability_sem_plano": "has_disability sem plano AEE ativo",
     "turma_com_escola_inexistente": "Turma com escola inexistente",
-    "plano_aee_orfao": "Plano AEE sem aluno",
+    "plano_aee_orfao": "Plano AEE sem estudante",
 }
 
 
@@ -97,7 +97,7 @@ def setup_integrity_audit_router(db):
                 "student_name": s.get("full_name"),
                 "class_id": None,
                 "class_name": None,
-                "observacao": "Aluno marcado como ATIVO mas sem class_id.",
+                "observacao": "Estudante marcado como ATIVO mas sem class_id.",
             })
 
         # ---- 1.2 + 1.3 Turma inexistente OU de outra escola ----
@@ -347,7 +347,7 @@ def setup_integrity_audit_router(db):
                 "student_name": s.get("full_name"),
                 "class_id": s.get("class_id"),
                 "class_name": None,
-                "observacao": "Aluno marcado com deficiência mas sem Plano AEE ativo (verificar elegibilidade).",
+                "observacao": "Estudante marcado com deficiência mas sem Plano AEE ativo (verificar elegibilidade).",
             })
 
         # ---- 3.1 Turma com escola inexistente (informativo) ----

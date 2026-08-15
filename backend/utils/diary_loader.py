@@ -253,7 +253,7 @@ async def load_diary_items(
             "code": "EXCESS_DEPENDENCY_LOAD",
             "count": dependency_count,
             "threshold": MAX_DEPENDENCY_STUDENTS_PER_DIARY,
-            "message": "Volume anômalo de alunos em dependência neste componente.",
+            "message": "Volume anômalo de estudantes em dependência neste componente.",
         })
         logger.error(
             "[diary] excess dep load class=%s course=%s count=%d",
@@ -266,7 +266,7 @@ async def load_diary_items(
             "regular": regular_count,
             "dependency": dependency_count,
             "message": (
-                "Quantidade de alunos em dependência maior que regulares — "
+                "Quantidade de estudantes em dependência maior que regulares — "
                 "verifique configuração da mantenedora."
             ),
         })

@@ -186,7 +186,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def _load_student(current_db, user, request, student_id: str) -> Dict[str, Any]:
         student = await current_db.students.find_one({'id': student_id}, {'_id': 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         assert_same_tenant(student, user, request)
         return student
 
@@ -289,7 +289,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if user.get('role') == 'secretario':
             q['school_id'] = {'$in': user.get('school_ids', []) or []}
 
-        rows = await current_db.student_risk_scores.find(q, {'_id': 0}) \
+        rows = await current_db.student_risk_scores.find(q, {'_id': 0})\
             .sort('overall_risk', -1).limit(min(limit, 1000)).to_list(min(limit, 1000))
 
         sids = [r['student_id'] for r in rows]

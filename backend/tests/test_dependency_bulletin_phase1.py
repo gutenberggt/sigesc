@@ -86,7 +86,7 @@ async def world(db):
 @pytest.mark.asyncio
 async def test_catalog_none_mode_regular_only(db, world):
     await db.students.insert_one({
-        "id": world["student"], "full_name": "ALUNO NONE",
+        "id": world["student"], "full_name": "ESTUDANTE NONE",
         "class_id": world["class_reg"], "school_id": world["school"],
         "dependency_mode": "none",
     })
@@ -99,7 +99,7 @@ async def test_catalog_none_mode_regular_only(db, world):
 @pytest.mark.asyncio
 async def test_catalog_with_dependency_regular_plus_deps(db, world):
     await db.students.insert_one({
-        "id": world["student"], "full_name": "ALUNO COM DEP",
+        "id": world["student"], "full_name": "ESTUDANTE COM DEP",
         "class_id": world["class_reg"], "school_id": world["school"],
         "dependency_mode": "with_dependency",
     })
@@ -123,7 +123,7 @@ async def test_catalog_with_dependency_regular_plus_deps(db, world):
 @pytest.mark.asyncio
 async def test_catalog_dependency_only_excludes_regular(db, world):
     await db.students.insert_one({
-        "id": world["student"], "full_name": "ALUNO SO DEP",
+        "id": world["student"], "full_name": "ESTUDANTE SO DEP",
         "class_id": world["class_reg"], "school_id": world["school"],
         "dependency_mode": "dependency_only",
     })
@@ -143,7 +143,7 @@ async def test_catalog_dependency_only_excludes_regular(db, world):
 @pytest.mark.asyncio
 async def test_dependency_bulletin_only_dep_course_ids(db, world):
     await db.students.insert_one({
-        "id": world["student"], "full_name": "ALUNO DEP",
+        "id": world["student"], "full_name": "ESTUDANTE DEP",
         "class_id": world["class_reg"], "school_id": world["school"],
         "dependency_mode": "with_dependency",
     })
@@ -178,7 +178,7 @@ async def test_dependency_bulletin_only_dep_course_ids(db, world):
 @pytest.mark.asyncio
 async def test_dependency_bulletin_warns_when_no_active_deps(db, world):
     await db.students.insert_one({
-        "id": world["student"], "full_name": "ALUNO SEM DEP",
+        "id": world["student"], "full_name": "ESTUDANTE SEM DEP",
         "class_id": world["class_reg"], "school_id": world["school"],
         "dependency_mode": "with_dependency",
     })
@@ -194,7 +194,7 @@ async def test_dependency_bulletin_warns_when_no_active_deps(db, world):
 @pytest.mark.asyncio
 async def test_dependency_bulletin_class_not_found(db, world):
     await db.students.insert_one({
-        "id": world["student"], "full_name": "ALUNO",
+        "id": world["student"], "full_name": "ESTUDANTE",
         "class_id": world["class_reg"], "school_id": world["school"],
         "dependency_mode": "with_dependency",
     })

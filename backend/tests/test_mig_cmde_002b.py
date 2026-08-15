@@ -48,11 +48,11 @@ async def _seed(db):
     ])
     # Alunos: A1 pronto (cpf+inep), A2 sem cpf/nis → pendência; B1 pronto (tenant B)
     await db.students.insert_many([
-        {"id": "bb_A1", "full_name": "Aluno A1", "cpf": "111", "nis": "", "inep_code": "",
+        {"id": "bb_A1", "full_name": "Estudante A1", "cpf": "111", "nis": "", "inep_code": "",
          "school_id": SCHOOL_A, "status": "active"},
-        {"id": "bb_A2", "full_name": "Aluno A2", "cpf": "", "nis": "", "inep_code": "",
+        {"id": "bb_A2", "full_name": "Estudante A2", "cpf": "", "nis": "", "inep_code": "",
          "school_id": SCHOOL_A, "status": "active"},
-        {"id": "bb_B1", "full_name": "Aluno B1", "cpf": "999", "nis": "", "inep_code": "",
+        {"id": "bb_B1", "full_name": "Estudante B1", "cpf": "999", "nis": "", "inep_code": "",
          "school_id": SCHOOL_B, "status": "active"},
     ])
     # Attendance (SSoT): tenant A, competência 2020-05
