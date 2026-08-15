@@ -166,8 +166,8 @@ export default function PmeAnosFinais() {
               <Stat icon={School} label="Escolas (Anos Finais)" value={esc.total ?? 0} sub={`${esc.por_zona?.urbana || 0} urb. / ${esc.por_zona?.rural || 0} rural`} color="indigo" />
               <Stat icon={Users} label="Matrículas" value={m.total ?? 0} sub={`${m.ativos || 0} ativas`} color="sky" />
               <Stat icon={Layers} label="Turmas multisseriadas" value={data.multisseriadas?.total ?? 0} sub={`de ${data.multisseriadas?.total_turmas_af || 0} turmas`} color="purple" />
-              <Stat icon={Accessibility} label="Com deficiência" value={`${data.deficiencia?.percentual ?? 0}%`} sub={`${data.deficiencia?.com_deficiencia || 0} alunos`} color="amber" />
-              <Stat icon={TrendingDown} label="Taxa de abandono" value={`${data.evasao?.taxa_abandono_pct ?? 0}%`} sub={`${data.evasao?.abandono_total || 0} alunos`} color="red" />
+              <Stat icon={Accessibility} label="Com deficiência" value={`${data.deficiencia?.percentual ?? 0}%`} sub={`${data.deficiencia?.com_deficiencia || 0} estudantes`} color="amber" />
+              <Stat icon={TrendingDown} label="Taxa de abandono" value={`${data.evasao?.taxa_abandono_pct ?? 0}%`} sub={`${data.evasao?.abandono_total || 0} estudantes`} color="red" />
               <Stat icon={GraduationCap} label="Docentes c/ formação" value={`${data.docentes?.perc_com_formacao ?? 0}%`} sub={`${data.docentes?.total || 0} docentes`} color="green" />
             </div>
 

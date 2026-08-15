@@ -253,7 +253,7 @@ export const LancamentoTab = () => {
             <div>
               <span className="font-medium">{attendanceData.class_name}</span>
               <span className="text-gray-500 ml-2">• {formatDate(attendanceData.date)}</span>
-              <span className="text-gray-500 ml-2">• {attendanceData.students.length} alunos</span>
+              <span className="text-gray-500 ml-2">• {attendanceData.students.length} estudantes</span>
             </div>
             <div className="flex gap-4 text-sm">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500"></span>P = Presente</span>

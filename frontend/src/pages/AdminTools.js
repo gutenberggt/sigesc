@@ -422,7 +422,7 @@ const AdminTools = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900">Criar Usuários dos Estudantes (em lote)</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Gera contas de acesso (role=estudante) para todos os estudantes <strong>ativos</strong> que ainda não têm usuário.
+                    Gera contas de acesso (role=aluno) para todos os estudantes <strong>ativos</strong> que ainda não têm usuário.
                     É <strong>idempotente</strong> — pode rodar novamente a qualquer momento para atualizar com novos estudantes.
                   </p>
                   <div className="text-xs text-gray-500 mt-2 bg-gray-50 rounded p-2 space-y-0.5">

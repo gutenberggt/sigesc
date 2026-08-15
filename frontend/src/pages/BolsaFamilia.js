@@ -432,7 +432,7 @@ export default function BolsaFamilia() {
               >
                 <Users size={14} />
                 <strong>{summary.total}</strong>
-                <span className="opacity-80">alunos</span>
+                <span className="opacity-80">estudantes</span>
               </button>
 
               <span className="text-gray-300">|</span>

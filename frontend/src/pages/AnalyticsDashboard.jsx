@@ -516,7 +516,7 @@ const exportToPDF = (school, year, header = {}) => {
   doc.setTextColor(146, 64, 14); // Amber dark
   doc.text('INDICADOR INFORMATIVO (não entra no score):', 18, yPos + 3);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Distorção Idade-Série: ${ind.distorcao_idade_serie_pct || 0}% dos estudantes com 2+ anos acima da idade esperada`, 18, yPos + 11);
+  doc.text(`Distorção Idade-Série: ${ind.distorcao_idade_serie_pct || 0}% dos alunos com 2+ anos acima da idade esperada`, 18, yPos + 11);
   
   // Dados Brutos
   yPos = yPos + 25;

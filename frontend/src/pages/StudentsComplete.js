@@ -1941,7 +1941,7 @@ export function StudentsComplete() {
               value={formData.email || ''}
               onChange={(e) => updateFormData('email', e.target.value)}
               disabled={viewMode}
-              placeholder="aluno@email.com"
+              placeholder="estudante@email.com"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
                 formData.email && !isValidEmail(formData.email) ? 'border-red-500' : 'border-gray-300'
               }`}
