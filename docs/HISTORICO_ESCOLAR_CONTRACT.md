@@ -9,6 +9,7 @@
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
+> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 
 ## 1. Princípio fundador
 
