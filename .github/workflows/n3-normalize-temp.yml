@@ -1,0 +1,45 @@
+name: N3 - Normalização backend/API (temporário)
+
+on:
+  push:
+    branches:
+      - feat/n3-backend-api-estudante
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: ${{ !contains(github.event.head_commit.message, '[n3-auto]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/n3-backend-api-estudante
+          fetch-depth: 0
+
+      - name: Aplicar normalização de mensagens humanas
+        run: |
+          python3 scripts/n3_normalize_backend_messages.py --apply
+
+      - name: Validar resíduos visíveis
+        run: |
+          python3 scripts/n3_normalize_backend_messages.py
+
+      - name: Mostrar escopo do diff
+        run: |
+          git diff --stat
+          git diff -- backend | head -n 800
+
+      - name: Commitar normalização e relatório temporário
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend n3_scan_report.txt
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração necessária."
+            exit 0
+          fi
+          git commit -m "chore(n3): padronizar Estudante em mensagens do backend [n3-auto]"
+          git push origin HEAD:feat/n3-backend-api-estudante
