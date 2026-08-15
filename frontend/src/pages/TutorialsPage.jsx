@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  GraduationCap, 
-  Users, 
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+  GraduationCap,
+  Users,
   BookOpen,
   ArrowLeft,
   ChevronRight,
@@ -33,9 +33,16 @@ import {
   Home,
   Smartphone
 } from 'lucide-react';
+import TutorialCoordenador from './tutorials/TutorialCoordenador';
 
 export default function TutorialsPage() {
   const [expandedBlock, setExpandedBlock] = useState(null);
+  const [searchParams] = useSearchParams();
+  const coordinatorSlug = searchParams.get('coordenador');
+
+  if (coordinatorSlug) {
+    return <TutorialCoordenador slug={coordinatorSlug} />;
+  }
 
   const tutorialBlocks = [
     {
@@ -63,18 +70,27 @@ export default function TutorialsPage() {
       title: 'Coordenadores',
       icon: ClipboardList,
       color: 'purple',
-      description: 'Tutoriais para coordenação pedagógica e acompanhamento de turmas',
+      description: 'Trilha completa para acompanhamento, intervenção e fechamento pedagógico',
       tutorials: [
-        { title: 'Acesso ao sistema e navegação', icon: Key },
-        { title: 'Visão geral das turmas', icon: School },
-        { title: 'Acompanhamento de lançamento de notas', icon: PenLine },
-        { title: 'Verificação de frequência por turma', icon: CheckSquare },
-        { title: 'Consulta de alunos por turma', icon: Users },
-        { title: 'Geração de relatórios de desempenho', icon: BarChart3 },
-        { title: 'Acompanhamento de atestados médicos', icon: FileText },
-        { title: 'Visualização de boletins', icon: BookOpen },
-        { title: 'Comunicação com professores', icon: MessageCircle },
-        { title: 'Calendário de atividades', icon: Calendar },
+        { title: 'Primeiros passos e painel do coordenador', icon: Key, stage: 'Comece aqui', link: '/tutoriais?coordenador=primeiros-passos' },
+        { title: 'Turmas e estudantes: visão pedagógica', icon: School, stage: 'Comece aqui', link: '/tutoriais?coordenador=turmas-estudantes' },
+        { title: 'Acompanhamento dos Diários de Classe', icon: BarChart3, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=acompanhamento-diarios' },
+        { title: 'Frequência: análise por turma e estudante', icon: CheckSquare, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=frequencia' },
+        { title: 'Notas: lançamentos, pendências e aprendizagem', icon: PenLine, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=notas' },
+        { title: 'Registro de Conteúdos: o que foi trabalhado', icon: BookOpen, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=registro-conteudos' },
+        { title: 'Adaptações Curriculares: planejar apoios', icon: BookMarked, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=adaptacoes-curriculares' },
+        { title: 'Cobertura Curricular: previsto x realizado', icon: ClipboardList, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=cobertura-curricular' },
+        { title: 'Calendário do Diário: dias letivos e consistência', icon: Calendar, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=calendario-diario' },
+        { title: 'Integridade da Grade Horária', icon: Settings, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=integridade-grade' },
+        { title: 'Intervenções Necessárias: priorizar atenção', icon: ListChecks, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=intervencoes' },
+        { title: 'Plano de Ação: do diagnóstico ao acompanhamento', icon: FileText, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=plano-acao' },
+        { title: 'Atestados e justificativas de ausência', icon: FileText, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=atestados-justificativas' },
+        { title: 'Boletim Online: conferência dos resultados', icon: BookOpen, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=boletins' },
+        { title: 'Livro de Promoção: acompanhar o fechamento', icon: Award, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=livro-promocao' },
+        { title: 'Diário AEE: acompanhamento pela coordenação', icon: Award, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=diario-aee' },
+        { title: 'Avisos e calendário: rotina pedagógica', icon: Bell, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=avisos-calendario' },
+        { title: 'Validar documentos escolares', icon: CheckSquare, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=validar-documentos' },
+        { title: 'Indicadores e Ranking de Gestão: leitura responsável', icon: BarChart3, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=indicadores-ranking' },
       ]
     },
     {
@@ -228,7 +244,6 @@ export default function TutorialsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -244,10 +259,7 @@ export default function TutorialsPage() {
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              <Link
-                to="/"
-                className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors"
-              >
+              <Link to="/" className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
                 <ArrowLeft size={18} />
                 <span className="text-sm">Voltar</span>
               </Link>
@@ -262,26 +274,22 @@ export default function TutorialsPage() {
         </div>
       </header>
 
-      {/* Hero Section */}
       <section className="pt-28 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-2 mb-6">
             <BookOpen size={16} className="text-blue-400" />
             <span className="text-blue-300 text-sm font-medium">Central de Ajuda</span>
           </div>
-          
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
             Tutoriais do
             <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 text-transparent bg-clip-text"> SIGESC</span>
           </h1>
-          
           <p className="text-lg text-slate-400 max-w-2xl mx-auto">
             Aprenda a utilizar todas as funcionalidades do sistema com nossos tutoriais organizados por perfil de usuário
           </p>
         </div>
       </section>
 
-      {/* Tutorial Blocks */}
       <section className="pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -289,39 +297,29 @@ export default function TutorialsPage() {
               const Icon = block.icon;
               const colors = colorClasses[block.color];
               const isExpanded = expandedBlock === block.id;
-              
+
               return (
-                <div
-                  key={block.id}
-                  className={`${colors.bg} ${colors.border} border rounded-2xl overflow-hidden transition-all duration-300`}
-                >
-                  {/* Block Header */}
+                <div key={block.id} className={`${colors.bg} ${colors.border} border rounded-2xl overflow-hidden transition-all duration-300`}>
                   <button
                     onClick={() => setExpandedBlock(isExpanded ? null : block.id)}
-                    className={`w-full p-6 flex items-center justify-between ${colors.hover} transition-colors`}
+                    className={`w-full p-6 flex items-center justify-between gap-4 ${colors.hover} transition-colors`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl bg-gradient-to-br ${colors.icon} shadow-lg`}>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className={`p-3 rounded-xl bg-gradient-to-br ${colors.icon} shadow-lg flex-shrink-0`}>
                         <Icon className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-left">
+                      <div className="text-left min-w-0">
                         <h2 className="text-xl font-bold text-white">{block.title}</h2>
                         <p className="text-sm text-slate-400 mt-1">{block.description}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm ${colors.text} font-medium`}>
-                        {block.tutorials.length} tutoriais
-                      </span>
-                      <ChevronRight 
-                        size={20} 
-                        className={`${colors.text} transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} 
-                      />
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`text-sm ${colors.text} font-medium`}>{block.tutorials.length} tutoriais</span>
+                      <ChevronRight size={20} className={`${colors.text} transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
                     </div>
                   </button>
-                  
-                  {/* Tutorial List */}
-                  <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[800px]' : 'max-h-0'}`}>
+
+                  <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1800px]' : 'max-h-0'}`}>
                     <div className="px-6 pb-6">
                       <div className="border-t border-slate-700/50 pt-4">
                         <ul className="space-y-2">
@@ -330,9 +328,16 @@ export default function TutorialsPage() {
                             const content = (
                               <>
                                 <TutorialIcon size={18} className={`${colors.text} flex-shrink-0`} />
-                                <span className="text-slate-300 text-sm group-hover:text-white transition-colors flex-1">
-                                  {tutorial.title}
-                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-slate-300 text-sm group-hover:text-white transition-colors block">
+                                    {tutorial.title}
+                                  </span>
+                                  {tutorial.stage && (
+                                    <span className="text-[10px] uppercase tracking-wide text-purple-300/70 mt-0.5 block">
+                                      {tutorial.stage}
+                                    </span>
+                                  )}
+                                </div>
                                 {tutorial.link ? (
                                   <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full mr-2">Disponível</span>
                                 ) : (
@@ -341,18 +346,18 @@ export default function TutorialsPage() {
                                 <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
                               </>
                             );
-                            
+
                             return tutorial.link ? (
                               <Link
-                                key={index}
+                                key={`${block.id}-${index}`}
                                 to={tutorial.link}
                                 className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors group"
                               >
                                 {content}
                               </Link>
                             ) : (
-                              <li 
-                                key={index}
+                              <li
+                                key={`${block.id}-${index}`}
                                 className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 opacity-60 cursor-not-allowed"
                               >
                                 {content}
@@ -370,15 +375,12 @@ export default function TutorialsPage() {
         </div>
       </section>
 
-      {/* Help Section */}
       <section className="pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="bg-gradient-to-br from-slate-800 to-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
             <MessageCircle size={48} className="text-blue-400 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-white mb-2">Precisa de mais ajuda?</h3>
-            <p className="text-slate-400 mb-6">
-              Entre em contato com nossa equipe de suporte para tirar suas dúvidas
-            </p>
+            <p className="text-slate-400 mb-6">Entre em contato com nossa equipe de suporte para tirar suas dúvidas</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
                 href="https://wa.me/5594984223453?text=Olá! Preciso de ajuda com o SIGESC."
@@ -401,7 +403,6 @@ export default function TutorialsPage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="py-8 px-4 sm:px-6 lg:px-8 border-t border-slate-700/50">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-slate-400 text-sm">
@@ -409,9 +410,9 @@ export default function TutorialsPage() {
           </div>
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <span>Desenvolvido por</span>
-            <a 
-              href="https://www.facebook.com/prof.gutenbergbarroso" 
-              target="_blank" 
+            <a
+              href="https://www.facebook.com/prof.gutenbergbarroso"
+              target="_blank"
               rel="noopener noreferrer"
               className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
             >
