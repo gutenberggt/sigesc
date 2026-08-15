@@ -401,7 +401,7 @@ const DiarioAEE = () => {
         ? blob
         : new Blob([blob], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(pdfBlob);
-      const studentName = (estudantes.find(e => e.student_id === plano.student_id)?.full_name || 'estudante')
+      const studentName = (estudantes.find(e => e.student_id === plano.student_id)?.full_name || 'aluno')
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       const filename = `plano_aee_${studentName}.pdf`;
       // Força download com extensão .pdf para que o navegador ofereça "PDF" ao salvar
