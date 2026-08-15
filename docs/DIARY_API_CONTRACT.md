@@ -4,9 +4,6 @@
 > **Antes de qualquer mudança neste contrato**: bumpar versão, manter compatibilidade ou criar V2 paralelo.
 > **Pré-requisito**: Fase 1 da Dependência de Estudos validada (ver `STUDENT_DEPENDENCY.md`).
 > **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato. <!-- nomenclature-allow: registro editorial da migração terminológica -->
-> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
-> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
-> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional **Estudante → Estudante**. Esta alteração é exclusivamente textual e **não** modifica schema, shape, invariantes, regras de negócio nem versão do contrato.
 
 ---
 
