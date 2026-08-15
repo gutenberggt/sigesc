@@ -13,6 +13,25 @@ on:
       - main
 
 jobs:
+  nomenclature-guard:
+    name: Nomenclature - Estudante guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # O guard compara o HEAD com a base do PR (ou HEAD^ em push).
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Aluno x Estudante nomenclature
+        run: python .github/scripts/nomenclature_guard.py
+
   frontend-build:
     name: Frontend - yarn build
     runs-on: ubuntu-latest
