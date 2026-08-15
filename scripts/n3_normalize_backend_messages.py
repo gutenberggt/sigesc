@@ -2,12 +2,11 @@
 """N3 temporário — normaliza Aluno/Alunos somente em mensagens humanas do backend.
 
 Fronteiras:
+- atua apenas em código de execução de API/serviços/utilitários;
+- NÃO altera testes, seeds, PDFs, scripts operacionais ou documentação;
 - NÃO altera identificadores, chaves/campos com underscore, rotas/URLs, nomes de arquivo;
 - NÃO altera o valor técnico isolado ``aluno``/``alunos``/``aluna``/``alunas``;
-- NÃO altera docstrings, comentários, print/logging;
-- backend/pdf fica fora (tratado na N2);
-- backend/scripts fica fora (ferramentas operacionais, não API pública);
-- testes entram apenas para manter asserções de mensagens públicas coerentes.
+- NÃO altera docstrings, comentários, print/logging.
 """
 from __future__ import annotations
 
@@ -24,7 +23,6 @@ REPORT = ROOT / "n3_scan_report.txt"
 
 TERM_RE = re.compile(r"(?i)(?<![\w_])(?:aluno|aluna|alunos|alunas)(?:\(a?s?\))?(?![\w_])")
 EXACT_TECH = {"aluno", "aluna", "alunos", "alunas"}
-SKIP_DIR_PARTS = {"pdf", "scripts", "__pycache__"}
 LOG_METHODS = {"debug", "info", "warning", "warn", "error", "exception", "critical", "log"}
 
 PRE_REPLACEMENTS = [
@@ -50,11 +48,15 @@ def replacement(match: re.Match[str]) -> str:
 
 
 def iter_files():
-    for path in sorted(BACKEND.rglob("*.py")):
-        rel = path.relative_to(BACKEND)
-        if any(part in SKIP_DIR_PARTS for part in rel.parts[:-1]):
+    roots = [BACKEND / "routers", BACKEND / "services", BACKEND / "utils"]
+    for base in roots:
+        if not base.exists():
             continue
-        yield path
+        for path in sorted(base.rglob("*.py")):
+            yield path
+    standalone = BACKEND / "audit_service.py"
+    if standalone.exists():
+        yield standalone
 
 
 def node_range(node: ast.AST) -> tuple[int, int, int, int] | None:
@@ -76,8 +78,6 @@ def contains_pos(rng: tuple[int, int, int, int], line: int, col: int) -> bool:
 
 def skip_ranges(tree: ast.AST) -> list[tuple[int, int, int, int]]:
     ranges: list[tuple[int, int, int, int]] = []
-
-    # Docstrings.
     candidates = [tree]
     candidates.extend(
         n for n in ast.walk(tree)
@@ -90,7 +90,6 @@ def skip_ranges(tree: ast.AST) -> list[tuple[int, int, int, int]]:
             if rng:
                 ranges.append(rng)
 
-    # Logs e prints não são contrato de resposta ao usuário.
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -108,7 +107,6 @@ def skip_ranges(tree: ast.AST) -> list[tuple[int, int, int, int]]:
 
 
 def is_technical_literal(raw: str) -> bool:
-    # Conservador: remove prefixos de string e aspas externas apenas para classificação.
     m = re.match(r"(?is)^[rubf]*(['\"]{1,3})(.*)\1$", raw)
     inner = m.group(2) if m else raw
     stripped = inner.strip()
@@ -120,7 +118,6 @@ def is_technical_literal(raw: str) -> bool:
         return True
     if re.search(r"[A-Za-z0-9_]_(?:aluno|aluna|alunos|alunas)\b", stripped, re.I):
         return True
-    # nomes de arquivos/caminhos/identificadores compostos
     if ("/" in stripped or "\\" in stripped) and " " not in stripped:
         return True
     if re.search(r"\.(?:pdf|json|csv|xlsx?|docx?|html?)\b", stripped, re.I):
@@ -134,9 +131,7 @@ def normalize_raw_string(raw: str) -> tuple[str, int]:
     updated = raw
     for pattern, repl in PRE_REPLACEMENTS:
         updated = pattern.sub(repl, updated)
-    before = updated
     updated, count = TERM_RE.subn(replacement, updated)
-    # contabiliza também pré-normalizações
     if updated != raw and count == 0:
         count = 1
     return updated, count
@@ -163,10 +158,8 @@ def process(path: Path, apply: bool) -> tuple[int, list[tuple[int, str]]]:
                 if count:
                     replacements += count
                     new_tok = tokenize.TokenInfo(tok.type, updated, tok.start, tok.end, tok.line)
-                # verifica resíduo apenas em literal que não é técnico
-                candidate = updated
-                if not is_technical_literal(candidate) and TERM_RE.search(candidate):
-                    residuals.append((line, candidate[:240]))
+                if not is_technical_literal(updated) and TERM_RE.search(updated):
+                    residuals.append((line, updated[:240]))
         out_tokens.append(new_tok)
 
     if apply and replacements:
@@ -206,9 +199,6 @@ def main() -> int:
     lines.extend(f"{rel}:{line}: {text}" for rel, line, text in all_residuals)
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[:6]))
-    if all_residuals:
-        for item in lines[-min(50, len(all_residuals)):]:
-            print(item)
     return 1 if all_residuals else 0
 
 

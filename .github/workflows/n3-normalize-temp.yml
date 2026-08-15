@@ -19,9 +19,14 @@ jobs:
           ref: feat/n3-backend-api-estudante
           fetch-depth: 0
 
+      - name: Restaurar áreas fora do escopo N3
+        run: |
+          git checkout 3c1b555c79dce586c13cf9477a5beb5efbc7fb20 -- backend/tests backend/seeds
+
       - name: Aplicar normalização de mensagens humanas
         run: |
           python3 scripts/n3_normalize_backend_messages.py --apply
+          cp n3_scan_report.txt n3_apply_report.txt
 
       - name: Validar resíduos visíveis
         run: |
@@ -29,17 +34,17 @@ jobs:
 
       - name: Mostrar escopo do diff
         run: |
-          git diff --stat
-          git diff -- backend | head -n 800
+          git diff --stat 3c1b555c79dce586c13cf9477a5beb5efbc7fb20 -- backend
+          git diff 3c1b555c79dce586c13cf9477a5beb5efbc7fb20 -- backend/routers backend/services backend/utils backend/audit_service.py | head -n 1000
 
-      - name: Commitar normalização e relatório temporário
+      - name: Commitar escopo N3 e relatórios temporários
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend n3_scan_report.txt
+          git add backend n3_scan_report.txt n3_apply_report.txt
           if git diff --cached --quiet; then
             echo "Nenhuma alteração necessária."
             exit 0
           fi
-          git commit -m "chore(n3): padronizar Estudante em mensagens do backend [n3-auto]"
+          git commit -m "chore(n3): restringir normalização a mensagens públicas [n3-auto]"
           git push origin HEAD:feat/n3-backend-api-estudante
