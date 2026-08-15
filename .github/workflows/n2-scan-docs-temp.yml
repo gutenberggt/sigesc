@@ -6,15 +6,65 @@ on:
       - feat/n2-pdfs-documentos-estudante
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  scan:
+  normalize:
+    if: ${{ !contains(github.event.head_commit.message, '[n2-auto]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
           ref: feat/n2-pdfs-documentos-estudante
-      - name: Escanear nomenclatura em documentos
-        run: python3 scripts/n2_scan_document_terms.py
+          fetch-depth: 0
+
+      - name: Aplicar normalização documental
+        run: |
+          python3 scripts/n2_apply_document_terms.py
+          python3 scripts/n2_scan_document_terms.py
+
+      - name: Mostrar diff documental
+        run: |
+          git diff --stat
+          git diff -- \
+            backend/pdf/declaracoes.py \
+            backend/pdf/diario_aee.py \
+            backend/pdf/dossie_institucional.py \
+            backend/pdf/ficha_individual.py \
+            backend/pdf/historico_escolar.py \
+            backend/pdf/livro_promocao.py \
+            backend/pdf/notas.py \
+            backend/pdf/plano_aee.py \
+            backend/pdf/transfer_receipt.py \
+            backend/pdf/turma.py \
+            backend/routers/bolsa_familia.py \
+            backend/routers/history_reconstruction.py \
+            backend/routers/students.py \
+            frontend/src/pages/AnalyticsDashboard.jsx
+
+      - name: Commitar somente documentos N2
+        run: |
+          if git diff --quiet -- backend/pdf backend/routers/bolsa_familia.py backend/routers/history_reconstruction.py backend/routers/students.py frontend/src/pages/AnalyticsDashboard.jsx; then
+            echo "Nenhuma alteração necessária."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            backend/pdf/declaracoes.py \
+            backend/pdf/diario_aee.py \
+            backend/pdf/dossie_institucional.py \
+            backend/pdf/ficha_individual.py \
+            backend/pdf/historico_escolar.py \
+            backend/pdf/livro_promocao.py \
+            backend/pdf/notas.py \
+            backend/pdf/plano_aee.py \
+            backend/pdf/transfer_receipt.py \
+            backend/pdf/turma.py \
+            backend/routers/bolsa_familia.py \
+            backend/routers/history_reconstruction.py \
+            backend/routers/students.py \
+            frontend/src/pages/AnalyticsDashboard.jsx
+          git commit -m "chore(n2): padronizar Estudante em PDFs e documentos [n2-auto]"
+          git push origin HEAD:feat/n2-pdfs-documentos-estudante
