@@ -11,9 +11,9 @@ import {
 } from 'lucide-react';
 
 const SCOPES = [
-  { value: 'student', label: 'Aluno', help: 'Reprocessa um aluno específico.' },
-  { value: 'class', label: 'Turma', help: 'Reprocessa todos os alunos de uma turma.' },
-  { value: 'school', label: 'Escola', help: 'Reprocessa todos os alunos de uma escola.' },
+  { value: 'student', label: 'Estudante', help: 'Reprocessa um estudante específico.' },
+  { value: 'class', label: 'Turma', help: 'Reprocessa todos os estudantes de uma turma.' },
+  { value: 'school', label: 'Escola', help: 'Reprocessa todos os estudantes de uma escola.' },
   { value: 'all', label: 'Todas as escolas', help: 'Corrige a rede inteira de uma vez (resumo por escola).' },
 ];
 
@@ -64,7 +64,7 @@ export default function HistoryReconstruction() {
           const arr = Array.isArray(s) ? s : (s?.students || s?.items || []);
           setStudents(arr);
         })
-        .catch(() => toast.error('Falha ao carregar alunos'));
+        .catch(() => toast.error('Falha ao carregar estudantes'));
     }
   }, [schoolId, scope]);
 
@@ -147,7 +147,7 @@ export default function HistoryReconstruction() {
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-sm text-amber-800">
           <AlertTriangle size={18} className="mt-0.5 shrink-0" />
           <p>
-            Esta ferramenta reprocessa (de forma <strong>idempotente</strong>) a consolidação pedagógica de alunos que
+            Esta ferramenta reprocessa (de forma <strong>idempotente</strong>) a consolidação pedagógica de estudantes que
             mudaram de turma no mesmo ano letivo, copiando <strong>frequência, notas e conteúdo</strong> das turmas de
             origem para a turma atual. <strong>Não altera os dados de origem</strong>. Sempre execute a <strong>simulação</strong> antes.
           </p>
@@ -212,7 +212,7 @@ export default function HistoryReconstruction() {
 
               {scope === 'student' && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Aluno</label>
+                  <label className="block text-sm font-medium mb-1">Estudante</label>
                   <select
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
@@ -220,7 +220,7 @@ export default function HistoryReconstruction() {
                     className="w-full px-3 py-2 border rounded-lg bg-white disabled:bg-gray-100"
                     data-testid="recon-student-select"
                   >
-                    <option value="">Selecione o aluno…</option>
+                    <option value="">Selecione o estudante…</option>
                     {students.map((s) => <option key={s.id} value={s.id}>{s.full_name || s.name}</option>)}
                   </select>
                 </div>
@@ -254,7 +254,7 @@ export default function HistoryReconstruction() {
             <CardContent className="p-6 space-y-4">
               <h2 className="text-lg font-semibold text-gray-800">Resultado da simulação</h2>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Stat label="Alunos no escopo" value={preview.students_in_scope} color="gray" />
+                <Stat label="Estudantes no escopo" value={preview.students_in_scope} color="gray" />
                 <Stat label="Movimentações" value={preview.movements_detected} color="blue" />
                 <Stat label="Frequências" value={preview.to_consolidate?.attendance ?? 0} color="cyan" icon={ClipboardCheck} />
                 <Stat label="Notas" value={preview.to_consolidate?.grades ?? 0} color="teal" icon={ClipboardList} />
@@ -266,7 +266,7 @@ export default function HistoryReconstruction() {
                   <table className="w-full text-xs">
                     <thead className="bg-gray-100 sticky top-0">
                       <tr>
-                        <th className="text-left p-2">Aluno</th>
+                        <th className="text-left p-2">Estudante</th>
                         <th className="text-left p-2">Origem → Destino</th>
                         <th className="text-center p-2">Ano</th>
                         <th className="text-center p-2">Freq.</th>
@@ -322,7 +322,7 @@ export default function HistoryReconstruction() {
                 <h2 className="text-lg font-semibold text-green-800">Reconstrução concluída — {result.protocol}</h2>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Stat label="Alunos" value={result.students_processed} color="gray" />
+                <Stat label="Estudantes" value={result.students_processed} color="gray" />
                 <Stat label="Movimentações" value={result.movements_processed} color="blue" />
                 <Stat label="Frequências" value={result.applied_counts?.attendance ?? 0} color="cyan" />
                 <Stat label="Notas" value={result.applied_counts?.grades ?? 0} color="teal" />
@@ -387,7 +387,7 @@ function BySchoolTable({ rows, valueKey = 'counts', title = 'Resumo por escola' 
           <thead className="bg-gray-100 sticky top-0">
             <tr>
               <th className="text-left p-2">Escola</th>
-              <th className="text-center p-2">Alunos</th>
+              <th className="text-center p-2">Estudantes</th>
               <th className="text-center p-2">Movim.</th>
               <th className="text-center p-2">Freq.</th>
               <th className="text-center p-2">Notas</th>

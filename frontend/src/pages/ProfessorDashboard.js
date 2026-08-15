@@ -398,7 +398,7 @@ export default function ProfessorDashboard() {
                               className="flex items-center gap-1"
                             >
                               <Users size={14} />
-                              Alunos
+                              Estudantes
                             </Button>
                           </div>
                         </CardContent>

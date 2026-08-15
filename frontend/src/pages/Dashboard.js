@@ -276,7 +276,7 @@ export const Dashboard = () => {
     apoio_pedagogico: 'Apoio Pedagógico',
     auxiliar_secretaria: 'Auxiliar de Secretaria',
     professor: 'Professor(a)',
-    aluno: 'Aluno(a)',
+    aluno: 'Estudante',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
     semed1: 'Tutor',
@@ -294,14 +294,14 @@ export const Dashboard = () => {
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
-          { title: 'Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' },
+          { title: 'Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' },
           { title: 'Servidores(as)', icon: Briefcase, value: loading ? '...' : stats.staff.toString(), color: 'amber' },
           { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green' }
         ];
       case 'secretario':
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
-          { title: 'Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
           { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
         ];
@@ -311,7 +311,7 @@ export const Dashboard = () => {
       case 'auxiliar_secretaria':
         return [
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'blue' },
-          { title: 'Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
           { title: 'Relatórios', icon: BarChart3, value: '0', color: 'purple' },
           { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
         ];
@@ -329,7 +329,7 @@ export const Dashboard = () => {
       case 'semed3':
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
-          { title: 'Total Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Total de Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
           { title: 'Total Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
           { title: 'Relatórios', icon: BarChart3, value: 'Ver', color: 'orange' }
         ];
@@ -535,7 +535,7 @@ export const Dashboard = () => {
               >
                 <CardContent className="p-4 text-center">
                   <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
-                  <p className="font-medium">Alunos(as)</p>
+                  <p className="font-medium">Estudantes</p>
                 </CardContent>
               </Card>
 
@@ -669,7 +669,7 @@ export const Dashboard = () => {
               >
                 <CardContent className="p-4 text-center">
                   <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
-                  <p className="font-medium text-sm">Alunos(as)</p>
+                  <p className="font-medium text-sm">Estudantes</p>
                   <span className="text-xs text-gray-500">Visualização</span>
                 </CardContent>
               </Card>
@@ -755,8 +755,8 @@ export const Dashboard = () => {
               >
                 <GraduationCap className="text-orange-600" size={24} />
                 <div className="text-left">
-                  <span className="font-medium text-gray-900 block">Alunos(as)</span>
-                  <span className="text-xs text-gray-500">Visualizar dados dos alunos(as)</span>
+                  <span className="font-medium text-gray-900 block">Estudantes</span>
+                  <span className="text-xs text-gray-500">Visualizar dados dos estudantes</span>
                 </div>
               </button>
               

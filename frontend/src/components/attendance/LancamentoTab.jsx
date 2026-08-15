@@ -253,7 +253,7 @@ export const LancamentoTab = () => {
             <div>
               <span className="font-medium">{attendanceData.class_name}</span>
               <span className="text-gray-500 ml-2">• {formatDate(attendanceData.date)}</span>
-              <span className="text-gray-500 ml-2">• {attendanceData.students.length} alunos</span>
+              <span className="text-gray-500 ml-2">• {attendanceData.students.length} estudantes</span>
             </div>
             <div className="flex gap-4 text-sm">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500"></span>P = Presente</span>
@@ -271,7 +271,7 @@ export const LancamentoTab = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudante</th>
                   {isMultiAula ? (
                     Array.from({ length: numberOfAulas }, (_, i) => (
                       <th key={i} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
@@ -458,7 +458,7 @@ export const LancamentoTab = () => {
             <div className="p-3 bg-red-50 border-t border-red-200 text-sm text-red-700">
               <div className="flex items-center gap-2">
                 <Stethoscope size={16} />
-                <span><strong>AM = Atestado Médico</strong> - Alunos com atestado médico não podem ter a frequência alterada.</span>
+                <span><strong>AM = Atestado Médico</strong> - Estudantes com atestado médico não podem ter a frequência alterada.</span>
               </div>
             </div>
           )}

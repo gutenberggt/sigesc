@@ -284,7 +284,7 @@ export const Classes = () => {
     if (!viewingClass?.id) return;
     const ok = window.confirm(
       `Cancelar a transferência de ${student.full_name}?\n\n` +
-      `O(a) aluno(a) voltará para esta turma como se a transferência não tivesse ocorrido. ` +
+      `O(a) estudante voltará para esta turma como se a transferência não tivesse ocorrido. ` +
       `Esta ação é registrada no histórico para auditoria.`
     );
     if (!ok) return;
@@ -332,7 +332,7 @@ export const Classes = () => {
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch (error) {
       console.error('Erro ao abrir PDF:', error);
-      showAlert('error', 'Erro ao gerar PDF do aluno');
+      showAlert('error', 'Erro ao gerar PDF do estudante');
     }
   };
 
@@ -899,7 +899,7 @@ export const Classes = () => {
                     ))}
                   </div>
                   <div className="mt-3 pt-3 border-t border-indigo-200 flex justify-between items-center">
-                    <span className="text-sm text-indigo-700 font-medium">Total de Alunos(as):</span>
+                    <span className="text-sm text-indigo-700 font-medium">Total de Estudantes:</span>
                     <span className="text-lg font-bold text-indigo-900">{classDetails.total_students || 0}</span>
                   </div>
                 </div>
@@ -909,7 +909,7 @@ export const Classes = () => {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Users size={18} />
-                  Alunos Matriculados ({classDetails.total_students || 0})
+                  Estudantes Matriculados ({classDetails.total_students || 0})
                 </h3>
                 {classDetails.students?.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -917,7 +917,7 @@ export const Classes = () => {
                       <thead>
                         <tr className="bg-gray-200">
                           <th className="px-3 py-2 text-left font-medium">#</th>
-                          <th className="px-3 py-2 text-left font-medium">Aluno</th>
+                          <th className="px-3 py-2 text-left font-medium">Estudante</th>
                           {classDetails.class?.is_multi_grade && !['aee', 'reforco_escolar', 'aulas_complementares'].includes(viewingClass?.atendimento_programa) && (
                             <th className="px-3 py-2 text-left font-medium">Série</th>
                           )}
@@ -970,7 +970,7 @@ export const Classes = () => {
                                 <button
                                   onClick={() => navigate(`/admin/students?editStudent=${student.id}`)}
                                   className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
-                                  title="Editar Aluno(a)"
+                                  title="Editar Estudante"
                                   data-testid={`edit-student-${student.id}`}
                                 >
                                   <Pencil size={16} />
@@ -987,7 +987,7 @@ export const Classes = () => {
                                   <button
                                     onClick={() => handleCancelTransfer(student)}
                                     className="text-orange-600 hover:text-orange-800 p-1 rounded hover:bg-orange-50"
-                                    title="Cancelar Transferência (restaura o aluno nesta turma)"
+                                    title="Cancelar Transferência (restaura o estudante nesta turma)"
                                     data-testid={`cancel-transfer-${student.id}`}
                                   >
                                     <Undo2 size={16} />
@@ -1001,7 +1001,7 @@ export const Classes = () => {
                     </table>
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">Nenhum aluno matriculado</p>
+                  <p className="text-gray-500 text-sm">Nenhum estudante matriculado</p>
                 )}
               </div>
 
@@ -1039,7 +1039,7 @@ export const Classes = () => {
                     <table className="w-full text-sm">
                       <thead className="bg-red-50 text-red-700 text-xs uppercase">
                         <tr>
-                          <th className="text-left px-4 py-2 font-medium">Aluno</th>
+                          <th className="text-left px-4 py-2 font-medium">Estudante</th>
                           <th className="text-left px-4 py-2 font-medium">Matrícula</th>
                           <th className="text-left px-4 py-2 font-medium">Data</th>
                           <th className="text-left px-4 py-2 font-medium">Cancelado por</th>

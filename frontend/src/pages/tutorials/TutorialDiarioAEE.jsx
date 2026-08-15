@@ -106,7 +106,7 @@ const planGroups = [
   {
     number: '1',
     title: 'Identifique o estudante',
-    text: 'Selecione o aluno e confira turma de origem, professor regente, público-alvo e informações básicas.',
+    text: 'Selecione o estudante e confira turma de origem, professor regente, público-alvo e informações básicas.',
   },
   {
     number: '2',
@@ -542,7 +542,7 @@ export default function TutorialDiarioAEE() {
 
             <div className="mt-5 rounded-xl border border-purple-500/30 bg-purple-500/10 p-4">
               <p className="text-sm text-purple-100">
-                <strong>Também existe PDF individual:</strong> nas fichas do estudante, o ícone de download permite gerar o documento de um aluno específico.
+                <strong>Também existe PDF individual:</strong> nas fichas do estudante, o ícone de download permite gerar o documento de um estudante específico.
               </p>
             </div>
           </section>
@@ -570,7 +570,7 @@ export default function TutorialDiarioAEE() {
 
             <div className="mt-5">
               <Tip tone="green">
-                <strong>Modelo não é plano pronto.</strong> Ele acelera o preenchimento, mas a observação do estudante, os objetivos e as estratégias precisam representar a situação real daquele aluno.
+                <strong>Modelo não é plano pronto.</strong> Ele acelera o preenchimento, mas a observação do estudante, os objetivos e as estratégias precisam representar a situação real daquele estudante.
               </Tip>
             </div>
           </section>

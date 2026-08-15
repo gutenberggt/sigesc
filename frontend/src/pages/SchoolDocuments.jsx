@@ -29,7 +29,7 @@ const DOC_TYPES = [
   {
     value: 'matricula',
     label: 'Declaração de Matrícula',
-    desc: 'Comprova que o aluno está matriculado — 90 dias de validade',
+    desc: 'Comprova que o estudante está matriculado — 90 dias de validade',
     validity: 90,
   },
   {
@@ -150,7 +150,7 @@ export default function SchoolDocuments() {
   const issue = async (e) => {
     e.preventDefault();
     if (!selectedStudent) {
-      setToast({ type: 'error', msg: 'Selecione um aluno antes de emitir' });
+      setToast({ type: 'error', msg: 'Selecione um estudante antes de emitir' });
       return;
     }
     setIssuing(true); setToast(null);
@@ -285,7 +285,7 @@ export default function SchoolDocuments() {
         {/* Seleção aluno */}
         <div className="lg:col-span-1 bg-white border border-gray-200 rounded-lg p-4">
           <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-1">
-            <User className="h-4 w-4" /> 1. Selecione o aluno
+            <User className="h-4 w-4" /> 1. Selecione o estudante
           </h2>
 
           <div className="relative" ref={searchBoxRef}>
@@ -344,7 +344,7 @@ export default function SchoolDocuments() {
               >
                 {!searching && suggestions.length === 0 ? (
                   <div className="px-3 py-3 text-xs text-gray-500 text-center">
-                    Nenhum aluno encontrado para “{studentQuery}”.
+                    Nenhum estudante encontrado para “{studentQuery}”.
                   </div>
                 ) : (
                   suggestions.map((s, idx) => (
@@ -400,7 +400,7 @@ export default function SchoolDocuments() {
           </h2>
           {!selectedStudent ? (
             <div className="bg-gray-50 border border-dashed border-gray-300 rounded p-6 text-center text-sm text-gray-500">
-              Selecione um aluno à esquerda para habilitar a emissão.
+              Selecione um estudante à esquerda para habilitar a emissão.
             </div>
           ) : (
             <form onSubmit={issue} className="space-y-4">
@@ -494,7 +494,7 @@ export default function SchoolDocuments() {
                     <CheckCircle2 className="h-4 w-4" /> Declaração emitida com sucesso
                   </div>
                   <div className="text-xs text-gray-700 space-y-0.5">
-                    <div>Aluno: <strong>{lastIssued.studentName}</strong></div>
+                    <div>Estudante: <strong>{lastIssued.studentName}</strong></div>
                     <div>Tipo: <strong>{DOC_TYPES.find(t => t.value === lastIssued.docType)?.label}</strong></div>
                     <div>Código: <code className="font-mono bg-white border border-gray-300 rounded px-1">{lastIssued.code}</code></div>
                     <div>Válido até: <strong>{new Date(lastIssued.validUntil).toLocaleDateString('pt-BR')}</strong></div>
@@ -524,7 +524,7 @@ export default function SchoolDocuments() {
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
                   <th className="py-2 pr-3">Código</th>
-                  <th className="py-2 pr-3">Aluno</th>
+                  <th className="py-2 pr-3">Estudante</th>
                   <th className="py-2 pr-3">Tipo</th>
                   <th className="py-2 pr-3">Finalidade</th>
                   <th className="py-2 pr-3">Emitido</th>

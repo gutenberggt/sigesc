@@ -106,7 +106,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled, studentsWithPl
         className={`force-visible-text w-full border rounded-lg px-3 py-2 text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}`}
         data-testid="plano-aluno-dropdown"
       >
-        <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? getName(selected) : 'Selecione o aluno'}</span>
+        <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? getName(selected) : 'Selecione o estudante'}</span>
         <ChevronDown size={16} className="force-visible-text-muted" />
       </button>
       {open && (
@@ -114,7 +114,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled, studentsWithPl
           <div
             className="force-visible-text-muted px-3 py-2 cursor-pointer hover:bg-gray-100"
             onClick={() => { onChange(''); setOpen(false); }}
-          >Selecione o aluno</div>
+          >Selecione o estudante</div>
           {estudantes.map(est => {
             const hasPlan = planSet.has(est.student_id);
             return (
@@ -261,7 +261,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Aluno *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estudante *</label>
                 <StudentDropdown
                   value={form.student_id}
                   onChange={handleStudentChange}
@@ -272,7 +272,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                 />
                 {!editingPlano && (
                   <p className="text-[11px] text-gray-500 mt-1">
-                    Alunos que já possuem plano em {academicYear || 'no ano vigente'} aparecem
+                    Estudantes que já possuem plano em {academicYear || 'no ano vigente'} aparecem
                     desabilitados — edite o plano existente pela aba "Planos de AEE".
                   </p>
                 )}
@@ -285,7 +285,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Turma do Aluno na Sala Regular</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Turma do Estudante na Sala Regular</label>
                 <input type="text" value={form.turma_origem_nome} readOnly className="w-full border rounded-lg px-3 py-2 bg-gray-50" />
               </div>
               <div>

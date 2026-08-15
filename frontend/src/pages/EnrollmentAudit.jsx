@@ -95,7 +95,7 @@ export const EnrollmentAudit = () => {
         toast.success('Tudo certo! Nenhuma matrícula sem número encontrada.');
       } else {
         toast.success(
-          `Correção concluída: ${res.fixed_students} aluno(s) e ${res.fixed_enrollments} matrícula(s) numerados` +
+          `Correção concluída: ${res.fixed_students} estudante(s) e ${res.fixed_enrollments} matrícula(s) numerados` +
           (res.created_enrollments ? `, ${res.created_enrollments} matrícula(s) criada(s).` : '.')
         );
       }
@@ -149,7 +149,7 @@ export const EnrollmentAudit = () => {
                 <tr>
                   <th className="text-left px-5 py-2 font-medium">Matrícula</th>
                   <th className="text-left px-5 py-2 font-medium">Qtd.</th>
-                  <th className="text-left px-5 py-2 font-medium">Alunos envolvidos</th>
+                  <th className="text-left px-5 py-2 font-medium">Estudantes envolvidos</th>
                 </tr>
               </thead>
               <tbody>
@@ -190,7 +190,7 @@ export const EnrollmentAudit = () => {
               Auditoria de Matrículas
             </h1>
             <p className="text-slate-500 mt-1 text-sm">
-              Acompanhe matrículas ausentes e duplicadas em tempo real. Use “Corrigir” para numerar automaticamente alunos sem matrícula.
+              Acompanhe matrículas ausentes e duplicadas em tempo real. Use “Corrigir” para numerar automaticamente estudantes sem matrícula.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ export const EnrollmentAudit = () => {
               <span className="text-sm font-medium">
                 Índice único de matrícula:{' '}
                 {data.unique_index.students && data.unique_index.enrollments
-                  ? 'ATIVO em alunos e matrículas — duplicatas bloqueadas pelo banco.'
+                  ? 'ATIVO em estudantes e matrículas — duplicatas bloqueadas pelo banco.'
                   : 'NÃO aplicado em todas as coleções. Recomenda-se rodar o saneamento.'}
               </span>
             </div>
@@ -261,14 +261,14 @@ export const EnrollmentAudit = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 icon={FileWarning}
-                label="Alunos sem matrícula"
+                label="Estudantes sem matrícula"
                 value={data.students.empty}
                 tone={data.students.empty > 0 ? 'danger' : 'neutral'}
                 testId="stat-students-empty"
               />
               <StatCard
                 icon={Copy}
-                label="Matrículas de aluno duplicadas"
+                label="Matrículas de estudante duplicadas"
                 value={data.students.duplicate_groups}
                 tone={data.students.duplicate_groups > 0 ? 'danger' : 'neutral'}
                 testId="stat-students-dup"
@@ -292,24 +292,24 @@ export const EnrollmentAudit = () => {
             {/* Duplicatas */}
             <div className="grid grid-cols-1 gap-6">
               {renderDuplicates('enrollments', 'Matrículas (por ano/turma)', BookOpen)}
-              {renderDuplicates('students', 'Alunos', Users)}
+              {renderDuplicates('students', 'Estudantes', Users)}
             </div>
 
             {/* Alunos sem matrícula */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" data-testid="empty-students-table">
               <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                 <FileWarning className="w-4 h-4 text-slate-500" />
-                <h3 className="text-base font-semibold text-slate-800">Alunos sem número de matrícula</h3>
+                <h3 className="text-base font-semibold text-slate-800">Estudantes sem número de matrícula</h3>
                 <Badge variant="outline" className="ml-2">{data.students.empty}</Badge>
               </div>
               {(data.students.empty_sample || []).length === 0 ? (
-                <p className="px-5 py-6 text-sm text-slate-500">Todos os alunos possuem matrícula. 🎉</p>
+                <p className="px-5 py-6 text-sm text-slate-500">Todos os estudantes possuem matrícula. 🎉</p>
               ) : (
                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0">
                       <tr>
-                        <th className="text-left px-5 py-2 font-medium">Aluno</th>
+                        <th className="text-left px-5 py-2 font-medium">Estudante</th>
                         <th className="text-left px-5 py-2 font-medium">ID</th>
                       </tr>
                     </thead>
@@ -338,17 +338,17 @@ export const EnrollmentAudit = () => {
                 <Badge variant="outline" className="ml-2">{seriesData?.total_to_fix || 0}</Badge>
               </div>
               {!seriesData || (seriesData.total_to_fix || 0) === 0 ? (
-                <p className="px-5 py-6 text-sm text-slate-500">Todas as matrículas com aluno classificado já têm série. 🎉</p>
+                <p className="px-5 py-6 text-sm text-slate-500">Todas as matrículas com estudante classificado já têm série. 🎉</p>
               ) : (
                 <>
                   <p className="px-5 pt-3 text-xs text-slate-500">
-                    Estes alunos têm a série salva no cadastro, mas a matrícula está sem série — por isso somem dos diários/PDFs por etapa. Clique em “Sincronizar séries” para copiar a série do cadastro para a matrícula.
+                    Estes estudantes têm a série salva no cadastro, mas a matrícula está sem série — por isso somem dos diários/PDFs por etapa. Clique em “Sincronizar séries” para copiar a série do cadastro para a matrícula.
                   </p>
                   <div className="overflow-x-auto max-h-96 overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0">
                         <tr>
-                          <th className="text-left px-5 py-2 font-medium">Aluno</th>
+                          <th className="text-left px-5 py-2 font-medium">Estudante</th>
                           <th className="text-left px-5 py-2 font-medium">Turma</th>
                           <th className="text-left px-5 py-2 font-medium">Série (cadastro)</th>
                         </tr>

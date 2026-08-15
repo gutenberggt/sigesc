@@ -405,7 +405,7 @@ export function Promotion() {
       setStudents(filteredStudents);
 
       if (filteredStudents.length === 0) {
-        toast.info('Nenhum aluno vinculado a esta turma');
+        toast.info('Nenhum estudante vinculado a esta turma');
         setPromotionData([]);
         setLoading(false);
         return;
@@ -1020,7 +1020,7 @@ export function Promotion() {
           <Card>
             <CardContent className="p-8 text-center text-gray-500">
               <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p>Nenhum aluno matriculado nesta turma</p>
+              <p>Nenhum estudante matriculado nesta turma</p>
             </CardContent>
           </Card>
         ) : (
@@ -1056,7 +1056,7 @@ export function Promotion() {
               })}
               {quickFilter !== 'TODOS' && (
                 <span className="ml-auto text-xs text-gray-500" data-testid="quick-filter-summary">
-                  Exibindo {filteredPromotionData.length} de {promotionData.length} alunos
+                  Exibindo {filteredPromotionData.length} de {promotionData.length} estudantes
                 </span>
               )}
             </div>
@@ -1064,12 +1064,12 @@ export function Promotion() {
               {paginatedData.length === 0 ? (
                 <div className="p-8 text-center text-gray-500" data-testid="quick-filter-empty">
                   <Filter className="h-10 w-10 mx-auto mb-3 text-gray-400" />
-                  <p>Nenhum aluno corresponde ao filtro selecionado.</p>
+                  <p>Nenhum estudante corresponde ao filtro selecionado.</p>
                   <button
                     onClick={() => setQuickFilter('TODOS')}
                     className="mt-3 text-sm text-emerald-700 hover:text-emerald-800 underline"
                   >
-                    Mostrar todos os alunos
+                    Mostrar todos os estudantes
                   </button>
                 </div>
               ) : (
@@ -1078,7 +1078,7 @@ export function Promotion() {
                   <thead>
                     <tr className="bg-slate-100 border-b-2 border-slate-300">
                       <th rowSpan={2} className="px-2 py-2 text-left font-semibold border-r sticky left-0 bg-slate-100 z-10">N°</th>
-                      <th rowSpan={2} className="px-2 py-2 text-left font-semibold border-r min-w-[200px] sticky left-8 bg-slate-100 z-10">LISTA DE ALUNOS</th>
+                      <th rowSpan={2} className="px-2 py-2 text-left font-semibold border-r min-w-[200px] sticky left-8 bg-slate-100 z-10">LISTA DE ESTUDANTES</th>
                       <th rowSpan={2} className="px-2 py-2 text-center font-semibold border-r-2 border-slate-400 w-10">SEXO</th>
                       
                       {/* Bimestres 1-4 com NOTAS (somente regulares; integral ignorado por regra de negócio) */}
@@ -1195,7 +1195,7 @@ export function Promotion() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredPromotionData.length)} de {filteredPromotionData.length} alunos
+                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredPromotionData.length)} de {filteredPromotionData.length} estudantes
                 </div>
                 
                 <div className="flex items-center gap-2">

@@ -178,7 +178,7 @@ export default function MECIntegration() {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Users className="h-5 w-5 text-blue-600" /></div>
               <div>
-                <p className="text-xs text-gray-500">Alunos Ativos</p>
+                <p className="text-xs text-gray-500">Estudantes Ativos</p>
                 <p className="text-xl font-bold">{syncStatus.details.students_total}</p>
               </div>
             </div>
@@ -338,7 +338,7 @@ export default function MECIntegration() {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
                   {[
                     { label: 'Competência', value: freqPreview.competencia },
-                    { label: 'Alunos analisados', value: freqPreview.analyzed },
+                    { label: 'Estudantes analisados', value: freqPreview.analyzed },
                     { label: 'Prontos', value: freqPreview.ready_count },
                     { label: 'Pendências', value: freqPreview.pending_count },
                     { label: 'Lotes previstos', value: freqPreview.lotes_previstos },
@@ -366,7 +366,7 @@ export default function MECIntegration() {
                       <table className="w-full text-sm" data-testid="freq-pendencias-table">
                         <thead className="bg-gray-50 text-gray-600 sticky top-0">
                           <tr>
-                            <th className="text-left px-4 py-2 font-medium">Aluno</th>
+                            <th className="text-left px-4 py-2 font-medium">Estudante</th>
                             <th className="text-left px-4 py-2 font-medium">Dados faltantes</th>
                           </tr>
                         </thead>
@@ -750,7 +750,7 @@ export default function MECIntegration() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="text-left px-6 py-2 text-xs text-gray-500 uppercase">Aluno</th>
+                      <th className="text-left px-6 py-2 text-xs text-gray-500 uppercase">Estudante</th>
                       <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">Escola</th>
                       <th className="text-left px-4 py-2 text-xs text-gray-500 uppercase">Campos Faltantes</th>
                     </tr>

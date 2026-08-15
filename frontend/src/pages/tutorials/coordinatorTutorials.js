@@ -36,7 +36,7 @@ export const coordinatorTutorials = [
     steps: [
       { title: 'Abra Turmas', text: 'Acesse a área de turmas e identifique nome, etapa/série, turno e ano letivo.' },
       { title: 'Escolha uma turma', text: 'Confirme se é a turma esperada antes de prosseguir para outros módulos. Turmas com nomes parecidos podem pertencer a turnos ou anos diferentes.' },
-      { title: 'Consulte os estudantes', text: 'Use a área de estudantes para localizar um aluno e conferir sua turma atual. Prefira a busca por nome e os filtros da escola.' },
+      { title: 'Consulte os estudantes', text: 'Use a área de estudantes para localizar um estudante e conferir sua turma atual. Prefira a busca por nome e os filtros da escola.' },
       { title: 'Relacione o estudante à análise', text: 'Ao investigar nota, falta ou intervenção, volte a confirmar turma e vínculo do estudante para evitar conclusões sobre uma matrícula antiga.' },
       { title: 'Registre a pergunta pedagógica', text: 'Antes de abrir outro módulo, formule o que deseja responder: “A turma está com frequência baixa?”, “Há notas pendentes?”, “O conteúdo previsto foi registrado?”.' }
     ],
@@ -75,7 +75,7 @@ export const coordinatorTutorials = [
     systemRoute: '/admin/attendance',
     objective: 'Interpretar a frequência da turma e localizar estudantes com padrão de ausência que exige acompanhamento.',
     intro: 'A frequência não deve ser lida apenas como um percentual. Para a coordenação, o mais importante é identificar padrões, mudanças e situações que exigem contato ou intervenção.',
-    before: ['Selecione escola, turma e período corretos.', 'Se estiver investigando um aluno, confirme a matrícula atual.'],
+    before: ['Selecione escola, turma e período corretos.', 'Se estiver investigando um estudante, confirme a matrícula atual.'],
     steps: [
       { title: 'Abra Frequência', text: 'Acesse o módulo de frequência e escolha o recorte correto de escola, turma e período.' },
       { title: 'Leia a turma primeiro', text: 'Observe o padrão geral antes de analisar um estudante. Isso ajuda a distinguir um problema individual de uma ocorrência da turma ou do calendário.' },

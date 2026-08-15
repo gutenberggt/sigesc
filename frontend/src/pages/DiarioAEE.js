@@ -316,7 +316,7 @@ const DiarioAEE = () => {
   // === HANDLERS DE PLANO ===
   const handleSavePlano = async (formData) => {
     if (!formData.student_id || !formData.publico_alvo) {
-      showAlert('error', 'Selecione o aluno e o público-alvo');
+      showAlert('error', 'Selecione o estudante e o público-alvo');
       return;
     }
     
@@ -431,7 +431,7 @@ const DiarioAEE = () => {
   const confirmDuplicarPlano = async () => {
     if (!duplicatingPlano) return;
     if (duplicateMode === 'cross' && !duplicateTargetStudentId) {
-      showAlert('error', 'Selecione o aluno alvo para a duplicação cruzada');
+      showAlert('error', 'Selecione o estudante alvo para a duplicação cruzada');
       return;
     }
     try {
@@ -446,7 +446,7 @@ const DiarioAEE = () => {
         throw new Error(await parseResponseError(response, 'Erro ao duplicar plano'));
       }
       showAlert('success', duplicateMode === 'cross'
-        ? 'Plano AEE duplicado para outro aluno (rascunho)'
+        ? 'Plano AEE duplicado para outro estudante (rascunho)'
         : 'Plano AEE duplicado com sucesso (rascunho)');
       setDuplicatingPlano(null);
       setDuplicateTargetStudentId('');
@@ -599,7 +599,7 @@ const DiarioAEE = () => {
 
   const handleApplyTemplate = async () => {
     if (!applyTemplateId || !applyStudentId) {
-      showAlert('error', 'Selecione o modelo e o aluno');
+      showAlert('error', 'Selecione o modelo e o estudante');
       return;
     }
     try {
@@ -932,7 +932,7 @@ const DiarioAEE = () => {
           <table className="min-w-full bg-white border rounded-lg">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudante</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Público-Alvo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Modalidade</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dias</th>
@@ -1620,7 +1620,7 @@ const DiarioAEE = () => {
             </div>
             <div className="p-6 space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-4">
-                <div><span className="font-semibold text-gray-600">Aluno:</span> {estudantes.find(e => e.student_id === viewingPlano.student_id)?.full_name || '-'}</div>
+                <div><span className="font-semibold text-gray-600">Estudante:</span> {estudantes.find(e => e.student_id === viewingPlano.student_id)?.full_name || '-'}</div>
                 <div><span className="font-semibold text-gray-600">Ano Letivo:</span> {viewingPlano.academic_year}</div>
                 <div><span className="font-semibold text-gray-600">Público-alvo:</span> {viewingPlano.publico_alvo?.replace(/_/g, ' ')}</div>
                 <div><span className="font-semibold text-gray-600">Status:</span> <span className="capitalize">{viewingPlano.status}</span></div>
@@ -1695,7 +1695,7 @@ const DiarioAEE = () => {
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
-              <div><b>Aluno:</b> {estudantes.find(e => e.student_id === deletingPlano.student_id)?.full_name || '-'}</div>
+              <div><b>Estudante:</b> {estudantes.find(e => e.student_id === deletingPlano.student_id)?.full_name || '-'}</div>
               <div><b>Status:</b> <span className="capitalize">{deletingPlano.status}</span></div>
               <div><b>Ano letivo:</b> {deletingPlano.academic_year}</div>
             </div>
@@ -1746,8 +1746,8 @@ const DiarioAEE = () => {
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <p className="font-medium text-sm text-gray-800">Para o mesmo aluno</p>
-                  <p className="text-xs text-gray-500">Cria uma cópia em rascunho do plano para o mesmo aluno (útil para revisões/novo período).</p>
+                  <p className="font-medium text-sm text-gray-800">Para o mesmo estudante</p>
+                  <p className="text-xs text-gray-500">Cria uma cópia em rascunho do plano para o mesmo estudante (útil para revisões/novo período).</p>
                 </div>
               </label>
               <label className="flex items-start gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
@@ -1761,15 +1761,15 @@ const DiarioAEE = () => {
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <p className="font-medium text-sm text-gray-800">Para outro aluno (duplicação cruzada)</p>
-                  <p className="text-xs text-gray-500">Copia objetivos, recursos e cronograma para outro aluno AEE da mesma escola. Turma e Prof. Regente são ajustados automaticamente.</p>
+                  <p className="font-medium text-sm text-gray-800">Para outro estudante (duplicação cruzada)</p>
+                  <p className="text-xs text-gray-500">Copia objetivos, recursos e cronograma para outro estudante AEE da mesma escola. Turma e Prof. Regente são ajustados automaticamente.</p>
                 </div>
               </label>
             </div>
 
             {duplicateMode === 'cross' && (
               <div className="mb-4">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Aluno alvo</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Estudante alvo</label>
                 <select
                   value={duplicateTargetStudentId}
                   onChange={(e) => setDuplicateTargetStudentId(e.target.value)}
@@ -1786,8 +1786,8 @@ const DiarioAEE = () => {
                     ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  São listados apenas alunos AEE da escola atual.
-                  Se o aluno já tiver plano no mesmo ano letivo, a duplicação será bloqueada.
+                  São listados apenas estudantes AEE da escola atual.
+                  Se o estudante já tiver plano no mesmo ano letivo, a duplicação será bloqueada.
                 </p>
               </div>
             )}
@@ -1902,7 +1902,7 @@ const DiarioAEE = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">Novo Plano a partir de Modelo</h3>
-                <p className="text-sm text-gray-500 mt-1">Selecione um modelo validado e o aluno alvo. O plano será criado em rascunho.</p>
+                <p className="text-sm text-gray-500 mt-1">Selecione um modelo validado e o estudante alvo. O plano será criado em rascunho.</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -1942,21 +1942,21 @@ const DiarioAEE = () => {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Aluno alvo</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Estudante alvo</label>
                 <select
                   value={applyStudentId}
                   onChange={(e) => setApplyStudentId(e.target.value)}
                   data-testid="apply-student-select"
                   className="w-full border rounded-lg px-3 py-2 text-sm"
                 >
-                  <option value="">Selecione um aluno...</option>
+                  <option value="">Selecione um estudante...</option>
                   {estudantes.map(e => (
                     <option key={e.student_id} value={e.student_id}>
                       {e.full_name}{e.turma_origem ? ` — ${e.turma_origem}` : ''}
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Se o aluno já tiver plano no mesmo ano letivo, a criação será bloqueada.</p>
+                <p className="text-xs text-gray-500 mt-1">Se o estudante já tiver plano no mesmo ano letivo, a criação será bloqueada.</p>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">

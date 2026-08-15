@@ -642,7 +642,7 @@ export function SchoolsComplete() {
   const columns = [
     { header: 'Nome', accessor: 'name' },
     {
-      header: 'Alunos',
+      header: 'Estudantes',
       accessor: 'student_count',
       render: (row) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" data-testid={`school-students-${row.id}`}>
@@ -1471,7 +1471,7 @@ export function SchoolsComplete() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Capacidade Total de Alunos(as)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Capacidade Total de Estudantes</label>
             <input
               type="number"
               value={formData.capacidade_total_alunos || 0}
@@ -2287,7 +2287,7 @@ export function SchoolsComplete() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Alunos</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estudantes</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                 </tr>
@@ -2910,7 +2910,7 @@ export function SchoolsComplete() {
             </h4>
             <p className="text-sm text-gray-600 mb-4">
               Quando ativada, esta escola aparecerá na página pública de <strong>Pré-Matrícula</strong>, 
-              permitindo que responsáveis realizem o cadastro prévio de novos alunos.
+              permitindo que responsáveis realizem o cadastro prévio de novos estudantes.
             </p>
             
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">

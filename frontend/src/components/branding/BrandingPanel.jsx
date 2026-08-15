@@ -505,7 +505,7 @@ function PreviewCard({ form, logoError, setLogoError }) {
         </button>
 
         <div className="grid grid-cols-3 gap-2">
-          {['Alunos', 'Turmas', 'Boletim'].map(label => (
+          {['Estudantes', 'Turmas', 'Boletim'].map(label => (
             <div
               key={label}
               className="rounded-lg border border-gray-200 p-3 text-center text-xs"

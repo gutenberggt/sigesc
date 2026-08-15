@@ -206,11 +206,11 @@ export const Guardians = () => {
     { header: 'Telefone', accessor: 'cell_phone', render: (row) => row.cell_phone || row.phone || '-' },
     { header: 'Parentesco', accessor: 'relationship', render: (row) => RELATIONSHIPS[row.relationship] || row.relationship },
     { 
-      header: 'Alunos Vinculados', 
+      header: 'Estudantes Vinculados', 
       accessor: 'student_ids', 
       render: (row) => {
         const count = row.student_ids?.length || 0;
-        return <span className="text-blue-600 font-medium">{count} aluno(s)</span>;
+        return <span className="text-blue-600 font-medium">{count} estudante(s)</span>;
       }
     },
     { 
@@ -464,19 +464,19 @@ export const Guardians = () => {
 
   const tabAlunos = (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Alunos Vinculados</h3>
-      <p className="text-sm text-gray-600 mb-4">Selecione os alunos pelos quais este responsável é responsável:</p>
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Estudantes Vinculados</h3>
+      <p className="text-sm text-gray-600 mb-4">Selecione os estudantes pelos quais este responsável é responsável:</p>
       
       {students.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           <UserPlus size={48} className="mx-auto mb-4 text-gray-300" />
-          <p>Nenhum aluno cadastrado</p>
+          <p>Nenhum estudante cadastrado</p>
           <button
             type="button"
             onClick={() => navigate('/admin/students')}
             className="mt-2 text-blue-600 hover:underline"
           >
-            Cadastrar alunos
+            Cadastrar estudantes
           </button>
         </div>
       ) : (
@@ -522,7 +522,7 @@ export const Guardians = () => {
 
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
         <p className="text-sm text-gray-700">
-          <strong>Total selecionado:</strong> {formData.student_ids?.length || 0} aluno(s) · <strong>Principal para:</strong> {formData.primary_student_ids?.length || 0}
+          <strong>Total selecionado:</strong> {formData.student_ids?.length || 0} estudante(s) · <strong>Principal para:</strong> {formData.primary_student_ids?.length || 0}
         </p>
       </div>
     </div>
@@ -562,7 +562,7 @@ export const Guardians = () => {
   const tabs = [
     { id: 'dados', label: 'Dados Pessoais', content: tabDadosPessoais },
     { id: 'endereco', label: 'Endereço/Profissional', content: tabEndereco },
-    { id: 'alunos', label: 'Alunos Vinculados', content: tabAlunos },
+    { id: 'alunos', label: 'Estudantes Vinculados', content: tabAlunos },
     { id: 'observacoes', label: 'Observações', content: tabObservacoes }
   ];
 
@@ -581,7 +581,7 @@ export const Guardians = () => {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Responsáveis</h1>
-              <p className="text-gray-600 text-sm">Gerencie os responsáveis dos alunos</p>
+              <p className="text-gray-600 text-sm">Gerencie os responsáveis dos estudantes</p>
             </div>
           </div>
           {canEdit && (

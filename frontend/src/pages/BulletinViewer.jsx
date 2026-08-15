@@ -348,7 +348,7 @@ function CurricularDiagnoseModal({ open, onClose, classId, mantId }) {
                       <th className="text-left py-1">course_id</th>
                       <th className="text-left py-1">Nome (cadastro atual)</th>
                       <th className="text-center py-1">Notas</th>
-                      <th className="text-center py-1">Alunos</th>
+                      <th className="text-center py-1">Estudantes</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -492,7 +492,7 @@ function StudentPicker({ value, onSelect, mantId }) {
         <Input
           data-testid="bulletin-student-search"
           value={query}
-          placeholder="Buscar aluno por nome (mín. 2 letras)…"
+          placeholder="Buscar estudante por nome (mín. 2 letras)…"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -519,7 +519,7 @@ function StudentPicker({ value, onSelect, mantId }) {
             </div>
           )}
           {!loading && results.length === 0 && (
-            <div className="px-3 py-2 text-sm text-zinc-500">Nenhum aluno encontrado.</div>
+            <div className="px-3 py-2 text-sm text-zinc-500">Nenhum estudante encontrado.</div>
           )}
           {!loading && results.map((s) => (
             <button
@@ -878,7 +878,7 @@ export default function BulletinViewer() {
                     <strong>Boletim de Dependência</strong> · {bulletin.primary_class?.name || ''}
                     {bulletin.primary_school?.name ? ` · ${bulletin.primary_school.name}` : ''}
                     <div className="text-amber-700 mt-0.5">
-                      Componentes isolados — não compõem o boletim regular do aluno.
+                      Componentes isolados — não compõem o boletim regular do estudante.
                     </div>
                   </div>
                   <Button
@@ -965,7 +965,7 @@ export default function BulletinViewer() {
 
         {!loading && !bulletin && !error && (
           <div className="text-sm text-zinc-500 italic py-12 text-center">
-            Selecione um aluno acima para visualizar o boletim.
+            Selecione um estudante acima para visualizar o boletim.
           </div>
         )}
       </div>

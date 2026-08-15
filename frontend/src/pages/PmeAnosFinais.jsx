@@ -166,8 +166,8 @@ export default function PmeAnosFinais() {
               <Stat icon={School} label="Escolas (Anos Finais)" value={esc.total ?? 0} sub={`${esc.por_zona?.urbana || 0} urb. / ${esc.por_zona?.rural || 0} rural`} color="indigo" />
               <Stat icon={Users} label="Matrículas" value={m.total ?? 0} sub={`${m.ativos || 0} ativas`} color="sky" />
               <Stat icon={Layers} label="Turmas multisseriadas" value={data.multisseriadas?.total ?? 0} sub={`de ${data.multisseriadas?.total_turmas_af || 0} turmas`} color="purple" />
-              <Stat icon={Accessibility} label="Com deficiência" value={`${data.deficiencia?.percentual ?? 0}%`} sub={`${data.deficiencia?.com_deficiencia || 0} alunos`} color="amber" />
-              <Stat icon={TrendingDown} label="Taxa de abandono" value={`${data.evasao?.taxa_abandono_pct ?? 0}%`} sub={`${data.evasao?.abandono_total || 0} alunos`} color="red" />
+              <Stat icon={Accessibility} label="Com deficiência" value={`${data.deficiencia?.percentual ?? 0}%`} sub={`${data.deficiencia?.com_deficiencia || 0} estudantes`} color="amber" />
+              <Stat icon={TrendingDown} label="Taxa de abandono" value={`${data.evasao?.taxa_abandono_pct ?? 0}%`} sub={`${data.evasao?.abandono_total || 0} estudantes`} color="red" />
               <Stat icon={GraduationCap} label="Docentes c/ formação" value={`${data.docentes?.perc_com_formacao ?? 0}%`} sub={`${data.docentes?.total || 0} docentes`} color="green" />
             </div>
 
@@ -180,7 +180,7 @@ export default function PmeAnosFinais() {
                 </ResponsiveContainer>
               </Block>
 
-              <Block title="Cor/Raça (alunos ativos)" icon={Users}>
+              <Block title="Cor/Raça (estudantes ativos)" icon={Users}>
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart><Pie data={corRacaData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>{corRacaData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}</Pie><Tooltip /><Legend /></PieChart>
                 </ResponsiveContainer>
@@ -212,11 +212,11 @@ export default function PmeAnosFinais() {
                 </ResponsiveContainer>
               </Block>
 
-              <Block title="Socioeconômico — alunos com NIS (Cadastro Único)" icon={Users}>
+              <Block title="Socioeconômico — estudantes com NIS (Cadastro Único)" icon={Users}>
                 <div className="flex items-center justify-center h-[260px]">
                   <div className="text-center">
                     <p className="text-5xl font-bold text-indigo-600">{data.socioeconomico?.percentual ?? 0}%</p>
-                    <p className="text-sm text-gray-500 mt-2">{data.socioeconomico?.com_nis || 0} de {data.socioeconomico?.total_ativos || 0} alunos com NIS registrado</p>
+                    <p className="text-sm text-gray-500 mt-2">{data.socioeconomico?.com_nis || 0} de {data.socioeconomico?.total_ativos || 0} estudantes com NIS registrado</p>
                   </div>
                 </div>
               </Block>
@@ -288,12 +288,12 @@ function buildResumo(d, ext, year) {
   const lvlLabel = d.level_label || 'o nível selecionado';
   parts.push(`No ano letivo de ${year}, a rede possui ${esc.total || 0} escola(s) que atendem ${lvlLabel} (${esc.por_zona?.urbana || 0} na zona urbana e ${esc.por_zona?.rural || 0} na rural), com ${m.total || 0} matrícula(s) (${m.ativos || 0} ativas).`);
   if (d.multisseriadas?.total) parts.push(`Há ${d.multisseriadas.total} turma(s) multisseriada(s) de um total de ${d.multisseriadas.total_turmas_af}.`);
-  parts.push(`${d.deficiencia?.percentual || 0}% dos alunos ativos possuem deficiência/transtorno; ${d.socioeconomico?.percentual || 0}% têm NIS (Cadastro Único).`);
-  parts.push(`A taxa de abandono é de ${d.evasao?.taxa_abandono_pct || 0}% (${d.evasao?.abandono_total || 0} aluno(s)), com ${d.evasao?.transferidos || 0} transferência(s).`);
+  parts.push(`${d.deficiencia?.percentual || 0}% dos estudantes ativos possuem deficiência/transtorno; ${d.socioeconomico?.percentual || 0}% têm NIS (Cadastro Único).`);
+  parts.push(`A taxa de abandono é de ${d.evasao?.taxa_abandono_pct || 0}% (${d.evasao?.abandono_total || 0} estudante(s)), com ${d.evasao?.transferidos || 0} transferência(s).`);
   const dist = Object.entries(d.distorcao_idade_serie || {});
   if (dist.length) {
     const tot = dist.reduce((a, [, o]) => a + o.total, 0); const dd = dist.reduce((a, [, o]) => a + o.distorcidos, 0);
-    parts.push(`A distorção idade-série atinge ${tot ? Math.round(1000 * dd / tot) / 10 : 0}% dos alunos (2+ anos de atraso).`);
+    parts.push(`A distorção idade-série atinge ${tot ? Math.round(1000 * dd / tot) / 10 : 0}% dos estudantes (2+ anos de atraso).`);
   }
   parts.push(`Dos ${d.docentes?.total || 0} docentes vinculados a ${lvlLabel}, ${d.docentes?.perc_com_formacao || 0}% têm formação registrada.`);
   if (ext && ext.exists !== false && (ext.ideb_atual != null || ext.ideb_meta != null)) {

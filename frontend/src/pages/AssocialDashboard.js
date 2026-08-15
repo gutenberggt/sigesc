@@ -133,8 +133,8 @@ export default function AssocialDashboard() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Consulta de Alunos</h2>
-          <p className="text-gray-600 mt-1">Busque alunos por nome ou CPF para visualizar informações</p>
+          <h2 className="text-2xl font-bold text-gray-900">Consulta de Estudantes</h2>
+          <p className="text-gray-600 mt-1">Busque estudantes por nome ou CPF para visualizar informações</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -180,8 +180,8 @@ export default function AssocialDashboard() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={searchType === 'name' 
-                ? 'Digite o nome do aluno (minimo 2 caracteres)...' 
-                : 'Digite o CPF do aluno (minimo 2 digitos)...'
+                ? 'Digite o nome do estudante (minimo 2 caracteres)...' 
+                : 'Digite o CPF do estudante (minimo 2 digitos)...'
               }
               className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
               data-testid="search-input"
@@ -221,7 +221,7 @@ export default function AssocialDashboard() {
 
           {searchTerm.length >= 2 && searchResults.length === 0 && !loading && (
             <div className="mt-4 text-center py-4 text-gray-500">
-              Nenhum aluno encontrado com os criterios informados.
+              Nenhum estudante encontrado com os criterios informados.
             </div>
           )}
 
@@ -380,9 +380,9 @@ export default function AssocialDashboard() {
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="h-8 w-8 text-blue-600" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Busque um aluno</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Busque um estudante</h3>
             <p className="text-gray-500 max-w-md mx-auto">
-              Digite o nome ou CPF do aluno no campo de busca acima para visualizar suas informações 
+              Digite o nome ou CPF do estudante no campo de busca acima para visualizar suas informações 
               e acompanhamento de frequência.
             </p>
           </div>

@@ -64,12 +64,12 @@ export default function TutorialTransferencia() {
               </div>
               <div>
                 <span className="text-green-400 text-sm font-medium">Tutorial para Secretários</span>
-                <h1 className="text-3xl font-bold text-white">Transferir um Aluno de uma Escola para Outra</h1>
+                <h1 className="text-3xl font-bold text-white">Transferir um Estudante de uma Escola para Outra</h1>
               </div>
             </div>
             <p className="text-slate-400 text-lg">
               Tutorial rápido: a transferência acontece em <strong className="text-white">2 etapas</strong> —
-              primeiro você marca o aluno como <strong className="text-white">Transferido</strong> na escola de
+              primeiro você marca o estudante como <strong className="text-white">Transferido</strong> na escola de
               origem e, em seguida, o <strong className="text-white">Matricula</strong> na escola de destino.
             </p>
           </div>
@@ -80,7 +80,7 @@ export default function TutorialTransferencia() {
             <div>
               <p className="text-blue-200 font-medium">Antes de começar</p>
               <p className="text-blue-200/70 text-sm mt-1">
-                A ação <strong>"Transferir"</strong> só fica disponível para alunos com status
+                A ação <strong>"Transferir"</strong> só fica disponível para estudantes com status
                 <strong> "Ativo"</strong>. Você precisa ter perfil de <strong>Secretário</strong> ou
                 <strong> Administrador</strong>.
               </p>
@@ -95,14 +95,14 @@ export default function TutorialTransferencia() {
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">1</span>
                 <School size={22} className="text-green-400" />
-                Etapa 1 — Marcar o aluno como "Transferido"
+                Etapa 1 — Marcar o estudante como "Transferido"
               </h2>
               <ol className="space-y-4 text-slate-300 list-none">
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
-                  <strong className="text-white">1.1</strong> No menu, acesse <strong className="text-white">Alunos</strong> (Gestão de Alunos).
+                  <strong className="text-white">1.1</strong> No menu, acesse <strong className="text-white">Estudantes</strong> (Gestão de Estudantes).
                 </li>
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
-                  <strong className="text-white">1.2</strong> Use a <strong className="text-white">busca</strong> ou os filtros para localizar o aluno e clique em <strong className="text-blue-400">"Editar"</strong>.
+                  <strong className="text-white">1.2</strong> Use a <strong className="text-white">busca</strong> ou os filtros para localizar o estudante e clique em <strong className="text-blue-400">"Editar"</strong>.
                 </li>
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
                   <strong className="text-white">1.3</strong> Abra o seletor de <strong className="text-white">Ações de Vínculo</strong> e escolha a opção <strong className="text-blue-400">🔄 Transferir</strong>.
@@ -111,16 +111,16 @@ export default function TutorialTransferencia() {
                   <strong className="text-white">1.4</strong> Informe o <strong className="text-white">motivo</strong> da transferência (opcional) e confirme.
                 </li>
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
-                  <strong className="text-white">1.5</strong> Pronto: o status do aluno muda para <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-0.5 rounded">Transferido</span> e a matrícula na escola de origem é encerrada.
+                  <strong className="text-white">1.5</strong> Pronto: o status do estudante muda para <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-0.5 rounded">Transferido</span> e a matrícula na escola de origem é encerrada.
                 </li>
               </ol>
 
               <div className="mt-6 space-y-5">
                 <figure>
                   <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
-                    <img src="/tutorials/transf-1-lista.png" alt="Tela de Alunos com a escola selecionada" className="w-full" />
+                    <img src="/tutorials/transf-1-lista.png" alt="Tela de Estudantes com a escola selecionada" className="w-full" />
                   </div>
-                  <figcaption className="text-slate-400 text-sm mt-2 text-center">Tela <strong className="text-slate-200">Alunos</strong>: selecione a escola e clique em <strong className="text-slate-200">Editar</strong>.</figcaption>
+                  <figcaption className="text-slate-400 text-sm mt-2 text-center">Tela <strong className="text-slate-200">Estudantes</strong>: selecione a escola e clique em <strong className="text-slate-200">Editar</strong>.</figcaption>
                 </figure>
                 <figure>
                   <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
@@ -130,7 +130,7 @@ export default function TutorialTransferencia() {
                 </figure>
                 <figure>
                   <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
-                    <img src="/tutorials/transf-3-transferir.png" alt="Modal Transferir Aluno" className="w-full" />
+                    <img src="/tutorials/transf-3-transferir.png" alt="Modal Transferir Estudante" className="w-full" />
                   </div>
                   <figcaption className="text-slate-400 text-sm mt-2 text-center">Informe o motivo e a data, depois clique em <strong className="text-slate-200">Confirmar Transferência</strong>.</figcaption>
                 </figure>
@@ -146,10 +146,10 @@ export default function TutorialTransferencia() {
               </h2>
               <ol className="space-y-4 text-slate-300 list-none">
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
-                  <strong className="text-white">2.1</strong> Ainda na ficha do aluno (ou localizando-o novamente em <strong className="text-white">Alunos</strong>), abra as <strong className="text-white">Ações de Vínculo</strong>.
+                  <strong className="text-white">2.1</strong> Ainda na ficha do estudante (ou localizando-o novamente em <strong className="text-white">Estudantes</strong>), abra as <strong className="text-white">Ações de Vínculo</strong>.
                 </li>
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
-                  <strong className="text-white">2.2</strong> Como o aluno está "Transferido", a ação <strong className="text-blue-400">✅ Matricular</strong> ficará disponível. Selecione-a.
+                  <strong className="text-white">2.2</strong> Como o estudante está "Transferido", a ação <strong className="text-blue-400">✅ Matricular</strong> ficará disponível. Selecione-a.
                 </li>
                 <li className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
                   <strong className="text-white">2.3</strong> Escolha a <strong className="text-white">Escola de destino</strong>, a <strong className="text-white">Turma</strong> e o <strong className="text-white">Ano letivo</strong>.
@@ -161,9 +161,9 @@ export default function TutorialTransferencia() {
 
               <figure className="mt-6">
                 <div className="rounded-lg overflow-hidden border border-slate-700 shadow-xl">
-                  <img src="/tutorials/transf-4-matricular.png" alt="Modal Matricular Aluno com escola, turma e ano letivo de destino" className="w-full" />
+                  <img src="/tutorials/transf-4-matricular.png" alt="Modal Matricular Estudante com escola, turma e ano letivo de destino" className="w-full" />
                 </div>
-                <figcaption className="text-slate-400 text-sm mt-2 text-center">No modal <strong className="text-slate-200">Matricular Aluno</strong>, escolha a <strong className="text-slate-200">Escola de Destino</strong>, a <strong className="text-slate-200">Turma de Destino</strong> e o <strong className="text-slate-200">Ano Letivo</strong>, e clique em <strong className="text-slate-200">Confirmar Matrícula</strong>.</figcaption>
+                <figcaption className="text-slate-400 text-sm mt-2 text-center">No modal <strong className="text-slate-200">Matricular Estudante</strong>, escolha a <strong className="text-slate-200">Escola de Destino</strong>, a <strong className="text-slate-200">Turma de Destino</strong> e o <strong className="text-slate-200">Ano Letivo</strong>, e clique em <strong className="text-slate-200">Confirmar Matrícula</strong>.</figcaption>
               </figure>
 
               <div className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mt-6">
@@ -171,7 +171,7 @@ export default function TutorialTransferencia() {
                 <div>
                   <p className="text-yellow-200 font-medium">Transferência para fora da rede</p>
                   <p className="text-yellow-200/70 text-sm mt-1">
-                    Se o aluno saiu para uma escola que <strong>não pertence à rede</strong> (outro município
+                    Se o estudante saiu para uma escola que <strong>não pertence à rede</strong> (outro município
                     ou rede privada/estadual), basta concluir a <strong>Etapa 1</strong>. Ele permanece com
                     status "Transferido" e aparece como <strong>"Fora da rede"</strong> nos relatórios.
                   </p>
@@ -189,15 +189,15 @@ export default function TutorialTransferencia() {
               <ul className="space-y-3 text-slate-300">
                 <li className="flex items-start gap-2">
                   <ChevronRight className="text-green-400 flex-shrink-0 mt-1" size={16} />
-                  <span>Abra a ficha do aluno e veja o <strong className="text-white">Histórico de Movimentações</strong>: devem aparecer os registros <strong>"Transf. Saída"</strong> e, quando matriculado, <strong>"Transf. Entrada"</strong>.</span>
+                  <span>Abra a ficha do estudante e veja o <strong className="text-white">Histórico de Movimentações</strong>: devem aparecer os registros <strong>"Transf. Saída"</strong> e, quando matriculado, <strong>"Transf. Entrada"</strong>.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <ChevronRight className="text-green-400 flex-shrink-0 mt-1" size={16} />
-                  <span>Na escola de destino, o aluno aparecerá na <strong className="text-white">turma escolhida</strong> com uma nova matrícula.</span>
+                  <span>Na escola de destino, o estudante aparecerá na <strong className="text-white">turma escolhida</strong> com uma nova matrícula.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <ChevronRight className="text-green-400 flex-shrink-0 mt-1" size={16} />
-                  <span>No PDF de <strong className="text-white">Acompanhamento Bolsa Família</strong>, alunos transferidos aparecem na seção final, indicando a escola de destino ou "Fora da rede".</span>
+                  <span>No PDF de <strong className="text-white">Acompanhamento Bolsa Família</strong>, estudantes transferidos aparecem na seção final, indicando a escola de destino ou "Fora da rede".</span>
                 </li>
               </ul>
             </section>
@@ -211,7 +211,7 @@ export default function TutorialTransferencia() {
               <ul className="space-y-3 text-slate-300">
                 <li className="flex items-start gap-2">
                   <ChevronRight className="text-green-400 flex-shrink-0 mt-1" size={16} />
-                  <span><strong className="text-white">Etapa 1:</strong> Alunos → Editar → Ações de Vínculo → <strong>Transferir</strong> (status vira "Transferido").</span>
+                  <span><strong className="text-white">Etapa 1:</strong> Estudantes → Editar → Ações de Vínculo → <strong>Transferir</strong> (status vira "Transferido").</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <ChevronRight className="text-green-400 flex-shrink-0 mt-1" size={16} />

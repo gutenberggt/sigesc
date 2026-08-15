@@ -75,7 +75,7 @@ const ACTION_LABELS = {
 
 const COLLECTION_LABELS = {
   users: 'Usuários',
-  students: 'Alunos(as)',
+  students: 'Estudantes',
   grades: 'Notas',
   attendance: 'Frequência',
   staff: 'Servidores(as)',
@@ -388,7 +388,7 @@ export const AuditLogs = () => {
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="users">Usuários</SelectItem>
-                <SelectItem value="students">Alunos(as)</SelectItem>
+                <SelectItem value="students">Estudantes</SelectItem>
                 <SelectItem value="grades">Notas</SelectItem>
                 <SelectItem value="attendance">Frequência</SelectItem>
                 <SelectItem value="content_entries">Conteúdos</SelectItem>

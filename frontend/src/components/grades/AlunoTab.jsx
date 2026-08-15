@@ -212,7 +212,7 @@ export const AlunoTab = () => {
                 ) : (
                   <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
                     <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p>Nenhuma nota lançada para este aluno</p>
+                    <p>Nenhuma nota lançada para este estudante</p>
                   </div>
                 )}
               </div>
@@ -221,7 +221,7 @@ export const AlunoTab = () => {
             {!selectedStudent && (
               <div className="text-center py-12 text-gray-500">
                 <User size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>Busque um aluno pelo nome ou CPF para visualizar suas notas</p>
+                <p>Busque um estudante pelo nome ou CPF para visualizar suas notas</p>
               </div>
             )}
     </div>

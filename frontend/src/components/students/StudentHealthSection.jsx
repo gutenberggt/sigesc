@@ -132,7 +132,7 @@ export function StudentHealthSection({ studentId, studentName, viewMode = false 
 
       {!studentId && (
         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-          Salve o cadastro do aluno antes de registrar informações de saúde.
+          Salve o cadastro do estudante antes de registrar informações de saúde.
         </div>
       )}
 

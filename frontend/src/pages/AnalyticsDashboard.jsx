@@ -366,13 +366,13 @@ const exportToExcel = (school, year) => {
     ['Indicador', 'Valor'],
     ['Matrículas Ativas', raw.enrollments_active || 0],
     ['Matrículas Início do Ano', raw.enrollments_start || 0],
-    ['Alunos Aprovados', raw.approved_count || 0],
-    ['Alunos Avaliados', raw.evaluated_count || 0],
+    ['Estudantes Aprovados', raw.approved_count || 0],
+    ['Estudantes Avaliados', raw.evaluated_count || 0],
     ['Desistências', raw.dropouts || 0],
     ['Presenças Registradas', raw.attendance_present || 0],
     ['Total Registros Frequência', raw.attendance_total || 0],
     ['Objetos de Conhecimento', raw.learning_objects_count || 0],
-    ['Alunos com Distorção', raw.age_distortion_count || 0],
+    ['Estudantes com Distorção', raw.age_distortion_count || 0],
   ];
   
   // Combinar todos os dados
@@ -529,7 +529,7 @@ const exportToPDF = (school, year, header = {}) => {
     head: [['Indicador', 'Valor']],
     body: [
       ['Matrículas Ativas', raw.enrollments_active || 0],
-      ['Alunos Aprovados', raw.approved_count || 0],
+      ['Estudantes Aprovados', raw.approved_count || 0],
       ['Desistências', raw.dropouts || 0],
       ['Objetos de Conhecimento', raw.learning_objects_count || 0],
     ],
@@ -881,7 +881,7 @@ export function AnalyticsDashboard() {
           setStudents(filtered);
         }
       } catch (error) {
-        console.error('Erro ao carregar alunos da turma:', error);
+        console.error('Erro ao carregar estudantes da turma:', error);
         setStudents([]);
       }
     };
@@ -1008,7 +1008,7 @@ export function AnalyticsDashboard() {
       ['Indicador', 'Valor'],
       ['Escolas', ov.schools?.total || 0],
       ['Turmas', ov.classes?.total || 0],
-      ['Alunos Ativos', ov.students?.active || 0],
+      ['Estudantes Ativos', ov.students?.active || 0],
       ['Matrículas', ov.enrollments?.total || 0],
       ['Frequência (%)', ov.attendance?.rate || 0],
       ['Total de Faltas', ov.attendance?.absent || 0],
@@ -1120,10 +1120,10 @@ export function AnalyticsDashboard() {
             
             {selectedClass && (
               <div className="flex-1 min-w-[200px] max-w-[300px]">
-                <label className="block text-xs text-gray-500 mb-1">Aluno</label>
+                <label className="block text-xs text-gray-500 mb-1">Estudante</label>
                 <select value={selectedStudent} onChange={(e) => setSelectedStudent(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                  <option value="">Todos os alunos</option>
+                  <option value="">Todos os estudantes</option>
                   {sortedStudents.map(s => <option key={s.id} value={s.id}>{s.full_name || s.name}</option>)}
                 </select>
               </div>
@@ -1169,7 +1169,7 @@ export function AnalyticsDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-teal-100 text-sm">Alunos Ativos</p>
+                  <p className="text-teal-100 text-sm">Estudantes Ativos</p>
                   <p className="text-3xl font-bold">{overview?.students?.active || 0}</p>
                   {overview?.students?.total > 0 && overview?.students?.active !== overview?.students?.total && (
                     <p className="text-teal-200 text-xs">de {overview?.students?.total} cadastrados</p>
@@ -2142,7 +2142,7 @@ export function AnalyticsDashboard() {
                         {selectedSchoolDetail.indicators?.distorcao_idade_serie_pct || 0}%
                       </div>
                       <div className="text-xs text-amber-600">
-                        dos alunos com 2+ anos acima da idade esperada
+                        dos estudantes com 2+ anos acima da idade esperada
                       </div>
                     </div>
                   </div>
@@ -2192,7 +2192,7 @@ export function AnalyticsDashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2 flex-wrap">
                 <Users className="h-5 w-5 text-green-600" />
-                Desempenho dos Alunos
+                Desempenho dos Estudantes
                 {isProfessor && !selectedClass && (
                   <span className="text-xs font-normal text-amber-600 ml-2">(Selecione uma turma)</span>
                 )}
@@ -2254,7 +2254,7 @@ export function AnalyticsDashboard() {
               {isProfessor && !selectedClass ? (
                 <div className="text-center py-8 text-gray-500">
                   <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="font-medium">Selecione uma turma para visualizar o desempenho dos alunos</p>
+                  <p className="font-medium">Selecione uma turma para visualizar o desempenho dos estudantes</p>
                   <p className="text-sm mt-1">Como professor, você tem acesso apenas aos dados das suas turmas.</p>
                 </div>
               ) : performanceRestricted ? (
@@ -2269,7 +2269,7 @@ export function AnalyticsDashboard() {
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">#</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Aluno</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Estudante</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Escola</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Turma</th>
                         <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média (60%)</th>
@@ -2455,7 +2455,7 @@ export function AnalyticsDashboard() {
                 <ul className="list-disc pl-5 space-y-2">
                   <li>Compreende que os dados apresentados são <strong>confidenciais</strong> e protegidos pela LGPD (Lei Geral de Proteção de Dados);</li>
                   <li>Utilizará as informações <strong>exclusivamente para fins de gestão educacional</strong> no âmbito de suas atribuições;</li>
-                  <li><strong>Não compartilhará, divulgará ou publicará</strong> dados individuais de alunos ou rankings comparativos de escolas em meios não autorizados;</li>
+                  <li><strong>Não compartilhará, divulgará ou publicará</strong> dados individuais de estudantes ou rankings comparativos de escolas em meios não autorizados;</li>
                   <li>Reconhece que o <strong>uso indevido</strong> dos dados pode resultar em responsabilização administrativa, civil e penal;</li>
                   <li>Compromete-se a <strong>reportar imediatamente</strong> qualquer incidente de segurança ou uso inadequado das informações.</li>
                 </ul>
@@ -2465,7 +2465,7 @@ export function AnalyticsDashboard() {
                 <p><strong>Dados acessíveis após aceite:</strong></p>
                 <ul className="mt-2 space-y-1">
                   <li>• Ranking de Escolas (Score V2.1)</li>
-                  <li>• Desempenho individual de alunos (notas e frequência)</li>
+                  <li>• Desempenho individual de estudantes (notas e frequência)</li>
                   <li>• Indicadores de distorção idade-série</li>
                   <li>• Taxas de evasão e aprovação por escola</li>
                 </ul>

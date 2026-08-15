@@ -355,7 +355,7 @@ function ReportCard({ report, expanded, onToggle, onPdf, onSendEmail }) {
             <p className="text-sm text-gray-600 dark:text-slate-400 mt-2 line-clamp-2">
               {summary.mantenedora_nome || 'Rede'} ·
               <strong className="text-gray-900 dark:text-slate-100"> {summary.total_escolas ?? 0}</strong> escolas ·
-              <strong className="text-gray-900 dark:text-slate-100"> {summary.total_alunos ?? 0}</strong> alunos
+              <strong className="text-gray-900 dark:text-slate-100"> {summary.total_alunos ?? 0}</strong> estudantes
             </p>
             <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400 mt-2 flex-wrap">
               <span className="inline-flex items-center gap-1">

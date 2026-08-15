@@ -112,7 +112,7 @@ export default function BoletimAluno() {
             <CardContent className="p-6 text-center">
               <XCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
               <p className="text-red-700 font-medium">{error}</p>
-              <p className="text-sm text-gray-500 mt-2">Se você é aluno e vê este erro, entre em contato com a secretaria da escola.</p>
+              <p className="text-sm text-gray-500 mt-2">Se você é estudante e vê este erro, entre em contato com a secretaria da escola.</p>
             </CardContent>
           </Card>
         </div>
@@ -180,7 +180,7 @@ export default function BoletimAluno() {
       <Card>
         <CardContent className="p-4 text-sm grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="col-span-2">
-            <div className="text-[10px] uppercase text-gray-500">Aluno(a)</div>
+            <div className="text-[10px] uppercase text-gray-500">Estudante</div>
             <div className="font-semibold" data-testid="aluno-nome">{data.aluno?.nome}</div>
           </div>
           <div>

@@ -215,13 +215,13 @@ export const Attendance = () => {
     const studentStatus = (student.student_status || '').toLowerCase();
     
     if (['transferred', 'transferido'].includes(studentStatus)) {
-      return 'Aluno transferido - edição bloqueada';
+      return 'Estudante transferido - edição bloqueada';
     }
     if (['deceased', 'falecido'].includes(studentStatus)) {
-      return 'Aluno falecido - edição bloqueada';
+      return 'Estudante falecido - edição bloqueada';
     }
     if (student.is_transferred_from_class) {
-      return 'Aluno remanejado/progredido - dados da turma de origem bloqueados';
+      return 'Estudante remanejado/progredido - dados da turma de origem bloqueados';
     }
     return '';
   }, []);
@@ -549,7 +549,7 @@ export const Attendance = () => {
             date: selectedDate,
             students: studentsList,
           });
-          showAlertMessage('info', 'Lista de alunos carregada do cache. Nenhuma frequência registrada para esta data.');
+          showAlertMessage('info', 'Lista de estudantes carregada do cache. Nenhuma frequência registrada para esta data.');
         } else {
           showAlertMessage('error', 'Nenhum dado disponível offline. Sincronize quando houver conexão.');
         }
@@ -597,7 +597,7 @@ export const Attendance = () => {
   const updateStudentStatus = (studentId, status, aulaNum = null) => {
     // Bloqueia se aluno tem atestado médico
     if (hasActiveCertificate(studentId)) {
-      showAlertMessage('error', 'Este aluno possui atestado médico para esta data. O status não pode ser alterado.');
+      showAlertMessage('error', 'Este estudante possui atestado médico para esta data. O status não pode ser alterado.');
       return;
     }
     
@@ -758,7 +758,7 @@ export const Attendance = () => {
         }
         
         if (savedCount === 0) {
-          showAlertMessage('error', 'Registre a frequência de pelo menos um aluno em pelo menos uma aula');
+          showAlertMessage('error', 'Registre a frequência de pelo menos um estudante em pelo menos uma aula');
           setSaving(false);
           return;
         }
@@ -783,7 +783,7 @@ export const Attendance = () => {
           }));
         
         if (records.length === 0) {
-          showAlertMessage('error', 'Registre a frequência de pelo menos um aluno');
+          showAlertMessage('error', 'Registre a frequência de pelo menos um estudante');
           setSaving(false);
           return;
         }
@@ -1162,7 +1162,7 @@ export const Attendance = () => {
                 <ClipboardCheck className="text-blue-600" />
                 Controle de Frequência
               </h1>
-              <p className="text-gray-600 text-sm">Registre e acompanhe a frequência dos alunos</p>
+              <p className="text-gray-600 text-sm">Registre e acompanhe a frequência dos estudantes</p>
             </div>
           </div>
           
@@ -1271,7 +1271,7 @@ export const Attendance = () => {
               <div className="text-sm text-gray-600">
                 <p><strong>Turma:</strong> {attendanceData.class_name}</p>
                 <p><strong>Data:</strong> {formatDate(attendanceData.date)}</p>
-                <p><strong>Alunos:</strong> {attendanceData.students?.length || 0}</p>
+                <p><strong>Estudantes:</strong> {attendanceData.students?.length || 0}</p>
               </div>
             )}
             

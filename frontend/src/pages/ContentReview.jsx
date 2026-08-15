@@ -31,8 +31,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const COLLECTION_LABELS = {
-  students: 'Alunos',
-  student_history: 'Histórico do Aluno',
+  students: 'Estudantes',
+  student_history: 'Histórico do Estudante',
   enrollments: 'Matrículas',
   staff: 'Servidores',
   learning_objects: 'Objetos de Aprendizagem',

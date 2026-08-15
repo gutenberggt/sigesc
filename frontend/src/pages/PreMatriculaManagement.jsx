@@ -230,14 +230,14 @@ export default function PreMatriculaManagement() {
       
       toast.success(
         <div className="space-y-2">
-          <p className="font-medium">Aluno criado com sucesso!</p>
+          <p className="font-medium">Estudante criado com sucesso!</p>
           <p className="text-sm">Matrícula: {response.data.enrollment_number}</p>
           <button
             onClick={() => navigate(`/admin/students?highlight=${studentId}`)}
             className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 font-medium"
           >
             <ExternalLink className="w-3 h-3" />
-            Ver cadastro do aluno
+            Ver cadastro do estudante
           </button>
         </div>,
         { duration: 8000 }
@@ -349,7 +349,7 @@ export default function PreMatriculaManagement() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar por nome do aluno, responsável ou telefone..."
+                  placeholder="Buscar por nome do estudante, responsável ou telefone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -488,7 +488,7 @@ export default function PreMatriculaManagement() {
                             data-testid={`convert-btn-${pm.id}`}
                           >
                             <GraduationCap className="w-4 h-4 mr-1" />
-                            Converter em Aluno
+                            Converter em Estudante
                           </Button>
                         )}
                         {pm.status === 'convertida' && pm.converted_student_id && (
@@ -503,7 +503,7 @@ export default function PreMatriculaManagement() {
                             data-testid={`view-student-btn-${pm.id}`}
                           >
                             <UserCheck className="w-4 h-4 mr-1" />
-                            Ver Aluno
+                            Ver Estudante
                           </Button>
                         )}
                         {isExpanded ? (
@@ -523,7 +523,7 @@ export default function PreMatriculaManagement() {
                         <div>
                           <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                             <UserPlus className="w-4 h-4 text-blue-600" />
-                            Dados do Aluno
+                            Dados do Estudante
                           </h4>
                           <dl className="space-y-2 text-sm">
                             <div>
@@ -664,7 +664,7 @@ export default function PreMatriculaManagement() {
                           </h4>
                           <div className="flex items-center justify-between bg-purple-50 p-3 rounded border border-purple-200">
                             <p className="text-sm text-purple-600">
-                              Esta pré-matrícula foi convertida em aluno com sucesso.
+                              Esta pré-matrícula foi convertida em estudante com sucesso.
                             </p>
                             <Button
                               size="sm"
@@ -672,7 +672,7 @@ export default function PreMatriculaManagement() {
                               onClick={() => navigate(`/admin/students?highlight=${pm.converted_student_id}`)}
                             >
                               <ExternalLink className="w-4 h-4 mr-1" />
-                              Abrir Cadastro do Aluno
+                              Abrir Cadastro do Estudante
                             </Button>
                           </div>
                         </div>
@@ -692,10 +692,10 @@ export default function PreMatriculaManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-purple-600" />
-              Converter em Aluno
+              Converter em Estudante
             </DialogTitle>
             <DialogDescription>
-              Crie um novo aluno a partir dos dados da pré-matrícula de <strong>{selectedPreMatricula?.aluno_nome}</strong>.
+              Crie um novo estudante a partir dos dados da pré-matrícula de <strong>{selectedPreMatricula?.aluno_nome}</strong>.
             </DialogDescription>
           </DialogHeader>
           
@@ -728,7 +728,7 @@ export default function PreMatriculaManagement() {
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Você pode vincular o aluno a uma turma agora ou fazer isso posteriormente.
+                Você pode vincular o estudante a uma turma agora ou fazer isso posteriormente.
               </p>
             </div>
           </div>

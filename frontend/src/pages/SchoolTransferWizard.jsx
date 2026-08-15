@@ -156,7 +156,7 @@ export default function SchoolTransferWizard() {
                     <p className="text-xs text-blue-600">Turmas na origem</p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg text-center">
-                    <p className="text-sm text-gray-600">Alunos e matrículas serão detalhados na simulação (Dry Run).</p>
+                    <p className="text-sm text-gray-600">Estudantes e matrículas serão detalhados na simulação (Dry Run).</p>
                   </div>
                 </div>
               )}
@@ -200,7 +200,7 @@ export default function SchoolTransferWizard() {
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                 <p className="font-medium flex items-center gap-1"><ShieldAlert size={15} /> Impacto previsto</p>
-                <p className="text-xs mt-1">Serão movidos: {effectiveClassIds.length} turma(s) e todo o histórico vinculado (alunos, matrículas, frequência, notas, conteúdos, AEE e Bolsa Família). Os números exatos aparecem na simulação.</p>
+                <p className="text-xs mt-1">Serão movidos: {effectiveClassIds.length} turma(s) e todo o histórico vinculado (estudantes, matrículas, frequência, notas, conteúdos, AEE e Bolsa Família). Os números exatos aparecem na simulação.</p>
               </div>
 
               <div className="flex justify-between">
@@ -220,7 +220,7 @@ export default function SchoolTransferWizard() {
             <CardHeader><CardTitle className="text-base">Etapa 3 — Simulação (Dry Run)</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="wizard-dryrun-counts">
-                {[['Turmas', counts.classes], ['Alunos', counts.students_distinct ?? counts.students], ['Matrículas', counts.enrollments], ['Frequência', counts.attendance], ['Notas', counts.grades], ['Conteúdos', counts.content_entries], ['AEE (planos)', counts.planos_aee], ['Bolsa Família', counts.bolsa_familia_tracking]].map(([k, v]) => (
+                {[['Turmas', counts.classes], ['Estudantes', counts.students_distinct ?? counts.students], ['Matrículas', counts.enrollments], ['Frequência', counts.attendance], ['Notas', counts.grades], ['Conteúdos', counts.content_entries], ['AEE (planos)', counts.planos_aee], ['Bolsa Família', counts.bolsa_familia_tracking]].map(([k, v]) => (
                   <div key={k} className="bg-gray-50 p-3 rounded-lg text-center">
                     <p className="text-xl font-bold text-gray-800">{v ?? 0}</p>
                     <p className="text-[11px] text-gray-500">{k}</p>
@@ -264,7 +264,7 @@ export default function SchoolTransferWizard() {
                 <p>Você está transferindo:</p>
                 <ul className="list-disc ml-5 mt-1">
                   <li><strong>{counts.classes}</strong> turma(s)</li>
-                  <li><strong>{counts.students_distinct ?? counts.students}</strong> aluno(s)</li>
+                  <li><strong>{counts.students_distinct ?? counts.students}</strong> estudante(s)</li>
                   <li><strong>{counts.enrollments ?? 0}</strong> matrícula(s)</li>
                 </ul>
                 <p className="mt-2">Da escola <strong>{dryRun.origin?.name}</strong> para <strong>{dryRun.destination?.name}</strong>.</p>
@@ -311,7 +311,7 @@ export default function SchoolTransferWizard() {
                 <p><strong>Protocolo:</strong> <span className="font-mono">{result.protocol}</span></p>
                 <p><strong>Data/hora:</strong> {new Date(result.executed_at).toLocaleString('pt-BR')}</p>
                 <p><strong>Turmas movidas:</strong> {result.modified_counts?.classes}</p>
-                <p><strong>Alunos movidos:</strong> {result.students_moved}</p>
+                <p><strong>Estudantes movidos:</strong> {result.students_moved}</p>
                 <p><strong>Escola origem encerrada:</strong> {result.origin_closed ? 'Sim' : 'Não'}</p>
                 <p className="flex items-center gap-1 text-amber-700 mt-2">
                   <Clock size={14} /> Reversível por 7 dias (ou até a 1ª emissão de documento oficial).

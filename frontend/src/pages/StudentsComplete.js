@@ -336,7 +336,7 @@ export function StudentsComplete() {
   const [indicatorsCollapsed, setIndicatorsCollapsed] = useState(true);
   const toggleIndicators = () => setIndicatorsCollapsed((prev) => !prev);
 
-  // [Fase 0 — Contenção] Inconsistências de integridade (alunos ATIVOS
+  // [Fase 0 — Contenção] Inconsistências de integridade (estudantes ATIVOS
   // sem turma / com turma órfã / etc.). Buscado uma vez ao montar.
   const [inconsistencies, setInconsistencies] = useState(null);
   const [showInconsistenciesList, setShowInconsistenciesList] = useState(false);
@@ -534,7 +534,7 @@ export function StudentsComplete() {
           handleOpenDocuments(student);
         }
       } catch (error) {
-        console.error('Erro ao abrir aluno:', error);
+        console.error('Erro ao abrir estudante:', error);
       }
     };
     openStudentAction();
@@ -589,7 +589,7 @@ export function StudentsComplete() {
         setModalidadeCounts(result.modalidade_counts || {});
         setCompletenessCounts(result.completeness_counts || { green: 0, yellow: 0, red: 0 });
       } catch (error) {
-        console.error('Erro ao carregar alunos:', error);
+        console.error('Erro ao carregar estudantes:', error);
         showAlert('error', 'Erro ao carregar dados');
       } finally {
         setLoading(false);
@@ -881,13 +881,13 @@ export function StudentsComplete() {
   };
 
   const handleDelete = async (student) => {
-    if (window.confirm(`Tem certeza que deseja excluir o aluno "${student.full_name || student.enrollment_number}"?`)) {
+    if (window.confirm(`Tem certeza que deseja excluir o estudante "${student.full_name || student.enrollment_number}"?`)) {
       try {
         await studentsAPI.delete(student.id);
-        showAlert('success', 'Aluno excluído com sucesso');
+        showAlert('success', 'Estudante excluído com sucesso');
         reloadData();
       } catch (error) {
-        showAlert('error', 'Erro ao excluir aluno');
+        showAlert('error', 'Erro ao excluir estudante');
         console.error(error);
       }
     }
@@ -969,7 +969,7 @@ export function StudentsComplete() {
   // Abre o modal de ação
   const handleOpenActionModal = (action) => {
     if (!editingStudent) {
-      showAlert('error', 'Nenhum aluno selecionado');
+      showAlert('error', 'Nenhum estudante selecionado');
       return;
     }
     
@@ -987,13 +987,13 @@ export function StudentsComplete() {
       const currentStatus = statusLabels[editingStudent.status?.toLowerCase()] || editingStudent.status;
       
       const actionMessages = {
-        'matricular': 'A ação "Matricular" só é permitida para alunos com status "Transferido", "Desistente", "Inativo", "Cancelado" ou sem status definido.',
-        'transferir': 'A ação "Transferir" só é permitida para alunos com status "Ativo".',
-        'remanejar': 'A ação "Remanejar" só é permitida para alunos com status "Ativo".',
-        'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".',
-        'reclassificar': 'A ação "Reclassificar" só é permitida para alunos com status "Ativo".',
-        'cancelar': 'A ação "Cancelar" só é permitida para alunos com status "Ativo".',
-        'desistir': 'A ação "Desistir" só é permitida para alunos com status "Ativo".'
+        'matricular': 'A ação "Matricular" só é permitida para estudantes com status "Transferido", "Desistente", "Inativo", "Cancelado" ou sem status definido.',
+        'transferir': 'A ação "Transferir" só é permitida para estudantes com status "Ativo".',
+        'remanejar': 'A ação "Remanejar" só é permitida para estudantes com status "Ativo".',
+        'progredir': 'A ação "Progredir" só é permitida para estudantes com status "Ativo".',
+        'reclassificar': 'A ação "Reclassificar" só é permitida para estudantes com status "Ativo".',
+        'cancelar': 'A ação "Cancelar" só é permitida para estudantes com status "Ativo".',
+        'desistir': 'A ação "Desistir" só é permitida para estudantes com status "Ativo".'
       };
       
       showAlert('error', `${actionMessages[action]} Status atual: ${currentStatus}`);
@@ -1043,7 +1043,7 @@ export function StudentsComplete() {
           const targetClassForMatricula = classes.find(c => c.id === actionData.targetClassId);
           if (targetClassForMatricula?.is_multi_grade && targetClassForMatricula?.series?.length > 0) {
             if (!actionData.studentSeries) {
-              showAlert('error', 'Selecione a série do aluno para esta turma multisseriada');
+              showAlert('error', 'Selecione a série do estudante para esta turma multisseriada');
               setExecutingAction(false);
               return;
             }
@@ -1216,7 +1216,7 @@ export function StudentsComplete() {
             new_status: 'dropout',
             school_id: formData.school_id,
             class_id: formData.class_id,
-            observations: actionData.reason || 'Aluno desistente'
+            observations: actionData.reason || 'Estudante desistente'
           };
           break;
           
@@ -1386,17 +1386,17 @@ export function StudentsComplete() {
       if (editingStudent) {
         const updatedStudent = await studentsAPI.update(editingStudent.id, cleanData);
         await persistCurrentEnrollmentMetadata(updatedStudent || { ...editingStudent, ...cleanData });
-        showAlert('success', 'Aluno atualizado com sucesso');
+        showAlert('success', 'Estudante atualizado com sucesso');
       } else {
         const createdStudent = await studentsAPI.create(cleanData);
         await persistCurrentEnrollmentMetadata(createdStudent);
-        showAlert('success', 'Aluno cadastrado com sucesso');
+        showAlert('success', 'Estudante cadastrado com sucesso');
       }
       setIsModalOpen(false);
       reloadData();
     } catch (error) {
       // Trata erro de validação do Pydantic (pode ser array de objetos)
-      let errorMessage = 'Erro ao salvar aluno';
+      let errorMessage = 'Erro ao salvar estudante';
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         if (Array.isArray(detail)) {
@@ -1646,7 +1646,7 @@ export function StudentsComplete() {
         body: payload,
         filename: 'relatorio-alunos.pdf',
         progress,
-        title: 'Gerando Relatório de Alunos',
+        title: 'Gerando Relatório de Estudantes',
         openInNewTab: true,
       });
       setShowReportModal(false);
@@ -1676,7 +1676,7 @@ export function StudentsComplete() {
 
   const handleSaveBatchActions = async () => {
     if (selectedStudentIds.length === 0) {
-      showAlert('error', 'Selecione pelo menos um aluno');
+      showAlert('error', 'Selecione pelo menos um estudante');
       return;
     }
 
@@ -1685,7 +1685,7 @@ export function StudentsComplete() {
       return;
     }
 
-    const confirmMessage = `Você está prestes a atualizar ${selectedStudentIds.length} aluno(s). Esta ação não pode ser desfeita. Deseja continuar?`;
+    const confirmMessage = `Você está prestes a atualizar ${selectedStudentIds.length} estudante(s). Esta ação não pode ser desfeita. Deseja continuar?`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -1722,17 +1722,17 @@ export function StudentsComplete() {
           await studentsAPI.update(studentId, updateData);
           successCount++;
         } catch (err) {
-          console.error(`Erro ao atualizar aluno ${studentId}:`, err);
+          console.error(`Erro ao atualizar estudante ${studentId}:`, err);
           errorCount++;
         }
       }
 
       if (successCount > 0) {
-        showAlert('success', `${successCount} aluno(s) atualizado(s) com sucesso${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
+        showAlert('success', `${successCount} estudante(s) atualizado(s) com sucesso${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
         // Recarrega a lista
         setReloadTrigger(prev => prev + 1);
       } else {
-        showAlert('error', 'Nenhum aluno foi atualizado');
+        showAlert('error', 'Nenhum estudante foi atualizado');
       }
 
       // Limpa seleções após salvar
@@ -1839,7 +1839,7 @@ export function StudentsComplete() {
         
         if (!canGenerateDocuments) {
           return (
-            <span className="text-gray-400 text-sm" title="Sem permissão para gerar documentos deste aluno">
+            <span className="text-gray-400 text-sm" title="Sem permissão para gerar documentos deste estudante">
               -
             </span>
           );
@@ -1863,7 +1863,7 @@ export function StudentsComplete() {
   
   const tabIdentificacao = (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Identificação do Aluno</h3>
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Identificação do Estudante</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Código/Matrícula *</label>
@@ -1885,7 +1885,7 @@ export function StudentsComplete() {
             onChange={(e) => updateFormData('inep_code', e.target.value)}
             disabled={viewMode}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            placeholder="Código INEP do aluno"
+            placeholder="Código INEP do estudante"
           />
         </div>
       </div>
@@ -1941,7 +1941,7 @@ export function StudentsComplete() {
               value={formData.email || ''}
               onChange={(e) => updateFormData('email', e.target.value)}
               disabled={viewMode}
-              placeholder="aluno@email.com"
+              placeholder="estudante@email.com"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
                 formData.email && !isValidEmail(formData.email) ? 'border-red-500' : 'border-gray-300'
               }`}
@@ -2467,7 +2467,7 @@ export function StudentsComplete() {
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Responsável Legal *</h3>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <p className="text-sm text-blue-800 mb-3">
-          <strong>Selecione quem é o responsável legal do aluno:</strong>
+          <strong>Selecione quem é o responsável legal do estudante:</strong>
         </p>
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -2517,7 +2517,7 @@ export function StudentsComplete() {
               className="h-4 w-4 text-blue-600"
               data-testid="legal-guardian-type-self"
             />
-            <span className="text-sm text-gray-700">O(A) Aluno(a)</span>
+            <span className="text-sm text-gray-700">O(A) Estudante</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -2891,7 +2891,7 @@ export function StudentsComplete() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes / Necessidades Educacionais Específicas</label>
-            <SpellCheckTextarea value={formData.disability_details} onChange={(e) => updateFormData('disability_details', e.target.value)} disabled={viewMode} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="Descreva necessidades educacionais, apoios, adaptações ou informações relevantes para o acompanhamento do aluno..." />
+            <SpellCheckTextarea value={formData.disability_details} onChange={(e) => updateFormData('disability_details', e.target.value)} disabled={viewMode} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="Descreva necessidades educacionais, apoios, adaptações ou informações relevantes para o acompanhamento do estudante..." />
           </div>
         </div>
       )}
@@ -2906,13 +2906,13 @@ export function StudentsComplete() {
         </p>
       </div>
 
-      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Foto do Aluno</h3>
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Foto do Estudante</h3>
       <div className="flex items-center gap-4">
         {formData.photo_url ? (
           <div className="relative">
             <img 
               src={uploadAPI.getUrl(formData.photo_url)} 
-              alt="Foto do aluno" 
+              alt="Foto do estudante" 
               className="w-32 h-32 object-cover rounded-lg border"
             />
             {!viewMode && (
@@ -3164,7 +3164,7 @@ export function StudentsComplete() {
         <div className="space-y-4">
           {/* Linha com seletor de ano para filtro de turmas */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Selecione o ano e a turma para vincular o aluno</span>
+            <span className="text-sm text-gray-500">Selecione o ano e a turma para vincular o estudante</span>
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Ano Letivo:</label>
               <select
@@ -3338,11 +3338,11 @@ export function StudentsComplete() {
           </div>
         </div>
       ) : (
-        /* Novo aluno - campos editáveis */
+        /* Novo estudante - campos editáveis */
         <div className="space-y-4">
           {/* Linha com título e seletor de ano */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Selecione o ano e a escola para vincular o aluno</span>
+            <span className="text-sm text-gray-500">Selecione o ano e a escola para vincular o estudante</span>
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Ano Letivo:</label>
               <select
@@ -3575,7 +3575,7 @@ export function StudentsComplete() {
             {formData.atendimento_programa_tipo === 'aee' && formData.atendimento_programa_class_id && (
               <div className="flex items-end">
                 <p className="text-sm text-purple-700 bg-purple-100 px-3 py-2 rounded-lg">
-                  Este aluno aparecerá no <strong>Diário AEE</strong> da escola.
+                  Este estudante aparecerá no <strong>Diário AEE</strong> da escola.
                 </p>
               </div>
             )}
@@ -3590,13 +3590,13 @@ export function StudentsComplete() {
         disabled={viewMode}
         rows={5}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-        placeholder="Anotações adicionais sobre o aluno..."
+        placeholder="Anotações adicionais sobre o estudante..."
       />
 
       {/* Histórico do Aluno */}
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8 flex items-center gap-2">
         <Calendar size={18} />
-        Histórico do Aluno
+        Histórico do Estudante
       </h3>
       {loadingHistory ? (
         <div className="flex items-center justify-center py-4">
@@ -3675,7 +3675,7 @@ export function StudentsComplete() {
           </table>
         </div>
       ) : (
-        <p className="text-gray-500 text-sm py-4">Nenhum histórico registrado para este aluno.</p>
+        <p className="text-gray-500 text-sm py-4">Nenhum histórico registrado para este estudante.</p>
       )}
     </div>
   );
@@ -3703,8 +3703,8 @@ export function StudentsComplete() {
               <span>Início</span>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Alunos(as)</h1>
-              <p className="text-gray-600 text-sm">Gerencie o cadastro completo de alunos(as)</p>
+              <h1 className="text-2xl font-bold text-gray-900">Estudantes</h1>
+              <p className="text-gray-600 text-sm">Gerencie o cadastro completo de estudantes</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -3724,7 +3724,7 @@ export function StudentsComplete() {
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
               >
                 <Plus size={20} />
-                <span>Novo(a) Aluno(a)</span>
+                <span>Novo Estudante</span>
               </button>
             )}
           </div>
@@ -3943,7 +3943,7 @@ export function StudentsComplete() {
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Printer size={18} />
-                <span>Imprimir Turma ({serverTotal} alunos)</span>
+                <span>Imprimir Turma ({serverTotal} estudantes)</span>
               </button>
             )}
           </div>
@@ -3960,10 +3960,10 @@ export function StudentsComplete() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-red-900 text-sm">
-                    {inconsistencies.total} aluno(s) ativo(s) com inconsistência de cadastro
+                    {inconsistencies.total} estudante(s) ativo(s) com inconsistência de cadastro
                   </p>
                   <p className="text-xs text-red-700 mt-1">
-                    Esses alunos contaminam relatórios, dashboards e censo. Resolva antes do fechamento do ano letivo.
+                    Esses estudantes contaminam relatórios, dashboards e censo. Resolva antes do fechamento do ano letivo.
                   </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-red-800">
                     {inconsistencies.counts_by_issue?.sem_turma > 0 && (
@@ -3988,7 +3988,7 @@ export function StudentsComplete() {
                     data-testid="inconsistencies-toggle"
                     className="mt-3 text-xs font-medium text-red-700 hover:text-red-900 underline"
                   >
-                    {showInconsistenciesList ? 'Ocultar lista' : 'Ver lista de alunos afetados'}
+                    {showInconsistenciesList ? 'Ocultar lista' : 'Ver lista de estudantes afetados'}
                   </button>
                   {showInconsistenciesList && (
                     <div
@@ -4051,7 +4051,7 @@ export function StudentsComplete() {
                 </>
               )}
               <span className="text-gray-400">|</span>
-              <span>{serverActiveCount} aluno(s) ativo(s)</span>
+              <span>{serverActiveCount} estudante(s) ativo(s)</span>
             </div>
           )}
 
@@ -4120,7 +4120,7 @@ export function StudentsComplete() {
                         <span
                           data-testid="race-nao-informada"
                           className="inline-flex items-center px-3 py-1.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 text-xs font-semibold"
-                          title="Alunos ativos sem cor/raça preenchida no cadastro"
+                          title="Estudantes ativos sem cor/raça preenchida no cadastro"
                         >
                           Não informada: {raceCounts['nao_informada']}
                         </span>
@@ -4219,7 +4219,7 @@ export function StudentsComplete() {
                         <AlertTriangle size={13} /> Série não reconhecida: {seriesCounts['SÉRIE NÃO RECONHECIDA']}
                       </p>
                       <p className="text-xs text-red-700">
-                        Esses alunos não foram classificados por série (nomenclatura de cadastro não mapeada). Corrija o cadastro/turma para reconciliar os indicadores.
+                        Esses estudantes não foram classificados por série (nomenclatura de cadastro não mapeada). Corrija o cadastro/turma para reconciliar os indicadores.
                       </p>
                       {Object.keys(unmappedSeries || {}).length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -4243,7 +4243,7 @@ export function StudentsComplete() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center" data-testid="select-school-message">
             <Building2 size={40} className="mx-auto text-blue-400 mb-3" />
             <p className="text-blue-800 font-medium text-lg">Selecione uma escola ou busque por nome/CPF</p>
-            <p className="text-blue-600 text-sm mt-1">Use os filtros acima para visualizar os alunos</p>
+            <p className="text-blue-600 text-sm mt-1">Use os filtros acima para visualizar os estudantes</p>
           </div>
         ) : (
         <>
@@ -4471,7 +4471,7 @@ export function StudentsComplete() {
                 ) : students.length === 0 ? (
                   <tr>
                     <td colSpan={batchMode ? 8 : 7} className="px-4 py-8 text-center text-gray-500">
-                      Nenhum aluno encontrado
+                      Nenhum estudante encontrado
                     </td>
                   </tr>
                 ) : (
@@ -4655,10 +4655,10 @@ export function StudentsComplete() {
           onClose={() => setIsModalOpen(false)}
           title={
             viewMode 
-              ? `Visualizar Aluno(a)${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
+              ? `Visualizar Estudante${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
               : (editingStudent 
-                  ? `Editar Aluno(a): ${editingStudent.full_name}` 
-                  : 'Novo(a) Aluno(a)')
+                  ? `Editar Estudante: ${editingStudent.full_name}` 
+                  : 'Novo Estudante')
           }
           size="xl"
         >
@@ -4734,16 +4734,16 @@ export function StudentsComplete() {
         <Modal
           isOpen={cancelModal.open}
           onClose={() => { setCancelModal({ open: false, student: null }); setCancelReason(''); }}
-          title="Desvincular Aluno da Turma"
+          title="Desvincular Estudante da Turma"
           size="sm"
         >
           <div className="space-y-4">
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
               <p className="text-sm text-orange-800">
-                Você está prestes a <strong>cancelar o vínculo</strong> do aluno <strong>{cancelModal.student?.full_name}</strong> com a turma <strong>{getClassName(filterClassId)}</strong>.
+                Você está prestes a <strong>cancelar o vínculo</strong> do estudante <strong>{cancelModal.student?.full_name}</strong> com a turma <strong>{getClassName(filterClassId)}</strong>.
               </p>
               <p className="text-xs text-orange-600 mt-1">
-                O registro será mantido no histórico para fins de auditoria, mas o aluno será removido de todas as listas desta turma.
+                O registro será mantido no histórico para fins de auditoria, mas o estudante será removido de todas as listas desta turma.
               </p>
             </div>
             <div>
@@ -4782,7 +4782,7 @@ export function StudentsComplete() {
         >
           <div className="space-y-4">
             <p className="text-gray-600">
-              Selecione o tipo de documento para gerar para todos os <strong>{serverTotal} alunos</strong> da turma:
+              Selecione o tipo de documento para gerar para todos os <strong>{serverTotal} estudantes</strong> da turma:
             </p>
             
             <div className="space-y-3">
@@ -4798,7 +4798,7 @@ export function StudentsComplete() {
                   </div>
                   <div className="text-left">
                     <p className="font-medium text-gray-900">Boletim Escolar</p>
-                    <p className="text-sm text-gray-500">Notas e frequência do aluno</p>
+                    <p className="text-sm text-gray-500">Notas e frequência do estudante</p>
                   </div>
                 </div>
                 <ExternalLink size={20} className="text-blue-600" />
@@ -4855,7 +4855,7 @@ export function StudentsComplete() {
                   </div>
                   <div className="text-left">
                     <p className="font-medium text-gray-900">Histórico Escolar</p>
-                    <p className="text-sm text-gray-500">Histórico escolar de todos os alunos da turma</p>
+                    <p className="text-sm text-gray-500">Histórico escolar de todos os estudantes da turma</p>
                   </div>
                 </div>
                 <ExternalLink size={20} className="text-amber-600" />
@@ -5111,14 +5111,14 @@ export function StudentsComplete() {
           isOpen={showActionModal} 
           onClose={() => setShowActionModal(false)} 
           title={
-            selectedAction === 'matricular' ? '📋 Matricular Aluno' :
-            selectedAction === 'transferir' ? '🔄 Transferir Aluno' :
-            selectedAction === 'remanejar' ? '↔️ Remanejar Aluno' :
-            selectedAction === 'progredir' ? '⬆️ Progredir Aluno' :
-            selectedAction === 'reclassificar' ? '🎓 Reclassificar Aluno' :
+            selectedAction === 'matricular' ? '📋 Matricular Estudante' :
+            selectedAction === 'transferir' ? '🔄 Transferir Estudante' :
+            selectedAction === 'remanejar' ? '↔️ Remanejar Estudante' :
+            selectedAction === 'progredir' ? '⬆️ Progredir Estudante' :
+            selectedAction === 'reclassificar' ? '🎓 Reclassificar Estudante' :
             selectedAction === 'cancelar' ? '❌ Cancelar Matrícula' :
             selectedAction === 'desistir' ? '🚫 Registrar Desistência' :
-            'Ação do Aluno'
+            'Ação do Estudante'
           }
           size="md"
         >
@@ -5126,7 +5126,7 @@ export function StudentsComplete() {
             {/* Info do Aluno */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <p className="text-sm text-gray-700">
-                <strong>Aluno:</strong> {editingStudent?.full_name}
+                <strong>Estudante:</strong> {editingStudent?.full_name}
               </p>
               <p className="text-sm text-gray-500">
                 <strong>Status atual:</strong>{' '}
@@ -5155,8 +5155,8 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-sm text-red-800">
-                    <strong>⚠️ Cancelar Matrícula:</strong> O aluno terá sua matrícula cancelada nesta escola. 
-                    Ele continuará na listagem de alunos com status "Cancelado", mas <strong>não aparecerá</strong> em:
+                    <strong>⚠️ Cancelar Matrícula:</strong> O estudante terá sua matrícula cancelada nesta escola. 
+                    Ele continuará na listagem de estudantes com status "Cancelado", mas <strong>não aparecerá</strong> em:
                   </p>
                   <ul className="text-sm text-red-700 mt-2 list-disc list-inside">
                     <li>Listagem de frequência</li>
@@ -5164,7 +5164,7 @@ export function StudentsComplete() {
                     <li>Relatórios e documentos oficiais</li>
                   </ul>
                   <p className="text-sm text-red-800 mt-2">
-                    O aluno poderá ser matriculado em outra escola da rede posteriormente.
+                    O estudante poderá ser matriculado em outra escola da rede posteriormente.
                   </p>
                 </div>
                 
@@ -5188,7 +5188,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <p className="text-sm text-green-800">
-                    <strong>ℹ️ Matricular:</strong> O aluno será reativado e matriculado na escola/turma selecionada.
+                    <strong>ℹ️ Matricular:</strong> O estudante será reativado e matriculado na escola/turma selecionada.
                   </p>
                 </div>
                 
@@ -5265,7 +5265,7 @@ export function StudentsComplete() {
                     return (
                       <div className="mt-3">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Série do Aluno <span className="text-red-500">*</span>
+                          Série do Estudante <span className="text-red-500">*</span>
                           <span className="text-xs text-indigo-600 font-normal ml-2">
                             (turma multisseriada)
                           </span>
@@ -5275,7 +5275,7 @@ export function StudentsComplete() {
                           onChange={(e) => setActionData(prev => ({ ...prev, studentSeries: e.target.value }))}
                           className="w-full px-3 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-indigo-50"
                         >
-                          <option value="">Selecione a série do aluno...</option>
+                          <option value="">Selecione a série do estudante...</option>
                           {selectedClass.series.map(serie => (
                             <option key={serie} value={serie}>{serie}</option>
                           ))}
@@ -5296,7 +5296,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                   <p className="text-sm text-orange-800">
-                    <strong>⚠️ Transferir:</strong> O aluno será marcado como "Transferido" e não aparecerá mais nas listas de alunos ativos.
+                    <strong>⚠️ Transferir:</strong> O estudante será marcado como "Transferido" e não aparecerá mais nas listas de estudantes ativos.
                   </p>
                 </div>
                 
@@ -5326,7 +5326,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
-                    <strong>ℹ️ Remanejar:</strong> O aluno será movido para outra turma na mesma escola.
+                    <strong>ℹ️ Remanejar:</strong> O estudante será movido para outra turma na mesma escola.
                   </p>
                 </div>
                 
@@ -5367,7 +5367,7 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                   <p className="text-sm text-purple-800">
-                    <strong>ℹ️ Progredir:</strong> O aluno avançará para a próxima série/turma ou será concluído com emissão de histórico.
+                    <strong>ℹ️ Progredir:</strong> O estudante avançará para a próxima série/turma ou será concluído com emissão de histórico.
                   </p>
                 </div>
                 
@@ -5391,7 +5391,7 @@ export function StudentsComplete() {
                 {actionData.emitirHistorico ? (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                     <p className="text-sm text-yellow-800">
-                      <strong>📄 Conclusão:</strong> O aluno será marcado como "Transferido" (concluído) e o histórico escolar deverá ser gerado manualmente.
+                      <strong>📄 Conclusão:</strong> O estudante será marcado como "Transferido" (concluído) e o histórico escolar deverá ser gerado manualmente.
                     </p>
                   </div>
                 ) : (
@@ -5422,8 +5422,8 @@ export function StudentsComplete() {
               <div className="space-y-4">
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
                   <p className="text-sm text-indigo-800">
-                    <strong>🎓 Reclassificar:</strong> O aluno será reclassificado para outra série/turma com base em avaliação de conhecimento (Art. 23 da LDB).
-                    É semelhante à Progressão, porém usado quando o aluno demonstra domínio de conteúdo de série diferente da sua idade/matrícula atual.
+                    <strong>🎓 Reclassificar:</strong> O estudante será reclassificado para outra série/turma com base em avaliação de conhecimento (Art. 23 da LDB).
+                    É semelhante à Progressão, porém usado quando o estudante demonstra domínio de conteúdo de série diferente da sua idade/matrícula atual.
                   </p>
                 </div>
 
@@ -5466,14 +5466,14 @@ export function StudentsComplete() {
                     value={actionData.reason || ''}
                     onChange={(e) => setActionData(prev => ({ ...prev, reason: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Ex.: Avaliação diagnóstica realizada em .../.../...; aluno demonstrou domínio do conteúdo do X ano."
+                    placeholder="Ex.: Avaliação diagnóstica realizada em .../.../...; estudante demonstrou domínio do conteúdo do X ano."
                     rows={3}
                     data-testid="reclassificar-reason-textarea"
                   />
                 </div>
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
-                  ⚠️ <strong>Atenção:</strong> Após a reclassificação, na turma de <em>origem</em> o diário (frequência e notas) do aluno ficará bloqueado a partir desta data.
+                  ⚠️ <strong>Atenção:</strong> Após a reclassificação, na turma de <em>origem</em> o diário (frequência e notas) do estudante ficará bloqueado a partir desta data.
                   Na turma de <em>destino</em>, o diário só aceitará lançamentos a partir desta data; a frequência anterior será migrada e ficará bloqueada para edição.
                 </div>
               </div>

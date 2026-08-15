@@ -332,7 +332,7 @@ export default function VerifyDiarySnapshot() {
         {/* Footer */}
         <div className="text-center text-[11px] text-gray-400 pt-4">
           Esta página apresenta informações públicas de verificação
-          institucional, sem dados pessoais de alunos, professores ou conteúdo
+          institucional, sem dados pessoais de estudantes, professores ou conteúdo
           pedagógico, em conformidade com a LGPD.
         </div>
       </div>

@@ -104,7 +104,7 @@ export function StudentDemographicAuditPanel({ user, onReviewStudent }) {
                   <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left font-medium text-gray-600">Aluno</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Estudante</th>
                         <th className="px-3 py-2 text-left font-medium text-gray-600">Cor/Raça atual</th>
                         <th className="px-3 py-2 text-left font-medium text-gray-600">Comunidade atual</th>
                         <th className="px-3 py-2 text-left font-medium text-gray-600">Pendência</th>

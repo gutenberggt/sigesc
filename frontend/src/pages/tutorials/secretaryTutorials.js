@@ -10,8 +10,8 @@ export const secretaryTutorials = [
     before: ['Tenha seu usuário e senha do SIGESC.', 'Confirme que o perfil ativo é Secretário(a).', 'Saiba quais escolas estão vinculadas ao seu acesso.'],
     steps: [
       { title: 'Entre e confira o contexto', text: 'Faça login e confirme seu nome, perfil ativo e as escolas vinculadas. Se você possui mais de um papel, verifique se está usando o papel correto antes de trabalhar.' },
-      { title: 'Leia os cards do painel', text: 'Os cards resumem escolas, alunos, turmas e avisos dentro do escopo do seu acesso. Use-os como orientação inicial, não como substitutos da conferência detalhada.' },
-      { title: 'Use o Acesso Rápido', text: 'Escolas, Turmas, Alunos, Servidores e Usuários aparecem como atalhos para a rotina cadastral e administrativa.' },
+      { title: 'Leia os cards do painel', text: 'Os cards resumem escolas, estudantes, turmas e avisos dentro do escopo do seu acesso. Use-os como orientação inicial, não como substitutos da conferência detalhada.' },
+      { title: 'Use o Acesso Rápido', text: 'Escolas, Turmas, Estudantes, Servidores e Usuários aparecem como atalhos para a rotina cadastral e administrativa.' },
       { title: 'Reconheça o Menu de Administração', text: 'Localize os grupos Gestão Institucional, Gestão Escolar, Gestão Pedagógica, Gestão Social e Comunitária, Monitoramento e Análise e Recursos Humanos.' },
       { title: 'Use a busca do menu', text: 'Digite parte do nome da função, como “pré-matrícula”, “declaração”, “frequência”, “Bolsa” ou “RH”, em vez de procurar visualmente por toda a tela.' }
     ],
@@ -27,7 +27,7 @@ export const secretaryTutorials = [
     estimatedTime: '8 min',
     systemRoute: '/admin/schools',
     objective: 'Conferir a unidade escolar, a equipe e os usuários vinculados antes de executar rotinas que dependem desses cadastros.',
-    intro: 'Muitos erros operacionais começam fora da ficha do aluno: escola incorreta, servidor sem vínculo ou usuário sem o perfil esperado. Esta conferência evita retrabalho.',
+    intro: 'Muitos erros operacionais começam fora da ficha do estudante: escola incorreta, servidor sem vínculo ou usuário sem o perfil esperado. Esta conferência evita retrabalho.',
     before: ['Confirme a escola em que vai trabalhar.', 'Tenha o nome do servidor ou usuário que deseja localizar.'],
     steps: [
       { title: 'Abra Escolas', text: 'Use o Acesso Rápido e confirme a unidade, situação e dados essenciais. Não altere dados institucionais sem autorização e sem que a ação esteja disponível no seu perfil.' },
@@ -51,7 +51,7 @@ export const secretaryTutorials = [
     before: ['Tenha os documentos e dados fornecidos pela família.', 'Pesquise o estudante antes de criar um novo cadastro.', 'Confirme a escola de atendimento.'],
     steps: [
       { title: 'Pesquise antes de cadastrar', text: 'Use nome, CPF ou outros identificadores disponíveis. Se já existir cadastro, atualize o registro existente em vez de criar outro.' },
-      { title: 'Abra o cadastro de novo estudante', text: 'Use o botão de novo aluno e preencha os dados pessoais exatamente conforme a documentação apresentada.' },
+      { title: 'Abra o cadastro de novo estudante', text: 'Use o botão de novo estudante e preencha os dados pessoais exatamente conforme a documentação apresentada.' },
       { title: 'Preencha endereço e contatos', text: 'Registre endereço estruturado, telefone e demais contatos quando disponíveis. Não invente informação para preencher campo desconhecido.' },
       { title: 'Revise responsáveis e documentos', text: 'Confirme os responsáveis informados e os identificadores antes de salvar.' },
       { title: 'Salve e confira a ficha', text: 'Após salvar, reabra ou revise o cadastro antes de iniciar a matrícula.' }
@@ -135,7 +135,7 @@ export const secretaryTutorials = [
     before: ['Confirme que origem e destino pertencem à mesma escola.', 'Confira a turma atual e a turma de destino.', 'Saiba a data efetiva do remanejamento.'],
     steps: [
       { title: 'Localize a matrícula atual', text: 'Confirme estudante, escola, turma e ano letivo.' },
-      { title: 'Use a ação de remanejamento', text: 'Escolha a ação específica exibida pelo sistema, em vez de editar manualmente o class_id ou criar outro aluno.' },
+      { title: 'Use a ação de remanejamento', text: 'Escolha a ação específica exibida pelo sistema, em vez de editar manualmente o class_id ou criar outro estudante.' },
       { title: 'Escolha a turma de destino', text: 'Confira série/etapa, turno e capacidade ou organização da turma conforme a rotina da escola.' },
       { title: 'Informe a data correta', text: 'Use a data em que a mudança passou a valer, quando solicitada.' },
       { title: 'Confira histórico e turma atual', text: 'Depois da confirmação, verifique o novo vínculo e a preservação do histórico anterior.' }
@@ -218,12 +218,12 @@ export const secretaryTutorials = [
     systemRoute: '/admin/attendance',
     objective: 'Consultar frequência, localizar lacunas de registro e apoiar a escola na regularização documental sem substituir o lançamento pedagógico do professor.',
     intro: 'A secretaria precisa compreender a frequência porque ela aparece em documentos, programas sociais e fechamento escolar. O foco é conferir consistência e encaminhar pendências ao responsável pelo registro.',
-    before: ['Confirme escola, turma e período.', 'Saiba se a dúvida é ausência do aluno ou ausência de lançamento.'],
+    before: ['Confirme escola, turma e período.', 'Saiba se a dúvida é ausência do estudante ou ausência de lançamento.'],
     steps: [
       { title: 'Escolha o recorte correto', text: 'Selecione escola, turma, período e estudante quando necessário.' },
-      { title: 'Diferencie falta de lançamento de falta do estudante', text: 'Campo vazio ou período sem diário não deve ser interpretado automaticamente como ausência do aluno.' },
+      { title: 'Diferencie falta de lançamento de falta do estudante', text: 'Campo vazio ou período sem diário não deve ser interpretado automaticamente como ausência do estudante.' },
       { title: 'Cruze com atestados e justificativas', text: 'Quando houver ausência, confira se existe documentação registrada e seu período de validade.' },
-      { title: 'Encaminhe a pendência certa', text: 'Se faltar lançamento, acione o responsável pelo diário. Se houver situação de frequência do aluno, siga o fluxo de acompanhamento da escola.' },
+      { title: 'Encaminhe a pendência certa', text: 'Se faltar lançamento, acione o responsável pelo diário. Se houver situação de frequência do estudante, siga o fluxo de acompanhamento da escola.' },
       { title: 'Revise depois da correção', text: 'Confirme se o dado final ficou consistente antes de emitir documentos ou relatórios.' }
     ],
     observe: ['Período', 'Lançamentos ausentes', 'Faltas reais', 'Atestados', 'Consistência para documentos'],
@@ -533,7 +533,7 @@ export const secretaryTutorials = [
     steps: [
       { title: 'Abra Painel da Rede', text: 'Observe os indicadores apresentados e o escopo aplicado.' },
       { title: 'Compare com a unidade', text: 'Identifique diferenças que merecem conferência.' },
-      { title: 'Volte à fonte', text: 'Para divergência de alunos, turmas ou matrículas, consulte o módulo de origem antes de concluir que existe erro.' },
+      { title: 'Volte à fonte', text: 'Para divergência de estudantes, turmas ou matrículas, consulte o módulo de origem antes de concluir que existe erro.' },
       { title: 'Registre a inconsistência', text: 'Quando necessário, anote o indicador, período e evidência para encaminhamento.' }
     ],
     observe: ['Escopo', 'Período', 'Totais', 'Diferença em relação à fonte', 'Tendência'],

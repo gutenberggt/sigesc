@@ -166,13 +166,13 @@ export function Grades() {
     const studentStatus = (student.student_status || '').toLowerCase();
     
     if (['transferred', 'transferido'].includes(studentStatus)) {
-      return 'Aluno transferido - edição bloqueada';
+      return 'Estudante transferido - edição bloqueada';
     }
     if (['deceased', 'falecido'].includes(studentStatus)) {
-      return 'Aluno falecido - edição bloqueada';
+      return 'Estudante falecido - edição bloqueada';
     }
     if (student.is_transferred_from_class) {
-      return 'Aluno remanejado/progredido - dados da turma de origem bloqueados';
+      return 'Estudante remanejado/progredido - dados da turma de origem bloqueados';
     }
     return '';
   }, []);
@@ -509,7 +509,7 @@ export function Grades() {
       setStudentGrades(data);
     } catch (error) {
       console.error('Erro ao carregar notas:', error);
-      showAlert('error', 'Erro ao carregar notas do aluno');
+      showAlert('error', 'Erro ao carregar notas do estudante');
     } finally {
       setLoading(false);
     }
@@ -742,7 +742,7 @@ export function Grades() {
                 <BookOpen className="text-blue-600" />
                 Lançamento de Notas
               </h1>
-              <p className="text-gray-600 text-sm">Gerencie as notas dos alunos por turma ou individualmente</p>
+              <p className="text-gray-600 text-sm">Gerencie as notas dos estudantes por turma ou individualmente</p>
             </div>
           </div>
           
@@ -816,7 +816,7 @@ export function Grades() {
                 }`}
               >
                 <User className="inline mr-2" size={18} />
-                Por Aluno
+                Por Estudante
               </button>
             </nav>
           </div>

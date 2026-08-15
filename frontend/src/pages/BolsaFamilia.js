@@ -374,22 +374,22 @@ export default function BolsaFamilia() {
         {loading && (
           <div className="bg-white rounded-xl border p-12 flex items-center justify-center">
             <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-            <span className="ml-3 text-gray-500">Carregando alunos...</span>
+            <span className="ml-3 text-gray-500">Carregando estudantes...</span>
           </div>
         )}
 
         {!loading && selectedSchool && students.length === 0 && (
           <div className="bg-white rounded-xl border p-12 text-center">
             <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Nenhum aluno com Bolsa Família encontrado nesta escola.</p>
-            <p className="text-gray-400 text-sm mt-1">Verifique se o campo "Bolsa Família" está marcado nos dados complementares dos alunos.</p>
+            <p className="text-gray-500">Nenhum estudante com Bolsa Família encontrado nesta escola.</p>
+            <p className="text-gray-400 text-sm mt-1">Verifique se o campo "Bolsa Família" está marcado nos dados complementares dos estudantes.</p>
           </div>
         )}
 
         {!loading && !selectedSchool && (
           <div className="bg-white rounded-xl border p-12 text-center">
             <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Selecione uma escola para visualizar os alunos beneficiários do Bolsa Família.</p>
+            <p className="text-gray-500">Selecione uma escola para visualizar os estudantes beneficiários do Bolsa Família.</p>
           </div>
         )}
 
@@ -397,7 +397,7 @@ export default function BolsaFamilia() {
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-sm text-gray-600">
-                <strong>{students.length}</strong> aluno(s) com Bolsa Família
+                <strong>{students.length}</strong> estudante(s) com Bolsa Família
                 {allSchoolsMode && (
                   <span
                     className="ml-2 inline-flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-0.5 font-medium"
@@ -432,7 +432,7 @@ export default function BolsaFamilia() {
               >
                 <Users size={14} />
                 <strong>{summary.total}</strong>
-                <span className="opacity-80">alunos</span>
+                <span className="opacity-80">estudantes</span>
               </button>
 
               <span className="text-gray-300">|</span>
@@ -447,7 +447,7 @@ export default function BolsaFamilia() {
                     : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
                 }`}
                 data-testid="bf-summary-below"
-                title={`Alunos com ao menos 1 mês abaixo de ${FREQUENCY_THRESHOLD_PCT}%`}
+                title={`Estudantes com ao menos 1 mês abaixo de ${FREQUENCY_THRESHOLD_PCT}%`}
               >
                 <AlertTriangle size={14} />
                 <strong>{summary.below}</strong>
@@ -466,7 +466,7 @@ export default function BolsaFamilia() {
                     : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
                 }`}
                 data-testid="bf-summary-missing"
-                title="Alunos com ao menos 1 mês <75% sem motivo MEC informado"
+                title="Estudantes com ao menos 1 mês <75% sem motivo MEC informado"
               >
                 <FileText size={14} />
                 <strong>{summary.missing}</strong>
@@ -491,7 +491,7 @@ export default function BolsaFamilia() {
                 className="bg-white rounded-xl border p-8 text-center text-sm text-gray-500"
                 data-testid="bf-summary-filter-empty"
               >
-                Nenhum aluno corresponde ao filtro selecionado.
+                Nenhum estudante corresponde ao filtro selecionado.
               </div>
             )}
 
