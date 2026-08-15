@@ -60,7 +60,7 @@ ACTION_DESCRIPTIONS = {
 COLLECTION_NAMES = {
     'grades': 'notas',
     'attendance': 'frequência',
-    'students': 'aluno',
+    'students': 'estudante',
     'student_health_profiles': 'ficha de saúde do estudante',
     'enrollments': 'matrícula',
     'staff': 'servidor',

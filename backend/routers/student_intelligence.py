@@ -289,7 +289,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if user.get('role') == 'secretario':
             q['school_id'] = {'$in': user.get('school_ids', []) or []}
 
-        rows = await current_db.student_risk_scores.find(q, {'_id': 0})\
+        rows = await current_db.student_risk_scores.find(q, {'_id': 0}) \
             .sort('overall_risk', -1).limit(min(limit, 1000)).to_list(min(limit, 1000))
 
         sids = [r['student_id'] for r in rows]
