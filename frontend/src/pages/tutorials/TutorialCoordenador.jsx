@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -28,25 +28,23 @@ import {
 const categoryStyles = {
   'Comece aqui': {
     badge: 'bg-blue-500/10 border-blue-500/20 text-blue-300',
-    icon: 'bg-blue-500/15 text-blue-300',
     Icon: Route,
   },
   'Rotina pedagógica': {
     badge: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300',
-    icon: 'bg-cyan-500/15 text-cyan-300',
     Icon: ClipboardCheck,
   },
   'Currículo e intervenção': {
     badge: 'bg-purple-500/10 border-purple-500/20 text-purple-300',
-    icon: 'bg-purple-500/15 text-purple-300',
     Icon: Target,
   },
   'Fechamento e evidências': {
     badge: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300',
-    icon: 'bg-emerald-500/15 text-emerald-300',
     Icon: ShieldCheck,
   },
 };
+
+const coordinatorGuideUrl = (slug) => `/tutoriais?coordenador=${encodeURIComponent(slug)}`;
 
 function TrailNav({ currentSlug }) {
   return (
@@ -74,7 +72,7 @@ function TrailNav({ currentSlug }) {
                     return (
                       <Link
                         key={item.slug}
-                        to={`/tutoriais/coordenadores/${item.slug}`}
+                        to={coordinatorGuideUrl(item.slug)}
                         className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
                           active
                             ? 'bg-purple-500/15 text-purple-200 border border-purple-500/25'
@@ -115,8 +113,7 @@ function NotFoundTutorial() {
   );
 }
 
-export default function TutorialCoordenador() {
-  const { slug } = useParams();
+export default function TutorialCoordenador({ slug }) {
   const tutorial = coordinatorTutorialBySlug[slug];
 
   if (!tutorial) return <NotFoundTutorial />;
@@ -191,9 +188,7 @@ export default function TutorialCoordenador() {
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-5">
                 {tutorial.title}
               </h1>
-              <p className="text-lg leading-8 text-slate-400 max-w-4xl">
-                {tutorial.intro}
-              </p>
+              <p className="text-lg leading-8 text-slate-400 max-w-4xl">{tutorial.intro}</p>
             </section>
 
             <section className="grid md:grid-cols-[1fr_auto] gap-4 mb-8">
@@ -328,7 +323,7 @@ export default function TutorialCoordenador() {
             <nav className="grid sm:grid-cols-2 gap-4 border-t border-slate-800 pt-7" aria-label="Tutoriais anterior e próximo">
               {previous ? (
                 <Link
-                  to={`/tutoriais/coordenadores/${previous.slug}`}
+                  to={coordinatorGuideUrl(previous.slug)}
                   className="group rounded-2xl border border-slate-800 bg-slate-900/45 p-5 hover:border-purple-500/30 transition-colors"
                 >
                   <span className="text-xs text-slate-500 flex items-center gap-1 mb-2">
@@ -340,7 +335,7 @@ export default function TutorialCoordenador() {
 
               {next ? (
                 <Link
-                  to={`/tutoriais/coordenadores/${next.slug}`}
+                  to={coordinatorGuideUrl(next.slug)}
                   className="group rounded-2xl border border-slate-800 bg-slate-900/45 p-5 hover:border-purple-500/30 transition-colors sm:text-right"
                 >
                   <span className="text-xs text-slate-500 flex items-center sm:justify-end gap-1 mb-2">
