@@ -142,23 +142,23 @@ def _normalize_match_fragment(match: re.Match[str], left: str, right: str, count
 
 
 def normalize_jsx_text_nodes(source: str) -> tuple[str, int]:
-    """Normaliza fragmentos de texto JSX sem tocar em tags, props ou expressões."""
+    """Normaliza fragmentos de texto JSX, inclusive multilinha, sem tocar em tags/expressões."""
     counter = [0]
-    # Texto entre tags: >texto< (inclusive quando a próxima tag é <strong>, <span> etc.)
+    # Texto entre tags: >texto<, inclusive quando há quebras de linha.
     pattern_between_tags = re.compile(
-        r">([^<>{}\n]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}\n]*)<"
+        r">([^<>{}]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}]*)<"
     )
     source = pattern_between_tags.sub(lambda m: _normalize_match_fragment(m, ">", "<", counter), source)
 
-    # Texto após uma expressão JSX: } texto <tag
+    # Texto após uma expressão JSX: } texto <tag, inclusive multilinha.
     pattern_after_expr = re.compile(
-        r"}([^<>{}\n]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}\n]*)<"
+        r"}([^<>{}]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}]*)<"
     )
     source = pattern_after_expr.sub(lambda m: _normalize_match_fragment(m, "}", "<", counter), source)
 
-    # Texto antes de uma expressão JSX: > texto {
+    # Texto antes de uma expressão JSX: > texto {, inclusive multilinha.
     pattern_before_expr = re.compile(
-        r">([^<>{}\n]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}\n]*){"
+        r">([^<>{}]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}]*){"
     )
     source = pattern_before_expr.sub(lambda m: _normalize_match_fragment(m, ">", "{", counter), source)
     return source, counter[0]
