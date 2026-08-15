@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   GraduationCap,
   Users,
@@ -33,9 +33,16 @@ import {
   Home,
   Smartphone
 } from 'lucide-react';
+import TutorialCoordenador from './tutorials/TutorialCoordenador';
 
 export default function TutorialsPage() {
   const [expandedBlock, setExpandedBlock] = useState(null);
+  const [searchParams] = useSearchParams();
+  const coordinatorSlug = searchParams.get('coordenador');
+
+  if (coordinatorSlug) {
+    return <TutorialCoordenador slug={coordinatorSlug} />;
+  }
 
   const tutorialBlocks = [
     {
@@ -65,25 +72,25 @@ export default function TutorialsPage() {
       color: 'purple',
       description: 'Trilha completa para acompanhamento, intervenção e fechamento pedagógico',
       tutorials: [
-        { title: 'Primeiros passos e painel do coordenador', icon: Key, stage: 'Comece aqui', link: '/tutoriais/coordenadores/primeiros-passos' },
-        { title: 'Turmas e estudantes: visão pedagógica', icon: School, stage: 'Comece aqui', link: '/tutoriais/coordenadores/turmas-estudantes' },
-        { title: 'Acompanhamento dos Diários de Classe', icon: BarChart3, stage: 'Rotina pedagógica', link: '/tutoriais/coordenadores/acompanhamento-diarios' },
-        { title: 'Frequência: análise por turma e estudante', icon: CheckSquare, stage: 'Rotina pedagógica', link: '/tutoriais/coordenadores/frequencia' },
-        { title: 'Notas: lançamentos, pendências e aprendizagem', icon: PenLine, stage: 'Rotina pedagógica', link: '/tutoriais/coordenadores/notas' },
-        { title: 'Registro de Conteúdos: o que foi trabalhado', icon: BookOpen, stage: 'Rotina pedagógica', link: '/tutoriais/coordenadores/registro-conteudos' },
-        { title: 'Adaptações Curriculares: planejar apoios', icon: BookMarked, stage: 'Currículo e intervenção', link: '/tutoriais/coordenadores/adaptacoes-curriculares' },
-        { title: 'Cobertura Curricular: previsto x realizado', icon: ClipboardList, stage: 'Currículo e intervenção', link: '/tutoriais/coordenadores/cobertura-curricular' },
-        { title: 'Calendário do Diário: dias letivos e consistência', icon: Calendar, stage: 'Rotina pedagógica', link: '/tutoriais/coordenadores/calendario-diario' },
-        { title: 'Integridade da Grade Horária', icon: Settings, stage: 'Rotina pedagógica', link: '/tutoriais/coordenadores/integridade-grade' },
-        { title: 'Intervenções Necessárias: priorizar atenção', icon: ListChecks, stage: 'Currículo e intervenção', link: '/tutoriais/coordenadores/intervencoes' },
-        { title: 'Plano de Ação: do diagnóstico ao acompanhamento', icon: FileText, stage: 'Currículo e intervenção', link: '/tutoriais/coordenadores/plano-acao' },
-        { title: 'Atestados e justificativas de ausência', icon: FileText, stage: 'Rotina pedagógica', link: '/tutoriais/coordenadores/atestados-justificativas' },
-        { title: 'Boletim Online: conferência dos resultados', icon: BookOpen, stage: 'Fechamento e evidências', link: '/tutoriais/coordenadores/boletins' },
-        { title: 'Livro de Promoção: acompanhar o fechamento', icon: Award, stage: 'Fechamento e evidências', link: '/tutoriais/coordenadores/livro-promocao' },
-        { title: 'Diário AEE: acompanhamento pela coordenação', icon: Award, stage: 'Currículo e intervenção', link: '/tutoriais/coordenadores/diario-aee' },
-        { title: 'Avisos e calendário: rotina pedagógica', icon: Bell, stage: 'Fechamento e evidências', link: '/tutoriais/coordenadores/avisos-calendario' },
-        { title: 'Validar documentos escolares', icon: CheckSquare, stage: 'Fechamento e evidências', link: '/tutoriais/coordenadores/validar-documentos' },
-        { title: 'Indicadores e Ranking de Gestão: leitura responsável', icon: BarChart3, stage: 'Fechamento e evidências', link: '/tutoriais/coordenadores/indicadores-ranking' },
+        { title: 'Primeiros passos e painel do coordenador', icon: Key, stage: 'Comece aqui', link: '/tutoriais?coordenador=primeiros-passos' },
+        { title: 'Turmas e estudantes: visão pedagógica', icon: School, stage: 'Comece aqui', link: '/tutoriais?coordenador=turmas-estudantes' },
+        { title: 'Acompanhamento dos Diários de Classe', icon: BarChart3, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=acompanhamento-diarios' },
+        { title: 'Frequência: análise por turma e estudante', icon: CheckSquare, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=frequencia' },
+        { title: 'Notas: lançamentos, pendências e aprendizagem', icon: PenLine, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=notas' },
+        { title: 'Registro de Conteúdos: o que foi trabalhado', icon: BookOpen, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=registro-conteudos' },
+        { title: 'Adaptações Curriculares: planejar apoios', icon: BookMarked, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=adaptacoes-curriculares' },
+        { title: 'Cobertura Curricular: previsto x realizado', icon: ClipboardList, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=cobertura-curricular' },
+        { title: 'Calendário do Diário: dias letivos e consistência', icon: Calendar, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=calendario-diario' },
+        { title: 'Integridade da Grade Horária', icon: Settings, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=integridade-grade' },
+        { title: 'Intervenções Necessárias: priorizar atenção', icon: ListChecks, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=intervencoes' },
+        { title: 'Plano de Ação: do diagnóstico ao acompanhamento', icon: FileText, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=plano-acao' },
+        { title: 'Atestados e justificativas de ausência', icon: FileText, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=atestados-justificativas' },
+        { title: 'Boletim Online: conferência dos resultados', icon: BookOpen, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=boletins' },
+        { title: 'Livro de Promoção: acompanhar o fechamento', icon: Award, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=livro-promocao' },
+        { title: 'Diário AEE: acompanhamento pela coordenação', icon: Award, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=diario-aee' },
+        { title: 'Avisos e calendário: rotina pedagógica', icon: Bell, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=avisos-calendario' },
+        { title: 'Validar documentos escolares', icon: CheckSquare, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=validar-documentos' },
+        { title: 'Indicadores e Ranking de Gestão: leitura responsável', icon: BarChart3, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=indicadores-ranking' },
       ]
     },
     {
