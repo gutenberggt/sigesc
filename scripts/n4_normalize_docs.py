@@ -2,8 +2,10 @@
 """Normalização temporária da documentação viva para a N4.
 
 Escopo deliberadamente restrito a README.md e docs/*.md.
-Blocos de código cercados por ```/~~~ e spans inline entre crases são preservados,
-pois podem conter valores técnicos legados (role="aluno", /aluno, student_id etc.).
+Blocos de código cercados por ```/~~~ e spans inline entre crases são preservados
+na passada genérica, pois podem conter valores técnicos legados
+(role="aluno", /aluno, student_id etc.). Casos editoriais específicos são
+tratados depois por substituições exatas e auditáveis.
 
 Este arquivo é temporário e deve ser removido antes do PR final.
 """
@@ -31,6 +33,12 @@ REPLACEMENTS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 INLINE_CODE = re.compile(r"(`+[^`]*?`+)")
+
+EDITORIAL_NOTE = (
+    "> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional "
+    "**Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** "
+    "modifica schema, shape, invariantes, regras de negócio nem versão do contrato.\n"
+)
 
 
 def replace_prose(text: str) -> str:
@@ -80,6 +88,80 @@ def normalize(path: Path) -> tuple[int, list[str]]:
     return len(changed_lines), changed_lines
 
 
+def apply_exact(path: Path, replacements: list[tuple[str, str]]) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    changes: list[str] = []
+    for old, new in replacements:
+        if old in text:
+            text = text.replace(old, new)
+            changes.append(f"{path.relative_to(ROOT)}: {old!r} -> {new!r}")
+    path.write_text(text, encoding="utf-8")
+    return changes
+
+
+def insert_editorial_note(path: Path, anchor: str) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    if EDITORIAL_NOTE.strip() in text:
+        return []
+    if anchor not in text:
+        raise RuntimeError(f"Âncora editorial não encontrada em {path}: {anchor!r}")
+    text = text.replace(anchor, anchor + EDITORIAL_NOTE, 1)
+    path.write_text(text, encoding="utf-8")
+    return [f"{path.relative_to(ROOT)}: nota editorial inserida"]
+
+
+def targeted_fixes() -> list[str]:
+    report: list[str] = []
+
+    academic = ROOT / "docs/ACADEMIC_EVENT_CONTRACT.md"
+    diary = ROOT / "docs/DIARY_API_CONTRACT.md"
+    history = ROOT / "docs/HISTORICO_ESCOLAR_CONTRACT.md"
+    dependency = ROOT / "docs/STUDENT_DEPENDENCY.md"
+
+    report += insert_editorial_note(
+        academic,
+        "> Este contrato precede qualquer implementação de movimentação acadêmica.\n",
+    )
+    report += insert_editorial_note(
+        diary,
+        "> **Pré-requisito**: Fase 1 da Dependência de Estudos validada (ver `STUDENT_DEPENDENCY.md`).\n",
+    )
+    report += insert_editorial_note(
+        history,
+        "> Rotas de implementação: Fase 4 (depois do Boletim — Fase 3).\n",
+    )
+
+    report += apply_exact(
+        academic,
+        [
+            ("Para o estudante tem evento ativo, queries de listagem/diário consultam ambas", "Quando o estudante tem evento ativo, queries de listagem/diário consultam ambas"),
+            ('"message": "Aluno foi movimentado em 15/08/2026. Edição bloqueada."', '"message": "Estudante foi movimentado em 15/08/2026. Edição bloqueada."'),
+            ("# 2. Eventos ATIVOS do aluno onde target_date está no intervalo herdado", "# 2. Eventos ATIVOS do estudante onde target_date está no intervalo herdado"),
+            ("# 3. Aplica lente: marca _inherited, _locked, etc. por aluno", "# 3. Aplica lente: marca _inherited, _locked, etc. por estudante"),
+        ],
+    )
+
+    report += apply_exact(
+        diary,
+        [
+            ("// null se aluno regular", "// null se estudante regular"),
+        ],
+    )
+
+    # Registra que STUDENT_DEPENDENCY recebeu apenas atualização terminológica,
+    # sem reescrever status/cronologia de implementação.
+    text = dependency.read_text(encoding="utf-8")
+    note = "> **Nota editorial (Ago/2026):** nomenclatura institucional padronizada para **Estudante**, sem alteração de modelo, endpoints ou regras.\n"
+    anchor = "> Dependência **NÃO** é matrícula simplificada — é entidade acadêmica própria.\n"
+    if note.strip() not in text:
+        if anchor not in text:
+            raise RuntimeError("Âncora não encontrada em STUDENT_DEPENDENCY.md")
+        dependency.write_text(text.replace(anchor, anchor + note, 1), encoding="utf-8")
+        report.append("docs/STUDENT_DEPENDENCY.md: nota editorial inserida")
+
+    return report
+
+
 def main() -> int:
     total = 0
     report: list[str] = []
@@ -90,7 +172,10 @@ def main() -> int:
         total += count
         report.extend(lines)
 
-    print(f"N4 docs normalization: {total} linha(s) alterada(s).")
+    targeted = targeted_fixes()
+    report.extend(targeted)
+
+    print(f"N4 docs normalization: {total} linha(s) genérica(s) alterada(s); {len(targeted)} ajuste(s) dirigido(s).")
     for item in report:
         print(item)
     return 0
