@@ -122,6 +122,7 @@ auth/permissions, geração de relatórios HR, multi-tenant scope.
 - [`/app/memory/PRD.md`](memory/PRD.md) — Requisitos do produto e changelog
 - [`/app/memory/test_credentials.md`](memory/test_credentials.md) — Credenciais de teste
 - [`/app/docs/pdf-performance.md`](docs/pdf-performance.md) — Otimizações de PDFs
+- [`/app/docs/NOMENCLATURA_INSTITUCIONAL.md`](docs/NOMENCLATURA_INSTITUCIONAL.md) — Nomenclatura institucional e guard de terminologia
 
 ## Deploy
 
