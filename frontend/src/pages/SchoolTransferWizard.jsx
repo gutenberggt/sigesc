@@ -220,7 +220,7 @@ export default function SchoolTransferWizard() {
             <CardHeader><CardTitle className="text-base">Etapa 3 — Simulação (Dry Run)</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="wizard-dryrun-counts">
-                {[['Turmas', counts.classes], ['Alunos', counts.students_distinct ?? counts.students], ['Matrículas', counts.enrollments], ['Frequência', counts.attendance], ['Notas', counts.grades], ['Conteúdos', counts.content_entries], ['AEE (planos)', counts.planos_aee], ['Bolsa Família', counts.bolsa_familia_tracking]].map(([k, v]) => (
+                {[['Turmas', counts.classes], ['Estudantes', counts.students_distinct ?? counts.students], ['Matrículas', counts.enrollments], ['Frequência', counts.attendance], ['Notas', counts.grades], ['Conteúdos', counts.content_entries], ['AEE (planos)', counts.planos_aee], ['Bolsa Família', counts.bolsa_familia_tracking]].map(([k, v]) => (
                   <div key={k} className="bg-gray-50 p-3 rounded-lg text-center">
                     <p className="text-xl font-bold text-gray-800">{v ?? 0}</p>
                     <p className="text-[11px] text-gray-500">{k}</p>

@@ -405,7 +405,7 @@ export function Promotion() {
       setStudents(filteredStudents);
 
       if (filteredStudents.length === 0) {
-        toast.info('Nenhum aluno vinculado a esta turma');
+        toast.info('Nenhum estudante vinculado a esta turma');
         setPromotionData([]);
         setLoading(false);
         return;

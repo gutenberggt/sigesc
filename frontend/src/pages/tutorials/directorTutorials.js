@@ -14,12 +14,12 @@ export const directorTutorials = [
     ],
     steps: [
       { title: 'Entre no SIGESC', text: 'Faça login e confira nome, perfil ativo, escola vinculada e ano letivo antes de abrir qualquer módulo.' },
-      { title: 'Leia o panorama da escola', text: 'Use os indicadores de turmas, alunos, relatórios e avisos para formar uma visão inicial do que exige atenção.' },
+      { title: 'Leia o panorama da escola', text: 'Use os indicadores de turmas, estudantes, relatórios e avisos para formar uma visão inicial do que exige atenção.' },
       { title: 'Reconheça os blocos do menu', text: 'Localize Gestão Institucional, Gestão Escolar, Gestão Pedagógica, Monitoramento e Análise, Gestão Social e Recursos Humanos.' },
       { title: 'Use a busca do menu', text: 'Procure por termos como “diário”, “frequência”, “plano de ação”, “declarações” ou “RH” quando não encontrar um recurso rapidamente.' },
       { title: 'Priorize acompanhamento antes da ação', text: 'Abra primeiro os painéis de acompanhamento e confirme a evidência. Só depois encaminhe correções, intervenções ou decisões administrativas.' }
     ],
-    observe: ['Perfil ativo', 'Escola correta', 'Ano letivo', 'Turmas e alunos da unidade', 'Itens de menu disponíveis'],
+    observe: ['Perfil ativo', 'Escola correta', 'Ano letivo', 'Turmas e estudantes da unidade', 'Itens de menu disponíveis'],
     bestPractices: ['Faça uma leitura geral do painel no início da rotina.', 'Use dados do SIGESC como evidência para orientar a equipe.', 'Evite decisões com base em um único indicador isolado.'],
     attention: ['Alguns recursos podem variar conforme a matriz de permissões definida pela rede.', 'Se um item não estiver visível, não tente acessar por endereço direto como forma de contornar a permissão.'],
     doneWhen: ['Você sabe localizar os principais módulos da direção.', 'Você consegue confirmar o contexto da escola antes de analisar qualquer dado.']
@@ -36,13 +36,13 @@ export const directorTutorials = [
     steps: [
       { title: 'Abra Turmas', text: 'Confira nome da turma, etapa/série, turno, ano letivo e situação.' },
       { title: 'Escolha o recorte correto', text: 'Evite trabalhar apenas pelo nome da turma. Confirme também turno, série e ano.' },
-      { title: 'Consulte os estudantes', text: 'Acesse a área de estudantes e use busca e filtros para localizar o aluno no vínculo atual.' },
+      { title: 'Consulte os estudantes', text: 'Acesse a área de estudantes e use busca e filtros para localizar o estudante no vínculo atual.' },
       { title: 'Relacione o cadastro ao problema', text: 'Antes de investigar frequência, boletim, intervenção ou documento, confirme a turma e o vínculo atual do estudante.' },
       { title: 'Formule a pergunta de gestão', text: 'Defina o que precisa responder: há pendência de diário, risco de infrequência, problema de cobertura curricular ou necessidade de intervenção?' }
     ],
     observe: ['Turma', 'Turno', 'Etapa/série', 'Ano letivo', 'Vínculo atual do estudante'],
     bestPractices: ['Trabalhe sempre no recorte escola → turma → período → estudante.', 'Use o cadastro para contextualizar as evidências de outros módulos.'],
-    attention: ['Alunos transferidos ou remanejados podem possuir histórico em vínculos anteriores; não misture registros de períodos distintos.'],
+    attention: ['Estudantes transferidos ou remanejados podem possuir histórico em vínculos anteriores; não misture registros de períodos distintos.'],
     doneWhen: ['Você consegue localizar a turma e o estudante corretos.', 'Você sabe qual recorte usar nos módulos seguintes.']
   },
   {
@@ -55,7 +55,7 @@ export const directorTutorials = [
     intro: 'Para a direção, o histórico do estudante ajuda a explicar mudanças de turma, escola e período. Ele deve ser lido como uma linha do tempo, e não como um único cadastro atual.',
     before: ['Localize o estudante correto.', 'Confirme a matrícula atual antes de consultar vínculos anteriores.'],
     steps: [
-      { title: 'Localize o estudante', text: 'Use a busca de alunos e confira nome completo, escola e turma atual.' },
+      { title: 'Localize o estudante', text: 'Use a busca de estudantes e confira nome completo, escola e turma atual.' },
       { title: 'Abra o histórico quando disponível', text: 'Entre no histórico do estudante a partir do cadastro e observe a sequência de vínculos.' },
       { title: 'Leia a linha do tempo', text: 'Identifique datas de matrícula, encerramento, transferência ou remanejamento e a escola/turma correspondente.' },
       { title: 'Relacione períodos e registros', text: 'Ao analisar frequência ou documento, confirme em qual vínculo aquele registro deveria estar associado.' },
@@ -99,7 +99,7 @@ export const directorTutorials = [
     before: ['Selecione turma e período corretos.', 'Confirme a matrícula atual do estudante quando a análise for individual.'],
     steps: [
       { title: 'Abra Frequência', text: 'Escolha a escola, turma e período que deseja analisar.' },
-      { title: 'Leia a turma antes do aluno', text: 'Observe se o problema está concentrado em poucos estudantes ou distribuído na turma.' },
+      { title: 'Leia a turma antes do estudante', text: 'Observe se o problema está concentrado em poucos estudantes ou distribuído na turma.' },
       { title: 'Procure padrões', text: 'Identifique faltas consecutivas, recorrentes ou aumento recente de ausências.' },
       { title: 'Cruze com justificativas', text: 'Consulte atestados e justificativas antes de tratar toda ausência como abandono ou negligência.' },
       { title: 'Defina o encaminhamento', text: 'Quando houver risco, articule coordenação, secretaria, família e busca ativa conforme o protocolo da rede.' },

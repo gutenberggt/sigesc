@@ -28,7 +28,7 @@ export default function LandingPage() {
   const features = [
     {
       icon: Users,
-      title: 'Gestão de Alunos(as)',
+      title: 'Gestão de Estudantes(as)',
       description: 'Cadastro completo, histórico escolar, documentos e acompanhamento individual de cada estudante.',
       color: 'blue'
     },
@@ -86,7 +86,7 @@ export default function LandingPage() {
   ];
 
   const stats = [
-    { value: '5000+', label: 'Alunos Gerenciados' },
+    { value: '5000+', label: 'Estudantes Gerenciados' },
     { value: '15+', label: 'Escolas Atendidas' },
     { value: '99.9%', label: 'Disponibilidade' },
     { value: '24/7', label: 'Suporte' }

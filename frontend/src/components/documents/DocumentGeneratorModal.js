@@ -28,7 +28,7 @@ export const DocumentGeneratorModal = ({
   })();
 
   const handleOpenPdf = async (type) => {
-    if (!student?.id) { setError('Aluno não selecionado'); return; }
+    if (!student?.id) { setError('Estudante não selecionado'); return; }
     setLoading(type);
     setError(null);
     try {

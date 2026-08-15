@@ -49,7 +49,7 @@ const SCHOOL_COLUMNS = [
   { key: 'estado_conservacao', label: 'Estado Conservação', type: 'string', group: 'Infraestrutura' },
   // ─── Dependências ─────────────────────────────────────────────────
   { key: 'numero_salas_aula', label: 'Nº Salas de Aula', type: 'int', group: 'Dependências' },
-  { key: 'capacidade_total_alunos', label: 'Capacidade Alunos', type: 'int', group: 'Dependências' },
+  { key: 'capacidade_total_alunos', label: 'Capacidade Estudantes', type: 'int', group: 'Dependências' },
   { key: 'sala_direcao', label: 'Sala Direção', type: 'bool', group: 'Dependências' },
   { key: 'sala_secretaria', label: 'Sala Secretaria', type: 'bool', group: 'Dependências' },
   { key: 'numero_banheiros', label: 'Nº Banheiros', type: 'int', group: 'Dependências' },

@@ -534,7 +534,7 @@ export function StudentsComplete() {
           handleOpenDocuments(student);
         }
       } catch (error) {
-        console.error('Erro ao abrir aluno:', error);
+        console.error('Erro ao abrir estudante:', error);
       }
     };
     openStudentAction();
@@ -589,7 +589,7 @@ export function StudentsComplete() {
         setModalidadeCounts(result.modalidade_counts || {});
         setCompletenessCounts(result.completeness_counts || { green: 0, yellow: 0, red: 0 });
       } catch (error) {
-        console.error('Erro ao carregar alunos:', error);
+        console.error('Erro ao carregar estudantes:', error);
         showAlert('error', 'Erro ao carregar dados');
       } finally {
         setLoading(false);
@@ -884,10 +884,10 @@ export function StudentsComplete() {
     if (window.confirm(`Tem certeza que deseja excluir o aluno "${student.full_name || student.enrollment_number}"?`)) {
       try {
         await studentsAPI.delete(student.id);
-        showAlert('success', 'Aluno excluído com sucesso');
+        showAlert('success', 'Estudante excluído com sucesso');
         reloadData();
       } catch (error) {
-        showAlert('error', 'Erro ao excluir aluno');
+        showAlert('error', 'Erro ao excluir estudante');
         console.error(error);
       }
     }
@@ -969,7 +969,7 @@ export function StudentsComplete() {
   // Abre o modal de ação
   const handleOpenActionModal = (action) => {
     if (!editingStudent) {
-      showAlert('error', 'Nenhum aluno selecionado');
+      showAlert('error', 'Nenhum estudante selecionado');
       return;
     }
     
@@ -987,13 +987,13 @@ export function StudentsComplete() {
       const currentStatus = statusLabels[editingStudent.status?.toLowerCase()] || editingStudent.status;
       
       const actionMessages = {
-        'matricular': 'A ação "Matricular" só é permitida para alunos com status "Transferido", "Desistente", "Inativo", "Cancelado" ou sem status definido.',
-        'transferir': 'A ação "Transferir" só é permitida para alunos com status "Ativo".',
-        'remanejar': 'A ação "Remanejar" só é permitida para alunos com status "Ativo".',
-        'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".',
-        'reclassificar': 'A ação "Reclassificar" só é permitida para alunos com status "Ativo".',
-        'cancelar': 'A ação "Cancelar" só é permitida para alunos com status "Ativo".',
-        'desistir': 'A ação "Desistir" só é permitida para alunos com status "Ativo".'
+        'matricular': 'A ação "Matricular" só é permitida para estudantes com status "Transferido", "Desistente", "Inativo", "Cancelado" ou sem status definido.',
+        'transferir': 'A ação "Transferir" só é permitida para estudantes com status "Ativo".',
+        'remanejar': 'A ação "Remanejar" só é permitida para estudantes com status "Ativo".',
+        'progredir': 'A ação "Progredir" só é permitida para estudantes com status "Ativo".',
+        'reclassificar': 'A ação "Reclassificar" só é permitida para estudantes com status "Ativo".',
+        'cancelar': 'A ação "Cancelar" só é permitida para estudantes com status "Ativo".',
+        'desistir': 'A ação "Desistir" só é permitida para estudantes com status "Ativo".'
       };
       
       showAlert('error', `${actionMessages[action]} Status atual: ${currentStatus}`);
@@ -1043,7 +1043,7 @@ export function StudentsComplete() {
           const targetClassForMatricula = classes.find(c => c.id === actionData.targetClassId);
           if (targetClassForMatricula?.is_multi_grade && targetClassForMatricula?.series?.length > 0) {
             if (!actionData.studentSeries) {
-              showAlert('error', 'Selecione a série do aluno para esta turma multisseriada');
+              showAlert('error', 'Selecione a série do estudante para esta turma multisseriada');
               setExecutingAction(false);
               return;
             }
@@ -1216,7 +1216,7 @@ export function StudentsComplete() {
             new_status: 'dropout',
             school_id: formData.school_id,
             class_id: formData.class_id,
-            observations: actionData.reason || 'Aluno desistente'
+            observations: actionData.reason || 'Estudante desistente'
           };
           break;
           
@@ -1386,17 +1386,17 @@ export function StudentsComplete() {
       if (editingStudent) {
         const updatedStudent = await studentsAPI.update(editingStudent.id, cleanData);
         await persistCurrentEnrollmentMetadata(updatedStudent || { ...editingStudent, ...cleanData });
-        showAlert('success', 'Aluno atualizado com sucesso');
+        showAlert('success', 'Estudante atualizado com sucesso');
       } else {
         const createdStudent = await studentsAPI.create(cleanData);
         await persistCurrentEnrollmentMetadata(createdStudent);
-        showAlert('success', 'Aluno cadastrado com sucesso');
+        showAlert('success', 'Estudante cadastrado com sucesso');
       }
       setIsModalOpen(false);
       reloadData();
     } catch (error) {
       // Trata erro de validação do Pydantic (pode ser array de objetos)
-      let errorMessage = 'Erro ao salvar aluno';
+      let errorMessage = 'Erro ao salvar estudante';
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         if (Array.isArray(detail)) {
@@ -1646,7 +1646,7 @@ export function StudentsComplete() {
         body: payload,
         filename: 'relatorio-alunos.pdf',
         progress,
-        title: 'Gerando Relatório de Alunos',
+        title: 'Gerando Relatório de Estudantes',
         openInNewTab: true,
       });
       setShowReportModal(false);
@@ -1676,7 +1676,7 @@ export function StudentsComplete() {
 
   const handleSaveBatchActions = async () => {
     if (selectedStudentIds.length === 0) {
-      showAlert('error', 'Selecione pelo menos um aluno');
+      showAlert('error', 'Selecione pelo menos um estudante');
       return;
     }
 
@@ -1732,7 +1732,7 @@ export function StudentsComplete() {
         // Recarrega a lista
         setReloadTrigger(prev => prev + 1);
       } else {
-        showAlert('error', 'Nenhum aluno foi atualizado');
+        showAlert('error', 'Nenhum estudante foi atualizado');
       }
 
       // Limpa seleções após salvar
@@ -1839,7 +1839,7 @@ export function StudentsComplete() {
         
         if (!canGenerateDocuments) {
           return (
-            <span className="text-gray-400 text-sm" title="Sem permissão para gerar documentos deste aluno">
+            <span className="text-gray-400 text-sm" title="Sem permissão para gerar documentos deste estudante">
               -
             </span>
           );
@@ -1885,7 +1885,7 @@ export function StudentsComplete() {
             onChange={(e) => updateFormData('inep_code', e.target.value)}
             disabled={viewMode}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            placeholder="Código INEP do aluno"
+            placeholder="Código INEP do estudante"
           />
         </div>
       </div>
@@ -2891,7 +2891,7 @@ export function StudentsComplete() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes / Necessidades Educacionais Específicas</label>
-            <SpellCheckTextarea value={formData.disability_details} onChange={(e) => updateFormData('disability_details', e.target.value)} disabled={viewMode} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="Descreva necessidades educacionais, apoios, adaptações ou informações relevantes para o acompanhamento do aluno..." />
+            <SpellCheckTextarea value={formData.disability_details} onChange={(e) => updateFormData('disability_details', e.target.value)} disabled={viewMode} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="Descreva necessidades educacionais, apoios, adaptações ou informações relevantes para o acompanhamento do estudante..." />
           </div>
         </div>
       )}
@@ -2912,7 +2912,7 @@ export function StudentsComplete() {
           <div className="relative">
             <img 
               src={uploadAPI.getUrl(formData.photo_url)} 
-              alt="Foto do aluno" 
+              alt="Foto do estudante" 
               className="w-32 h-32 object-cover rounded-lg border"
             />
             {!viewMode && (
@@ -3590,7 +3590,7 @@ export function StudentsComplete() {
         disabled={viewMode}
         rows={5}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-        placeholder="Anotações adicionais sobre o aluno..."
+        placeholder="Anotações adicionais sobre o estudante..."
       />
 
       {/* Histórico do Aluno */}
@@ -3988,7 +3988,7 @@ export function StudentsComplete() {
                     data-testid="inconsistencies-toggle"
                     className="mt-3 text-xs font-medium text-red-700 hover:text-red-900 underline"
                   >
-                    {showInconsistenciesList ? 'Ocultar lista' : 'Ver lista de alunos afetados'}
+                    {showInconsistenciesList ? 'Ocultar lista' : 'Ver lista de estudantes afetados'}
                   </button>
                   {showInconsistenciesList && (
                     <div
@@ -4120,7 +4120,7 @@ export function StudentsComplete() {
                         <span
                           data-testid="race-nao-informada"
                           className="inline-flex items-center px-3 py-1.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 text-xs font-semibold"
-                          title="Alunos ativos sem cor/raça preenchida no cadastro"
+                          title="Estudantes ativos sem cor/raça preenchida no cadastro"
                         >
                           Não informada: {raceCounts['nao_informada']}
                         </span>
@@ -4655,10 +4655,10 @@ export function StudentsComplete() {
           onClose={() => setIsModalOpen(false)}
           title={
             viewMode 
-              ? `Visualizar Aluno(a)${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
+              ? `Visualizar Estudante(a)${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
               : (editingStudent 
-                  ? `Editar Aluno(a): ${editingStudent.full_name}` 
-                  : 'Novo(a) Aluno(a)')
+                  ? `Editar Estudante(a): ${editingStudent.full_name}` 
+                  : 'Novo(a) Estudante(a)')
           }
           size="xl"
         >
@@ -4734,7 +4734,7 @@ export function StudentsComplete() {
         <Modal
           isOpen={cancelModal.open}
           onClose={() => { setCancelModal({ open: false, student: null }); setCancelReason(''); }}
-          title="Desvincular Aluno da Turma"
+          title="Desvincular Estudante da Turma"
           size="sm"
         >
           <div className="space-y-4">
@@ -5111,14 +5111,14 @@ export function StudentsComplete() {
           isOpen={showActionModal} 
           onClose={() => setShowActionModal(false)} 
           title={
-            selectedAction === 'matricular' ? '📋 Matricular Aluno' :
-            selectedAction === 'transferir' ? '🔄 Transferir Aluno' :
-            selectedAction === 'remanejar' ? '↔️ Remanejar Aluno' :
-            selectedAction === 'progredir' ? '⬆️ Progredir Aluno' :
-            selectedAction === 'reclassificar' ? '🎓 Reclassificar Aluno' :
+            selectedAction === 'matricular' ? '📋 Matricular Estudante' :
+            selectedAction === 'transferir' ? '🔄 Transferir Estudante' :
+            selectedAction === 'remanejar' ? '↔️ Remanejar Estudante' :
+            selectedAction === 'progredir' ? '⬆️ Progredir Estudante' :
+            selectedAction === 'reclassificar' ? '🎓 Reclassificar Estudante' :
             selectedAction === 'cancelar' ? '❌ Cancelar Matrícula' :
             selectedAction === 'desistir' ? '🚫 Registrar Desistência' :
-            'Ação do Aluno'
+            'Ação do Estudante'
           }
           size="md"
         >
@@ -5466,7 +5466,7 @@ export function StudentsComplete() {
                     value={actionData.reason || ''}
                     onChange={(e) => setActionData(prev => ({ ...prev, reason: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Ex.: Avaliação diagnóstica realizada em .../.../...; aluno demonstrou domínio do conteúdo do X ano."
+                    placeholder="Ex.: Avaliação diagnóstica realizada em .../.../...; estudante demonstrou domínio do conteúdo do X ano."
                     rows={3}
                     data-testid="reclassificar-reason-textarea"
                   />

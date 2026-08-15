@@ -332,7 +332,7 @@ export const Classes = () => {
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch (error) {
       console.error('Erro ao abrir PDF:', error);
-      showAlert('error', 'Erro ao gerar PDF do aluno');
+      showAlert('error', 'Erro ao gerar PDF do estudante');
     }
   };
 
@@ -970,7 +970,7 @@ export const Classes = () => {
                                 <button
                                   onClick={() => navigate(`/admin/students?editStudent=${student.id}`)}
                                   className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
-                                  title="Editar Aluno(a)"
+                                  title="Editar Estudante(a)"
                                   data-testid={`edit-student-${student.id}`}
                                 >
                                   <Pencil size={16} />
@@ -987,7 +987,7 @@ export const Classes = () => {
                                   <button
                                     onClick={() => handleCancelTransfer(student)}
                                     className="text-orange-600 hover:text-orange-800 p-1 rounded hover:bg-orange-50"
-                                    title="Cancelar Transferência (restaura o aluno nesta turma)"
+                                    title="Cancelar Transferência (restaura o estudante nesta turma)"
                                     data-testid={`cancel-transfer-${student.id}`}
                                   >
                                     <Undo2 size={16} />

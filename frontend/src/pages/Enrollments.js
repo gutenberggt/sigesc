@@ -133,7 +133,7 @@ export const Enrollments = () => {
     e.preventDefault();
     
     if (!formData.student_id) {
-      showAlert('error', 'Selecione um aluno');
+      showAlert('error', 'Selecione um estudante');
       return;
     }
     if (!formData.class_id) {
@@ -200,7 +200,7 @@ export const Enrollments = () => {
 
   const columns = [
     { header: 'Nº Matrícula', accessor: 'enrollment_number', render: (row) => row.enrollment_number || '-' },
-    { header: 'Aluno(a)', accessor: 'student_id', render: (row) => getStudentName(row.student_id) },
+    { header: 'Estudante(a)', accessor: 'student_id', render: (row) => getStudentName(row.student_id) },
     { header: 'Escola', accessor: 'school_id', render: (row) => getSchoolName(row.school_id) },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
     { header: 'Ano Letivo', accessor: 'academic_year' },

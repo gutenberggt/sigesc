@@ -11,9 +11,9 @@ import {
 } from 'lucide-react';
 
 const SCOPES = [
-  { value: 'student', label: 'Aluno', help: 'Reprocessa um aluno específico.' },
-  { value: 'class', label: 'Turma', help: 'Reprocessa todos os alunos de uma turma.' },
-  { value: 'school', label: 'Escola', help: 'Reprocessa todos os alunos de uma escola.' },
+  { value: 'student', label: 'Estudante', help: 'Reprocessa um estudante específico.' },
+  { value: 'class', label: 'Turma', help: 'Reprocessa todos os estudantes de uma turma.' },
+  { value: 'school', label: 'Escola', help: 'Reprocessa todos os estudantes de uma escola.' },
   { value: 'all', label: 'Todas as escolas', help: 'Corrige a rede inteira de uma vez (resumo por escola).' },
 ];
 
@@ -64,7 +64,7 @@ export default function HistoryReconstruction() {
           const arr = Array.isArray(s) ? s : (s?.students || s?.items || []);
           setStudents(arr);
         })
-        .catch(() => toast.error('Falha ao carregar alunos'));
+        .catch(() => toast.error('Falha ao carregar estudantes'));
     }
   }, [schoolId, scope]);
 
@@ -254,7 +254,7 @@ export default function HistoryReconstruction() {
             <CardContent className="p-6 space-y-4">
               <h2 className="text-lg font-semibold text-gray-800">Resultado da simulação</h2>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Stat label="Alunos no escopo" value={preview.students_in_scope} color="gray" />
+                <Stat label="Estudantes no escopo" value={preview.students_in_scope} color="gray" />
                 <Stat label="Movimentações" value={preview.movements_detected} color="blue" />
                 <Stat label="Frequências" value={preview.to_consolidate?.attendance ?? 0} color="cyan" icon={ClipboardCheck} />
                 <Stat label="Notas" value={preview.to_consolidate?.grades ?? 0} color="teal" icon={ClipboardList} />
@@ -322,7 +322,7 @@ export default function HistoryReconstruction() {
                 <h2 className="text-lg font-semibold text-green-800">Reconstrução concluída — {result.protocol}</h2>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Stat label="Alunos" value={result.students_processed} color="gray" />
+                <Stat label="Estudantes" value={result.students_processed} color="gray" />
                 <Stat label="Movimentações" value={result.movements_processed} color="blue" />
                 <Stat label="Frequências" value={result.applied_counts?.attendance ?? 0} color="cyan" />
                 <Stat label="Notas" value={result.applied_counts?.grades ?? 0} color="teal" />

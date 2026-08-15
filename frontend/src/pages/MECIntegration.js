@@ -338,7 +338,7 @@ export default function MECIntegration() {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
                   {[
                     { label: 'Competência', value: freqPreview.competencia },
-                    { label: 'Alunos analisados', value: freqPreview.analyzed },
+                    { label: 'Estudantes analisados', value: freqPreview.analyzed },
                     { label: 'Prontos', value: freqPreview.ready_count },
                     { label: 'Pendências', value: freqPreview.pending_count },
                     { label: 'Lotes previstos', value: freqPreview.lotes_previstos },

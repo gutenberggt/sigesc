@@ -166,13 +166,13 @@ export function Grades() {
     const studentStatus = (student.student_status || '').toLowerCase();
     
     if (['transferred', 'transferido'].includes(studentStatus)) {
-      return 'Aluno transferido - edição bloqueada';
+      return 'Estudante transferido - edição bloqueada';
     }
     if (['deceased', 'falecido'].includes(studentStatus)) {
-      return 'Aluno falecido - edição bloqueada';
+      return 'Estudante falecido - edição bloqueada';
     }
     if (student.is_transferred_from_class) {
-      return 'Aluno remanejado/progredido - dados da turma de origem bloqueados';
+      return 'Estudante remanejado/progredido - dados da turma de origem bloqueados';
     }
     return '';
   }, []);
@@ -509,7 +509,7 @@ export function Grades() {
       setStudentGrades(data);
     } catch (error) {
       console.error('Erro ao carregar notas:', error);
-      showAlert('error', 'Erro ao carregar notas do aluno');
+      showAlert('error', 'Erro ao carregar notas do estudante');
     } finally {
       setLoading(false);
     }

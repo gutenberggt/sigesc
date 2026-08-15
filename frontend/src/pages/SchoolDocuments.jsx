@@ -29,7 +29,7 @@ const DOC_TYPES = [
   {
     value: 'matricula',
     label: 'Declaração de Matrícula',
-    desc: 'Comprova que o aluno está matriculado — 90 dias de validade',
+    desc: 'Comprova que o estudante está matriculado — 90 dias de validade',
     validity: 90,
   },
   {
@@ -150,7 +150,7 @@ export default function SchoolDocuments() {
   const issue = async (e) => {
     e.preventDefault();
     if (!selectedStudent) {
-      setToast({ type: 'error', msg: 'Selecione um aluno antes de emitir' });
+      setToast({ type: 'error', msg: 'Selecione um estudante antes de emitir' });
       return;
     }
     setIssuing(true); setToast(null);

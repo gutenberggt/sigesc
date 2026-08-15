@@ -366,13 +366,13 @@ const exportToExcel = (school, year) => {
     ['Indicador', 'Valor'],
     ['Matrículas Ativas', raw.enrollments_active || 0],
     ['Matrículas Início do Ano', raw.enrollments_start || 0],
-    ['Alunos Aprovados', raw.approved_count || 0],
-    ['Alunos Avaliados', raw.evaluated_count || 0],
+    ['Estudantes Aprovados', raw.approved_count || 0],
+    ['Estudantes Avaliados', raw.evaluated_count || 0],
     ['Desistências', raw.dropouts || 0],
     ['Presenças Registradas', raw.attendance_present || 0],
     ['Total Registros Frequência', raw.attendance_total || 0],
     ['Objetos de Conhecimento', raw.learning_objects_count || 0],
-    ['Alunos com Distorção', raw.age_distortion_count || 0],
+    ['Estudantes com Distorção', raw.age_distortion_count || 0],
   ];
   
   // Combinar todos os dados
@@ -529,7 +529,7 @@ const exportToPDF = (school, year, header = {}) => {
     head: [['Indicador', 'Valor']],
     body: [
       ['Matrículas Ativas', raw.enrollments_active || 0],
-      ['Alunos Aprovados', raw.approved_count || 0],
+      ['Estudantes Aprovados', raw.approved_count || 0],
       ['Desistências', raw.dropouts || 0],
       ['Objetos de Conhecimento', raw.learning_objects_count || 0],
     ],
@@ -881,7 +881,7 @@ export function AnalyticsDashboard() {
           setStudents(filtered);
         }
       } catch (error) {
-        console.error('Erro ao carregar alunos da turma:', error);
+        console.error('Erro ao carregar estudantes da turma:', error);
         setStudents([]);
       }
     };
@@ -1008,7 +1008,7 @@ export function AnalyticsDashboard() {
       ['Indicador', 'Valor'],
       ['Escolas', ov.schools?.total || 0],
       ['Turmas', ov.classes?.total || 0],
-      ['Alunos Ativos', ov.students?.active || 0],
+      ['Estudantes Ativos', ov.students?.active || 0],
       ['Matrículas', ov.enrollments?.total || 0],
       ['Frequência (%)', ov.attendance?.rate || 0],
       ['Total de Faltas', ov.attendance?.absent || 0],

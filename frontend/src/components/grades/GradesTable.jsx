@@ -89,7 +89,7 @@ export const GradesTable = () => {
         if (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.includes(bim)) {
           const isAdminOrSecretary = hasRole(user, ['admin', 'admin_teste', 'secretario']);
           if (!isAdminOrSecretary) {
-            return `Aluno matriculado após este bimestre (${item.student.enrollment_date || ''})`;
+            return `Estudante matriculado após este bimestre (${item.student.enrollment_date || ''})`;
           }
         }
         return '';

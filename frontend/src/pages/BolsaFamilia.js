@@ -447,7 +447,7 @@ export default function BolsaFamilia() {
                     : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
                 }`}
                 data-testid="bf-summary-below"
-                title={`Alunos com ao menos 1 mês abaixo de ${FREQUENCY_THRESHOLD_PCT}%`}
+                title={`Estudantes com ao menos 1 mês abaixo de ${FREQUENCY_THRESHOLD_PCT}%`}
               >
                 <AlertTriangle size={14} />
                 <strong>{summary.below}</strong>
@@ -466,7 +466,7 @@ export default function BolsaFamilia() {
                     : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
                 }`}
                 data-testid="bf-summary-missing"
-                title="Alunos com ao menos 1 mês <75% sem motivo MEC informado"
+                title="Estudantes com ao menos 1 mês <75% sem motivo MEC informado"
               >
                 <FileText size={14} />
                 <strong>{summary.missing}</strong>

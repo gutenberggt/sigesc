@@ -106,7 +106,7 @@ const planGroups = [
   {
     number: '1',
     title: 'Identifique o estudante',
-    text: 'Selecione o aluno e confira turma de origem, professor regente, público-alvo e informações básicas.',
+    text: 'Selecione o estudante e confira turma de origem, professor regente, público-alvo e informações básicas.',
   },
   {
     number: '2',

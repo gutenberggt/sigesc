@@ -316,7 +316,7 @@ const DiarioAEE = () => {
   // === HANDLERS DE PLANO ===
   const handleSavePlano = async (formData) => {
     if (!formData.student_id || !formData.publico_alvo) {
-      showAlert('error', 'Selecione o aluno e o público-alvo');
+      showAlert('error', 'Selecione o estudante e o público-alvo');
       return;
     }
     
@@ -431,7 +431,7 @@ const DiarioAEE = () => {
   const confirmDuplicarPlano = async () => {
     if (!duplicatingPlano) return;
     if (duplicateMode === 'cross' && !duplicateTargetStudentId) {
-      showAlert('error', 'Selecione o aluno alvo para a duplicação cruzada');
+      showAlert('error', 'Selecione o estudante alvo para a duplicação cruzada');
       return;
     }
     try {
@@ -446,7 +446,7 @@ const DiarioAEE = () => {
         throw new Error(await parseResponseError(response, 'Erro ao duplicar plano'));
       }
       showAlert('success', duplicateMode === 'cross'
-        ? 'Plano AEE duplicado para outro aluno (rascunho)'
+        ? 'Plano AEE duplicado para outro estudante (rascunho)'
         : 'Plano AEE duplicado com sucesso (rascunho)');
       setDuplicatingPlano(null);
       setDuplicateTargetStudentId('');
@@ -599,7 +599,7 @@ const DiarioAEE = () => {
 
   const handleApplyTemplate = async () => {
     if (!applyTemplateId || !applyStudentId) {
-      showAlert('error', 'Selecione o modelo e o aluno');
+      showAlert('error', 'Selecione o modelo e o estudante');
       return;
     }
     try {

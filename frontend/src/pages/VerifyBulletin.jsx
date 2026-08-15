@@ -92,7 +92,7 @@ export default function VerifyBulletin() {
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mt-5 text-sm">
                 <Field label="Tipo de documento" value={state.data.document_type} />
                 <Field label="Ano letivo" value={state.data.academic_year} />
-                <Field label="Aluno(a)" value={state.data.student_name} />
+                <Field label="Estudante(a)" value={state.data.student_name} />
                 <Field label="Escola" value={state.data.school_name} />
                 <Field label="Turma" value={state.data.class_name} />
                 <Field label="Série / Etapa" value={state.data.grade_level || '—'} />

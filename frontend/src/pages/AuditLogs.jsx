@@ -75,7 +75,7 @@ const ACTION_LABELS = {
 
 const COLLECTION_LABELS = {
   users: 'Usuários',
-  students: 'Alunos(as)',
+  students: 'Estudantes(as)',
   grades: 'Notas',
   attendance: 'Frequência',
   staff: 'Servidores(as)',

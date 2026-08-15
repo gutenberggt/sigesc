@@ -492,7 +492,7 @@ function StudentPicker({ value, onSelect, mantId }) {
         <Input
           data-testid="bulletin-student-search"
           value={query}
-          placeholder="Buscar aluno por nome (mín. 2 letras)…"
+          placeholder="Buscar estudante por nome (mín. 2 letras)…"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);

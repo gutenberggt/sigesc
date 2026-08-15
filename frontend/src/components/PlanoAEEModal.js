@@ -106,7 +106,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled, studentsWithPl
         className={`force-visible-text w-full border rounded-lg px-3 py-2 text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}`}
         data-testid="plano-aluno-dropdown"
       >
-        <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? getName(selected) : 'Selecione o aluno'}</span>
+        <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? getName(selected) : 'Selecione o estudante'}</span>
         <ChevronDown size={16} className="force-visible-text-muted" />
       </button>
       {open && (

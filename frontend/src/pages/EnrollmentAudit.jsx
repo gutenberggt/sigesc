@@ -252,7 +252,7 @@ export const EnrollmentAudit = () => {
               <span className="text-sm font-medium">
                 Índice único de matrícula:{' '}
                 {data.unique_index.students && data.unique_index.enrollments
-                  ? 'ATIVO em alunos e matrículas — duplicatas bloqueadas pelo banco.'
+                  ? 'ATIVO em estudantes e matrículas — duplicatas bloqueadas pelo banco.'
                   : 'NÃO aplicado em todas as coleções. Recomenda-se rodar o saneamento.'}
               </span>
             </div>
@@ -261,14 +261,14 @@ export const EnrollmentAudit = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 icon={FileWarning}
-                label="Alunos sem matrícula"
+                label="Estudantes sem matrícula"
                 value={data.students.empty}
                 tone={data.students.empty > 0 ? 'danger' : 'neutral'}
                 testId="stat-students-empty"
               />
               <StatCard
                 icon={Copy}
-                label="Matrículas de aluno duplicadas"
+                label="Matrículas de estudante duplicadas"
                 value={data.students.duplicate_groups}
                 tone={data.students.duplicate_groups > 0 ? 'danger' : 'neutral'}
                 testId="stat-students-dup"
@@ -292,7 +292,7 @@ export const EnrollmentAudit = () => {
             {/* Duplicatas */}
             <div className="grid grid-cols-1 gap-6">
               {renderDuplicates('enrollments', 'Matrículas (por ano/turma)', BookOpen)}
-              {renderDuplicates('students', 'Alunos', Users)}
+              {renderDuplicates('students', 'Estudantes', Users)}
             </div>
 
             {/* Alunos sem matrícula */}

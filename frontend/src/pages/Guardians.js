@@ -206,7 +206,7 @@ export const Guardians = () => {
     { header: 'Telefone', accessor: 'cell_phone', render: (row) => row.cell_phone || row.phone || '-' },
     { header: 'Parentesco', accessor: 'relationship', render: (row) => RELATIONSHIPS[row.relationship] || row.relationship },
     { 
-      header: 'Alunos Vinculados', 
+      header: 'Estudantes Vinculados', 
       accessor: 'student_ids', 
       render: (row) => {
         const count = row.student_ids?.length || 0;
@@ -562,7 +562,7 @@ export const Guardians = () => {
   const tabs = [
     { id: 'dados', label: 'Dados Pessoais', content: tabDadosPessoais },
     { id: 'endereco', label: 'Endereço/Profissional', content: tabEndereco },
-    { id: 'alunos', label: 'Alunos Vinculados', content: tabAlunos },
+    { id: 'alunos', label: 'Estudantes Vinculados', content: tabAlunos },
     { id: 'observacoes', label: 'Observações', content: tabObservacoes }
   ];
 

@@ -9,7 +9,7 @@ import {
 const CATEGORIA_LABELS = {
   attendance: 'Frequência',
   grades: 'Notas',
-  students: 'Cadastro de alunos',
+  students: 'Cadastro de estudantes',
   learning_objects: 'Planejamento',
   planning: 'Planejamento',
   outros: 'Outros lançamentos',

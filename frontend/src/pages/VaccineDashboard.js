@@ -326,7 +326,7 @@ export default function VaccineDashboard() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={searchType === 'name' ? 'Digite o nome do aluno (mínimo 3 caracteres)...' : 'Digite o CPF do aluno (mínimo 3 dígitos)...'}
+              placeholder={searchType === 'name' ? 'Digite o nome do estudante (mínimo 3 caracteres)...' : 'Digite o CPF do estudante (mínimo 3 dígitos)...'}
               className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
               data-testid="search-input"
             />

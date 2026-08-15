@@ -14,7 +14,7 @@ const ROLE_MATRIX = {
   modules: [
     { key: 'schools', label: 'Escolas', category: 'Acadêmico' },
     { key: 'classes', label: 'Turmas', category: 'Acadêmico' },
-    { key: 'students', label: 'Alunos', category: 'Acadêmico' },
+    { key: 'students', label: 'Estudantes', category: 'Acadêmico' },
     { key: 'staff', label: 'Servidores', category: 'Acadêmico' },
     { key: 'grades', label: 'Notas', category: 'Acadêmico' },
     { key: 'attendance', label: 'Frequência', category: 'Acadêmico' },
@@ -219,7 +219,7 @@ export const Users = () => {
     apoio_pedagogico: 'Apoio Pedagógico',
     auxiliar_secretaria: 'Auxiliar de Secretaria',
     professor: 'Professor(a)',
-    aluno: 'Aluno(a)',
+    aluno: 'Estudante(a)',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
     semed1: 'Tutor',

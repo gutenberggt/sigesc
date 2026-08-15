@@ -44,7 +44,7 @@ export const Layout = ({ children }) => {
     apoio_pedagogico: 'Apoio Pedagógico',
     auxiliar_secretaria: 'Auxiliar de Secretaria',
     professor: 'Professor(a)',
-    aluno: 'Aluno(a)',
+    aluno: 'Estudante(a)',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
     semed1: 'Tutor',

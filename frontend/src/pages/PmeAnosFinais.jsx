@@ -180,7 +180,7 @@ export default function PmeAnosFinais() {
                 </ResponsiveContainer>
               </Block>
 
-              <Block title="Cor/Raça (alunos ativos)" icon={Users}>
+              <Block title="Cor/Raça (estudantes ativos)" icon={Users}>
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart><Pie data={corRacaData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>{corRacaData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}</Pie><Tooltip /><Legend /></PieChart>
                 </ResponsiveContainer>
@@ -212,7 +212,7 @@ export default function PmeAnosFinais() {
                 </ResponsiveContainer>
               </Block>
 
-              <Block title="Socioeconômico — alunos com NIS (Cadastro Único)" icon={Users}>
+              <Block title="Socioeconômico — estudantes com NIS (Cadastro Único)" icon={Users}>
                 <div className="flex items-center justify-center h-[260px]">
                   <div className="text-center">
                     <p className="text-5xl font-bold text-indigo-600">{data.socioeconomico?.percentual ?? 0}%</p>
