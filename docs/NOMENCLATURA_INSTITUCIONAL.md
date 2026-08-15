@@ -24,18 +24,18 @@ Em toda linguagem apresentada pelo SIGESC, usar:
 
 | Evitar | Usar |
 |---|---|
-| Aluno | **Estudante** |
-| Aluna | **Estudante** |
-| Aluno(a) | **Estudante** |
-| Alunos | **Estudantes** |
-| Alunas | **Estudantes** |
-| Alunos(as) | **Estudantes** |
-| Novo(a) Aluno(a) | **Novo Estudante** |
-| Nome do Aluno | **Nome do Estudante** |
-| Portal do Aluno | **Portal do Estudante** |
-| Total de Alunos | **Total de Estudantes** |
-| Alunos Ativos | **Estudantes Ativos** |
-| Aluno não encontrado | **Estudante não encontrado** |
+| Estudante | **Estudante** |
+| Estudante | **Estudante** |
+| Estudante(a) | **Estudante** |
+| Estudantes | **Estudantes** |
+| Estudantes | **Estudantes** |
+| Estudantes(as) | **Estudantes** |
+| Novo(a) Estudante(a) | **Novo Estudante** |
+| Nome do Estudante | **Nome do Estudante** |
+| Portal do Estudante | **Portal do Estudante** |
+| Total de Estudantes | **Total de Estudantes** |
+| Estudantes Ativos | **Estudantes Ativos** |
+| Estudante não encontrado | **Estudante não encontrado** |
 
 Não usar **Estudante(a)** ou **Estudantes(as)**. A palavra *estudante* é comum aos dois gêneros.
 
@@ -69,7 +69,7 @@ O rótulo exibido ao usuário para o papel técnico `aluno` é **Estudante**.
 
 ## 5. Nomes oficiais externos
 
-Quando um órgão, programa, contrato ou integração externa possuir nome oficial que contenha a palavra "Aluno", preservar o nome formal. A exceção deve ser contextual e não autoriza reutilizar o termo como nomenclatura própria do SIGESC.
+Quando um órgão, programa, contrato ou integração externa possuir nome oficial que contenha a palavra "Estudante", preservar o nome formal. A exceção deve ser contextual e não autoriza reutilizar o termo como nomenclatura própria do SIGESC.
 
 ## 6. Evidência histórica
 
@@ -92,7 +92,7 @@ O guard possui duas camadas:
 1. **Documentação viva:** verifica integralmente `README.md` e `docs/**/*.md`.
 2. **Código de produto:** verifica somente linhas **adicionadas** no diff de `frontend/src` e das áreas de backend que podem produzir linguagem visível.
 
-A abordagem por diff evita transformar legado técnico já existente em bloqueio retroativo, mas impede que novas mensagens visíveis reintroduzam "Aluno/Alunos".
+A abordagem por diff evita transformar legado técnico já existente em bloqueio retroativo, mas impede que novas mensagens visíveis reintroduzam "Estudante/Estudantes".
 
 ### Exceções automáticas
 
