@@ -4782,7 +4782,7 @@ export function StudentsComplete() {
         >
           <div className="space-y-4">
             <p className="text-gray-600">
-              Selecione o tipo de documento para gerar para todos os <strong>{serverTotal} alunos</strong> da turma:
+              Selecione o tipo de documento para gerar para todos os <strong>{serverTotal} estudantes</strong> da turma:
             </p>
             
             <div className="space-y-3">

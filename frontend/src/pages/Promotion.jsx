@@ -1056,7 +1056,7 @@ export function Promotion() {
               })}
               {quickFilter !== 'TODOS' && (
                 <span className="ml-auto text-xs text-gray-500" data-testid="quick-filter-summary">
-                  Exibindo {filteredPromotionData.length} de {promotionData.length} alunos
+                  Exibindo {filteredPromotionData.length} de {promotionData.length} estudantes
                 </span>
               )}
             </div>
@@ -1195,7 +1195,7 @@ export function Promotion() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredPromotionData.length)} de {filteredPromotionData.length} alunos
+                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredPromotionData.length)} de {filteredPromotionData.length} estudantes
                 </div>
                 
                 <div className="flex items-center gap-2">

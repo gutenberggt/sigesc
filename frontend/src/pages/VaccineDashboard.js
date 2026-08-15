@@ -568,7 +568,7 @@ export default function VaccineDashboard() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-white font-bold">{classInfo?.name || ''}</h3>
                   <span className="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
-                    {classInfo?.total || 0} alunos
+                    {classInfo?.total || 0} estudantes
                   </span>
                 </div>
               </div>
