@@ -25,8 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend" / "src"
 EXTENSIONS = {".js", ".jsx", ".ts", ".tsx"}
+TERM_RE = re.compile(r"(?i)\b(?:aluno|aluna|alunos|alunas)(?:\(a?s?\))?|Estudante\(a\)|Estudantes\(as\)")
 
-# Formas de apresentação, incluindo a limpeza da primeira passada.
 CAPITALIZED_REPLACEMENTS = [
     (re.compile(r"Estudantes\(as\)"), "Estudantes"),
     (re.compile(r"Estudante\(a\)"), "Estudante"),
@@ -70,7 +70,6 @@ def looks_human_text(value: str) -> bool:
 
 
 def polish_canonical_text(value: str) -> str:
-    """Ajustes editoriais inequívocos após a troca terminológica."""
     value = value.replace("Novo(a) Estudante", "Novo Estudante")
     value = value.replace("Total Estudantes", "Total de Estudantes")
     value = value.replace("Capacidade Estudantes", "Capacidade de Estudantes")
@@ -90,7 +89,6 @@ def normalize_literal(value: str, *, allow_lower: bool) -> str:
 
 
 def find_template_expr_end(value: str, start: int) -> int:
-    """Localiza o } que fecha ${...}, preservando strings dentro da expressão."""
     depth = 1
     i = start
     quote: str | None = None
@@ -121,7 +119,6 @@ def find_template_expr_end(value: str, start: int) -> int:
 
 
 def normalize_template(value: str) -> str:
-    """Normaliza somente o texto de template literals, nunca o código de ${...}."""
     out: list[str] = []
     i = 0
     while i < len(value):
@@ -136,27 +133,39 @@ def normalize_template(value: str) -> str:
     return "".join(out)
 
 
+def _normalize_match_fragment(match: re.Match[str], left: str, right: str, counter: list[int]) -> str:
+    text = match.group(1)
+    normalized = normalize_literal(text, allow_lower=True)
+    if normalized != text:
+        counter[0] += 1
+    return left + normalized + right
+
+
 def normalize_jsx_text_nodes(source: str) -> tuple[str, int]:
-    """Normaliza texto puro entre tag de abertura e fechamento na mesma linha."""
-    pattern = re.compile(
-        r">([^<>{}\n]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}\n]*)</"
+    """Normaliza fragmentos de texto JSX sem tocar em tags, props ou expressões."""
+    counter = [0]
+    # Texto entre tags: >texto< (inclusive quando a próxima tag é <strong>, <span> etc.)
+    pattern_between_tags = re.compile(
+        r">([^<>{}\n]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}\n]*)<"
     )
-    count = 0
+    source = pattern_between_tags.sub(lambda m: _normalize_match_fragment(m, ">", "<", counter), source)
 
-    def repl(match: re.Match[str]) -> str:
-        nonlocal count
-        text = match.group(1)
-        normalized = normalize_literal(text, allow_lower=True)
-        if normalized == text:
-            return match.group(0)
-        count += 1
-        return ">" + normalized + "</"
+    # Texto após uma expressão JSX: } texto <tag
+    pattern_after_expr = re.compile(
+        r"}([^<>{}\n]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}\n]*)<"
+    )
+    source = pattern_after_expr.sub(lambda m: _normalize_match_fragment(m, "}", "<", counter), source)
 
-    return pattern.sub(repl, source), count
+    # Texto antes de uma expressão JSX: > texto {
+    pattern_before_expr = re.compile(
+        r">([^<>{}\n]*(?:Aluno|Alunos|Aluna|Alunas|aluno|alunos|aluna|alunas|Estudante\(a\)|Estudantes\(as\))[^<>{}\n]*){"
+    )
+    source = pattern_before_expr.sub(lambda m: _normalize_match_fragment(m, ">", "{", counter), source)
+    return source, counter[0]
 
 
 def transform_source(source: str) -> tuple[str, int]:
-    """Transforma literais de texto; ignora comentários e identificadores de código."""
+    """Transforma strings e texto JSX; preserva comentários e identificadores de código."""
     out: list[str] = []
     i = 0
     n = len(source)
@@ -227,6 +236,21 @@ def transform_source(source: str) -> tuple[str, int]:
     return transformed, changed_literals + jsx_count
 
 
+def print_residual_candidates() -> int:
+    """Lista candidatos residuais para revisão humana; não falha a execução."""
+    residuals = 0
+    print("RESIDUAL_SCAN_BEGIN")
+    for path in sorted(FRONTEND.rglob("*")):
+        if not path.is_file() or path.suffix not in EXTENSIONS:
+            continue
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if TERM_RE.search(line):
+                residuals += 1
+                print(f"RESIDUAL {path.relative_to(ROOT)}:{line_no}: {line.strip()}")
+    print(f"RESIDUAL_SCAN_END candidates={residuals}")
+    return residuals
+
+
 def main() -> int:
     files_changed = 0
     literals_changed = 0
@@ -244,6 +268,7 @@ def main() -> int:
         print(f"CHANGED {path.relative_to(ROOT)} | literals={count}")
 
     print(f"SUMMARY files_changed={files_changed} literals_changed={literals_changed}")
+    print_residual_candidates()
     return 0
 
 
