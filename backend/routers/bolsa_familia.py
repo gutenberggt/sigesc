@@ -687,7 +687,7 @@ def setup_router(db, **kwargs):
 
         # Render
         columns = [
-            ("Aluno", "student_name"),
+            ("Estudante", "student_name"),
             ("Escola", "school_name"),
             ("Categoria MEC", "category"),
             ("Grupo MEC", "group_name"),
@@ -1493,7 +1493,7 @@ def setup_router(db, **kwargs):
         # === [Jun/2026] Alunos transferidos da escola/turma (antes da assinatura) ===
         if transferred_list:
             trans_title_style = ParagraphStyle('BFTransTitle', fontSize=9, fontName='Helvetica-Bold', alignment=TA_LEFT, spaceAfter=4)
-            elements.append(Paragraph("Alunos Transferidos no Período", trans_title_style))
+            elements.append(Paragraph("Estudantes Transferidos no Período", trans_title_style))
             trans_header = [
                 Paragraph("<b>Nome do Estudante</b>", cell_center),
                 Paragraph("<b>Data da Transferência</b>", cell_center),

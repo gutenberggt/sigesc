@@ -1474,13 +1474,13 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             elements = []
 
             # Cabeçalho
-            header_text = "RELATÓRIO DE ALUNOS"
+            header_text = "RELATÓRIO DE ESTUDANTES"
             elements.append(Paragraph(header_text, title_style))
             if school_name:
                 elements.append(Paragraph(xml_escape(school_name), subtitle_style))
             if class_name:
                 elements.append(Paragraph(f"Turma: {xml_escape(class_name)}", subtitle_style))
-            elements.append(Paragraph(f"Total: {len(students)} aluno(s) ativo(s)", subtitle_style))
+            elements.append(Paragraph(f"Total de estudantes ativos: {len(students)}", subtitle_style))
             elements.append(Spacer(1, 3*mm))
 
             table = Table(data_rows, colWidths=col_widths, repeatRows=1)

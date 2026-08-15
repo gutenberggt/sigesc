@@ -167,7 +167,7 @@ def generate_class_details_pdf(
         make_field('Nome:', class_info.get('name', '-')) + make_field('Ano Letivo:', str(class_info.get('academic_year', '-'))),
         make_field('Escola:', school.get('name', '-')) + make_field('Turno:', turno),
         make_field('Nível de Ensino:', nivel) + make_field('Série/Etapa:', serie_etapa_val),
-        make_field('Atendimento:', atendimento) + make_field('Alunos Matriculados:', str(len(students))),
+        make_field('Atendimento:', atendimento) + make_field('Estudantes Matriculados:', str(len(students))),
     ]
 
     col_w = [2.8*cm, 5.8*cm, 2.8*cm, usable_width - 11.4*cm]
@@ -228,12 +228,12 @@ def generate_class_details_pdf(
     elements.append(Spacer(1, 12))
 
     # ===== ALUNOS MATRICULADOS =====
-    elements.append(section_header(f"ALUNOS MATRICULADOS ({len(students)})"))
+    elements.append(section_header(f"ESTUDANTES MATRICULADOS ({len(students)})"))
 
     if students:
         s_header = [
             Paragraph('#', ParagraphStyle('THNum', fontSize=8, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)),
-            Paragraph('Aluno(a)', th_style),
+            Paragraph('Estudante', th_style),
             Paragraph('Data Nasc.', th_style),
             Paragraph('Responsável', th_style),
             Paragraph('Celular', th_style)
@@ -278,7 +278,7 @@ def generate_class_details_pdf(
         elements.append(s_table)
     else:
         no_data_style = ParagraphStyle('NoData2', fontSize=9, textColor=TEXT_MUTED, alignment=TA_CENTER)
-        elements.append(Paragraph("Nenhum aluno matriculado", no_data_style))
+        elements.append(Paragraph("Nenhum estudante matriculado", no_data_style))
 
     # Gerar PDF
     doc.build(elements, onFirstPage=footer_handler, onLaterPages=footer_handler)

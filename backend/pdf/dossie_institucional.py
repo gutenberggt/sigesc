@@ -172,7 +172,7 @@ def generate_dossie_pdf(school: dict, result: dict, mantenedora: dict = None) ->
             ambientes.append(lbl)
     el.append(_kv_table([
         ("Nº de Salas de Aula", school.get("numero_salas_aula")),
-        ("Capacidade Total de Alunos", school.get("capacidade_total_alunos")),
+        ("Capacidade Total de Estudantes", school.get("capacidade_total_alunos")),
         ("Nº de Banheiros", school.get("numero_banheiros")),
         ("Sala de Recursos (AEE)", school.get("salas_recursos_multifuncionais")),
         ("Ambientes existentes", ", ".join(ambientes) if ambientes else None),

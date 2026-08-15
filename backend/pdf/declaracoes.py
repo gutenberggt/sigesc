@@ -331,15 +331,15 @@ def generate_declaracao_transferencia_pdf(
     elements.append(Spacer(1, 6))
     
     text2 = f"""
-    O(A) referido(a) aluno(a) está sendo transferido(a) desta instituição a pedido 
-    de seu responsável legal, nada constando que o(a) desabone em termos de conduta 
-    e aproveitamento escolar.
+    O estudante acima identificado está sendo transferido desta instituição a pedido 
+    de seu responsável legal, nada constando que desabone sua conduta ou seu 
+    aproveitamento escolar.
     """
     elements.append(Paragraph(text2, styles['JustifyText']))
     elements.append(Spacer(1, 6))
     
     text3 = f"""
-    Informamos que o <b>Histórico Escolar</b> do(a) aluno(a) será emitido e 
+    Informamos que o <b>Histórico Escolar</b> do estudante será emitido e 
     disponibilizado em até <b>30 (trinta) dias</b> a contar da data desta declaração.
     """
     elements.append(Paragraph(text3, styles['JustifyText']))

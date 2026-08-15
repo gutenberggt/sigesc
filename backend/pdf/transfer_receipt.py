@@ -57,7 +57,7 @@ def build_transfer_receipt_pdf(*, audit: dict, origin: dict | None, destination:
         ("Escola de origem", (origin or {}).get("name") or audit.get("origin_school_id")),
         ("Escola de destino", (destination or {}).get("name") or audit.get("destination_school_id")),
         ("Turmas transferidas", str(counts.get("classes", len(audit.get("class_ids") or [])))),
-        ("Alunos afetados", str(counts.get("students_distinct", counts.get("students", "—")))),
+        ("Estudantes afetados", str(counts.get("students_distinct", counts.get("students", "—")))),
         ("Matrículas", str(counts.get("enrollments", "—"))),
         ("Operador", (audit.get("executed_by") or {}).get("email") or "—"),
         ("Data/hora da execução", _fmt_dt(audit.get("executed_at"))),

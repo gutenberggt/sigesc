@@ -225,7 +225,7 @@ def _build_ficha_individual(ficha: Dict[str, Any], subtitle: ParagraphStyle,
 
     # Identificação
     ident = [
-        [Paragraph('Aluno(a):', label),
+        [Paragraph('Estudante:', label),
          Paragraph(student.get('full_name') or '-', value),
          Paragraph('Matrícula:', label),
          Paragraph(str(student.get('enrollment_number') or '-'), value)],
