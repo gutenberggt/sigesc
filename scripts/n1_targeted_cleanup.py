@@ -17,6 +17,7 @@ REPLACEMENTS = {
     ],
     "frontend/src/pages/DiarioAEE.js": [
         ("student?.full_name || 'estudante'", "student?.full_name || 'aluno'"),
+        ("?.full_name || 'estudante'", "?.full_name || 'aluno'"),
     ],
     # N2 cuidará de documentos/PDFs. N1 não altera o texto gerado neste PDF.
     "frontend/src/pages/AnalyticsDashboard.jsx": [
@@ -65,6 +66,7 @@ REPLACEMENTS = {
 def scan_after_cleanup() -> int:
     residuals = 0
     forbidden = []
+    suspicious_fallbacks = []
     print("POST_TARGET_RESIDUAL_SCAN_BEGIN")
     for path in sorted(FRONTEND.rglob("*")):
         if not path.is_file() or path.suffix not in {".js", ".jsx", ".ts", ".tsx"}:
@@ -72,10 +74,16 @@ def scan_after_cleanup() -> int:
         for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if "Estudante(a)" in line or "Estudantes(as)" in line or "role=estudante" in line:
                 forbidden.append((path.relative_to(ROOT), line_no, line.strip()))
+            if "|| 'estudante'" in line or '|| "estudante"' in line:
+                suspicious_fallbacks.append((path.relative_to(ROOT), line_no, line.strip()))
             if TERM_RE.search(line):
                 residuals += 1
                 print(f"POST_RESIDUAL {path.relative_to(ROOT)}:{line_no}: {line.strip()}")
     print(f"POST_TARGET_RESIDUAL_SCAN_END candidates={residuals}")
+    print(f"SUSPICIOUS_ESTUDANTE_FALLBACKS_BEGIN count={len(suspicious_fallbacks)}")
+    for path, line_no, line in suspicious_fallbacks:
+        print(f"SUSPICIOUS_FALLBACK {path}:{line_no}: {line}")
+    print("SUSPICIOUS_ESTUDANTE_FALLBACKS_END")
     if forbidden:
         print("FORBIDDEN_CANONICAL_FORMS_BEGIN")
         for path, line_no, line in forbidden:
