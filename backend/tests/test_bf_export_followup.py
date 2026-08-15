@@ -96,7 +96,7 @@ def test_csv_export_headers_and_format(auth, seeded):
     assert b";" in body
     # Header em PT-BR
     decoded = body.decode("utf-8-sig")
-    assert "Estudante" in decoded.split("\n")[0]
+    assert "Aluno" in decoded.split("\n")[0]
     assert "Categoria MEC" in decoded.split("\n")[0]
     assert "Severidade" in decoded.split("\n")[0]
 
@@ -129,7 +129,7 @@ def test_xlsx_export_structure(auth, seeded):
     assert ws.max_column == 12
     # Header esperado
     headers = [ws.cell(row=1, column=i).value for i in range(1, 13)]
-    assert headers[0] == "Estudante"
+    assert headers[0] == "Aluno"
     assert headers[2] == "Categoria MEC"
     assert headers[6] == "Severidade"
     # Freeze pane (header sempre visível)
@@ -172,7 +172,7 @@ def test_export_severity_filter(auth, seeded):
     )
     decoded = r.content.decode("utf-8-sig")
     # Conta linhas de dados (descontando header)
-    lines = [ln for ln in decoded.split("\n") if ln.strip() and "Estudante" not in ln]
+    lines = [ln for ln in decoded.split("\n") if ln.strip() and "Aluno" not in ln]
     # Inclui também 3b (requires_followup=True) pelo OR — owner spec
     # 11a (sev5) + 10b (sev5) + 3b (requires_followup) = pelo menos 3
     qa_lines = [ln for ln in lines if any(t in ln for t in ["VIOLENCE", "CHILD_LABOR", "ACCESS"])]

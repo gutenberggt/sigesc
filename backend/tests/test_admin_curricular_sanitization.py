@@ -100,7 +100,7 @@ def seeded_class():
              "mantenedora_id": TENANT},
         ])
         await db.students.insert_one({
-            "id": student_id, "full_name": "ESTUDANTE TESTE ACS",
+            "id": student_id, "full_name": "ALUNO TESTE ACS",
             "registration_number": f"ACS-{suffix}",
             "class_id": class_id, "school_id": school_id,
             "mantenedora_id": TENANT, "dependency_mode": "none",
@@ -179,7 +179,7 @@ def test_02_remove_without_confirm_header_returns_428(session, seeded_class):
     assert r.status_code == 428, r.text
     body = r.json()
     detail = body.get("detail") or body
-    assert (detail.get("error") if isinstance(detail, dict) else None) ==\
+    assert (detail.get("error") if isinstance(detail, dict) else None) == \
         "ACADEMIC_CONFIRMATION_REQUIRED"
 
 

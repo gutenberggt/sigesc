@@ -71,7 +71,7 @@ def _now_iso() -> str:
 async def _seed_student(db, *, class_id: str = CLASS_A):
     await db.students.insert_one({
         "id": STUDENT_ID,
-        "full_name": "Estudante Teste TC",
+        "full_name": "Aluno Teste TC",
         "class_id": class_id,
         "mantenedora_id": MANT_ID,
     })

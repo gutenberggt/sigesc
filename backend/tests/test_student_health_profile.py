@@ -95,7 +95,7 @@ async def test_secretary_requires_school_assignment_to_read():
     db = MagicMock()
     db.students.find_one = AsyncMock(return_value={
         'id': 's-1',
-        'full_name': 'Estudante Teste',
+        'full_name': 'Aluno Teste',
         'school_id': 'sch-1',
         'mantenedora_id': 'm-1',
     })

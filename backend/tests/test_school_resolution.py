@@ -99,7 +99,7 @@ def db_and_seed():
                 {"school_id": dest_id, "start_date": "2026-07-01T00:00:00+00:00", "end_date": None},
             ],
         })
-        await db.students.insert_one({"id": sid, "full_name": "Estudante Hist", "school_id": dest_id, "class_id": cid})
+        await db.students.insert_one({"id": sid, "full_name": "Aluno Hist", "school_id": dest_id, "class_id": cid})
         await db.enrollments.insert_one({
             "id": f"enr-{sfx}", "student_id": sid, "class_id": cid,
             "academic_year": 2026, "status": "completed", "school_id": dest_id,

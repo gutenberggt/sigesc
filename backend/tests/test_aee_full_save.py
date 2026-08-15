@@ -123,7 +123,7 @@ def test_plano_aee_saves_and_returns_all_fields(super_token, setup_aee_data):
         "escola_origem_nome": "ESCOLA ORIGEM TESTE",
         "data_elaboracao": "2026-02-15",
         "periodo_vigencia": "1º Semestre 2026",
-        "linha_base_situacao_atual": "Estudante apresenta dificuldades de comunicação verbal",
+        "linha_base_situacao_atual": "Aluno apresenta dificuldades de comunicação verbal",
         "linha_base_potencialidades": "Boa memória visual, interesse por números",
         "linha_base_dificuldades": "Interação social, transições de atividade",
         "linha_base_comunicacao": "Comunica-se majoritariamente através de gestos",
@@ -215,7 +215,7 @@ def test_plano_aee_saves_and_returns_all_fields(super_token, setup_aee_data):
     assert got2["frequencia_revisao"] == "trimestral"  # Literal mantém minúsculo
     assert got2["carga_horaria_semanal"].upper() == "5 HORAS"
     # Não-atualizados continuam preservados
-    assert "DIFICULDADES" in got2["linha_base_situacao_atual"].upper() or\
+    assert "DIFICULDADES" in got2["linha_base_situacao_atual"].upper() or \
            "COMUNICA" in got2["linha_base_situacao_atual"].upper()
     assert "TRANSI" in got2["combinados_professor_regente"].upper()
 

@@ -25,7 +25,7 @@ if not BASE_URL:
         pass
 
 
-STUDENT_EMAIL = "estudante@sigesc.com"
+STUDENT_EMAIL = "aluno@sigesc.com"
 STUDENT_PASSWORD = os.getenv("SIGESC_TEST_STUDENT_PASSWORD", "aluno123")
 ADMIN_EMAIL = "gutenberg@sigesc.com"
 ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
@@ -144,7 +144,7 @@ class TestReportCard:
         assert r.status_code == 200
         data = r.json()
         if not data.get("usa_conceito"):
-            pytest.skip("Estudante seed não está em turma por CONCEITO; pular verificação específica")
+            pytest.skip("Aluno seed não está em turma por CONCEITO; pular verificação específica")
 
         assert data["media_geral"] is None, "media_geral deve ser None quando usa_conceito=True"
 

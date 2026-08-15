@@ -71,7 +71,7 @@ async def _seed_world(db, *, with_event: bool = False):
     await db.schools.insert_one({"id": SCHOOL_ID, "name": "Escola Teste BB",
                                  "mantenedora_id": MANT})
     await db.students.insert_one({
-        "id": STUDENT, "full_name": "Estudante Boletim Teste",
+        "id": STUDENT, "full_name": "Aluno Boletim Teste",
         "registration_number": "BB-001",
         "class_id": CLASS_A, "school_id": SCHOOL_ID,
         "mantenedora_id": MANT, "dependency_mode": "none",

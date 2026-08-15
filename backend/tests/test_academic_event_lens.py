@@ -235,7 +235,7 @@ async def test_historical_visibility_preserved_after_transfer(db, base_event):
 @pytest.mark.asyncio
 async def test_annotate_items_does_not_filter(db, base_event):
     items = [
-        {"student_id": "ae_stu", "student_name": "Estudante Teste"},
+        {"student_id": "ae_stu", "student_name": "Aluno Teste"},
         {"student_id": "ae_stu_outro", "student_name": "Outro"},
     ]
     annotated = await annotate_items_with_lens(

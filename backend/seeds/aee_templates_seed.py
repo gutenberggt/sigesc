@@ -57,7 +57,7 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Deficiência Física",
         publico_alvo="deficiencia_fisica",
-        descricao="Plano-base para estudantes com limitações motoras (paralisia cerebral, mielomeningocele, amputações, distrofias). Foco em acessibilidade, autonomia e participação plena nas atividades escolares.",
+        descricao="Plano-base para alunos com limitações motoras (paralisia cerebral, mielomeningocele, amputações, distrofias). Foco em acessibilidade, autonomia e participação plena nas atividades escolares.",
         modalidade="individual",
         carga="2 horas",
         local="Sala de Recursos Multifuncionais",
@@ -78,7 +78,7 @@ TEMPLATES_INSTITUCIONAIS = [
             ("outro", "Engrossador de lápis, prancha inclinada para escrita"),
         ],
         indicadores="Aumento gradual da autonomia em atividades de escrita, alimentação e locomoção; participação em ≥80% das atividades coletivas.",
-        orientacoes_sala_comum="Posicionar o estudante em local de fácil acesso. Permitir tempo adicional para atividades motoras. Substituir registros escritos extensos por digitais ou orais quando necessário.",
+        orientacoes_sala_comum="Posicionar o aluno em local de fácil acesso. Permitir tempo adicional para atividades motoras. Substituir registros escritos extensos por digitais ou orais quando necessário.",
         adequacoes="Reduzir quantidade de exercícios escritos mantendo objetivo conceitual. Avaliação processual valoriza o conteúdo, não a forma do registro.",
         criterios_ajuste="Revisar plano se houver: piora postural, regressão na autonomia, ou avanço significativo que demande novos desafios.",
     ),
@@ -87,7 +87,7 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Deficiência Intelectual",
         publico_alvo="deficiencia_intelectual",
-        descricao="Plano-base para estudantes com limitações no funcionamento intelectual e comportamento adaptativo. Foco em desenvolvimento de habilidades cognitivas, sociais e de autonomia.",
+        descricao="Plano-base para alunos com limitações no funcionamento intelectual e comportamento adaptativo. Foco em desenvolvimento de habilidades cognitivas, sociais e de autonomia.",
         modalidade="individual",
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
@@ -110,7 +110,7 @@ TEMPLATES_INSTITUCIONAIS = [
         ],
         indicadores="Avanços mensuráveis em consciência fonológica, contagem e resolução de problemas simples; aumento do tempo de atenção sustentada.",
         orientacoes_sala_comum="Usar instruções curtas e concretas. Apoiar com recursos visuais. Repetir e parafrasear conteúdos. Valorizar pequenos avanços.",
-        adequacoes="Adequar conteúdo ao nível de desenvolvimento do estudante (não somente reduzir quantidade). Avaliação diferenciada com prova adaptada e observação processual.",
+        adequacoes="Adequar conteúdo ao nível de desenvolvimento do aluno (não somente reduzir quantidade). Avaliação diferenciada com prova adaptada e observação processual.",
         criterios_ajuste="Avaliar bimestralmente. Ajustar metas se houver platô prolongado de 2 bimestres ou avanços inesperadamente rápidos.",
     ),
 
@@ -118,7 +118,7 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Deficiência Visual",
         publico_alvo="deficiencia_visual",
-        descricao="Plano-base para estudantes cegos ou com baixa visão. Foco em alfabetização Braille (cegueira), uso de recursos ópticos e digitais (baixa visão), orientação e mobilidade.",
+        descricao="Plano-base para alunos cegos ou com baixa visão. Foco em alfabetização Braille (cegueira), uso de recursos ópticos e digitais (baixa visão), orientação e mobilidade.",
         modalidade="individual",
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
@@ -140,7 +140,7 @@ TEMPLATES_INSTITUCIONAIS = [
             ("outro", "Reglete, punção, soroban, livro em Braille"),
         ],
         indicadores="Fluência crescente em Braille (palavras/min) ou em leitura ampliada. Autonomia em deslocamento na escola. Uso funcional de tecnologia assistiva.",
-        orientacoes_sala_comum="Descrever oralmente imagens e o que está sendo escrito no quadro. Posicionar o estudante em local com boa luminosidade (baixa visão). Antecipar materiais para transcrição em Braille/ampliação.",
+        orientacoes_sala_comum="Descrever oralmente imagens e o que está sendo escrito no quadro. Posicionar o aluno em local com boa luminosidade (baixa visão). Antecipar materiais para transcrição em Braille/ampliação.",
         adequacoes="Provas em Braille ou ampliadas, com tempo adicional. Atividades visuais substituídas por descrição verbal/tátil equivalente.",
         criterios_ajuste="Revisar plano após avaliação oftalmológica anual. Ajustar recursos se houver progressão da perda visual.",
     ),
@@ -149,7 +149,7 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Deficiência Auditiva / Surdez",
         publico_alvo="deficiencia_auditiva",
-        descricao="Plano-base para estudantes surdos ou com deficiência auditiva. Foco em Libras como L1, Português escrito como L2, e desenvolvimento da identidade surda.",
+        descricao="Plano-base para alunos surdos ou com deficiência auditiva. Foco em Libras como L1, Português escrito como L2, e desenvolvimento da identidade surda.",
         modalidade="individual",
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
@@ -179,7 +179,7 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Surdocegueira",
         publico_alvo="surdocegueira",
-        descricao="Plano-base para estudantes com perda concomitante das funções visual e auditiva. Foco em comunicação tátil, mediação contínua e construção de vínculos seguros.",
+        descricao="Plano-base para alunos com perda concomitante das funções visual e auditiva. Foco em comunicação tátil, mediação contínua e construção de vínculos seguros.",
         modalidade="individual",
         carga="6 horas",
         local="Sala de Recursos Multifuncionais",
@@ -209,7 +209,7 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Transtorno do Espectro Autista (TEA)",
         publico_alvo="transtorno_espectro_autista",
-        descricao="Plano-base para estudantes no espectro autista. Foco em comunicação funcional, regulação sensorial, habilidades sociais e flexibilidade cognitiva.",
+        descricao="Plano-base para alunos no espectro autista. Foco em comunicação funcional, regulação sensorial, habilidades sociais e flexibilidade cognitiva.",
         modalidade="individual",
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
@@ -240,13 +240,13 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Altas Habilidades / Superdotação",
         publico_alvo="altas_habilidades",
-        descricao="Plano-base para estudantes com altas habilidades/superdotação. Foco em enriquecimento curricular, aprofundamento e desenvolvimento da criatividade.",
+        descricao="Plano-base para alunos com altas habilidades/superdotação. Foco em enriquecimento curricular, aprofundamento e desenvolvimento da criatividade.",
         modalidade="pequeno_grupo",
         carga="3 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
             ("acesso_curriculo", "Currículo regular insuficiente para o ritmo/profundidade de aprendizagem"),
-            ("social", "Estereótipos sobre o estudante superdotado (rotulação, isolamento)"),
+            ("social", "Estereótipos sobre o aluno superdotado (rotulação, isolamento)"),
             ("acesso_curriculo", "Falta de desafios cognitivos e oportunidades de aprofundamento"),
         ],
         objetivos=[
@@ -270,7 +270,7 @@ TEMPLATES_INSTITUCIONAIS = [
     _build_template(
         nome="Modelo Institucional - Deficiência Múltipla",
         publico_alvo="deficiencia_multipla",
-        descricao="Plano-base para estudantes com associação de duas ou mais deficiências. Foco em comunicação funcional, vida diária e participação possível, com forte articulação multidisciplinar.",
+        descricao="Plano-base para alunos com associação de duas ou mais deficiências. Foco em comunicação funcional, vida diária e participação possível, com forte articulação multidisciplinar.",
         modalidade="individual",
         carga="6 horas",
         local="Sala de Recursos Multifuncionais",

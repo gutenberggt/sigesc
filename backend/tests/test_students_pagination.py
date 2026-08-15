@@ -98,7 +98,7 @@ class TestStudentsPagination:
         
         # Calculate expected total_pages
         expected_total_pages = (data["total"] + 2 - 1) // 2 if data["total"] > 0 else 0
-        assert data["total_pages"] == expected_total_pages or data["total_pages"] >= 0,\
+        assert data["total_pages"] == expected_total_pages or data["total_pages"] >= 0, \
             f"total_pages calculation incorrect. Expected: {expected_total_pages}, Got: {data['total_pages']}"
         print(f"✓ Total pages calculation correct - {data['total_pages']} pages for {data['total']} items with page_size=2")
 
@@ -138,7 +138,7 @@ class TestStudentsSearch:
                 for student in search_data["items"]:
                     name = (student.get("full_name") or "").upper()
                     cpf = (student.get("cpf") or "").replace(".", "").replace("-", "")
-                    assert search_term in name or search_term in cpf,\
+                    assert search_term in name or search_term in cpf, \
                         f"Student '{name}' doesn't match search term '{search_term}'"
         else:
             pytest.skip("No students in database to test search")
@@ -163,7 +163,7 @@ class TestStudentsSearch:
         search_data = search_response.json()
         
         # Search total should be <= unfiltered total
-        assert search_data["total"] <= unfiltered_total,\
+        assert search_data["total"] <= unfiltered_total, \
             f"Search total ({search_data['total']}) should be <= unfiltered total ({unfiltered_total})"
         print(f"✓ Search filter affects total - Unfiltered: {unfiltered_total}, Filtered: {search_data['total']}")
 
@@ -193,7 +193,7 @@ class TestStudentsSchoolFilter:
             
             # Verify all returned students belong to the school
             for student in data["items"]:
-                assert student.get("school_id") == school_id,\
+                assert student.get("school_id") == school_id, \
                     f"Student '{student.get('full_name')}' has school_id '{student.get('school_id')}', expected '{school_id}'"
             
             print(f"✓ School filter working - {data['total']} students from '{school_name}'")
@@ -219,7 +219,7 @@ class TestStudentsCombinedFilters:
                 "page": 1,
                 "page_size": 50,
                 "school_id": school_id,
-                "search": "ESTUDANTE"  # Common term
+                "search": "ALUNO"  # Common term
             })
             assert response.status_code == 200
             data = response.json()
@@ -231,11 +231,11 @@ class TestStudentsCombinedFilters:
             
             # If results exist, verify they match both filters
             for student in data["items"]:
-                assert student.get("school_id") == school_id,\
+                assert student.get("school_id") == school_id, \
                     f"Student should be from school {school_id}"
                 name = student.get("full_name", "").upper()
                 cpf = student.get("cpf", "").replace(".", "").replace("-", "")
-                assert "ESTUDANTE" in name or "ESTUDANTE" in cpf,\
+                assert "ALUNO" in name or "ALUNO" in cpf, \
                     f"Student name should contain 'ALUNO'"
             
             print(f"✓ Combined filters working - {data['total']} results")
@@ -265,7 +265,7 @@ class TestStudentsCombinedFilters:
             # Verify all students have active status
             for student in data["items"]:
                 status = student.get("status", "").lower()
-                assert status in ["active", "ativo", ""],\
+                assert status in ["active", "ativo", ""], \
                     f"Student status should be 'active', got '{status}'"
             
             print(f"✓ Status filter working - {data['total']} active students")
@@ -299,7 +299,7 @@ class TestStudentsCombinedFilters:
             
             # Verify all returned students belong to the class
             for student in data["items"]:
-                assert student.get("class_id") == class_id,\
+                assert student.get("class_id") == class_id, \
                     f"Student '{student.get('full_name')}' has class_id '{student.get('class_id')}', expected '{class_id}'"
             
             print(f"✓ Class filter working - {data['total']} students in '{class_name}'")

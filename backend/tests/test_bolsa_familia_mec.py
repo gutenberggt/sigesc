@@ -140,7 +140,7 @@ def test_tracking_save_with_reason_id(auth):
         "month": 3,
         "academic_year": 2026,
         "reason_id": reason_3b["id"],
-        "notes": "Estudante relatou que ônibus quebrou 3x no mês",
+        "notes": "Aluno relatou que ônibus quebrou 3x no mês",
     }
     r = requests.put(
         f"{BASE_URL}/api/bolsa-familia/tracking",
@@ -176,7 +176,7 @@ def test_tracking_save_legacy_motive_backward_compat(auth):
         "school_id": "test_school_mec_001",
         "month": 4,
         "academic_year": 2026,
-        "motive": "Estudante faltou pq choveu (legado)",
+        "motive": "Aluno faltou pq choveu (legado)",
     }
     r = requests.put(
         f"{BASE_URL}/api/bolsa-familia/tracking",

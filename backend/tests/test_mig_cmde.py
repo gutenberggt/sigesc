@@ -34,11 +34,11 @@ from mig.core.exceptions import MigAuthError, MigForbiddenError, MigTimeoutError
 # ---------- Unitários: mapper/validators ----------
 def test_mapper_validators():
     row = CmdeMapper.build_mapping_row(
-        {"id": "1", "full_name": "Estudante X", "cpf": "", "nis": "123", "inep_code": ""},
+        {"id": "1", "full_name": "Aluno X", "cpf": "", "nis": "123", "inep_code": ""},
         {"name": "Escola Y", "inep_code": "15175600"})
     assert row["ready"] is False and row["missing_fields"] == ["CPF"], row
     row2 = CmdeMapper.build_mapping_row(
-        {"id": "2", "full_name": "Estudante Z", "cpf": "111", "nis": "222", "inep_code": ""},
+        {"id": "2", "full_name": "Aluno Z", "cpf": "111", "nis": "222", "inep_code": ""},
         {"name": "Escola W", "inep_code": "999"})
     assert row2["ready"] is True and row2["missing_fields"] == [], row2
     # sem INEP da escola → não pronto, INEP Escola faltante

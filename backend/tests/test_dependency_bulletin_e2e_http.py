@@ -83,7 +83,7 @@ async def world():
          "mantenedora_id": ids["mant"]},
     ])
     await db.students.insert_one({
-        "id": ids["student"], "full_name": "ESTUDANTE E2E DEP",
+        "id": ids["student"], "full_name": "ALUNO E2E DEP",
         "class_id": ids["class_reg"], "school_id": ids["school"],
         "dependency_mode": "with_dependency",
         "academic_year": 2026,

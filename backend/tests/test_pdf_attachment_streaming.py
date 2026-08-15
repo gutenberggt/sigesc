@@ -63,7 +63,7 @@ def _assert_attachment_pdf(r, *, expect_disposition: str = "attachment"):
     ct = r.headers.get("content-type", "")
     assert ct.startswith("application/pdf"), f"content-type={ct}"
     cd = r.headers.get("content-disposition", "")
-    assert cd.startswith(expect_disposition + ";"),\
+    assert cd.startswith(expect_disposition + ";"), \
         f"Esperava `{expect_disposition};` no Content-Disposition, got: {cd}"
     body = r.content
     assert body.startswith(b"%PDF-"), "PDF magic bytes faltando"
@@ -119,7 +119,7 @@ def test_historico_escolar_returns_attachment(auth):
                  timeout=60)
     # Histórico pode 404 se não houver student_history_records cadastrados
     if r.status_code == 404:
-        pytest.skip("Estudante sem histórico cadastrado no seed.")
+        pytest.skip("Aluno sem histórico cadastrado no seed.")
     _assert_attachment_pdf(r)
 
 

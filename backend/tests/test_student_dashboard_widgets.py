@@ -19,7 +19,7 @@ def _load_frontend_env():
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _load_frontend_env() or "").rstrip("/")
 assert BASE_URL, "REACT_APP_BACKEND_URL not configured"
 
-STUDENT_EMAIL = "estudante@sigesc.com"
+STUDENT_EMAIL = "aluno@sigesc.com"
 STUDENT_PASS = os.getenv("SIGESC_TEST_STUDENT_PASSWORD", "aluno123")
 ADMIN_EMAIL = "gutenberg@sigesc.com"
 ADMIN_PASS = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
@@ -81,9 +81,9 @@ class TestAnnouncements:
         anns = data["announcements"]
         assert isinstance(anns, list)
         assert data["total"] == len(anns)
-        assert len(anns) >= 1, "Estudante deveria ter pelo menos 1 aviso seed"
+        assert len(anns) >= 1, "Aluno deveria ter pelo menos 1 aviso seed"
         titles = [a.get("title") for a in anns]
-        assert any("Reunião de pais" in (t or "") for t in titles),\
+        assert any("Reunião de pais" in (t or "") for t in titles), \
             f"Aviso seed não encontrado; títulos={titles}"
         a0 = anns[0]
         for key in ("id", "title", "content", "sender_name", "sender_role", "created_at", "is_read"):

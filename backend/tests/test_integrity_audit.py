@@ -45,6 +45,6 @@ def test_csv_columns_order():
 
 def test_type_labels_pt_br():
     """Labels devem ser em PT-BR para uso em CSV/UI."""
-    assert "Estudante" in TYPE_LABELS["aluno_sem_turma"]
+    assert "Aluno" in TYPE_LABELS["aluno_sem_turma"]
     assert "Turma" in TYPE_LABELS["turma_inexistente"]
     assert "Plano" in TYPE_LABELS["atendimento_aee_orfao"] or "AEE" in TYPE_LABELS["atendimento_aee_orfao"]

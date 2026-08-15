@@ -42,8 +42,8 @@ def seed_data():
                            "series": ["1º ANO", "2º ANO"]})
     db.courses.insert_one({"id": COURSE_ID, "name": "Língua Portuguesa", "class_id": CLASS_ID,
                            "academic_year": ACADEMIC_YEAR, "grade_levels": ["1º ANO", "2º ANO"]})
-    studs = [("TST_JUA_S1", "Estudante Primeiro Ano A", None), ("TST_JUA_S2", "Estudante Primeiro Ano B", None),
-             ("TST_JUA_S3", "Estudante Segundo Ano", " 2º ANO")]
+    studs = [("TST_JUA_S1", "Aluno Primeiro Ano A", None), ("TST_JUA_S2", "Aluno Primeiro Ano B", None),
+             ("TST_JUA_S3", "Aluno Segundo Ano", " 2º ANO")]
     for i, (sidd, nm, serie) in enumerate(studs):
         db.students.insert_one({"id": sidd, "full_name": nm, "status": "active", "school_id": sid,
                                 "class_id": CLASS_ID, "student_series": (serie.strip() if serie else None)})
