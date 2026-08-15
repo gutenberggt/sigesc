@@ -1471,7 +1471,7 @@ export function SchoolsComplete() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Capacidade Total de Alunos(as)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Capacidade Total de Estudantes</label>
             <input
               type="number"
               value={formData.capacidade_total_alunos || 0}
@@ -2287,7 +2287,7 @@ export function SchoolsComplete() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Alunos</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estudantes</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                 </tr>

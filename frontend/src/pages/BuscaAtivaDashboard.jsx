@@ -511,7 +511,7 @@ export default function BuscaAtivaDashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr className="text-left text-xs text-gray-500 uppercase">
-                      <th className="px-3 py-2 font-medium">Aluno</th>
+                      <th className="px-3 py-2 font-medium">Estudante</th>
                       <th className="px-3 py-2 font-medium">Escola</th>
                       <th className="px-3 py-2 font-medium">Mês</th>
                       <th className="px-3 py-2 font-medium">Motivo MEC</th>

@@ -374,22 +374,22 @@ export default function BolsaFamilia() {
         {loading && (
           <div className="bg-white rounded-xl border p-12 flex items-center justify-center">
             <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-            <span className="ml-3 text-gray-500">Carregando alunos...</span>
+            <span className="ml-3 text-gray-500">Carregando estudantes...</span>
           </div>
         )}
 
         {!loading && selectedSchool && students.length === 0 && (
           <div className="bg-white rounded-xl border p-12 text-center">
             <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Nenhum aluno com Bolsa Família encontrado nesta escola.</p>
-            <p className="text-gray-400 text-sm mt-1">Verifique se o campo "Bolsa Família" está marcado nos dados complementares dos alunos.</p>
+            <p className="text-gray-500">Nenhum estudante com Bolsa Família encontrado nesta escola.</p>
+            <p className="text-gray-400 text-sm mt-1">Verifique se o campo "Bolsa Família" está marcado nos dados complementares dos estudantes.</p>
           </div>
         )}
 
         {!loading && !selectedSchool && (
           <div className="bg-white rounded-xl border p-12 text-center">
             <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Selecione uma escola para visualizar os alunos beneficiários do Bolsa Família.</p>
+            <p className="text-gray-500">Selecione uma escola para visualizar os estudantes beneficiários do Bolsa Família.</p>
           </div>
         )}
 

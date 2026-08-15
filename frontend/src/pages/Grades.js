@@ -742,7 +742,7 @@ export function Grades() {
                 <BookOpen className="text-blue-600" />
                 Lançamento de Notas
               </h1>
-              <p className="text-gray-600 text-sm">Gerencie as notas dos alunos por turma ou individualmente</p>
+              <p className="text-gray-600 text-sm">Gerencie as notas dos estudantes por turma ou individualmente</p>
             </div>
           </div>
           

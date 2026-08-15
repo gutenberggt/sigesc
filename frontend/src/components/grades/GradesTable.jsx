@@ -31,7 +31,7 @@ export const GradesTable = () => {
 <table className="min-w-full divide-y divide-gray-200">
   <thead className="bg-gray-50">
     <tr>
-      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
+      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudante</th>
       <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(1) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
         {usaConceito ? '1º Bim' : 'B1 (×2)'}
         {!canEditField(1) && <Lock className="inline w-3 h-3 ml-1" />}

@@ -31,7 +31,7 @@ const ROLES = [
   { key: 'auxiliar_secretaria', label: 'A. Sec.', fullLabel: 'Aux. Secretaria' },
   { key: 'professor', label: 'Prof.', fullLabel: 'Professor' },
   { key: 'ass_social', label: 'A. Soc.', fullLabel: 'Assistente Social' },
-  { key: 'aluno', label: 'Alu.', fullLabel: 'Estudante' },
+  { key: 'aluno', label: 'Est.', fullLabel: 'Estudante' },
   { key: 'responsavel', label: 'Resp.', fullLabel: 'Responsável' },
 ];
 

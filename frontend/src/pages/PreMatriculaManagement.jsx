@@ -230,7 +230,7 @@ export default function PreMatriculaManagement() {
       
       toast.success(
         <div className="space-y-2">
-          <p className="font-medium">Aluno criado com sucesso!</p>
+          <p className="font-medium">Estudante criado com sucesso!</p>
           <p className="text-sm">Matrícula: {response.data.enrollment_number}</p>
           <button
             onClick={() => navigate(`/admin/students?highlight=${studentId}`)}

@@ -219,7 +219,7 @@ export const Users = () => {
     apoio_pedagogico: 'Apoio Pedagógico',
     auxiliar_secretaria: 'Auxiliar de Secretaria',
     professor: 'Professor(a)',
-    aluno: 'Estudante(a)',
+    aluno: 'Estudante',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
     semed1: 'Tutor',

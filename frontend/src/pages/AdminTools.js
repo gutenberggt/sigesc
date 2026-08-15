@@ -420,7 +420,7 @@ const AdminTools = () => {
                   <UserPlus className="text-emerald-600" size={24} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Criar Usuários dos Alunos (em lote)</h3>
+                  <h3 className="font-semibold text-gray-900">Criar Usuários dos Estudantes (em lote)</h3>
                   <p className="text-sm text-gray-500 mt-1">
                     Gera contas de acesso (role=aluno) para todos os alunos <strong>ativos</strong> que ainda não têm usuário.
                     É <strong>idempotente</strong> — pode rodar novamente a qualquer momento para atualizar com novos alunos.
@@ -453,7 +453,7 @@ const AdminTools = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                   <div className="bg-gray-50 rounded p-2 text-sm text-center">
                     <p className="font-bold text-gray-800">{bulkStudentPlan.totals.scanned}</p>
-                    <p className="text-gray-600 text-xs">Alunos avaliados</p>
+                    <p className="text-gray-600 text-xs">Estudantes avaliados</p>
                   </div>
                   <div className="bg-emerald-50 rounded p-2 text-sm text-center">
                     <p className="font-bold text-emerald-700">{bulkStudentPlan.totals.to_create}</p>
@@ -474,7 +474,7 @@ const AdminTools = () => {
                     <table className="w-full text-xs">
                       <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                          <th className="text-left p-2">Aluno</th>
+                          <th className="text-left p-2">Estudante</th>
                           <th className="text-left p-2">E-mail</th>
                           <th className="text-left p-2">Senha (DDMMAAAA)</th>
                         </tr>
@@ -506,7 +506,7 @@ const AdminTools = () => {
                       <table className="w-full text-xs">
                         <thead className="bg-amber-100 sticky top-0">
                           <tr>
-                            <th className="text-left p-2">Aluno</th>
+                            <th className="text-left p-2">Estudante</th>
                             <th className="text-left p-2">Motivo</th>
                           </tr>
                         </thead>
@@ -631,7 +631,7 @@ const AdminTools = () => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                       <div className="bg-red-50 rounded p-2 text-sm text-center">
                         <p className="font-bold text-red-700">{previewData.totals.students}</p>
-                        <p className="text-red-600 text-xs">Alunos</p>
+                        <p className="text-red-600 text-xs">Estudantes</p>
                       </div>
                       <div className="bg-red-50 rounded p-2 text-sm text-center">
                         <p className="font-bold text-red-700">{previewData.totals.enrollments}</p>
@@ -650,7 +650,7 @@ const AdminTools = () => {
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 sticky top-0">
                           <tr>
-                            <th className="text-left p-2">Aluno</th>
+                            <th className="text-left p-2">Estudante</th>
                             <th className="text-center p-2">Matrículas</th>
                             <th className="text-center p-2">Frequências</th>
                             <th className="text-center p-2">Notas</th>
@@ -699,7 +699,7 @@ const AdminTools = () => {
                     )}
                   </>
                 ) : (
-                  <p className="text-green-600 text-sm">Nenhum aluno cancelado encontrado.</p>
+                  <p className="text-green-600 text-sm">Nenhum estudante cancelado encontrado.</p>
                 )}
               </div>
             )}

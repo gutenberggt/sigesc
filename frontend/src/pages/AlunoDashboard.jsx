@@ -77,14 +77,14 @@ export default function AlunoDashboard() {
   const unreadCount = announcements.filter((a) => !a.is_read).length;
 
   // Iniciais para avatar fallback (sem foto)
-  const fullName = me?.full_name || user?.full_name || 'Estudante(a)';
+  const fullName = me?.full_name || user?.full_name || 'Estudante';
   const initials = fullName
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase() || '')
     .join('') || 'A';
-  const firstName = fullName.split(' ')[0] || 'Estudante(a)';
+  const firstName = fullName.split(' ')[0] || 'Estudante';
 
   return (
     <Layout>

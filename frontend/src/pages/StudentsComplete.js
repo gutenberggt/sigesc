@@ -881,7 +881,7 @@ export function StudentsComplete() {
   };
 
   const handleDelete = async (student) => {
-    if (window.confirm(`Tem certeza que deseja excluir o aluno "${student.full_name || student.enrollment_number}"?`)) {
+    if (window.confirm(`Tem certeza que deseja excluir o estudante "${student.full_name || student.enrollment_number}"?`)) {
       try {
         await studentsAPI.delete(student.id);
         showAlert('success', 'Estudante excluído com sucesso');
@@ -1685,7 +1685,7 @@ export function StudentsComplete() {
       return;
     }
 
-    const confirmMessage = `Você está prestes a atualizar ${selectedStudentIds.length} aluno(s). Esta ação não pode ser desfeita. Deseja continuar?`;
+    const confirmMessage = `Você está prestes a atualizar ${selectedStudentIds.length} estudante(s). Esta ação não pode ser desfeita. Deseja continuar?`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -1722,13 +1722,13 @@ export function StudentsComplete() {
           await studentsAPI.update(studentId, updateData);
           successCount++;
         } catch (err) {
-          console.error(`Erro ao atualizar aluno ${studentId}:`, err);
+          console.error(`Erro ao atualizar estudante ${studentId}:`, err);
           errorCount++;
         }
       }
 
       if (successCount > 0) {
-        showAlert('success', `${successCount} aluno(s) atualizado(s) com sucesso${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
+        showAlert('success', `${successCount} estudante(s) atualizado(s) com sucesso${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
         // Recarrega a lista
         setReloadTrigger(prev => prev + 1);
       } else {
@@ -1863,7 +1863,7 @@ export function StudentsComplete() {
   
   const tabIdentificacao = (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Identificação do Aluno</h3>
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Identificação do Estudante</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Código/Matrícula *</label>
@@ -2467,7 +2467,7 @@ export function StudentsComplete() {
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Responsável Legal *</h3>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <p className="text-sm text-blue-800 mb-3">
-          <strong>Selecione quem é o responsável legal do aluno:</strong>
+          <strong>Selecione quem é o responsável legal do estudante:</strong>
         </p>
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -2517,7 +2517,7 @@ export function StudentsComplete() {
               className="h-4 w-4 text-blue-600"
               data-testid="legal-guardian-type-self"
             />
-            <span className="text-sm text-gray-700">O(A) Aluno(a)</span>
+            <span className="text-sm text-gray-700">O(A) Estudante</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -2906,7 +2906,7 @@ export function StudentsComplete() {
         </p>
       </div>
 
-      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Foto do Aluno</h3>
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Foto do Estudante</h3>
       <div className="flex items-center gap-4">
         {formData.photo_url ? (
           <div className="relative">
@@ -3164,7 +3164,7 @@ export function StudentsComplete() {
         <div className="space-y-4">
           {/* Linha com seletor de ano para filtro de turmas */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Selecione o ano e a turma para vincular o aluno</span>
+            <span className="text-sm text-gray-500">Selecione o ano e a turma para vincular o estudante</span>
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Ano Letivo:</label>
               <select
@@ -3342,7 +3342,7 @@ export function StudentsComplete() {
         <div className="space-y-4">
           {/* Linha com título e seletor de ano */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Selecione o ano e a escola para vincular o aluno</span>
+            <span className="text-sm text-gray-500">Selecione o ano e a escola para vincular o estudante</span>
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Ano Letivo:</label>
               <select
@@ -3675,7 +3675,7 @@ export function StudentsComplete() {
           </table>
         </div>
       ) : (
-        <p className="text-gray-500 text-sm py-4">Nenhum histórico registrado para este aluno.</p>
+        <p className="text-gray-500 text-sm py-4">Nenhum histórico registrado para este estudante.</p>
       )}
     </div>
   );
@@ -3703,8 +3703,8 @@ export function StudentsComplete() {
               <span>Início</span>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Alunos(as)</h1>
-              <p className="text-gray-600 text-sm">Gerencie o cadastro completo de alunos(as)</p>
+              <h1 className="text-2xl font-bold text-gray-900">Estudantes</h1>
+              <p className="text-gray-600 text-sm">Gerencie o cadastro completo de estudantes</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -3724,7 +3724,7 @@ export function StudentsComplete() {
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
               >
                 <Plus size={20} />
-                <span>Novo(a) Aluno(a)</span>
+                <span>Novo Estudante</span>
               </button>
             )}
           </div>
@@ -4243,7 +4243,7 @@ export function StudentsComplete() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center" data-testid="select-school-message">
             <Building2 size={40} className="mx-auto text-blue-400 mb-3" />
             <p className="text-blue-800 font-medium text-lg">Selecione uma escola ou busque por nome/CPF</p>
-            <p className="text-blue-600 text-sm mt-1">Use os filtros acima para visualizar os alunos</p>
+            <p className="text-blue-600 text-sm mt-1">Use os filtros acima para visualizar os estudantes</p>
           </div>
         ) : (
         <>
@@ -4655,10 +4655,10 @@ export function StudentsComplete() {
           onClose={() => setIsModalOpen(false)}
           title={
             viewMode 
-              ? `Visualizar Estudante(a)${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
+              ? `Visualizar Estudante${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
               : (editingStudent 
-                  ? `Editar Estudante(a): ${editingStudent.full_name}` 
-                  : 'Novo(a) Estudante(a)')
+                  ? `Editar Estudante: ${editingStudent.full_name}` 
+                  : 'Novo Estudante')
           }
           size="xl"
         >
@@ -4798,7 +4798,7 @@ export function StudentsComplete() {
                   </div>
                   <div className="text-left">
                     <p className="font-medium text-gray-900">Boletim Escolar</p>
-                    <p className="text-sm text-gray-500">Notas e frequência do aluno</p>
+                    <p className="text-sm text-gray-500">Notas e frequência do estudante</p>
                   </div>
                 </div>
                 <ExternalLink size={20} className="text-blue-600" />
@@ -4855,7 +4855,7 @@ export function StudentsComplete() {
                   </div>
                   <div className="text-left">
                     <p className="font-medium text-gray-900">Histórico Escolar</p>
-                    <p className="text-sm text-gray-500">Histórico escolar de todos os alunos da turma</p>
+                    <p className="text-sm text-gray-500">Histórico escolar de todos os estudantes da turma</p>
                   </div>
                 </div>
                 <ExternalLink size={20} className="text-amber-600" />
@@ -5126,7 +5126,7 @@ export function StudentsComplete() {
             {/* Info do Aluno */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <p className="text-sm text-gray-700">
-                <strong>Aluno:</strong> {editingStudent?.full_name}
+                <strong>Estudante:</strong> {editingStudent?.full_name}
               </p>
               <p className="text-sm text-gray-500">
                 <strong>Status atual:</strong>{' '}
@@ -5275,7 +5275,7 @@ export function StudentsComplete() {
                           onChange={(e) => setActionData(prev => ({ ...prev, studentSeries: e.target.value }))}
                           className="w-full px-3 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-indigo-50"
                         >
-                          <option value="">Selecione a série do aluno...</option>
+                          <option value="">Selecione a série do estudante...</option>
                           {selectedClass.series.map(serie => (
                             <option key={serie} value={serie}>{serie}</option>
                           ))}

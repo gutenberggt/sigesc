@@ -1162,7 +1162,7 @@ export const Attendance = () => {
                 <ClipboardCheck className="text-blue-600" />
                 Controle de Frequência
               </h1>
-              <p className="text-gray-600 text-sm">Registre e acompanhe a frequência dos alunos</p>
+              <p className="text-gray-600 text-sm">Registre e acompanhe a frequência dos estudantes</p>
             </div>
           </div>
           
@@ -1271,7 +1271,7 @@ export const Attendance = () => {
               <div className="text-sm text-gray-600">
                 <p><strong>Turma:</strong> {attendanceData.class_name}</p>
                 <p><strong>Data:</strong> {formatDate(attendanceData.date)}</p>
-                <p><strong>Alunos:</strong> {attendanceData.students?.length || 0}</p>
+                <p><strong>Estudantes:</strong> {attendanceData.students?.length || 0}</p>
               </div>
             )}
             

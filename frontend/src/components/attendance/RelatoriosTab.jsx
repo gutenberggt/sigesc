@@ -119,7 +119,7 @@ export const RelatoriosTab = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudante</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Presenças</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Faltas</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Justificadas</th>

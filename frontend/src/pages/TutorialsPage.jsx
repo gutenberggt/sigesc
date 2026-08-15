@@ -164,7 +164,7 @@ const staticBlocks = [
   },
   {
     id: 'alunos',
-    title: 'Estudantes(as)',
+    title: 'Estudantes',
     icon: GraduationCap,
     color: 'cyan',
     description: 'Tutoriais para consulta de notas, frequência e documentos',

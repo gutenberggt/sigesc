@@ -48,7 +48,7 @@ export const AlertasTab = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudante</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Faltas</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">% Frequência</th>
@@ -73,14 +73,14 @@ export const AlertasTab = () => {
           ) : (
             <div className="text-center py-12 text-green-600">
               <CheckCircle size={48} className="mx-auto mb-4" />
-              <p>Nenhum aluno com frequência abaixo de 75%</p>
+              <p>Nenhum estudante com frequência abaixo de 75%</p>
             </div>
           )}
         </div>
       ) : (
         <div className="text-center py-12 text-gray-500">
           <AlertTriangle size={48} className="mx-auto mb-4 opacity-30" />
-          <p>Clique em "Buscar Alertas" para ver alunos com baixa frequência</p>
+          <p>Clique em "Buscar Alertas" para ver estudantes com baixa frequência</p>
         </div>
       )}
     </div>

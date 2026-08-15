@@ -28,7 +28,7 @@ export default function LandingPage() {
   const features = [
     {
       icon: Users,
-      title: 'Gestão de Estudantes(as)',
+      title: 'Gestão de Estudantes',
       description: 'Cadastro completo, histórico escolar, documentos e acompanhamento individual de cada estudante.',
       color: 'blue'
     },
@@ -281,7 +281,7 @@ export default function LandingPage() {
                   
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-sm">Alunos Matriculados</span>
+                      <span className="text-slate-400 text-sm">Estudantes Matriculados</span>
                       <span className="text-white font-semibold">4,521</span>
                     </div>
                     <div className="w-full bg-slate-700 rounded-full h-2">

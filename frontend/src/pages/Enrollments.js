@@ -200,7 +200,7 @@ export const Enrollments = () => {
 
   const columns = [
     { header: 'Nº Matrícula', accessor: 'enrollment_number', render: (row) => row.enrollment_number || '-' },
-    { header: 'Estudante(a)', accessor: 'student_id', render: (row) => getStudentName(row.student_id) },
+    { header: 'Estudante', accessor: 'student_id', render: (row) => getStudentName(row.student_id) },
     { header: 'Escola', accessor: 'school_id', render: (row) => getSchoolName(row.school_id) },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
     { header: 'Ano Letivo', accessor: 'academic_year' },
@@ -238,7 +238,7 @@ export const Enrollments = () => {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Matrículas</h1>
-              <p className="text-gray-600 text-sm">Gerencie as matrículas dos alunos</p>
+              <p className="text-gray-600 text-sm">Gerencie as matrículas dos estudantes</p>
             </div>
           </div>
           {canEdit && (
@@ -327,7 +327,7 @@ export const Enrollments = () => {
 
             {/* Escola e Aluno */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Escola e Aluno</h3>
+              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Escola e Estudante</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Escola *</label>
@@ -349,7 +349,7 @@ export const Enrollments = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Aluno *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estudante *</label>
                   <select
                     value={formData.student_id}
                     onChange={(e) => updateFormData('student_id', e.target.value)}
@@ -357,7 +357,7 @@ export const Enrollments = () => {
                     disabled={viewMode || editingEnrollment || !formData.school_id}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                   >
-                    <option value="">Selecione um aluno</option>
+                    <option value="">Selecione um estudante</option>
                     {filteredStudents.map(student => (
                       <option key={student.id} value={student.id}>
                         {student.full_name || student.enrollment_number}
@@ -365,7 +365,7 @@ export const Enrollments = () => {
                     ))}
                   </select>
                   {formData.school_id && filteredStudents.length === 0 && (
-                    <p className="text-sm text-yellow-600 mt-1">Nenhum aluno cadastrado nesta escola</p>
+                    <p className="text-sm text-yellow-600 mt-1">Nenhum estudante cadastrado nesta escola</p>
                   )}
                 </div>
               </div>

@@ -524,7 +524,7 @@ export default function SchoolDocuments() {
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
                   <th className="py-2 pr-3">Código</th>
-                  <th className="py-2 pr-3">Aluno</th>
+                  <th className="py-2 pr-3">Estudante</th>
                   <th className="py-2 pr-3">Tipo</th>
                   <th className="py-2 pr-3">Finalidade</th>
                   <th className="py-2 pr-3">Emitido</th>

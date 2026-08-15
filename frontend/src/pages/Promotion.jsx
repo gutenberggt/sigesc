@@ -1020,7 +1020,7 @@ export function Promotion() {
           <Card>
             <CardContent className="p-8 text-center text-gray-500">
               <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p>Nenhum aluno matriculado nesta turma</p>
+              <p>Nenhum estudante matriculado nesta turma</p>
             </CardContent>
           </Card>
         ) : (
@@ -1064,7 +1064,7 @@ export function Promotion() {
               {paginatedData.length === 0 ? (
                 <div className="p-8 text-center text-gray-500" data-testid="quick-filter-empty">
                   <Filter className="h-10 w-10 mx-auto mb-3 text-gray-400" />
-                  <p>Nenhum aluno corresponde ao filtro selecionado.</p>
+                  <p>Nenhum estudante corresponde ao filtro selecionado.</p>
                   <button
                     onClick={() => setQuickFilter('TODOS')}
                     className="mt-3 text-sm text-emerald-700 hover:text-emerald-800 underline"

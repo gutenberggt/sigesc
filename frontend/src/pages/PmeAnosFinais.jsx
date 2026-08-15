@@ -288,12 +288,12 @@ function buildResumo(d, ext, year) {
   const lvlLabel = d.level_label || 'o nível selecionado';
   parts.push(`No ano letivo de ${year}, a rede possui ${esc.total || 0} escola(s) que atendem ${lvlLabel} (${esc.por_zona?.urbana || 0} na zona urbana e ${esc.por_zona?.rural || 0} na rural), com ${m.total || 0} matrícula(s) (${m.ativos || 0} ativas).`);
   if (d.multisseriadas?.total) parts.push(`Há ${d.multisseriadas.total} turma(s) multisseriada(s) de um total de ${d.multisseriadas.total_turmas_af}.`);
-  parts.push(`${d.deficiencia?.percentual || 0}% dos alunos ativos possuem deficiência/transtorno; ${d.socioeconomico?.percentual || 0}% têm NIS (Cadastro Único).`);
-  parts.push(`A taxa de abandono é de ${d.evasao?.taxa_abandono_pct || 0}% (${d.evasao?.abandono_total || 0} aluno(s)), com ${d.evasao?.transferidos || 0} transferência(s).`);
+  parts.push(`${d.deficiencia?.percentual || 0}% dos estudantes ativos possuem deficiência/transtorno; ${d.socioeconomico?.percentual || 0}% têm NIS (Cadastro Único).`);
+  parts.push(`A taxa de abandono é de ${d.evasao?.taxa_abandono_pct || 0}% (${d.evasao?.abandono_total || 0} estudante(s)), com ${d.evasao?.transferidos || 0} transferência(s).`);
   const dist = Object.entries(d.distorcao_idade_serie || {});
   if (dist.length) {
     const tot = dist.reduce((a, [, o]) => a + o.total, 0); const dd = dist.reduce((a, [, o]) => a + o.distorcidos, 0);
-    parts.push(`A distorção idade-série atinge ${tot ? Math.round(1000 * dd / tot) / 10 : 0}% dos alunos (2+ anos de atraso).`);
+    parts.push(`A distorção idade-série atinge ${tot ? Math.round(1000 * dd / tot) / 10 : 0}% dos estudantes (2+ anos de atraso).`);
   }
   parts.push(`Dos ${d.docentes?.total || 0} docentes vinculados a ${lvlLabel}, ${d.docentes?.perc_com_formacao || 0}% têm formação registrada.`);
   if (ext && ext.exists !== false && (ext.ideb_atual != null || ext.ideb_meta != null)) {

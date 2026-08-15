@@ -281,7 +281,7 @@ export default function PreMatricula() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <Label htmlFor="aluno_nome">Nome Completo do Aluno *</Label>
+                <Label htmlFor="aluno_nome">Nome Completo do Estudante *</Label>
                 <Input
                   id="aluno_nome"
                   value={formData.aluno_nome}
@@ -318,7 +318,7 @@ export default function PreMatricula() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="aluno_cpf">CPF do Aluno (opcional)</Label>
+                <Label htmlFor="aluno_cpf">CPF do Estudante (opcional)</Label>
                 <Input
                   id="aluno_cpf"
                   value={formData.aluno_cpf}

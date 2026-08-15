@@ -348,7 +348,7 @@ function CurricularDiagnoseModal({ open, onClose, classId, mantId }) {
                       <th className="text-left py-1">course_id</th>
                       <th className="text-left py-1">Nome (cadastro atual)</th>
                       <th className="text-center py-1">Notas</th>
-                      <th className="text-center py-1">Alunos</th>
+                      <th className="text-center py-1">Estudantes</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -519,7 +519,7 @@ function StudentPicker({ value, onSelect, mantId }) {
             </div>
           )}
           {!loading && results.length === 0 && (
-            <div className="px-3 py-2 text-sm text-zinc-500">Nenhum aluno encontrado.</div>
+            <div className="px-3 py-2 text-sm text-zinc-500">Nenhum estudante encontrado.</div>
           )}
           {!loading && results.map((s) => (
             <button

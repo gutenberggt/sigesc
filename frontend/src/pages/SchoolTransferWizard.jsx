@@ -156,7 +156,7 @@ export default function SchoolTransferWizard() {
                     <p className="text-xs text-blue-600">Turmas na origem</p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg text-center">
-                    <p className="text-sm text-gray-600">Alunos e matrículas serão detalhados na simulação (Dry Run).</p>
+                    <p className="text-sm text-gray-600">Estudantes e matrículas serão detalhados na simulação (Dry Run).</p>
                   </div>
                 </div>
               )}
@@ -264,7 +264,7 @@ export default function SchoolTransferWizard() {
                 <p>Você está transferindo:</p>
                 <ul className="list-disc ml-5 mt-1">
                   <li><strong>{counts.classes}</strong> turma(s)</li>
-                  <li><strong>{counts.students_distinct ?? counts.students}</strong> aluno(s)</li>
+                  <li><strong>{counts.students_distinct ?? counts.students}</strong> estudante(s)</li>
                   <li><strong>{counts.enrollments ?? 0}</strong> matrícula(s)</li>
                 </ul>
                 <p className="mt-2">Da escola <strong>{dryRun.origin?.name}</strong> para <strong>{dryRun.destination?.name}</strong>.</p>
@@ -311,7 +311,7 @@ export default function SchoolTransferWizard() {
                 <p><strong>Protocolo:</strong> <span className="font-mono">{result.protocol}</span></p>
                 <p><strong>Data/hora:</strong> {new Date(result.executed_at).toLocaleString('pt-BR')}</p>
                 <p><strong>Turmas movidas:</strong> {result.modified_counts?.classes}</p>
-                <p><strong>Alunos movidos:</strong> {result.students_moved}</p>
+                <p><strong>Estudantes movidos:</strong> {result.students_moved}</p>
                 <p><strong>Escola origem encerrada:</strong> {result.origin_closed ? 'Sim' : 'Não'}</p>
                 <p className="flex items-center gap-1 text-amber-700 mt-2">
                   <Clock size={14} /> Reversível por 7 dias (ou até a 1ª emissão de documento oficial).

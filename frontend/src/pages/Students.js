@@ -87,7 +87,7 @@ export const Students = () => {
   };
 
   const handleDelete = async (student) => {
-    if (window.confirm(`Tem certeza que deseja excluir o aluno com matrícula "${student.enrollment_number}"?`)) {
+    if (window.confirm(`Tem certeza que deseja excluir o estudante com matrícula "${student.enrollment_number}"?`)) {
       try {
         await studentsAPI.delete(student.id);
         showAlert('success', 'Estudante excluído com sucesso');
@@ -168,8 +168,8 @@ export const Students = () => {
               <span>Início</span>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900" data-testid="students-title">Alunos(as)</h1>
-              <p className="text-gray-600 text-sm">Gerencie os alunos das escolas</p>
+              <h1 className="text-2xl font-bold text-gray-900" data-testid="students-title">Estudantes</h1>
+              <p className="text-gray-600 text-sm">Gerencie os estudantes das escolas</p>
             </div>
           </div>
           <button
@@ -178,7 +178,7 @@ export const Students = () => {
             data-testid="create-student-button"
           >
             <Plus size={20} />
-            <span>Novo(a) Aluno(a)</span>
+            <span>Novo Estudante</span>
           </button>
         </div>
 
@@ -214,7 +214,7 @@ export const Students = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title={viewMode ? 'Visualizar Estudante(a)' : (editingStudent ? 'Editar Estudante(a)' : 'Novo(a) Estudante(a)')}
+          title={viewMode ? 'Visualizar Estudante' : (editingStudent ? 'Editar Estudante' : 'Novo Estudante')}
           size="lg"
         >
           <form onSubmit={handleSubmit} className="space-y-4">

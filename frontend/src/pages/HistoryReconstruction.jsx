@@ -212,7 +212,7 @@ export default function HistoryReconstruction() {
 
               {scope === 'student' && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Aluno</label>
+                  <label className="block text-sm font-medium mb-1">Estudante</label>
                   <select
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
@@ -220,7 +220,7 @@ export default function HistoryReconstruction() {
                     className="w-full px-3 py-2 border rounded-lg bg-white disabled:bg-gray-100"
                     data-testid="recon-student-select"
                   >
-                    <option value="">Selecione o aluno…</option>
+                    <option value="">Selecione o estudante…</option>
                     {students.map((s) => <option key={s.id} value={s.id}>{s.full_name || s.name}</option>)}
                   </select>
                 </div>
@@ -266,7 +266,7 @@ export default function HistoryReconstruction() {
                   <table className="w-full text-xs">
                     <thead className="bg-gray-100 sticky top-0">
                       <tr>
-                        <th className="text-left p-2">Aluno</th>
+                        <th className="text-left p-2">Estudante</th>
                         <th className="text-left p-2">Origem → Destino</th>
                         <th className="text-center p-2">Ano</th>
                         <th className="text-center p-2">Freq.</th>
@@ -387,7 +387,7 @@ function BySchoolTable({ rows, valueKey = 'counts', title = 'Resumo por escola' 
           <thead className="bg-gray-100 sticky top-0">
             <tr>
               <th className="text-left p-2">Escola</th>
-              <th className="text-center p-2">Alunos</th>
+              <th className="text-center p-2">Estudantes</th>
               <th className="text-center p-2">Movim.</th>
               <th className="text-center p-2">Freq.</th>
               <th className="text-center p-2">Notas</th>

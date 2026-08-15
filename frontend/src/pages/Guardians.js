@@ -464,13 +464,13 @@ export const Guardians = () => {
 
   const tabAlunos = (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Alunos Vinculados</h3>
-      <p className="text-sm text-gray-600 mb-4">Selecione os alunos pelos quais este responsável é responsável:</p>
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Estudantes Vinculados</h3>
+      <p className="text-sm text-gray-600 mb-4">Selecione os estudantes pelos quais este responsável é responsável:</p>
       
       {students.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           <UserPlus size={48} className="mx-auto mb-4 text-gray-300" />
-          <p>Nenhum aluno cadastrado</p>
+          <p>Nenhum estudante cadastrado</p>
           <button
             type="button"
             onClick={() => navigate('/admin/students')}
@@ -581,7 +581,7 @@ export const Guardians = () => {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Responsáveis</h1>
-              <p className="text-gray-600 text-sm">Gerencie os responsáveis dos alunos</p>
+              <p className="text-gray-600 text-sm">Gerencie os responsáveis dos estudantes</p>
             </div>
           </div>
           {canEdit && (

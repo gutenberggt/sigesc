@@ -114,7 +114,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled, studentsWithPl
           <div
             className="force-visible-text-muted px-3 py-2 cursor-pointer hover:bg-gray-100"
             onClick={() => { onChange(''); setOpen(false); }}
-          >Selecione o aluno</div>
+          >Selecione o estudante</div>
           {estudantes.map(est => {
             const hasPlan = planSet.has(est.student_id);
             return (
@@ -261,7 +261,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Aluno *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estudante *</label>
                 <StudentDropdown
                   value={form.student_id}
                   onChange={handleStudentChange}
@@ -285,7 +285,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Turma do Aluno na Sala Regular</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Turma do Estudante na Sala Regular</label>
                 <input type="text" value={form.turma_origem_nome} readOnly className="w-full border rounded-lg px-3 py-2 bg-gray-50" />
               </div>
               <div>

@@ -60,7 +60,7 @@ export const InformacoesTab = () => {
       {!infoLoading && infoStudents.length > 0 && (
         <div className="bg-white rounded-xl border overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
-            <h3 className="font-semibold text-gray-900">Informações dos Alunos</h3>
+            <h3 className="font-semibold text-gray-900">Informações dos Estudantes</h3>
             <span className="text-sm text-gray-500">{infoStudents.length} aluno(s)</span>
           </div>
           <div className="overflow-x-auto">
@@ -68,7 +68,7 @@ export const InformacoesTab = () => {
               <thead>
                 <tr className="bg-gray-100 border-b">
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase w-10">Nº</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Nome do Aluno</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Nome do Estudante</th>
                   <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase w-32">Data de Nasc.</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Nome da Mãe</th>
                   <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase w-40">Telefone da Mãe</th>

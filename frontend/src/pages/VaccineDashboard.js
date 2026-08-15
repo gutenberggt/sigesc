@@ -259,7 +259,7 @@ export default function VaccineDashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><User className="h-5 w-5 text-blue-600" /></div>
                 <div>
-                  <p className="text-sm text-gray-500">Total de Alunos</p>
+                  <p className="text-sm text-gray-500">Total de Estudantes</p>
                   <p className="text-2xl font-bold text-gray-900" data-testid="total-students">{summary.total_students}</p>
                 </div>
               </div>
@@ -296,8 +296,8 @@ export default function VaccineDashboard() {
 
         {/* Search Section */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Consulta de Alunos</h2>
-          <p className="text-gray-600 mt-1">Busque alunos por nome ou CPF para validar o status vacinal</p>
+          <h2 className="text-2xl font-bold text-gray-900">Consulta de Estudantes</h2>
+          <p className="text-gray-600 mt-1">Busque estudantes por nome ou CPF para validar o status vacinal</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -364,7 +364,7 @@ export default function VaccineDashboard() {
           )}
 
           {searchTerm.length >= 3 && searchResults.length === 0 && !loading && (
-            <div className="mt-4 text-center py-4 text-gray-500">Nenhum aluno encontrado.</div>
+            <div className="mt-4 text-center py-4 text-gray-500">Nenhum estudante encontrado.</div>
           )}
           {searchTerm.length > 0 && searchTerm.length < 3 && (
             <div className="mt-4 text-center py-4 text-gray-400">Digite pelo menos 3 caracteres...</div>
@@ -503,7 +503,7 @@ export default function VaccineDashboard() {
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="h-8 w-8 text-blue-600" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Busque um aluno</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Busque um estudante</h3>
             <p className="text-gray-500 max-w-md mx-auto">
               Digite o nome ou CPF do aluno no campo de busca acima para validar o status vacinal.
             </p>
@@ -514,7 +514,7 @@ export default function VaccineDashboard() {
         <div className="mt-10">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Listagem por Turma</h2>
-            <p className="text-gray-600 mt-1">Visualize o status vacinal de todos os alunos da turma</p>
+            <p className="text-gray-600 mt-1">Visualize o status vacinal de todos os estudantes da turma</p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -552,7 +552,7 @@ export default function VaccineDashboard() {
           {loadingClass && (
             <div className="bg-white rounded-xl shadow-sm border p-8 flex items-center justify-center">
               <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
-              <span className="ml-3 text-gray-500">Carregando alunos...</span>
+              <span className="ml-3 text-gray-500">Carregando estudantes...</span>
             </div>
           )}
 
@@ -578,7 +578,7 @@ export default function VaccineDashboard() {
                   <thead>
                     <tr className="bg-gray-50 border-b">
                       <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-8">Nº</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno(a)</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Estudante</th>
                       <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Status</th>
                     </tr>
                   </thead>

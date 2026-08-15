@@ -95,7 +95,7 @@ export const EnrollmentAudit = () => {
         toast.success('Tudo certo! Nenhuma matrícula sem número encontrada.');
       } else {
         toast.success(
-          `Correção concluída: ${res.fixed_students} aluno(s) e ${res.fixed_enrollments} matrícula(s) numerados` +
+          `Correção concluída: ${res.fixed_students} estudante(s) e ${res.fixed_enrollments} matrícula(s) numerados` +
           (res.created_enrollments ? `, ${res.created_enrollments} matrícula(s) criada(s).` : '.')
         );
       }
@@ -149,7 +149,7 @@ export const EnrollmentAudit = () => {
                 <tr>
                   <th className="text-left px-5 py-2 font-medium">Matrícula</th>
                   <th className="text-left px-5 py-2 font-medium">Qtd.</th>
-                  <th className="text-left px-5 py-2 font-medium">Alunos envolvidos</th>
+                  <th className="text-left px-5 py-2 font-medium">Estudantes envolvidos</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,17 +299,17 @@ export const EnrollmentAudit = () => {
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" data-testid="empty-students-table">
               <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                 <FileWarning className="w-4 h-4 text-slate-500" />
-                <h3 className="text-base font-semibold text-slate-800">Alunos sem número de matrícula</h3>
+                <h3 className="text-base font-semibold text-slate-800">Estudantes sem número de matrícula</h3>
                 <Badge variant="outline" className="ml-2">{data.students.empty}</Badge>
               </div>
               {(data.students.empty_sample || []).length === 0 ? (
-                <p className="px-5 py-6 text-sm text-slate-500">Todos os alunos possuem matrícula. 🎉</p>
+                <p className="px-5 py-6 text-sm text-slate-500">Todos os estudantes possuem matrícula. 🎉</p>
               ) : (
                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0">
                       <tr>
-                        <th className="text-left px-5 py-2 font-medium">Aluno</th>
+                        <th className="text-left px-5 py-2 font-medium">Estudante</th>
                         <th className="text-left px-5 py-2 font-medium">ID</th>
                       </tr>
                     </thead>
@@ -338,7 +338,7 @@ export const EnrollmentAudit = () => {
                 <Badge variant="outline" className="ml-2">{seriesData?.total_to_fix || 0}</Badge>
               </div>
               {!seriesData || (seriesData.total_to_fix || 0) === 0 ? (
-                <p className="px-5 py-6 text-sm text-slate-500">Todas as matrículas com aluno classificado já têm série. 🎉</p>
+                <p className="px-5 py-6 text-sm text-slate-500">Todas as matrículas com estudante classificado já têm série. 🎉</p>
               ) : (
                 <>
                   <p className="px-5 pt-3 text-xs text-slate-500">
@@ -348,7 +348,7 @@ export const EnrollmentAudit = () => {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50 text-slate-500 text-xs uppercase sticky top-0">
                         <tr>
-                          <th className="text-left px-5 py-2 font-medium">Aluno</th>
+                          <th className="text-left px-5 py-2 font-medium">Estudante</th>
                           <th className="text-left px-5 py-2 font-medium">Turma</th>
                           <th className="text-left px-5 py-2 font-medium">Série (cadastro)</th>
                         </tr>
