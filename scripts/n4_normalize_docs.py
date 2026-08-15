@@ -34,10 +34,16 @@ REPLACEMENTS: list[tuple[re.Pattern[str], str]] = [
 
 INLINE_CODE = re.compile(r"(`+[^`]*?`+)")
 
-EDITORIAL_NOTE = (
+EDITORIAL_NOTE_LEGACY = (
     "> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional "
     "**Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** "
     "modifica schema, shape, invariantes, regras de negócio nem versão do contrato.\n"
+)
+EDITORIAL_NOTE = (
+    "> **Nota editorial (Ago/2026):** normalização da nomenclatura institucional "
+    "**Aluno → Estudante**. Esta alteração é exclusivamente textual e **não** "
+    "modifica schema, shape, invariantes, regras de negócio nem versão do contrato. "
+    "<!-- nomenclature-allow: registro editorial da migração terminológica -->\n"
 )
 
 
@@ -77,7 +83,12 @@ def normalize(path: Path) -> tuple[int, list[str]]:
             output.append(line)
             continue
 
-        new_line = line if in_fence else replace_prose(line)
+        # Waivers e a nota editorial documentam intencionalmente o termo legado.
+        if "nomenclature-allow" in line or "Nota editorial (Ago/2026)" in line:
+            new_line = line
+        else:
+            new_line = line if in_fence else replace_prose(line)
+
         if new_line != line:
             changed_lines.append(f"{path.relative_to(ROOT)}:{line_no}: {line.rstrip()} -> {new_line.rstrip()}")
         output.append(new_line)
@@ -99,14 +110,16 @@ def apply_exact(path: Path, replacements: list[tuple[str, str]]) -> list[str]:
     return changes
 
 
-def insert_editorial_note(path: Path, anchor: str) -> list[str]:
+def ensure_editorial_note(path: Path, anchor: str) -> list[str]:
     text = path.read_text(encoding="utf-8")
-    if EDITORIAL_NOTE.strip() in text:
+    if EDITORIAL_NOTE in text:
         return []
+    if EDITORIAL_NOTE_LEGACY in text:
+        path.write_text(text.replace(EDITORIAL_NOTE_LEGACY, EDITORIAL_NOTE, 1), encoding="utf-8")
+        return [f"{path.relative_to(ROOT)}: waiver editorial adicionado"]
     if anchor not in text:
         raise RuntimeError(f"Âncora editorial não encontrada em {path}: {anchor!r}")
-    text = text.replace(anchor, anchor + EDITORIAL_NOTE, 1)
-    path.write_text(text, encoding="utf-8")
+    path.write_text(text.replace(anchor, anchor + EDITORIAL_NOTE, 1), encoding="utf-8")
     return [f"{path.relative_to(ROOT)}: nota editorial inserida"]
 
 
@@ -118,15 +131,15 @@ def targeted_fixes() -> list[str]:
     history = ROOT / "docs/HISTORICO_ESCOLAR_CONTRACT.md"
     dependency = ROOT / "docs/STUDENT_DEPENDENCY.md"
 
-    report += insert_editorial_note(
+    report += ensure_editorial_note(
         academic,
         "> Este contrato precede qualquer implementação de movimentação acadêmica.\n",
     )
-    report += insert_editorial_note(
+    report += ensure_editorial_note(
         diary,
         "> **Pré-requisito**: Fase 1 da Dependência de Estudos validada (ver `STUDENT_DEPENDENCY.md`).\n",
     )
-    report += insert_editorial_note(
+    report += ensure_editorial_note(
         history,
         "> Rotas de implementação: Fase 4 (depois do Boletim — Fase 3).\n",
     )
@@ -145,6 +158,23 @@ def targeted_fixes() -> list[str]:
         diary,
         [
             ("// null se aluno regular", "// null se estudante regular"),
+            ('"message": "Volume anômalo de alunos em dependência neste componente."', '"message": "Volume anômalo de estudantes em dependência neste componente."'),
+            ("\nAlunos:\n", "\nEstudantes:\n"),
+        ],
+    )
+
+    report += apply_exact(
+        history,
+        [
+            ("// sem nome do aluno", "// sem nome do estudante"),
+        ],
+    )
+
+    report += apply_exact(
+        dependency,
+        [
+            ("# Duplicidade: 1 dep ativa por aluno×componente×ano de origem", "# Duplicidade: 1 dep ativa por estudante×componente×ano de origem"),
+            ("1. alunos regulares (sort alfabético do nome)", "1. estudantes regulares (sort alfabético do nome)"),
         ],
     )
 
