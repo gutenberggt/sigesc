@@ -78,7 +78,12 @@ FORBIDDEN_TARGET_SNIPPETS = {
     "backend/pdf/notas.py": ["Total de Alunos:", "ALUNO(A)", "Nenhum aluno encontrado."],
     "backend/pdf/plano_aee.py": ["Paragraph('Aluno(a):', label)"],
     "backend/pdf/transfer_receipt.py": ["Alunos afetados"],
-    "backend/pdf/turma.py": ["Alunos Matriculados:", "ALUNOS MATRICULADOS", "Paragraph('Aluno(a)'", "Nenhum aluno matriculado"],
+    "backend/pdf/turma.py": [
+        "make_field('Alunos Matriculados:'",
+        'section_header(f"ALUNOS MATRICULADOS',
+        "Paragraph('Aluno(a)', th_style)",
+        'Paragraph("Nenhum aluno matriculado"',
+    ],
     "backend/routers/bolsa_familia.py": ['("Aluno", "student_name")', "Alunos Transferidos no Período"],
     "backend/routers/history_reconstruction.py": ["Alunos processados"],
     "backend/routers/students.py": ["RELATÓRIO DE ALUNOS", "aluno(s) ativo(s)"],
