@@ -28,7 +28,7 @@ from utils.serie_canonical import canonicalize_serie, UNRECOGNIZED_KEY
 from utils.student_location import normalize_student_address_location
 from services.pedagogical_consolidation import consolidate_student_movement
 
-router = APIRouter(prefix="/students", tags=["Alunos"])
+router = APIRouter(prefix="/students", tags=["Estudantes"])
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if not student_data.school_id or not student_data.class_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Não é possível criar aluno com status 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
+                    detail="Não é possível criar estudante com status 'Ativo' sem escola e turma definidas. O estudante precisa estar matriculado em uma turma."
                 )
             # [Fase 0 — Contenção] Garante que a turma EXISTE e pertence à
             # escola do aluno. Impede criação de matrículas órfãs (class_id
@@ -167,7 +167,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if class_check.get('school_id') != student_data.school_id:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="A turma selecionada pertence a outra escola. Selecione uma turma da mesma escola do aluno."
+                    detail="A turma selecionada pertence a outra escola. Selecione uma turma da mesma escola do estudante."
                 )
         
         student_dict = student_data.model_dump()
@@ -1523,7 +1523,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not student_doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
         
         # Verifica acesso à escola do aluno
@@ -1555,7 +1555,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not student_doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
         
         # Verifica permissões de acesso
@@ -1573,13 +1573,13 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if is_active and not is_from_user_school:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Você só pode editar alunos ativos da sua escola"
+                    detail="Você só pode editar estudantes ativos da sua escola"
                 )
         elif current_user.get('role') not in ['semed']:
             if current_school_id and current_school_id not in user_school_ids:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Você não tem permissão para editar alunos desta escola"
+                    detail="Você não tem permissão para editar estudantes desta escola"
                 )
         
         update_data = student_update.model_dump(exclude_unset=True)
@@ -1645,7 +1645,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if not final_school_id or not final_class_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Não é possível definir o status como 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
+                    detail="Não é possível definir o status como 'Ativo' sem escola e turma definidas. O estudante precisa estar matriculado em uma turma."
                 )
             # [Fase 0 — Contenção] Garante que a turma EXISTE e pertence à
             # escola do aluno antes de manter/definir status 'Ativo'.
@@ -1661,7 +1661,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if class_check.get('school_id') != final_school_id:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="A turma selecionada pertence a outra escola. Selecione uma turma da mesma escola do aluno."
+                    detail="A turma selecionada pertence a outra escola. Selecione uma turma da mesma escola do estudante."
                 )
 
         # [Fase 0 — Contenção] Deduplica `disabilities[]` (se enviado).
@@ -1745,7 +1745,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             except DuplicateKeyError:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Este aluno já possui matrícula ativa na turma de destino."
+                    detail="Este estudante já possui matrícula ativa na turma de destino."
                 )
 
             # CONSOLIDAÇÃO PEDAGÓGICA (backend, idempotente): leva frequência, notas
@@ -1785,7 +1785,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if new_status != old_status:
             if new_status == 'transferred':
                 action_type = 'transferencia_saida'
-                history_obs = "Aluno marcado para transferência"
+                history_obs = "Estudante marcado para transferência"
                 
                 await current_db.enrollments.update_many(
                     {"student_id": student_id, "status": "active"},
@@ -1794,7 +1794,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             
             elif new_status == 'dropout':
                 action_type = 'desistencia'
-                history_obs = "Aluno registrado como desistente"
+                history_obs = "Estudante registrado como desistente"
                 
                 await current_db.enrollments.update_many(
                     {"student_id": student_id, "status": "active"},
@@ -1916,7 +1916,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     except DuplicateKeyError:
                         raise HTTPException(
                             status_code=status.HTTP_409_CONFLICT,
-                            detail="Este aluno já possui matrícula ativa nesta turma. Não é possível duplicar."
+                            detail="Este estudante já possui matrícula ativa nesta turma. Não é possível duplicar."
                         )
                     
                     new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
@@ -2013,7 +2013,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not student:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
         
         history = await current_db.student_history.find(
@@ -2047,13 +2047,13 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not student:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
         
         if student.get('status') != 'transferred':
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="O aluno precisa estar com status 'Transferido' para ser matriculado em outra escola"
+                detail="O estudante precisa estar com status 'Transferido' para ser matriculado em outra escola"
             )
         
         if student.get('school_id') == new_school_id:
@@ -2122,7 +2122,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         updated_student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         return {
-            "message": "Aluno transferido com sucesso",
+            "message": "Estudante transferido com sucesso",
             "student": updated_student,
             "enrollment": new_enrollment
         }
@@ -2163,12 +2163,12 @@ def setup_students_router(db, audit_service, sandbox_db=None):
 
         student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         if student.get('status') != 'transferred':
             raise HTTPException(
                 status_code=400,
-                detail="Só é possível cancelar transferência de aluno com status 'Transferido'."
+                detail="Só é possível cancelar transferência de estudante com status 'Transferido'."
             )
 
         # Localiza o enrollment a ser revertido (mais recente com status='transferred')
@@ -2181,7 +2181,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not enrollment:
             raise HTTPException(
                 status_code=404,
-                detail="Matrícula transferida não encontrada para este aluno."
+                detail="Matrícula transferida não encontrada para este estudante."
             )
 
         class_id = enrollment.get('class_id')
@@ -2219,7 +2219,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "action_type": "transferencia_cancelada",
             "previous_status": "transferred",
             "new_status": "active",
-            "observations": "Transferência cancelada — aluno restaurado na turma de origem.",
+            "observations": "Transferência cancelada — estudante restaurado na turma de origem.",
             "user_id": current_user.get('id'),
             "user_name": current_user.get('full_name') or current_user.get('email'),
             "action_date": datetime.now(timezone.utc).isoformat(),
@@ -2243,7 +2243,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
 
         updated_student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         return {
-            "message": "Transferência cancelada com sucesso. Aluno restaurado na turma de origem.",
+            "message": "Transferência cancelada com sucesso. Estudante restaurado na turma de origem.",
             "student": Student(**updated_student).model_dump(),
             "class_id": class_id,
             "school_id": school_id,
@@ -2259,7 +2259,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not student_doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
         
         await AuthMiddleware.verify_school_access(request, student_doc['school_id'])
@@ -2269,7 +2269,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if result.deleted_count == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
         
         # Registra auditoria
@@ -2325,7 +2325,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not student:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Aluno não encontrado"
+                detail="Estudante não encontrado"
             )
 
         # Delega ao serviço canônico idempotente (frequência + notas + CONTEÚDO).

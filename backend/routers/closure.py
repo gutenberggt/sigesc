@@ -66,7 +66,7 @@ def setup_closure_router(db) -> APIRouter:
         stu_filter = apply_tenant_filter({"id": student_id}, user, request)
         student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         closure = await compute_composite_closure(
             db,
@@ -91,7 +91,7 @@ def setup_closure_router(db) -> APIRouter:
         stu_filter = apply_tenant_filter({"id": student_id}, user, request)
         student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         window = await compute_class_window_for_student(
             db,
@@ -105,7 +105,7 @@ def setup_closure_router(db) -> APIRouter:
                 status_code=404,
                 detail={
                     "code": "NO_WINDOW_FOR_CLASS",
-                    "message": "Aluno nunca foi dono desta turma neste ano.",
+                    "message": "Estudante nunca foi dono desta turma neste ano.",
                 },
             )
         return {"academic_year": academic_year, "student_id": student_id, **window}
@@ -200,7 +200,7 @@ def setup_closure_router(db) -> APIRouter:
         stu_filter = apply_tenant_filter({"id": student_id}, user, request)
         student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         periods = await compute_temporal_periods(
             db,

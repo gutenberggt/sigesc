@@ -49,11 +49,11 @@ def setup_bulletin_pdf_router(db, audit_service=None):
 
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         # Diretor/coordenador/professor: só da própria escola
         if user.get("role") in {"diretor", "coordenador", "professor", "secretario"}:
             if user.get("school_id") and student.get("school_id") != user.get("school_id"):
-                raise HTTPException(status_code=403, detail="Aluno fora da sua escola")
+                raise HTTPException(status_code=403, detail="Estudante fora da sua escola")
 
         source_snapshot_id = f"boletim:{student_id}:{int(academic_year)}"
         idem_key = compute_idempotency_key(

@@ -110,7 +110,7 @@ def setup_router(db, **kwargs):
 
         student = await db.students.find_one({"id": student_id}, {"_id": 0, "id": 1})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         now = datetime.now(timezone.utc).isoformat()
 

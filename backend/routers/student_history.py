@@ -34,7 +34,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         history = await current_db.student_history.find_one(
             {"student_id": student_id}, {"_id": 0}
@@ -57,7 +57,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         body = await request.json()
         records = body.get('records', [])
@@ -128,7 +128,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         # Buscar todas as matrículas do aluno (ativas e transferidas)
         enrollments = await current_db.enrollments.find(

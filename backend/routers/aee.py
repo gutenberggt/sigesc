@@ -92,7 +92,7 @@ def setup_aee_router(db, audit_service):
         # Busca dados do aluno
         student = await db.students.find_one({"id": plano_data.student_id}, {"_id": 0, "full_name": 1})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         
         # Verifica se já existe plano ativo para este aluno no ano
         existing = await db.planos_aee.find_one({
@@ -103,7 +103,7 @@ def setup_aee_router(db, audit_service):
         if existing:
             status_label = {"ativo": "ativo", "rascunho": "em rascunho"}.get(
                 existing.get("status"), existing.get("status") or "ativo")
-            nome = student.get('full_name', 'Este aluno')
+            nome = student.get('full_name', 'Este estudante')
             raise HTTPException(
                 status_code=400,
                 detail=(f"{nome} já possui um Plano AEE {status_label} no ano letivo "
@@ -314,11 +314,11 @@ def setup_aee_router(db, audit_service):
                 {"_id": 0, "id": 1, "full_name": 1, "school_id": 1, "class_id": 1}
             )
             if not target:
-                raise HTTPException(status_code=404, detail="Aluno alvo não encontrado")
+                raise HTTPException(status_code=404, detail="Estudante alvo não encontrado")
             if target.get('school_id') != original.get('school_id'):
                 raise HTTPException(
                     status_code=400,
-                    detail="O aluno alvo deve pertencer à mesma escola do plano original"
+                    detail="O estudante alvo deve pertencer à mesma escola do plano original"
                 )
             existing = await db.planos_aee.find_one({
                 "student_id": target_student_id,
@@ -328,7 +328,7 @@ def setup_aee_router(db, audit_service):
             if existing:
                 raise HTTPException(
                     status_code=400,
-                    detail="Já existe um Plano AEE para este aluno no mesmo ano letivo"
+                    detail="Já existe um Plano AEE para este estudante no mesmo ano letivo"
                 )
             novo['student_id'] = target_student_id
             new_class_id = target.get('class_id')
@@ -592,7 +592,7 @@ def setup_aee_router(db, audit_service):
              "atendimento_programa_class_id": 1}
         )
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
         academic_year = body.get('academic_year') or datetime.now(timezone.utc).year
         # Bloqueia duplicidade de plano para o aluno no mesmo ano letivo
@@ -604,7 +604,7 @@ def setup_aee_router(db, audit_service):
         if existing:
             raise HTTPException(
                 status_code=400,
-                detail="Já existe um Plano AEE para este aluno no mesmo ano letivo"
+                detail="Já existe um Plano AEE para este estudante no mesmo ano letivo"
             )
 
         # Resolve professor regente da turma de origem
@@ -730,7 +730,7 @@ def setup_aee_router(db, audit_service):
         if atendimento_data.student_id and atendimento_data.student_id != plano.get('student_id'):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Inconsistência: o aluno do atendimento não corresponde ao aluno do Plano AEE informado."
+                detail="Inconsistência: o estudante do atendimento não corresponde ao estudante do Plano AEE informado."
             )
         
         # Calcula duração se não informada

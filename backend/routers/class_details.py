@@ -316,7 +316,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             stu = students_map.get(sid, {})
             items.append({
                 "student_id": sid,
-                "full_name": stu.get("full_name") or "(aluno removido)",
+                "full_name": stu.get("full_name") or "(estudante removido)",
                 "enrollment_number": e.get("enrollment_number") or stu.get("enrollment_number"),
                 "student_series": e.get("student_series"),
                 "academic_year": e.get("academic_year"),

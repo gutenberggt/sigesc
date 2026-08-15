@@ -53,7 +53,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             issues = []
             student = await db.students.find_one({"id": enrollment.get('student_id')})
             if not student:
-                issues.append("Aluno não encontrado")
+                issues.append("Estudante não encontrado")
             school = await db.schools.find_one({"id": enrollment.get('school_id')})
             if not school:
                 issues.append("Escola não encontrada")
@@ -305,7 +305,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         if not all_ids:
             return {
-                "message": "Nenhum aluno cancelado encontrado para limpar.",
+                "message": "Nenhum estudante cancelado encontrado para limpar.",
                 "totals": {"students": 0, "enrollments": 0, "attendance": 0, "grades": 0}
             }
 

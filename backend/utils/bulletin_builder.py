@@ -288,7 +288,7 @@ async def build_student_bulletin(
     warnings: list[dict] = []
     if not periods:
         warnings.append({"code": "NO_PERIODS",
-                         "message": "Aluno sem matrícula ativa nem evento acadêmico no ano."})
+                         "message": "Estudante sem matrícula ativa nem evento acadêmico no ano."})
 
     # Resolve metadados de turma/escola "primária" — aqui usamos o ÚLTIMO período
     # (turma vigente ao final do ano) como referência de cabeçalho.
@@ -531,7 +531,7 @@ async def build_student_dependency_bulletin(
             "code": "NO_ACTIVE_DEPENDENCIES",
             "class_id": target_class_id,
             "message": (
-                "Aluno não possui dependências ativas nesta turma para o ano. "
+                "Estudante não possui dependências ativas nesta turma para o ano. "
                 "Cadastre antes de gerar boletim de dependência."
             ),
         })

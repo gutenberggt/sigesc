@@ -186,7 +186,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def _load_student(current_db, user, request, student_id: str) -> Dict[str, Any]:
         student = await current_db.students.find_one({'id': student_id}, {'_id': 0})
         if not student:
-            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+            raise HTTPException(status_code=404, detail="Estudante não encontrado")
         assert_same_tenant(student, user, request)
         return student
 

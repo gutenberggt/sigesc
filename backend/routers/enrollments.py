@@ -93,7 +93,7 @@ def setup_router(db, audit_service):
         except DuplicateKeyError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Este aluno já possui matrícula ativa nesta turma. Não é possível duplicar."
+                detail="Este estudante já possui matrícula ativa nesta turma. Não é possível duplicar."
             )
         
         # Sincroniza dados do aluno com a matrícula (school_id, class_id, status).
@@ -283,7 +283,7 @@ def setup_router(db, audit_service):
         }, {"_id": 0})
 
         if not enrollment:
-            raise HTTPException(status_code=404, detail="Nenhuma matrícula ativa encontrada para este aluno nesta turma")
+            raise HTTPException(status_code=404, detail="Nenhuma matrícula ativa encontrada para este estudante nesta turma")
 
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc).isoformat()

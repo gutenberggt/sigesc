@@ -95,7 +95,7 @@ def setup_student_health_router(db, auth_middleware, audit_service, sandbox_db=N
             {'_id': 0, 'id': 1, 'full_name': 1, 'school_id': 1, 'mantenedora_id': 1},
         )
         if not student:
-            raise HTTPException(status_code=404, detail='Aluno não encontrado')
+            raise HTTPException(status_code=404, detail='Estudante não encontrado')
 
         school_id = student.get('school_id')
         if not school_id:
@@ -114,7 +114,7 @@ def setup_student_health_router(db, auth_middleware, audit_service, sandbox_db=N
             if not school_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail='Não foi possível determinar a escola ativa do aluno',
+                    detail='Não foi possível determinar a escola ativa do estudante',
                 )
             if school_id not in (current_user.get('school_ids') or []):
                 staff_id = current_user.get('staff_id') or current_user.get('id')
@@ -126,7 +126,7 @@ def setup_student_health_router(db, auth_middleware, audit_service, sandbox_db=N
                 if not assignment:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail='Sem permissão: usuário não está vinculado à escola deste aluno',
+                        detail='Sem permissão: usuário não está vinculado à escola deste estudante',
                     )
 
         return current_user, current_db, student
@@ -197,7 +197,7 @@ def setup_student_health_router(db, auth_middleware, audit_service, sandbox_db=N
         if not tenant_id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail='Não foi possível determinar a Unidade Mantenedora do aluno',
+                detail='Não foi possível determinar a Unidade Mantenedora do estudante',
             )
 
         base_doc = {
