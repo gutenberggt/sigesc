@@ -31,14 +31,78 @@ import {
   Award,
   BookMarked,
   Home,
-  Smartphone
+  Smartphone,
+  Briefcase,
+  ShieldCheck
 } from 'lucide-react';
 import TutorialCoordenador from './tutorials/TutorialCoordenador';
+import TutorialDiretor from './tutorials/TutorialDiretor';
+import { coordinatorTutorials } from './tutorials/coordinatorTutorials';
+import { directorTutorials } from './tutorials/directorTutorials';
+
+const coordinatorIcons = {
+  'primeiros-passos': Key,
+  'turmas-estudantes': School,
+  'acompanhamento-diarios': BarChart3,
+  frequencia: CheckSquare,
+  notas: PenLine,
+  'registro-conteudos': BookOpen,
+  'adaptacoes-curriculares': BookMarked,
+  'cobertura-curricular': ClipboardList,
+  'calendario-diario': Calendar,
+  'integridade-grade': Settings,
+  intervencoes: ListChecks,
+  'plano-acao': FileText,
+  'atestados-justificativas': FileText,
+  boletins: BookOpen,
+  'livro-promocao': Award,
+  'diario-aee': Award,
+  'avisos-calendario': Bell,
+  'validar-documentos': CheckSquare,
+  'indicadores-ranking': BarChart3,
+};
+
+const directorIcons = {
+  'primeiros-passos': Key,
+  'turmas-estudantes': School,
+  'historico-movimentacoes': Clock,
+  'acompanhamento-diarios': BarChart3,
+  frequencia: CheckSquare,
+  'atestados-justificativas': FileText,
+  'registro-conteudos': BookOpen,
+  'cobertura-curricular': ClipboardList,
+  'calendario-diario': Calendar,
+  'integridade-grade': Settings,
+  'diario-aee': Award,
+  'pre-matriculas': UserPlus,
+  intervencoes: ListChecks,
+  'plano-acao': FileText,
+  'avisos-calendario': Bell,
+  'rh-folha': Briefcase,
+  boletins: BookOpen,
+  'livro-promocao': Award,
+  declaracoes: FileText,
+  'validar-documentos': CheckSquare,
+  'ranking-gestao': BarChart3,
+  'fechamento-gerencial': ShieldCheck,
+};
+
+const buildTrailCards = (tutorials, queryParam, iconMap) => tutorials.map((tutorial) => ({
+  title: tutorial.title,
+  icon: iconMap[tutorial.slug] || BookOpen,
+  stage: tutorial.category,
+  link: `/tutoriais?${queryParam}=${encodeURIComponent(tutorial.slug)}`,
+}));
 
 export default function TutorialsPage() {
   const [expandedBlock, setExpandedBlock] = useState(null);
   const [searchParams] = useSearchParams();
+  const directorSlug = searchParams.get('diretor');
   const coordinatorSlug = searchParams.get('coordenador');
+
+  if (directorSlug) {
+    return <TutorialDiretor slug={directorSlug} />;
+  }
 
   if (coordinatorSlug) {
     return <TutorialCoordenador slug={coordinatorSlug} />;
@@ -50,20 +114,8 @@ export default function TutorialsPage() {
       title: 'Diretores',
       icon: UserCog,
       color: 'blue',
-      description: 'Tutoriais para gestão escolar e acompanhamento da unidade',
-      tutorials: [
-        { title: 'Acesso ao sistema e primeiro login', icon: Key },
-        { title: 'Visão geral do Dashboard', icon: BarChart3 },
-        { title: 'Acompanhamento de matrículas da escola', icon: Users },
-        { title: 'Visualização de relatórios de frequência', icon: ClipboardList },
-        { title: 'Consulta de notas e boletins', icon: FileText },
-        { title: 'Gerenciamento de turmas da escola', icon: School },
-        { title: 'Visualização do calendário escolar', icon: Calendar },
-        { title: 'Gestão de avisos e comunicados', icon: Bell },
-        { title: 'Acompanhamento de professores', icon: UserCheck },
-        { title: 'Relatórios gerenciais da escola', icon: BarChart3 },
-        { title: 'Exportação de dados para Excel', icon: Download },
-      ]
+      description: 'Trilha completa para gestão pedagógica, operacional, documental e tomada de decisão',
+      tutorials: buildTrailCards(directorTutorials, 'diretor', directorIcons)
     },
     {
       id: 'coordenadores',
@@ -71,27 +123,7 @@ export default function TutorialsPage() {
       icon: ClipboardList,
       color: 'purple',
       description: 'Trilha completa para acompanhamento, intervenção e fechamento pedagógico',
-      tutorials: [
-        { title: 'Primeiros passos e painel do coordenador', icon: Key, stage: 'Comece aqui', link: '/tutoriais?coordenador=primeiros-passos' },
-        { title: 'Turmas e estudantes: visão pedagógica', icon: School, stage: 'Comece aqui', link: '/tutoriais?coordenador=turmas-estudantes' },
-        { title: 'Acompanhamento dos Diários de Classe', icon: BarChart3, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=acompanhamento-diarios' },
-        { title: 'Frequência: análise por turma e estudante', icon: CheckSquare, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=frequencia' },
-        { title: 'Notas: lançamentos, pendências e aprendizagem', icon: PenLine, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=notas' },
-        { title: 'Registro de Conteúdos: o que foi trabalhado', icon: BookOpen, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=registro-conteudos' },
-        { title: 'Adaptações Curriculares: planejar apoios', icon: BookMarked, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=adaptacoes-curriculares' },
-        { title: 'Cobertura Curricular: previsto x realizado', icon: ClipboardList, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=cobertura-curricular' },
-        { title: 'Calendário do Diário: dias letivos e consistência', icon: Calendar, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=calendario-diario' },
-        { title: 'Integridade da Grade Horária', icon: Settings, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=integridade-grade' },
-        { title: 'Intervenções Necessárias: priorizar atenção', icon: ListChecks, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=intervencoes' },
-        { title: 'Plano de Ação: do diagnóstico ao acompanhamento', icon: FileText, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=plano-acao' },
-        { title: 'Atestados e justificativas de ausência', icon: FileText, stage: 'Rotina pedagógica', link: '/tutoriais?coordenador=atestados-justificativas' },
-        { title: 'Boletim Online: conferência dos resultados', icon: BookOpen, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=boletins' },
-        { title: 'Livro de Promoção: acompanhar o fechamento', icon: Award, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=livro-promocao' },
-        { title: 'Diário AEE: acompanhamento pela coordenação', icon: Award, stage: 'Currículo e intervenção', link: '/tutoriais?coordenador=diario-aee' },
-        { title: 'Avisos e calendário: rotina pedagógica', icon: Bell, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=avisos-calendario' },
-        { title: 'Validar documentos escolares', icon: CheckSquare, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=validar-documentos' },
-        { title: 'Indicadores e Ranking de Gestão: leitura responsável', icon: BarChart3, stage: 'Fechamento e evidências', link: '/tutoriais?coordenador=indicadores-ranking' },
-      ]
+      tutorials: buildTrailCards(coordinatorTutorials, 'coordenador', coordinatorIcons)
     },
     {
       id: 'secretarios',
@@ -319,7 +351,7 @@ export default function TutorialsPage() {
                     </div>
                   </button>
 
-                  <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1800px]' : 'max-h-0'}`}>
+                  <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[2200px]' : 'max-h-0'}`}>
                     <div className="px-6 pb-6">
                       <div className="border-t border-slate-700/50 pt-4">
                         <ul className="space-y-2">
@@ -333,7 +365,7 @@ export default function TutorialsPage() {
                                     {tutorial.title}
                                   </span>
                                   {tutorial.stage && (
-                                    <span className="text-[10px] uppercase tracking-wide text-purple-300/70 mt-0.5 block">
+                                    <span className={`text-[10px] uppercase tracking-wide mt-0.5 block ${colors.text} opacity-70`}>
                                       {tutorial.stage}
                                     </span>
                                   )}
