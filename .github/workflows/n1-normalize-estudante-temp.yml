@@ -20,7 +20,9 @@ jobs:
           fetch-depth: 0
 
       - name: Executar normalização segura
-        run: python3 scripts/n1_normalize_estudante_ui.py
+        run: |
+          python3 scripts/n1_normalize_estudante_ui.py
+          python3 scripts/n1_targeted_cleanup.py
 
       - name: Mostrar diff
         run: |
@@ -36,5 +38,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add frontend/src
-          git commit -m "chore(n1): normalizar nomenclatura visível [n1-auto]"
+          git commit -m "chore(n1): finalizar nomenclatura visível [n1-auto]"
           git push origin HEAD:feat/n1-ui-tutoriais-estudante
