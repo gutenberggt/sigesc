@@ -1,0 +1,40 @@
+name: N1 - Normalizar Estudante (temporário)
+
+on:
+  push:
+    branches:
+      - feat/n1-ui-tutoriais-estudante
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: ${{ !contains(github.event.head_commit.message, '[n1-auto]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/n1-ui-tutoriais-estudante
+          fetch-depth: 0
+
+      - name: Executar normalização segura
+        run: python3 scripts/n1_normalize_estudante_ui.py
+
+      - name: Mostrar diff
+        run: |
+          git diff --stat
+          git diff -- frontend/src
+
+      - name: Commitar somente frontend
+        run: |
+          if git diff --quiet -- frontend/src; then
+            echo "Nenhuma alteração necessária."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src
+          git commit -m "chore(n1): normalizar nomenclatura visível [n1-auto]"
+          git push origin HEAD:feat/n1-ui-tutoriais-estudante
