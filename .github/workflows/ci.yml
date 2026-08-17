@@ -123,3 +123,29 @@ jobs:
         # Compila todos os módulos Python para detectar
         # erros de sintaxe antes do deploy.
         run: python -m compileall -q .
+
+  diary-assignment-contract:
+    name: Backend - Diário por Vínculo guards
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest pytest-asyncio
+
+      - name: Run Fase 0 + Fase 1 guard tests
+        run: |
+          pytest -q \
+            tests/test_diary_assignment_contract_phase0.py \
+            tests/test_diary_assignment_access_phase1.py
