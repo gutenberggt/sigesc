@@ -3,6 +3,9 @@
 Testes unitários puros: sem HTTP, sem Mongo real e sem alterar dados.
 """
 
+import ast
+from pathlib import Path
+
 import pytest
 
 from services.diary_assignment_access import (
@@ -107,6 +110,31 @@ def test_vinculo_legado_nao_e_habilitado_implicitamente():
     settings = effective_diary_settings(_assignment(diary_settings=None))
     assert settings.enabled is False
     assert settings.profile is DiaryProfile.REGULAR
+
+
+def test_router_exige_enabled_true_explicito():
+    """`diary_settings: {}` não pode ativar o DVD por default do payload HTTP."""
+    router_path = Path(__file__).resolve().parents[1] / "routers" / "teacher_class_assignments.py"
+    tree = ast.parse(router_path.read_text(encoding="utf-8"))
+
+    class_node = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "DiarySettingsPayload"
+    )
+    enabled_node = next(
+        node for node in class_node.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "enabled"
+    )
+    assert isinstance(enabled_node.value, ast.Constant)
+    assert enabled_node.value.value is False
+
+
+def test_diary_settings_malformado_falsy_nao_e_tratado_como_legado():
+    with pytest.raises(DiaryAssignmentAccessError) as exc:
+        effective_diary_settings(_assignment(diary_settings=[]))
+    assert exc.value.code == "INVALID_DIARY_SETTINGS"
 
 
 def test_group_so_e_valido_para_shared():
@@ -305,6 +333,42 @@ async def test_escola_e_tenant_sao_guardrails_independentes():
             _db(), professor_outro_tenant, "assignment-1", on_date="2026-08-17"
         ),
     )
+
+
+@pytest.mark.asyncio
+async def test_usuario_nao_super_sem_tenant_falha_fechado():
+    await _deny(
+        "TENANT_ACCESS_DENIED",
+        authorize_assignment_access(
+            _db(), _user(mantenedora_id=None), "assignment-1", on_date="2026-08-17"
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_recurso_sem_tenant_falha_fechado_para_usuario_comum():
+    klass = _class(mantenedora_id=None)
+    await _deny(
+        "TENANT_ACCESS_DENIED",
+        authorize_assignment_access(
+            _db(klass=klass), _user(), "assignment-1", on_date="2026-08-17"
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_super_admin_sem_escopo_pode_operar_cross_tenant_intencionalmente():
+    super_admin = _user(
+        id="super-1",
+        role="super_admin",
+        school_ids=[],
+        mantenedora_id=None,
+    )
+    ctx = await authorize_assignment_access(
+        _db(), super_admin, "assignment-1", action="view", on_date="2026-08-17"
+    )
+    assert ctx.is_owner is False
+    assert ctx.management_override is False
 
 
 @pytest.mark.asyncio
