@@ -8,6 +8,45 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+async def _ensure_content_entry_logical_indexes(db):
+    """Evolui a unicidade de `content_entries` sem reescrever documentos.
+
+    Legado continua único por professor. Registros DVD passam a ser únicos por
+    assignment. O índice antigo é recriado uma única vez com filtro que exclui
+    registros DVD; isso permite dois vínculos distintos do mesmo professor no
+    mesmo contexto sem colisão artificial.
+    """
+    legacy_partial = {"deleted": False, "assignment_id": None}
+    info = await db.content_entries.index_information()
+    current = info.get("ux_content_entry_logical")
+    if current and current.get("partialFilterExpression") != legacy_partial:
+        logger.info("Evoluindo ux_content_entry_logical para coexistência legado/DVD")
+        await db.content_entries.drop_index("ux_content_entry_logical")
+
+    await db.content_entries.create_index(
+        [("class_id", 1), ("component_id", 1), ("teacher_id", 1),
+         ("date", 1), ("aula_numero", 1)],
+        unique=True,
+        partialFilterExpression=legacy_partial,
+        name="ux_content_entry_logical",
+        background=True,
+    )
+    await db.content_entries.create_index(
+        [("class_id", 1), ("component_id", 1), ("assignment_id", 1),
+         ("date", 1), ("aula_numero", 1)],
+        unique=True,
+        partialFilterExpression={"deleted": False, "assignment_id": {"$gt": ""}},
+        name="ux_content_entry_assignment",
+        background=True,
+    )
+    await db.content_entries.create_index(
+        [("assignment_id", 1), ("date", -1)],
+        name="ix_content_assignment_date",
+        background=True,
+        sparse=True,
+    )
+
+
 async def create_all_indexes(db):
     """Cria/verifica índices em todas as coleções relevantes."""
     # Índices para students
@@ -87,19 +126,10 @@ async def create_all_indexes(db):
     )
 
     # =========================================================
-    # Content Entries (Diário Pedagógico) — Rodada 2 / Mai/2026
+    # Content Entries (Diário Pedagógico) — Rodada 2 / Mai/2026 + DVD Fase 2
     # =========================================================
     await db.content_entries.create_index("id", unique=True)
-    # UNIQUE composto: 1 entry por (turma, componente, professor, data, aula)
-    # Apenas para docs vivos (deleted=false). Permite soft-delete + recreate.
-    await db.content_entries.create_index(
-        [("class_id", 1), ("component_id", 1), ("teacher_id", 1),
-         ("date", 1), ("aula_numero", 1)],
-        unique=True,
-        partialFilterExpression={"deleted": False},
-        name="ux_content_entry_logical",
-        background=True,
-    )
+    await _ensure_content_entry_logical_indexes(db)
     # Calendário/listagem por turma+data
     await db.content_entries.create_index(
         [("class_id", 1), ("date", 1), ("deleted", 1)],
