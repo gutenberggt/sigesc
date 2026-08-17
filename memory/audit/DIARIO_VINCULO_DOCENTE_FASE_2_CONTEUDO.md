@@ -1,6 +1,6 @@
 # Diário por Vínculo Docente v1.0 — Fase 2 — Registro de Conteúdos
 
-**Status:** implementação em branch isolada  
+**Status:** implementação em branch isolada / PR Draft #31  
 **Branch:** `agent/diario-vinculo-fase2-conteudo`  
 **Base:** `main` em `e3d6141538c5ac918dfa40090d19b2a4e4f46a59`
 
@@ -8,35 +8,75 @@
 
 Conectar `content_entries` ao modelo de Diário por Vínculo Docente (DVD) sem alterar Frequência, Notas/Conceitos, PDFs ou AEE e sem executar backfill histórico.
 
-Conteúdo foi escolhido como primeiro consumidor porque já é um domínio independente de frequência, possui autoria docente própria e optimistic locking/auditoria consolidados.
+Conteúdo é o primeiro consumidor real do `assignment_id` porque já é independente de frequência e possui autoria, versionamento, publicação/correção e auditoria próprios.
 
-## 2. Regra de compatibilidade
+## 2. Regra dual-mode
 
-A Fase 2 é dual-mode:
+A Fase 2 mantém coexistência explícita:
 
-- registro sem `assignment_id`: **legado**, com comportamento anterior preservado;
-- registro com `assignment_id`: **DVD**, sujeito à autorização central da Fase 1.
+- registro sem `assignment_id`: **legado**, comportamento anterior preservado;
+- registro com `assignment_id`: **DVD**, propriedade pedagógica por vínculo.
 
-Nenhum documento histórico recebe `assignment_id` automaticamente nesta fase.
+Nenhum documento histórico existente recebe `assignment_id` automaticamente nesta fase.
 
-## 3. Escrita DVD
+## 3. Separação essencial: criação x histórico
 
-`ContentEntryCreate` passa a aceitar `assignment_id` opcional.
+A autorização possui duas semânticas deliberadamente distintas.
 
-Quando há DVD ativo para turma/componente/data:
+### 3.1 Nova escrita / upsert
 
-1. `assignment_id` explícito é validado por `authorize_assignment_access(...)`;
-2. se omitido e houver exatamente um vínculo DVD válido do próprio professor, o backend auto-resolve o vínculo para preservar compatibilidade com a tela atual;
-3. se houver múltiplos vínculos próprios compatíveis, a escrita é bloqueada como ambígua;
-4. se houver DVD ativo mas nenhum vínculo válido do usuário, não há fallback para o legado;
-5. `teacher_id` informado pelo cliente não redefine autoria; se divergir do vínculo, a requisição é rejeitada;
-6. `teacher_id` e `teacher_name` persistidos são derivados/snapshotados do assignment autorizado.
+Criação usa o vínculo **vivo** por `authorize_assignment_access(...)` e exige:
 
-Omitir componente também não pode ser usado para escapar do DVD: a presença de vínculos ativos na turma continua sendo detectada e o resolvedor falha em vez de cair silenciosamente no legado.
+- `diary_settings.enabled=true`;
+- assignment não excluído;
+- vigência na data do lançamento;
+- turma/etapa dentro do escopo DVD;
+- componente compatível;
+- escola e tenant válidos;
+- propriedade pedagógica ou override gerencial expresso;
+- capability `content_enabled=true`.
 
-## 4. Propriedade e provenance
+### 3.2 Registro já constituído
 
-Novos registros DVD persistem:
+Depois que o conteúdo foi criado, sua proveniência torna-se histórica. Leitura, update, publish, correct e delete usam `authorize_assignment_snapshot_access(...)`.
+
+O assignment vivo é consultado apenas para conferir identidade estável:
+
+```text
+assignment_id
+teacher_id
+class_id
+```
+
+Campos administrativos mutáveis do assignment **não reclassificam retroativamente** o conteúdo já registrado. Portanto, um registro não desaparece se depois ocorrer:
+
+- mudança de `component_id` do assignment;
+- encurtamento de `valid_until`;
+- `diary_settings.enabled=false`;
+- mudança do perfil atual;
+- soft-delete do assignment.
+
+A autorização continua aplicando papel atual do usuário, acesso atual à escola, tenant atual e capabilities do **perfil histórico snapshotado**.
+
+Hard-delete/orfandade do assignment ou divergência de `teacher_id/class_id` falham fechado.
+
+## 4. Escrita DVD e anti-spoof
+
+`ContentEntryCreate` aceita `assignment_id` opcional.
+
+Quando existe DVD ativo para turma/componente/data:
+
+1. `assignment_id` explícito é validado pelo serviço central;
+2. se omitido e existir exatamente um vínculo DVD válido do próprio professor, o backend auto-resolve o vínculo para compatibilidade com a tela atual;
+3. múltiplos vínculos próprios compatíveis geram ambiguidade e exigem `assignment_id` explícito;
+4. DVD ativo de outro professor nunca cai silenciosamente no legado;
+5. `teacher_id` do cliente não redefine autoria e divergência é rejeitada;
+6. omitir `component_id` não permite escapar do DVD;
+7. um registro existente com o mesmo assignment mas `teacher_id` incompatível bloqueia o upsert para não normalizar corrupção silenciosamente.
+
+## 5. Snapshot/provenance do conteúdo
+
+Novos registros DVD persistem no mínimo:
 
 ```text
 assignment_id
@@ -46,13 +86,17 @@ teacher_id
 teacher_name
 class_id
 component_id
+school_id
+mantenedora_id
 ```
 
-`assignment_id` é a propriedade pedagógica canônica. `teacher_id` permanece como snapshot denormalizado de autoria pedagógica. `created_by`/`updated_by` continuam representando autoria operacional.
+`assignment_id` é a propriedade pedagógica canônica. `teacher_id`, componente, escola/tenant e perfil são snapshots do contexto autorizado no momento do registro. `created_by` e `updated_by` continuam representando autoria operacional.
 
-A auditoria (`content_audit`) passa a incluir `assignment_id` em `extra_data`.
+Registro DVD sem snapshot mínimo (`assignment_id`, `teacher_id`, `class_id`, `assignment_profile_at_record`, `assignment_schema_version_at_record`) falha fechado.
 
-## 5. Chave natural e índices
+A auditoria de conteúdo passa a incluir `assignment_id` em `extra_data`.
+
+## 6. Chave natural e índices
 
 O índice UNIQUE anterior era:
 
@@ -62,7 +106,7 @@ O índice UNIQUE anterior era:
 
 Isso impediria dois assignments distintos do mesmo professor no mesmo contexto.
 
-A Fase 2 separa as regras:
+A Fase 2 separa as regras.
 
 ### Legado
 
@@ -78,84 +122,123 @@ UNIQUE (class_id, component_id, assignment_id, date, aula_numero)
 WHERE deleted=false AND assignment_id é string não vazia
 ```
 
-Também é criado índice de consulta:
+Também é criado:
 
 ```text
-(assignment_id, date desc)
+INDEX (assignment_id, date desc)
 ```
 
-A evolução é idempotente: o startup inspeciona `ux_content_entry_logical`; se ainda possuir o filtro antigo `{deleted:false}`, ele é recriado uma única vez com o filtro legado. Nenhum documento é alterado.
+A evolução é idempotente: o startup inspeciona `ux_content_entry_logical`; se ainda estiver com o filtro antigo `{deleted:false}`, ele é recriado uma única vez com o filtro legado. Nenhum documento é reescrito.
 
-## 6. Leitura
+## 7. Leitura e isolamento
 
 `GET /content-entries` recebe filtro opcional `assignment_id`.
 
-Registros DVD retornados por listagens são filtrados pela autorização central:
+Para registros DVD:
 
 - professor proprietário vê seu conteúdo;
-- professor não vê registros DVD de outro vínculo;
-- gestão autorizada mantém visão consolidada conforme escola/tenant;
-- registros legados são preservados nesta fase, pois sua migração ocorrerá posteriormente.
+- professor não vê conteúdo DVD de outro vínculo;
+- gestão autorizada obtém visão consolidada segundo escola/tenant;
+- registro com snapshot inconsistente é omitido da listagem em vez de vazar dados;
+- registros legados continuam com o comportamento anterior até a fase de migração.
 
-`GET /content-entries/{id}` também autoriza registros DVD pelo assignment real.
+`GET /content-entries/{id}` aplica a mesma autorização histórica para registros DVD.
 
-## 7. Update, publish, correct e delete
+## 8. Update, publish, correct e delete
 
-Para registros com `assignment_id`, todas as operações abaixo passam pelo serviço central antes da mutação:
+Para registros DVD, passam por autorização de snapshot antes de qualquer mutação:
 
 - `PUT /content-entries/{id}`;
 - `POST /content-entries/{id}/publish`;
 - `POST /content-entries/{id}/correct`;
 - `DELETE /content-entries/{id}`.
 
-Escrita gerencial utiliza `allow_management_override=true` no consumidor confiável (router), mas continua limitada pelas roles e capabilities definidas na Fase 1.
+Escrita gerencial requer `allow_management_override=true` no consumidor confiável e continua limitada pelas roles e capabilities definidas no contrato DVD.
 
-Registros legados mantêm o fluxo anterior.
+Optimistic locking, `draft/published/corrected`, snapshot hash existente, correção institucional e soft-delete permanecem preservados.
 
-## 8. Integrador
+## 9. Integrador
 
-O perfil `integrator` possui `content_enabled=true`; portanto pode registrar conteúdo normalmente pelo seu assignment.
+`integrator` possui `content_enabled=true`; portanto registra conteúdo normalmente pelo próprio assignment.
 
-A Fase 2 não toca em sua frequência opcional `pdf_only` nem em Notas/Conceitos.
+Esta fase não toca em frequência `pdf_only`, Notas/Conceitos ou PDFs.
 
-## 9. Escopo educacional
+## 10. Escopo educacional
 
-O escopo continua herdado das Fases 0/1:
+Permanece o contrato das Fases 0/1:
 
 - Educação Infantil;
 - 1º ao 5º Ano;
 - EJA 1ª e 2ª Etapa.
 
-AEE permanece excluído. 6º-9º, EJA 3ª/4ª e demais etapas continuam no comportamento legado.
+Ficam fora do DVD v1 nesta fase:
 
-## 10. Arquivos da Fase 2
+- 6º ao 9º;
+- EJA 3ª/4ª;
+- demais etapas;
+- AEE.
 
-- `backend/routers/content_entries.py` — integração real do domínio;
-- `backend/services/content_assignment_scope.py` — resolução/isolamento por vínculo;
+Etapas fora do DVD continuam no caminho legado.
+
+## 11. Arquivos da Fase 2
+
+- `backend/routers/content_entries.py` — integração do domínio de conteúdo;
+- `backend/services/content_assignment_scope.py` — resolução de nova escrita e filtro do conteúdo;
+- `backend/services/diary_assignment_snapshot_access.py` — autorização histórica por snapshot;
 - `backend/services/content_audit.py` — `assignment_id` na auditoria;
-- `backend/startup/indexes.py` — coexistência de unicidade legado/DVD;
-- `backend/tests/test_content_assignment_scope_phase2.py` — autorização e isolamento;
-- `backend/tests/test_content_entry_indexes_phase2.py` — migração idempotente dos índices;
-- `.github/workflows/ci.yml` — inclusão dos guards da Fase 2.
+- `backend/startup/indexes.py` — unicidade separada legado/DVD;
+- `backend/tests/test_content_assignment_scope_phase2.py` — isolamento/autorização;
+- `backend/tests/test_content_assignment_scope_phase2_edges.py` — anti-bypass e imutabilidade histórica;
+- `backend/tests/test_content_entry_indexes_phase2.py` — evolução idempotente dos índices;
+- `.github/workflows/ci.yml` — guards da Fase 2.
 
-## 11. O que NÃO muda
+## 12. Testes de proteção
+
+Execução canônica atual:
+
+```text
+Fase 0: 54
+Fase 1: 24
+Fase 2: 29
+TOTAL : 107
+```
+
+Os casos da Fase 2 cobrem, entre outros:
+
+- legado preservado;
+- auto-resolução inequívoca;
+- assignment obrigatório/ambíguo;
+- anti-spoof de professor e componente;
+- omissão de componente sem fallback legado;
+- integrador com conteúdo;
+- isolamento entre professores;
+- gestão e override;
+- tenant fail-closed;
+- proveniência corrompida bloqueada no upsert;
+- componente histórico preservado;
+- assignment expirado/desabilitado/soft-deleted sem apagar histórico;
+- snapshot incompleto fail-closed;
+- evolução idempotente dos índices.
+
+## 13. O que NÃO muda
 
 - nenhuma frequência é alterada;
 - nenhuma nota/conceito é alterado;
 - nenhum PDF é alterado;
 - nenhum arquivo AEE é alterado;
 - nenhum conteúdo histórico recebe assignment automaticamente;
-- nenhuma tela nova `V2` é criada;
-- a página atual continua podendo operar no modo legado e, em DVD inequívoco, o backend auto-resolve o único vínculo do professor.
+- nenhuma tela `V2` é criada;
+- nenhuma regra de avaliação é alterada.
 
-## 12. Critérios para aprovação
+## 14. Gate de aprovação
 
-A Fase 2 só pode ser mesclada após:
+A Fase 2 somente pode sair de Draft após:
 
-- todos os guards Fase 0 + Fase 1 + Fase 2 verdes;
+- **107/107** guards verdes no head final;
 - `ruff` e `compileall` verdes;
-- startup real com MongoDB confirmando a evolução dos índices;
 - frontend build verde;
+- startup real com MongoDB verde, incluindo criação dos novos índices;
 - Gate de Transferência/Regressão verde;
-- diff restrito ao domínio de conteúdo/infra de teste;
-- validação de que AEE, Frequência, Notas e PDFs não foram tocados.
+- PR mergeável sobre a mesma `main`;
+- diff revisado sem Frequência, Notas, PDFs ou AEE;
+- validação final explícita antes do merge.
