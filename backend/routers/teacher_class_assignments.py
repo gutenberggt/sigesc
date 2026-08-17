@@ -71,7 +71,7 @@ class DiarySettingsPayload(BaseModel):
     derivadas do `profile` pelo contrato canônico da Fase 0, evitando drift.
     """
 
-    enabled: bool = True
+    enabled: bool = False
     schema_version: int = Field(default=1, ge=1, le=1)
     profile: DiaryProfile = DiaryProfile.REGULAR
     student_scope: StudentScope = StudentScope.ALL
