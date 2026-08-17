@@ -21,6 +21,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # O guard compara o HEAD com a base do PR (ou HEAD^ em push).
           fetch-depth: 0
 
       - name: Setup Python
@@ -50,6 +51,16 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: frontend/yarn.lock
 
+      # O frontend possui atualmente um yarn.lock que pode estar
+      # temporariamente dessincronizado com package.json.
+      #
+      # O Dockerfile de produção já possui o mesmo mecanismo:
+      # tenta primeiro instalação estrita com --frozen-lockfile
+      # e, somente se ela falhar, reconcilia as dependências
+      # utilizando yarn install normal.
+      #
+      # Esta estratégia mantém o CI alinhado ao processo real
+      # utilizado pelo Coolify durante o build da aplicação.
       - name: Install dependencies
         run: |
           echo "Tentando instalação com yarn.lock em modo estrito..."
@@ -64,10 +75,19 @@ jobs:
           fi
 
       - name: Build production bundle
+        # Mesmo comando executado pelo Dockerfile utilizado pelo Coolify.
+        # Se houver erro real de compilação do frontend, este job deve falhar.
         run: yarn build
         env:
+          # Valor de teste usado exclusivamente pelo CI.
+          # Em produção, a variável real é injetada pelo Coolify.
           REACT_APP_BACKEND_URL: https://placeholder.example.com
+
+          # Mantém o comportamento de build em ambiente de integração contínua.
           CI: 'true'
+
+          # Mantém o consumo de memória e o comportamento próximos
+          # ao Dockerfile utilizado em produção.
           GENERATE_SOURCEMAP: 'false'
           NODE_OPTIONS: '--max-old-space-size=2048'
 
@@ -92,9 +112,16 @@ jobs:
         run: pip install ruff
 
       - name: Lint (ruff check)
+        # Falha em erros que indicam problemas reais de sintaxe,
+        # imports ou estruturas Python inválidas.
+        #
+        # Não torna warnings históricos de qualidade existentes
+        # no projeto bloqueantes neste momento.
         run: ruff check . --select E9,F63,F7,F82
 
       - name: Compile check
+        # Compila todos os módulos Python para detectar
+        # erros de sintaxe antes do deploy.
         run: python -m compileall -q .
 
   diary-assignment-contract:
@@ -118,7 +145,8 @@ jobs:
         run: pip install pytest pytest-asyncio
 
       - name: Run Fase 0 + Fase 1 + Fase 2 guard tests
-        # Guardrails puros: não usam conftest/Mongo real.
+        # Estes testes são unitários/puros e não usam o conftest de integração,
+        # que exige Mongo real e variáveis MONGO_URL/DB_NAME.
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_diary_assignment_contract_phase0.py \
