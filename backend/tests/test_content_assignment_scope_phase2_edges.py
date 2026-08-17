@@ -4,6 +4,7 @@ import pytest
 
 from services.content_assignment_scope import (
     ContentAssignmentScopeError,
+    authorize_content_record,
     resolve_content_assignment_for_create,
 )
 
@@ -176,3 +177,25 @@ async def test_upsert_nao_sobrescreve_registro_com_proveniencia_corrompida():
             assignment_id="a-1",
         )
     assert exc.value.code == "CONTENT_PROVENANCE_MISMATCH"
+
+
+@pytest.mark.asyncio
+async def test_registro_historico_nao_desaparece_se_assignment_mudar_componente():
+    # O conteúdo foi registrado em Matemática quando esse era o componente do
+    # vínculo; posteriormente a configuração administrativa do assignment mudou.
+    historical = {
+        "id": "content-old",
+        "assignment_id": "a-1",
+        "teacher_id": "teacher-1",
+        "class_id": "class-1",
+        "component_id": "math",
+        "date": "2026-08-17",
+        "deleted": False,
+    }
+    ctx = await authorize_content_record(
+        FakeDb([_assignment(component="portuguese")]),
+        _user(),
+        historical,
+        action="view",
+    )
+    assert ctx.is_owner is True
