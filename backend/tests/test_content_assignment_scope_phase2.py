@@ -131,8 +131,12 @@ def _entry(**overrides):
     doc = {
         "id": "content-1",
         "assignment_id": "a-1",
+        "assignment_profile_at_record": "regular",
+        "assignment_schema_version_at_record": 1,
         "teacher_id": "teacher-1",
         "class_id": "class-1",
+        "school_id": "school-1",
+        "mantenedora_id": "tenant-1",
         "component_id": "math",
         "date": "2026-08-17",
         "deleted": False,
@@ -304,7 +308,7 @@ async def test_professor_nao_visualiza_registro_dvd_de_outro_professor():
 @pytest.mark.asyncio
 async def test_inconsistencia_de_proveniencia_e_bloqueada():
     await _expect_error(
-        "CONTENT_PROVENANCE_MISMATCH",
+        "ASSIGNMENT_SNAPSHOT_MISMATCH",
         authorize_content_record(
             FakeDb([_assignment()]),
             _user(),
