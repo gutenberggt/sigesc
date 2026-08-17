@@ -115,11 +115,15 @@ def effective_diary_settings(assignment: Mapping[str, Any]) -> EffectiveDiarySet
     para que vínculos legados continuem sob o comportamento atual até a futura
     migração/ativação explícita.
     """
-    raw = assignment.get("diary_settings") or {}
-    if not isinstance(raw, Mapping):
+    raw_value = assignment.get("diary_settings")
+    if raw_value is None:
+        raw: Mapping[str, Any] = {}
+    elif not isinstance(raw_value, Mapping):
         raise DiaryAssignmentAccessError(
             "INVALID_DIARY_SETTINGS", "Configuração de diário inválida no vínculo."
         )
+    else:
+        raw = raw_value
 
     enabled = raw.get("enabled") is True
 
@@ -179,13 +183,19 @@ def _user_can_access_school(user: Mapping[str, Any], school_id: Optional[str]) -
 def _tenant_matches(
     user: Mapping[str, Any], assignment: Mapping[str, Any], class_info: Mapping[str, Any]
 ) -> bool:
+    """Aplica o mesmo princípio fail-closed de `tenant_scope.py`.
+
+    `super_admin` sem escopo permanece deliberadamente cross-tenant. Qualquer
+    outro papel precisa possuir `mantenedora_id` e o recurso também precisa ter
+    tenant resolvível; ausência de um dos lados nunca vira acesso global.
+    """
     if user.get("role") == "super_admin":
         return True
+
     user_tenant = user.get("mantenedora_id")
     resource_tenant = class_info.get("mantenedora_id") or assignment.get("mantenedora_id")
-    # Compatibilidade com documentos legados ainda sem mantenedora_id.
     if not user_tenant or not resource_tenant:
-        return True
+        return False
     return user_tenant == resource_tenant
 
 
@@ -286,7 +296,7 @@ async def authorize_assignment_access(
         )
     if not _tenant_matches(current_user, assignment, class_info):
         raise DiaryAssignmentAccessError(
-            "TENANT_ACCESS_DENIED", "O vínculo pertence a outra mantenedora."
+            "TENANT_ACCESS_DENIED", "O vínculo pertence a outra mantenedora ou não possui tenant resolvível."
         )
 
     role = current_user.get("role")
