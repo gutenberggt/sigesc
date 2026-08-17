@@ -23,9 +23,18 @@ class FakeCollection:
     async def find_one(self, query, projection=None):
         for doc in self.docs:
             if all(doc.get(k) == v for k, v in query.items()):
-                if projection:
-                    return {k: doc.get(k) for k, enabled in projection.items() if enabled and k != "_id"}
-                return dict(doc)
+                if not projection:
+                    return dict(doc)
+
+                included = [
+                    key for key, enabled in projection.items()
+                    if enabled and key != "_id"
+                ]
+                if included:
+                    return {key: doc.get(key) for key in included}
+
+                excluded = {key for key, enabled in projection.items() if not enabled}
+                return {key: value for key, value in doc.items() if key not in excluded}
         return None
 
 
