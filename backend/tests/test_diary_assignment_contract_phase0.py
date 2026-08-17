@@ -117,12 +117,12 @@ def test_perfil_regular_mantem_frequencia_oficial_conteudo_e_notas():
     assert c.grades_enabled is True
 
 
-def test_perfil_integral_content_registra_somente_conteudo():
-    c = capabilities_for(DiaryProfile.INTEGRAL_CONTENT)
-    assert c.attendance_enabled is False
+def test_perfil_integrador_mantem_frequencia_opcional_pdf_only():
+    c = capabilities_for(DiaryProfile.INTEGRATOR)
+    assert c.attendance_enabled is True
     assert c.attendance_required is False
-    assert c.attendance_mode is AttendanceMode.NONE
-    assert c.attendance_purpose is None
+    assert c.attendance_mode is AttendanceMode.ASSIGNMENT_SESSION
+    assert c.attendance_purpose is AttendancePurpose.PDF_ONLY
     assert c.content_enabled is True
     assert c.grades_enabled is False
 
@@ -146,10 +146,11 @@ def test_regra_positiva_official_conta():
     assert is_explicitly_official_attendance("official")
 
 
-def test_enums_de_migracao_escopo_e_modo_ficam_estaveis():
+def test_enums_de_migracao_escopo_modo_e_purpose_ficam_estaveis():
     assert AttendanceMode.CLASS_DAILY.value == "class_daily"
     assert AttendanceMode.ASSIGNMENT_SESSION.value == "assignment_session"
-    assert AttendanceMode.NONE.value == "none"
+    assert AttendancePurpose.OFFICIAL.value == "official"
+    assert AttendancePurpose.PDF_ONLY.value == "pdf_only"
     assert StudentScope.ALL.value == "all"
     assert StudentScope.GROUP.value == "group"
     assert MigrationStatus.NEEDS_REVIEW.value == "needs_review"
