@@ -1,0 +1,41 @@
+name: TMP - Students Demographics Two Columns
+
+on:
+  push:
+    branches:
+      - feat/students-demographics-two-columns
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[demographics-layout-auto]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feat/students-demographics-two-columns
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Apply isolated layout change
+        run: python .github/scripts/tmp_students_demographics_two_columns.py
+
+      - name: Commit product change
+        shell: bash
+        run: |
+          if git diff --quiet -- frontend/src/pages/StudentsComplete.js; then
+            echo "No product change to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/pages/StudentsComplete.js
+          git commit -m "style(students): alinhar indicadores demográficos em duas colunas [demographics-layout-auto]"
+          git push origin HEAD:feat/students-demographics-two-columns
