@@ -144,10 +144,13 @@ jobs:
       - name: Install test runner
         run: pip install pytest pytest-asyncio
 
-      - name: Run Fase 0 + Fase 1 guard tests
+      - name: Run Fase 0 + Fase 1 + Fase 2 guard tests
         # Estes testes são unitários/puros e não usam o conftest de integração,
         # que exige Mongo real e variáveis MONGO_URL/DB_NAME.
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_diary_assignment_contract_phase0.py \
-            tests/test_diary_assignment_access_phase1.py
+            tests/test_diary_assignment_access_phase1.py \
+            tests/test_content_assignment_scope_phase2.py \
+            tests/test_content_assignment_scope_phase2_edges.py \
+            tests/test_content_entry_indexes_phase2.py
