@@ -181,19 +181,27 @@ def _user_can_access_school(user: Mapping[str, Any], school_id: Optional[str]) -
 
 
 def _tenant_matches(
-    user: Mapping[str, Any], assignment: Mapping[str, Any], class_info: Mapping[str, Any]
+    user: Mapping[str, Any],
+    assignment: Mapping[str, Any],
+    class_info: Mapping[str, Any],
+    active_mantenedora_id: Optional[str] = None,
 ) -> bool:
     """Aplica o mesmo princípio fail-closed de `tenant_scope.py`.
 
-    `super_admin` sem escopo permanece deliberadamente cross-tenant. Qualquer
-    outro papel precisa possuir `mantenedora_id` e o recurso também precisa ter
-    tenant resolvível; ausência de um dos lados nunca vira acesso global.
+    `super_admin` sem escopo permanece deliberadamente cross-tenant. Quando o
+    consumidor informar um tenant ativo, o super_admin também fica preso a ele.
+    Qualquer outro papel precisa possuir `mantenedora_id` e o recurso também
+    precisa ter tenant resolvível; ausência de um dos lados nunca vira acesso
+    global.
     """
+    resource_tenant = class_info.get("mantenedora_id") or assignment.get("mantenedora_id")
+
     if user.get("role") == "super_admin":
-        return True
+        if active_mantenedora_id is None:
+            return True
+        return bool(resource_tenant) and resource_tenant == active_mantenedora_id
 
     user_tenant = user.get("mantenedora_id")
-    resource_tenant = class_info.get("mantenedora_id") or assignment.get("mantenedora_id")
     if not user_tenant or not resource_tenant:
         return False
     return user_tenant == resource_tenant
@@ -221,6 +229,7 @@ async def authorize_assignment_access(
     expected_class_id: Optional[str] = None,
     expected_component_id: Optional[str] = None,
     allow_management_override: bool = False,
+    active_mantenedora_id: Optional[str] = None,
 ) -> DiaryAssignmentAccessContext:
     """Autoriza acesso ao diário por `assignment_id`.
 
@@ -229,10 +238,15 @@ async def authorize_assignment_access(
     - DVD precisa estar explicitamente habilitado no vínculo;
     - turma precisa pertencer ao escopo aprovado da v1 e não ser AEE;
     - vínculo precisa estar vigente na data solicitada;
+    - escola persistida no vínculo não pode divergir da escola real da turma;
     - proprietário precisa manter papel pedagógico compatível;
     - gestão pode visualizar de forma consolidada respeitando escola/tenant;
     - escrita gerencial exige opt-in explícito do chamador;
     - a capability do perfil sempre limita a ação (integrador não lança notas).
+
+    `active_mantenedora_id` permite que o consumidor preserve o escopo ativo de
+    um `super_admin` já resolvido a partir da request. Se omitido, super_admin
+    mantém o comportamento cross-tenant intencional da plataforma.
     """
     try:
         normalized_action = DiaryAction(action)
@@ -277,6 +291,14 @@ async def authorize_assignment_access(
             "CLASS_OUT_OF_DVD_SCOPE", "A turma não pertence ao escopo do Diário por Vínculo v1."
         )
 
+    assignment_school_id = assignment.get("school_id")
+    class_school_id = class_info.get("school_id")
+    if assignment_school_id and class_school_id and assignment_school_id != class_school_id:
+        raise DiaryAssignmentAccessError(
+            "ASSIGNMENT_SCHOOL_MISMATCH",
+            "A escola persistida no vínculo diverge da escola atual da turma.",
+        )
+
     settings = effective_diary_settings(assignment)
     if not settings.enabled:
         raise DiaryAssignmentAccessError(
@@ -289,12 +311,19 @@ async def authorize_assignment_access(
             "ASSIGNMENT_NOT_ACTIVE", "O vínculo não está vigente na data solicitada."
         )
 
-    school_id = assignment.get("school_id") or class_info.get("school_id")
+    # A turma é a autoridade de escola. O school_id do assignment é apenas
+    # snapshot/compatibilidade e já foi conferido acima quando ambos existem.
+    school_id = class_school_id or assignment_school_id
     if not _user_can_access_school(current_user, school_id):
         raise DiaryAssignmentAccessError(
             "SCHOOL_ACCESS_DENIED", "O usuário não possui acesso à escola do vínculo."
         )
-    if not _tenant_matches(current_user, assignment, class_info):
+    if not _tenant_matches(
+        current_user,
+        assignment,
+        class_info,
+        active_mantenedora_id=active_mantenedora_id,
+    ):
         raise DiaryAssignmentAccessError(
             "TENANT_ACCESS_DENIED", "O vínculo pertence a outra mantenedora ou não possui tenant resolvível."
         )
