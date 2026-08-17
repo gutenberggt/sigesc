@@ -15,18 +15,18 @@ from utils.serie_canonical import canonicalize_serie
 
 class DiaryProfile(str, Enum):
     REGULAR = "regular"
-    INTEGRAL_CONTENT = "integral_content"
+    INTEGRATOR = "integrator"
     SHARED = "shared"
 
 
 class AttendanceMode(str, Enum):
     CLASS_DAILY = "class_daily"
     ASSIGNMENT_SESSION = "assignment_session"
-    NONE = "none"
 
 
 class AttendancePurpose(str, Enum):
     OFFICIAL = "official"
+    PDF_ONLY = "pdf_only"
 
 
 class StudentScope(str, Enum):
@@ -54,7 +54,7 @@ class DiaryCapabilities:
     attendance_enabled: bool
     attendance_required: bool
     attendance_mode: AttendanceMode
-    attendance_purpose: Optional[AttendancePurpose]
+    attendance_purpose: AttendancePurpose
     content_enabled: bool
     grades_enabled: bool
 
@@ -68,11 +68,11 @@ PROFILE_CAPABILITIES = {
         True,
         True,
     ),
-    DiaryProfile.INTEGRAL_CONTENT: DiaryCapabilities(
+    DiaryProfile.INTEGRATOR: DiaryCapabilities(
+        True,
         False,
-        False,
-        AttendanceMode.NONE,
-        None,
+        AttendanceMode.ASSIGNMENT_SESSION,
+        AttendancePurpose.PDF_ONLY,
         True,
         False,
     ),
@@ -160,9 +160,10 @@ def is_explicitly_official_attendance(
 ) -> bool:
     """Regra positiva: somente `official` é frequência acadêmica.
 
-    Registros legados sem o campo serão tratados por compatibilidade/migração
-    nas fases posteriores; este contrato puro não promove None para official.
-    Valores futuros/desconhecidos também não são promovidos implicitamente.
+    `pdf_only` é exclusivamente pedagógica/documental e nunca é promovida a
+    frequência oficial. Registros legados sem o campo serão tratados por
+    compatibilidade/migração nas fases posteriores; este contrato puro não
+    promove None nem valores desconhecidos para official.
     """
     if purpose is None:
         return False
