@@ -40,6 +40,12 @@ async def _active_dvd_assignments(db, class_id: str, component_id: Optional[str]
         "$or": [{"valid_until": None}, {"valid_until": {"$gte": on_date}}],
     }
     items = await db.teacher_class_assignments.find(query, {"_id": 0}).to_list(500)
+    if component_id is None:
+        # Não permitir que omitir o componente transforme contexto DVD em legado.
+        # Assignments class-wide continuam compatíveis; assignments específicos
+        # permanecem visíveis ao resolvedor para produzir erro em vez de fallback.
+        class_wide = [a for a in items if a.get("component_id") is None]
+        return class_wide or items
     return [a for a in items if _component_matches(a.get("component_id"), component_id)]
 
 
