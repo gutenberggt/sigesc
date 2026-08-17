@@ -9,6 +9,10 @@ from services.diary_assignment_access import (
     DiaryAssignmentAccessError,
     authorize_assignment_access,
 )
+from services.diary_assignment_snapshot_access import (
+    DiaryAssignmentSnapshotAccessError,
+    authorize_assignment_snapshot_access,
+)
 
 
 class ContentAssignmentScopeError(PermissionError):
@@ -71,12 +75,7 @@ async def _validate_existing_assignment_provenance(
     component_id: Optional[str],
     on_date: str,
 ) -> None:
-    """Falha fechado se já houver conteúdo DVD com autoria incompatível.
-
-    A checagem antecede o upsert canônico. Assim, um documento corrompido com
-    `assignment_id` válido porém `teacher_id` divergente nunca é sobrescrito e
-    normalizado silenciosamente por um reenvio posterior.
-    """
+    """Falha fechado se já houver conteúdo DVD com autoria incompatível."""
     collection = getattr(db, "content_entries", None)
     if collection is None:
         return
@@ -109,6 +108,7 @@ async def _authorize_content_assignment(
     allow_management_override: bool = False,
     active_mantenedora_id: Optional[str] = None,
 ):
+    """Autoriza CRIAÇÃO/upsert usando o vínculo vivo e vigente."""
     try:
         context = await authorize_assignment_access(
             db,
@@ -145,6 +145,7 @@ async def resolve_content_assignment_for_create(
     allow_management_override: bool = False,
     active_mantenedora_id: Optional[str] = None,
 ) -> ContentAssignmentResolution:
+    """Resolve o vínculo para uma nova escrita; nunca usa snapshot histórico."""
     if assignment_id:
         context = await _authorize_content_assignment(
             db,
@@ -215,34 +216,20 @@ async def authorize_content_record(
     allow_management_override: bool = False,
     active_mantenedora_id: Optional[str] = None,
 ):
-    assignment_id = entry.get("assignment_id")
-    if not assignment_id:
+    """Autoriza registro já persistido por snapshot histórico imutável."""
+    if not entry.get("assignment_id"):
         return None
     try:
-        context = await authorize_assignment_access(
+        return await authorize_assignment_snapshot_access(
             db,
             current_user,
-            assignment_id,
+            entry,
             action=action,
-            on_date=entry.get("date"),
-            expected_class_id=entry.get("class_id"),
             allow_management_override=allow_management_override,
             active_mantenedora_id=active_mantenedora_id,
         )
-    except DiaryAssignmentAccessError as exc:
+    except DiaryAssignmentSnapshotAccessError as exc:
         raise ContentAssignmentScopeError(exc.code, exc.message) from exc
-
-    # O componente do registro é um snapshot histórico. Depois da gravação,
-    # mudanças administrativas no `component_id` do assignment não podem ocultar
-    # ou reatribuir retroativamente o conteúdo. A compatibilidade com componente
-    # é exigida na criação; para registros persistidos, assignment+data+turma+
-    # teacher_id formam a proveniência histórica.
-    if entry.get("teacher_id") != context.assignment.get("teacher_id"):
-        raise ContentAssignmentScopeError(
-            "CONTENT_PROVENANCE_MISMATCH",
-            "A autoria persistida do conteúdo diverge do vínculo docente informado.",
-        )
-    return context
 
 
 async def filter_visible_content_entries(
