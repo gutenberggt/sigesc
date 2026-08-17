@@ -324,6 +324,7 @@ export function StudentsComplete() {
   const [serverTotalPages, setServerTotalPages] = useState(0);
   const [serverActiveCount, setServerActiveCount] = useState(0);
   const [raceCounts, setRaceCounts] = useState({});
+  const [traditionalCommunityCounts, setTraditionalCommunityCounts] = useState({});
   const [seriesCounts, setSeriesCounts] = useState({});
   const [unmappedSeries, setUnmappedSeries] = useState({});
   const [modalidadeCounts, setModalidadeCounts] = useState({});
@@ -584,6 +585,7 @@ export function StudentsComplete() {
         setServerTotalPages(result.total_pages || 0);
         setServerActiveCount(result.active_count ?? result.total ?? 0);
         setRaceCounts(result.race_counts || {});
+        setTraditionalCommunityCounts(result.traditional_community_counts || {});
         setSeriesCounts(result.series_counts || {});
         setUnmappedSeries(result.unmapped_series || {});
         setModalidadeCounts(result.modalidade_counts || {});
@@ -4104,10 +4106,6 @@ export function StudentsComplete() {
                         { key: 'parda', label: 'Parda' },
                         { key: 'amarela', label: 'Amarela' },
                         { key: 'indigena', label: 'Indígena' },
-                        { key: 'cigano', label: 'Cigano' },
-                        { key: 'quilombola', label: 'Quilombola' },
-                        { key: 'ribeirinho', label: 'Ribeirinho' },
-                        { key: 'extrativista', label: 'Extrativista' },
                       ].map(({ key, label }) => (
                         <span
                           key={key}
@@ -4125,6 +4123,28 @@ export function StudentsComplete() {
                           Não informada: {raceCounts['nao_informada']}
                         </span>
                       )}
+                    </div>
+                  </div>
+
+                  {/* COMUNIDADES TRADICIONAIS */}
+                  <div data-testid="traditional-community-counts">
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                      Comunidades Tradicionais
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { key: 'quilombola', label: 'Quilombola' },
+                        { key: 'cigano', label: 'Cigano' },
+                        { key: 'ribeirinho', label: 'Ribeirinho' },
+                        { key: 'extrativista', label: 'Extrativista' },
+                      ].map(({ key, label }) => (
+                        <span
+                          key={key}
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium"
+                        >
+                          {label}: {traditionalCommunityCounts[key] || 0}
+                        </span>
+                      ))}
                     </div>
                   </div>
 

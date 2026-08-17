@@ -1073,6 +1073,22 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 race_key = "nao_informada"
             race_counts[race_key] = doc["count"]
 
+        # Contagem por comunidade tradicional (dimensão separada de cor/raça).
+        traditional_community_counts = {}
+        community_pipeline = [
+            {"$match": active_filter},
+            {"$group": {
+                "_id": {"$ifNull": ["$comunidade_tradicional", "nao_informada"]},
+                "count": {"$sum": 1}
+            }}
+        ]
+        community_cursor = current_db.students.aggregate(community_pipeline)
+        async for doc in community_cursor:
+            community_key = doc["_id"] if doc["_id"] else "nao_informada"
+            if community_key == "":
+                community_key = "nao_informada"
+            traditional_community_counts[community_key] = doc["count"]
+
         # Contagem por série.
         # PRIORIDADE: `students.student_series` (campo do aluno) →
         # `classes.grade_level` (fallback via lookup pela turma).
@@ -1281,6 +1297,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "total": total,
             "active_count": active_count,
             "race_counts": race_counts,
+            "traditional_community_counts": traditional_community_counts,
             "series_counts": series_counts,
             "unmapped_series": unmapped_series,
             "modalidade_counts": modalidade_counts,
