@@ -138,6 +138,17 @@ async def test_professor_nao_pode_usar_assignment_de_outro_professor():
 
 
 @pytest.mark.asyncio
+async def test_mesmo_id_sem_papel_pedagogico_nao_mantem_propriedade_de_escrita():
+    antigo_professor = _user(role="secretario")
+    await _deny(
+        "ASSIGNMENT_ACCESS_DENIED",
+        authorize_assignment_access(
+            _db(), antigo_professor, "assignment-1", action="content", on_date="2026-08-17"
+        ),
+    )
+
+
+@pytest.mark.asyncio
 async def test_integrador_tem_conteudo_e_frequencia_pdf_only_mas_nao_notas():
     a = _assignment(diary_settings=_settings("integrator"))
     db = _db(assignment=a)
