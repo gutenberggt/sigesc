@@ -25,7 +25,7 @@ Ficam fora:
 - Ensino Médio e outras modalidades não aprovadas;
 - **AEE**, explicitamente, mesmo quando a escola/turma estiver em contexto integral.
 
-O reconhecimento de série/etapa deve reutilizar `utils/serie_canonical.py`, evitando comparações frágeis por texto.
+O reconhecimento de série/etapa deve reutilizar `utils/serie_canonical.py`, evitando comparações frágeis por texto. Na **Educação Infantil**, `education_level=educacao_infantil` é a autoridade de enquadramento do segmento; o rótulo local da turma não precisa existir na tabela canônica.
 
 ## 3. Princípio de não interferência avaliativa
 
@@ -46,24 +46,44 @@ Nenhum `assignment_id` pode converter conceito em nota, nota em conceito, altera
 
 - conteúdo: habilitado;
 - frequência: habilitada e obrigatória conforme regras atuais;
+- modo da frequência: `class_daily`;
 - natureza da frequência: `official`;
 - notas/conceitos: habilitados conforme regime da etapa.
 
-### `integrator`
+### `integral_content`
 
 - conteúdo: habilitado;
-- frequência: habilitada, porém opcional;
-- natureza da frequência: `pdf_only`;
-- notas/conceitos: desabilitados no vínculo integrador.
+- frequência: desabilitada;
+- modo da frequência: `none`;
+- natureza da frequência: não aplicável;
+- notas/conceitos: desabilitados.
+
+Esse perfil representa componentes da **Educação Integral** cuja responsabilidade no DVD é registrar conteúdo pedagógico próprio, sem criar uma segunda frequência da turma e sem lançar notas/conceitos.
 
 ### `shared`
 
 - conteúdo: habilitado;
 - frequência: habilitada e oficial;
+- modo da frequência: `assignment_session`;
+- natureza da frequência: `official`;
 - notas/conceitos: habilitados conforme regime da etapa;
 - escopo de estudantes: `all` ou `group` quando a escola dividir a turma por estudantes.
 
-## 5. Regra positiva de frequência
+## 5. Modos e natureza da frequência
+
+O contrato diferencia **como** a frequência é armazenada/isolada de **qual efeito** ela pode produzir.
+
+### `class_daily`
+
+Preserva a frequência canônica atual da turma/data. É o modo do perfil `regular` e deverá ser mantido sem multiplicar registros por professor.
+
+### `assignment_session`
+
+Reserva, para as fases funcionais posteriores, uma frequência oficial isolada por vínculo/sessão docente. É o modo do perfil `shared` e impede que dois professores compartilhem ou sobrescrevam indevidamente o mesmo registro de frequência.
+
+### `none`
+
+Não existe lançamento de frequência para o vínculo. É o modo do perfil `integral_content`.
 
 Somente frequência explicitamente classificada como:
 
@@ -73,20 +93,7 @@ attendance_purpose = official
 
 pode produzir efeitos acadêmicos ou estatísticos.
 
-`pdf_only`:
-
-- pode ficar em branco;
-- não gera pendência;
-- não gera falta;
-- não soma presença;
-- não entra no numerador nem no denominador do percentual;
-- não alimenta Busca Ativa;
-- não alimenta Bolsa Família;
-- não interfere em aprovação/reprovação;
-- não entra em boletim, histórico, ficha individual, declaração de frequência ou indicadores oficiais;
-- aparece somente no contexto documental/PDF do respectivo diário docente.
-
-Registros legados ainda sem `attendance_purpose` não são reclassificados nesta fase. A compatibilidade será tratada explicitamente na fase de integração/migração.
+Valores ausentes, desconhecidos ou futuros não podem ser promovidos implicitamente a `official`. Registros legados ainda sem `attendance_purpose` não são reclassificados nesta fase; a compatibilidade será tratada explicitamente na fase de integração/migração.
 
 ## 6. Navegação e páginas existentes
 
@@ -94,11 +101,13 @@ Não serão criadas páginas paralelas para frequência, notas ou conteúdo.
 
 `Meus Diários` será uma camada organizadora. Os acessos tradicionais continuam válidos.
 
-Os fluxos existentes deverão, nas fases posteriores, receber contexto de `assignment_id`:
+Os fluxos existentes deverão, nas fases posteriores, receber contexto de `assignment_id` conforme a capacidade do vínculo:
 
 - `Attendance.js`;
 - `Grades.js`;
 - fluxo canônico de conteúdo/objetos de conhecimento.
+
+No perfil `integral_content`, o acesso operacional do vínculo deve direcionar apenas ao fluxo de conteúdo; frequência e notas/conceitos não são capacidades desse perfil.
 
 ## 7. Propriedade e autorização
 
@@ -118,7 +127,7 @@ Cada PDF deve conter exclusivamente os registros pertencentes ao vínculo docent
 
 Os geradores atuais serão preservados visualmente sempre que possível; a mudança principal será a fonte/filtro de dados.
 
-Para componente integrador, qualquer frequência exibida no PDF deve ser identificada como **acompanhamento pedagógico/documental sem efeito na frequência escolar oficial**.
+No perfil `integral_content`, o PDF do vínculo contém seus registros pedagógicos de conteúdo; não há frequência nem notas/conceitos próprias do vínculo.
 
 ## 9. Migração dos dados existentes
 
@@ -152,7 +161,8 @@ Guardrail conservador da Fase 0:
 - `5º + 6º` é bloqueada para migração automática;
 - `EJA 1ª + 2ª` é elegível;
 - `EJA 2ª + 3ª` é bloqueada;
-- série vazia/não reconhecida impede classificação automática.
+- no Fundamental e na EJA, série vazia ou não reconhecida impede classificação automática;
+- na Educação Infantil, `education_level=educacao_infantil` define o enquadramento e os rótulos locais não precisam ser canônicos, mas valores vazios continuam bloqueando a classificação em bloco.
 
 Esse guardrail evita migração parcial silenciosa. Caso surja necessidade real de turma multisseriada atravessando a fronteira de escopo, deverá existir decisão específica antes da implementação.
 
@@ -161,15 +171,17 @@ Esse guardrail evita migração parcial silenciosa. Caso surja necessidade real 
 1. O DVD v1.0 aplica-se apenas ao escopo educacional aprovado neste documento.
 2. AEE permanece fora sem autorização explícita para alterar seu domínio.
 3. Modalidade avaliativa é independente do vínculo docente.
-4. Todo novo registro integrado ao DVD deverá conhecer seu `assignment_id`.
+4. Todo novo registro integrado ao DVD deverá conhecer seu `assignment_id` quando a granularidade por vínculo se aplicar.
 5. Professor comum só consulta/modifica seus próprios vínculos.
 6. PDF docente é filtrado por `assignment_id`.
-7. Somente `official` produz efeitos acadêmicos/estatísticos.
-8. `pdf_only` é opcional e exclusivamente documental.
-9. Ausência de registro de frequência não equivale a falta.
-10. Migração preserva o histórico e nunca atribui autoria ambígua por suposição.
-11. `created_by`/`updated_by` não substituem a autoria pedagógica.
-12. A Fase 0 não altera comportamento de produção.
+7. Frequência `regular` preserva o modo canônico `class_daily`.
+8. Frequência `shared` usa o modo `assignment_session` e permanece `official`.
+9. `integral_content` não possui frequência nem notas/conceitos; registra conteúdo.
+10. Somente `attendance_purpose=official` produz efeitos acadêmicos/estatísticos.
+11. Ausência de registro de frequência não equivale a falta.
+12. Migração preserva o histórico e nunca atribui autoria ambígua por suposição.
+13. `created_by`/`updated_by` não substituem a autoria pedagógica.
+14. A Fase 0 não altera comportamento de produção.
 
 ## 13. Limites desta fase
 

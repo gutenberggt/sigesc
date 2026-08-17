@@ -15,13 +15,18 @@ from utils.serie_canonical import canonicalize_serie
 
 class DiaryProfile(str, Enum):
     REGULAR = "regular"
-    INTEGRATOR = "integrator"
+    INTEGRAL_CONTENT = "integral_content"
     SHARED = "shared"
+
+
+class AttendanceMode(str, Enum):
+    CLASS_DAILY = "class_daily"
+    ASSIGNMENT_SESSION = "assignment_session"
+    NONE = "none"
 
 
 class AttendancePurpose(str, Enum):
     OFFICIAL = "official"
-    PDF_ONLY = "pdf_only"
 
 
 class StudentScope(str, Enum):
@@ -48,15 +53,37 @@ class MigrationSource(str, Enum):
 class DiaryCapabilities:
     attendance_enabled: bool
     attendance_required: bool
-    attendance_purpose: AttendancePurpose
+    attendance_mode: AttendanceMode
+    attendance_purpose: Optional[AttendancePurpose]
     content_enabled: bool
     grades_enabled: bool
 
 
 PROFILE_CAPABILITIES = {
-    DiaryProfile.REGULAR: DiaryCapabilities(True, True, AttendancePurpose.OFFICIAL, True, True),
-    DiaryProfile.INTEGRATOR: DiaryCapabilities(True, False, AttendancePurpose.PDF_ONLY, True, False),
-    DiaryProfile.SHARED: DiaryCapabilities(True, True, AttendancePurpose.OFFICIAL, True, True),
+    DiaryProfile.REGULAR: DiaryCapabilities(
+        True,
+        True,
+        AttendanceMode.CLASS_DAILY,
+        AttendancePurpose.OFFICIAL,
+        True,
+        True,
+    ),
+    DiaryProfile.INTEGRAL_CONTENT: DiaryCapabilities(
+        False,
+        False,
+        AttendanceMode.NONE,
+        None,
+        True,
+        False,
+    ),
+    DiaryProfile.SHARED: DiaryCapabilities(
+        True,
+        True,
+        AttendanceMode.ASSIGNMENT_SESSION,
+        AttendancePurpose.OFFICIAL,
+        True,
+        True,
+    ),
 }
 
 ELIGIBLE_FUNDAMENTAL_SERIES = frozenset({"1º ANO", "2º ANO", "3º ANO", "4º ANO", "5º ANO"})
@@ -75,7 +102,11 @@ def canonical_series(grade_level: Optional[str]) -> Optional[str]:
 
 
 def is_stage_in_scope(education_level: Optional[str], grade_level: Optional[str]) -> bool:
-    """Escopo aprovado: Ed. Infantil, 1º–5º Ano e EJA 1ª/2ª Etapa."""
+    """Escopo aprovado: Ed. Infantil, 1º–5º Ano e EJA 1ª/2ª Etapa.
+
+    Na Educação Infantil, `education_level` é a autoridade de enquadramento e o
+    rótulo da turma não precisa existir na tabela canônica de séries.
+    """
     level = _norm(education_level)
     if level == "educacao_infantil":
         return True
@@ -106,9 +137,10 @@ def are_multigrade_series_in_scope(
 ) -> bool:
     """Só libera uma multisseriada em bloco quando todas as séries são elegíveis.
 
-    Série vazia/não reconhecida bloqueia a classificação automática, evitando
-    migração parcial ou inferida. Na Educação Infantil, o nível de ensino basta,
-    pois todo o segmento está no escopo.
+    No Fundamental/EJA, série vazia ou não reconhecida bloqueia a classificação
+    automática. Na Educação Infantil, o nível de ensino é a autoridade de
+    enquadramento; os rótulos podem não ser canônicos, mas precisam estar
+    preenchidos para evitar migração parcial ou inferida.
     """
     level = _norm(education_level)
     series = list(student_series)
@@ -130,6 +162,7 @@ def is_explicitly_official_attendance(
 
     Registros legados sem o campo serão tratados por compatibilidade/migração
     nas fases posteriores; este contrato puro não promove None para official.
+    Valores futuros/desconhecidos também não são promovidos implicitamente.
     """
     if purpose is None:
         return False

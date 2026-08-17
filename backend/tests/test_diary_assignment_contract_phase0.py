@@ -7,6 +7,7 @@ integração funcional.
 import pytest
 
 from services.diary_assignment_contract import (
+    AttendanceMode,
     AttendancePurpose,
     DiaryProfile,
     MigrationSource,
@@ -100,28 +101,37 @@ def test_multisseriada_com_serie_vazia_nao_pode_ser_inferida():
     )
 
 
+def test_multisseriada_educacao_infantil_aceita_rotulos_nao_canonicos_preenchidos():
+    assert are_multigrade_series_in_scope(
+        "educacao_infantil", ["Creche II", "Jardim A", "Agrupamento 5 anos"]
+    )
+
+
 def test_perfil_regular_mantem_frequencia_oficial_conteudo_e_notas():
     c = capabilities_for(DiaryProfile.REGULAR)
     assert c.attendance_enabled is True
     assert c.attendance_required is True
+    assert c.attendance_mode is AttendanceMode.CLASS_DAILY
     assert c.attendance_purpose is AttendancePurpose.OFFICIAL
     assert c.content_enabled is True
     assert c.grades_enabled is True
 
 
-def test_perfil_integrador_frequencia_opcional_pdf_only_e_sem_notas():
-    c = capabilities_for(DiaryProfile.INTEGRATOR)
-    assert c.attendance_enabled is True
+def test_perfil_integral_content_registra_somente_conteudo():
+    c = capabilities_for(DiaryProfile.INTEGRAL_CONTENT)
+    assert c.attendance_enabled is False
     assert c.attendance_required is False
-    assert c.attendance_purpose is AttendancePurpose.PDF_ONLY
+    assert c.attendance_mode is AttendanceMode.NONE
+    assert c.attendance_purpose is None
     assert c.content_enabled is True
     assert c.grades_enabled is False
 
 
-def test_perfil_compartilhado_mantem_frequencia_oficial_conteudo_e_notas():
+def test_perfil_compartilhado_usa_sessao_por_vinculo_com_frequencia_oficial():
     c = capabilities_for(DiaryProfile.SHARED)
     assert c.attendance_enabled is True
     assert c.attendance_required is True
+    assert c.attendance_mode is AttendanceMode.ASSIGNMENT_SESSION
     assert c.attendance_purpose is AttendancePurpose.OFFICIAL
     assert c.content_enabled is True
     assert c.grades_enabled is True
@@ -136,7 +146,10 @@ def test_regra_positiva_official_conta():
     assert is_explicitly_official_attendance("official")
 
 
-def test_enums_de_migracao_e_escopo_ficam_estaveis():
+def test_enums_de_migracao_escopo_e_modo_ficam_estaveis():
+    assert AttendanceMode.CLASS_DAILY.value == "class_daily"
+    assert AttendanceMode.ASSIGNMENT_SESSION.value == "assignment_session"
+    assert AttendanceMode.NONE.value == "none"
     assert StudentScope.ALL.value == "all"
     assert StudentScope.GROUP.value == "group"
     assert MigrationStatus.NEEDS_REVIEW.value == "needs_review"
