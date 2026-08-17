@@ -16,6 +16,8 @@ A Fase 1 NÃO conecta o novo mecanismo aos módulos de Frequência, Notas, Conte
 
 - vínculo legado sem `diary_settings`: continua no comportamento atual;
 - ausência do campo não ativa DVD implicitamente;
+- `diary_settings: {}` também **não ativa** o DVD: `enabled` tem default `false`;
+- ativação exige `diary_settings.enabled=true` de forma explícita;
 - novo vínculo fora do escopo continua podendo ser criado normalmente sem DVD;
 - tentativa de habilitar DVD fora do escopo aprovado é bloqueada;
 - AEE permanece explicitamente fora do escopo.
@@ -94,9 +96,11 @@ A autorização valida, em conjunto:
 5. `diary_settings.enabled=true`;
 6. vigência temporal do vínculo;
 7. acesso à escola;
-8. compatibilidade de mantenedora quando os dados estiverem disponíveis;
+8. compatibilidade de mantenedora;
 9. propriedade do vínculo pelo usuário **e manutenção de papel pedagógico compatível**;
 10. capability do perfil para a ação solicitada.
+
+O guardrail de tenant segue o padrão global do SIGESC: para qualquer usuário que não seja `super_admin`, ausência de `mantenedora_id` no usuário ou no recurso é **fail-closed** e resulta em negação. `super_admin` sem escopo permanece intencionalmente cross-tenant, conforme a arquitetura já adotada pela plataforma.
 
 ## 7. Gestão e override
 
@@ -125,15 +129,19 @@ A ausência de `diary_settings` resulta em `DVD_NOT_ENABLED` no novo serviço.
 
 Isso é intencional: enquanto os módulos atuais ainda não chamam o serviço, nada muda; quando forem integrados, somente vínculos explicitamente ativados ou migrados entrarão no novo regime.
 
+Configuração inválida de `diary_settings` não é silenciosamente tratada como legado: valores malformados geram erro estável de autorização.
+
 ## 10. Testes
 
 Novo arquivo:
 
 `backend/tests/test_diary_assignment_access_phase1.py`
 
-A suíte específica da Fase 1 possui **17 testes** e cobre:
+A suíte específica da Fase 1 possui **22 testes** e cobre:
 
 - vínculo legado não ativado implicitamente;
+- `enabled=false` como default do payload HTTP;
+- configuração malformada não mascarada como legado;
 - validade temporal;
 - propriedade do professor;
 - perda de propriedade de escrita quando o usuário deixa de ter papel pedagógico;
@@ -145,9 +153,12 @@ A suíte específica da Fase 1 possui **17 testes** e cobre:
 - visão consolidada da gestão;
 - escrita gerencial somente com override explícito;
 - escola e tenant;
+- fail-closed quando usuário não-super_admin não possui tenant;
+- fail-closed quando o recurso não possui tenant resolvível;
+- exceção cross-tenant intencional do `super_admin` sem escopo;
 - mismatch de turma/componente.
 
-Somada aos **54 testes da Fase 0**, a execução canônica do DVD possui **71 testes de proteção**.
+Somada aos **54 testes da Fase 0**, a execução canônica do DVD possui **76 testes de proteção**.
 
 ## 11. CI
 
@@ -180,7 +191,7 @@ Assim, os guardrails do DVD deixam de depender de validação manual.
 
 A Fase 2 só deve começar após:
 
-- **71/71** testes Fase 0 + Fase 1 verdes no GitHub Actions;
+- **76/76** testes Fase 0 + Fase 1 verdes no GitHub Actions;
 - `ruff` e `compileall` verdes;
 - regressão existente verde;
 - diff revisado sem alterações pedagógicas acidentais;
