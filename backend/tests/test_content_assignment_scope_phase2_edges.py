@@ -1,4 +1,4 @@
-"""DVD Fase 2 — casos-limite de resolução do conteúdo."""
+"""DVD Fase 2 — casos-limite de resolução e histórico do conteúdo."""
 
 import pytest
 
@@ -84,8 +84,8 @@ class FakeDb:
             self.content_entries = FakeCollection(content_entries)
 
 
-def _assignment(aid="a-1", component="math"):
-    return {
+def _assignment(aid="a-1", component="math", **overrides):
+    doc = {
         "id": aid,
         "teacher_id": "teacher-1",
         "teacher_name": "Professor 1",
@@ -103,6 +103,8 @@ def _assignment(aid="a-1", component="math"):
             "student_scope": "all",
         },
     }
+    doc.update(overrides)
+    return doc
 
 
 def _user():
@@ -112,6 +114,24 @@ def _user():
         "school_ids": ["school-1"],
         "mantenedora_id": "tenant-1",
     }
+
+
+def _historical(**overrides):
+    doc = {
+        "id": "content-old",
+        "assignment_id": "a-1",
+        "assignment_profile_at_record": "regular",
+        "assignment_schema_version_at_record": 1,
+        "teacher_id": "teacher-1",
+        "class_id": "class-1",
+        "school_id": "school-1",
+        "mantenedora_id": "tenant-1",
+        "component_id": "math",
+        "date": "2026-08-17",
+        "deleted": False,
+    }
+    doc.update(overrides)
+    return doc
 
 
 @pytest.mark.asyncio
@@ -181,21 +201,65 @@ async def test_upsert_nao_sobrescreve_registro_com_proveniencia_corrompida():
 
 @pytest.mark.asyncio
 async def test_registro_historico_nao_desaparece_se_assignment_mudar_componente():
-    # O conteúdo foi registrado em Matemática quando esse era o componente do
-    # vínculo; posteriormente a configuração administrativa do assignment mudou.
-    historical = {
-        "id": "content-old",
-        "assignment_id": "a-1",
-        "teacher_id": "teacher-1",
-        "class_id": "class-1",
-        "component_id": "math",
-        "date": "2026-08-17",
-        "deleted": False,
-    }
     ctx = await authorize_content_record(
         FakeDb([_assignment(component="portuguese")]),
         _user(),
-        historical,
+        _historical(),
         action="view",
     )
     assert ctx.is_owner is True
+
+
+@pytest.mark.asyncio
+async def test_registro_historico_nao_desaparece_se_assignment_for_soft_deleted():
+    ctx = await authorize_content_record(
+        FakeDb([_assignment(deleted=True)]),
+        _user(),
+        _historical(),
+        action="view",
+    )
+    assert ctx.is_owner is True
+
+
+@pytest.mark.asyncio
+async def test_registro_historico_nao_desaparece_se_dvd_for_desabilitado():
+    disabled = _assignment()
+    disabled["diary_settings"] = {
+        "enabled": False,
+        "schema_version": 1,
+        "profile": "integrator",
+        "student_scope": "all",
+    }
+    ctx = await authorize_content_record(
+        FakeDb([disabled]),
+        _user(),
+        _historical(),
+        action="view",
+    )
+    assert ctx.is_owner is True
+    assert ctx.profile.value == "regular"
+
+
+@pytest.mark.asyncio
+async def test_registro_historico_nao_desaparece_se_validade_for_encurtada():
+    ctx = await authorize_content_record(
+        FakeDb([_assignment(valid_until="2026-03-01")]),
+        _user(),
+        _historical(),
+        action="view",
+    )
+    assert ctx.is_owner is True
+
+
+@pytest.mark.asyncio
+async def test_snapshot_incompleto_falha_fechado():
+    incomplete = _historical()
+    incomplete.pop("assignment_profile_at_record")
+    with pytest.raises(ContentAssignmentScopeError) as exc:
+        await authorize_content_record(
+            FakeDb([_assignment()]),
+            _user(),
+            incomplete,
+            action="view",
+        )
+    assert exc.value.code == "INCOMPLETE_ASSIGNMENT_SNAPSHOT"
