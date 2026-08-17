@@ -372,6 +372,48 @@ async def test_super_admin_sem_escopo_pode_operar_cross_tenant_intencionalmente(
 
 
 @pytest.mark.asyncio
+async def test_super_admin_com_escopo_ativo_fica_preso_ao_tenant():
+    super_admin = _user(
+        id="super-1",
+        role="super_admin",
+        school_ids=[],
+        mantenedora_id=None,
+    )
+    await _deny(
+        "TENANT_ACCESS_DENIED",
+        authorize_assignment_access(
+            _db(),
+            super_admin,
+            "assignment-1",
+            action="view",
+            on_date="2026-08-17",
+            active_mantenedora_id="tenant-2",
+        ),
+    )
+
+    ctx = await authorize_assignment_access(
+        _db(),
+        super_admin,
+        "assignment-1",
+        action="view",
+        on_date="2026-08-17",
+        active_mantenedora_id="tenant-1",
+    )
+    assert ctx.is_owner is False
+
+
+@pytest.mark.asyncio
+async def test_school_id_do_assignment_deve_bater_com_escola_real_da_turma():
+    klass = _class(school_id="school-2")
+    await _deny(
+        "ASSIGNMENT_SCHOOL_MISMATCH",
+        authorize_assignment_access(
+            _db(klass=klass), _user(), "assignment-1", on_date="2026-08-17"
+        ),
+    )
+
+
+@pytest.mark.asyncio
 async def test_contexto_esperado_impede_troca_de_turma_ou_componente():
     await _deny(
         "CLASS_MISMATCH",
