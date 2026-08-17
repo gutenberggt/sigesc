@@ -18,19 +18,22 @@ Na Educação Infantil, `education_level=educacao_infantil` é a autoridade de e
 
 ## Capacidades
 
-| Perfil | Conteúdo | Frequência | Modo da frequência | Purpose | Avaliação |
-|---|---:|---:|---|---|---:|
-| `regular` | SIM | SIM | `class_daily` | `official` | SIM conforme etapa |
-| `integral_content` | SIM | NÃO | `none` | — | NÃO |
-| `shared` | SIM | SIM | `assignment_session` | `official` | SIM conforme etapa |
+| Perfil | Conteúdo | Frequência | Obrigatória | Modo da frequência | Purpose | Avaliação |
+|---|---:|---:|---:|---|---|---:|
+| `regular` | SIM | SIM | SIM | `class_daily` | `official` | SIM conforme etapa |
+| `integrator` | SIM | SIM | NÃO | `assignment_session` | `pdf_only` | NÃO |
+| `shared` | SIM | SIM | SIM | `assignment_session` | `official` | SIM conforme etapa |
 
 ## Modos e efeitos de frequência
 
 - `class_daily`: preserva a frequência canônica atual da turma/data; não cria cópia por professor.
-- `assignment_session`: frequência oficial isolada por vínculo/sessão docente, reservada ao perfil `shared`.
-- `none`: o vínculo não lança frequência, aplicado ao perfil `integral_content`.
+- `assignment_session`: isola o registro por vínculo/sessão docente. No perfil `integrator`, é `pdf_only`; no perfil `shared`, é `official`.
 
-Somente `official` pode alimentar percentual, presenças/faltas oficiais, Busca Ativa, Bolsa Família, promoção/reprovação, documentos e indicadores. Valores ausentes, desconhecidos ou futuros não são promovidos implicitamente a frequência oficial.
+Somente `official` pode alimentar percentual, presenças/faltas oficiais, Busca Ativa, Bolsa Família, promoção/reprovação, documentos e indicadores.
+
+`pdf_only` é opcional e exclusivamente pedagógico/documental: sua ausência não gera pendência, incompletude nem falta; presença e ausência registradas não entram no numerador nem no denominador da frequência oficial; o registro só pode ser utilizado no diário/PDF do próprio vínculo.
+
+Conteúdo e frequência do integrador são independentes: registrar conteúdo não obriga o lançamento de frequência.
 
 ## Migração/autoria
 
@@ -47,7 +50,7 @@ Ordem de evidência para atribuição automática:
 
 ## PDF
 
-A unidade do PDF operacional é `assignment_id`. Cada PDF contém somente os registros daquele vínculo. No perfil `integral_content`, o PDF contém os registros pedagógicos de conteúdo do vínculo; não há frequência nem notas/conceitos próprias desse perfil.
+A unidade do PDF operacional é `assignment_id`. Cada PDF contém somente os registros daquele vínculo. No perfil `integrator`, o PDF contém os registros pedagógicos de conteúdo e, quando houver lançamento, sua frequência `pdf_only`, identificada como acompanhamento documental sem efeito na frequência escolar oficial.
 
 ## Multisseriadas
 
@@ -57,9 +60,9 @@ Guardrail da Fase 0: migração automática em bloco somente quando todas as sé
 
 Novo arquivo: `backend/tests/test_diary_assignment_contract_phase0.py`.
 
-Ele protege: Educação Infantil; 1º–5º Ano; EJA 1ª/2ª; exclusão de 6º–9º, EJA 3ª/4ª, Ensino Médio e AEE; escola integral; multisseriadas; matriz dos perfis; modos `class_daily`/`assignment_session`/`none`; regra positiva de frequência `official`; enums de migração.
+Ele protege: Educação Infantil; 1º–5º Ano; EJA 1ª/2ª; exclusão de 6º–9º, EJA 3ª/4ª, Ensino Médio e AEE; escola integral; multisseriadas; matriz dos perfis; modos `class_daily`/`assignment_session`; `official`/`pdf_only`; regra positiva de frequência oficial; enums de migração.
 
-A suíte específica da Fase 0 deve coletar **53 casos**.
+A suíte específica da Fase 0 deve coletar **54 casos**.
 
 Suítes existentes que devem permanecer verdes nas fases seguintes incluem:
 
@@ -85,4 +88,4 @@ Suítes existentes que devem permanecer verdes nas fases seguintes incluem:
 
 ## Gate da Fase 1
 
-A Fase 1 só começa após revisão deste contrato, **53 testes específicos** verdes, regressões conceituais/canonicalização verdes, ausência de alteração no AEE e confirmação de que a Fase 0 não modificou routers, persistência, frontend ou PDFs.
+A Fase 1 só começa após revisão deste contrato, **54 testes específicos** verdes, regressões conceituais/canonicalização verdes, ausência de alteração no AEE e confirmação de que a Fase 0 não modificou routers, persistência, frontend ou PDFs.
