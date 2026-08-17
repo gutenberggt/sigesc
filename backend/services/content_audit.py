@@ -77,6 +77,7 @@ def build_content_audit_extra(
         "date": entry.get("date"),
         "course_id": entry.get("course_id"),
         "component_id": entry.get("component_id"),
+        "assignment_id": entry.get("assignment_id"),
         "teacher_id": entry.get("teacher_id"),
         "teacher_name": entry.get("teacher_name"),
         "aula_numero": entry.get("aula_numero"),
