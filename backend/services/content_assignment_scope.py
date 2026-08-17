@@ -63,6 +63,40 @@ def _validate_snapshot(context, component_id: Optional[str], provided_teacher_id
         )
 
 
+async def _validate_existing_assignment_provenance(
+    db,
+    context: DiaryAssignmentAccessContext,
+    *,
+    class_id: str,
+    component_id: Optional[str],
+    on_date: str,
+) -> None:
+    """Falha fechado se já houver conteúdo DVD com autoria incompatível.
+
+    A checagem antecede o upsert canônico. Assim, um documento corrompido com
+    `assignment_id` válido porém `teacher_id` divergente nunca é sobrescrito e
+    normalizado silenciosamente por um reenvio posterior.
+    """
+    collection = getattr(db, "content_entries", None)
+    if collection is None:
+        return
+    query = {
+        "assignment_id": context.assignment.get("id"),
+        "class_id": class_id,
+        "component_id": component_id,
+        "date": on_date,
+        "deleted": False,
+    }
+    cursor = collection.find(query, {"_id": 0, "teacher_id": 1})
+    existing = await cursor.to_list(100)
+    owner_teacher_id = context.assignment.get("teacher_id")
+    if any(item.get("teacher_id") != owner_teacher_id for item in existing):
+        raise ContentAssignmentScopeError(
+            "CONTENT_PROVENANCE_MISMATCH",
+            "Existe conteúdo com autoria incompatível com o vínculo docente; reconciliação é necessária.",
+        )
+
+
 async def _authorize_content_assignment(
     db,
     current_user: Mapping[str, Any],
@@ -89,6 +123,13 @@ async def _authorize_content_assignment(
     except DiaryAssignmentAccessError as exc:
         raise ContentAssignmentScopeError(exc.code, exc.message) from exc
     _validate_snapshot(context, component_id, provided_teacher_id)
+    await _validate_existing_assignment_provenance(
+        db,
+        context,
+        class_id=class_id,
+        component_id=component_id,
+        on_date=on_date,
+    )
     return context
 
 
