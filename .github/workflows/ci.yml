@@ -152,4 +152,5 @@ jobs:
             tests/test_diary_assignment_contract_phase0.py \
             tests/test_diary_assignment_access_phase1.py \
             tests/test_content_assignment_scope_phase2.py \
+            tests/test_content_assignment_scope_phase2_edges.py \
             tests/test_content_entry_indexes_phase2.py
