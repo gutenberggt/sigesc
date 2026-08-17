@@ -4167,42 +4167,53 @@ export function StudentsComplete() {
                     </div>
                   </div>
 
-                  {/* EDUCAÇÃO INFANTIL */}
-                  <div data-testid="series-infantil-counts">
-                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
-                      Educação Infantil
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {['Berçário I','Berçário II','Maternal I','Maternal II','Pré I','Pré II'].map((label) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* EDUCAÇÃO INFANTIL */}
+                    <div data-testid="series-infantil-counts">
+                      <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                        Educação Infantil
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {['Berçário I','Berçário II','Maternal I','Maternal II','Pré I','Pré II'].map((label) => (
+                          <span
+                            key={label}
+                            className="inline-flex items-center px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium"
+                          >
+                            {label}: {seriesCounts[label.toUpperCase()] || 0}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ETAPAS DE ENSINO */}
+                    <div data-testid="etapas-ensino-counts">
+                      <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                        Etapas de Ensino
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Somas por agrupamento (totais destacados) */}
                         <span
-                          key={label}
-                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium"
+                          data-testid="sum-educacao-infantil"
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold"
+                          title="Soma de todas as séries da Educação Infantil"
                         >
-                          {label}: {seriesCounts[label.toUpperCase()] || 0}
+                          Educação Infantil: {totalEducacaoInfantil}
                         </span>
-                      ))}
-                      {/* Somas por agrupamento (totais destacados) */}
-                      <span
-                        data-testid="sum-educacao-infantil"
-                        className="inline-flex items-center px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold"
-                        title="Soma de todas as séries da Educação Infantil"
-                      >
-                        Educação Infantil: {totalEducacaoInfantil}
-                      </span>
-                      <span
-                        data-testid="sum-anos-iniciais"
-                        className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold"
-                        title="Soma do 1º ao 5º Ano (Anos Iniciais)"
-                      >
-                        Anos Iniciais: {totalAnosIniciais}
-                      </span>
-                      <span
-                        data-testid="sum-anos-finais"
-                        className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold"
-                        title="Soma do 6º ao 9º Ano (Anos Finais)"
-                      >
-                        Anos Finais: {totalAnosFinais}
-                      </span>
+                        <span
+                          data-testid="sum-anos-iniciais"
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold"
+                          title="Soma do 1º ao 5º Ano (Anos Iniciais)"
+                        >
+                          Anos Iniciais: {totalAnosIniciais}
+                        </span>
+                        <span
+                          data-testid="sum-anos-finais"
+                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-bold"
+                          title="Soma do 6º ao 9º Ano (Anos Finais)"
+                        >
+                          Anos Finais: {totalAnosFinais}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
