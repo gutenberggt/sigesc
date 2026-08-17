@@ -4094,8 +4094,9 @@ export function StudentsComplete() {
 
               {!indicatorsCollapsed && (
                 <div className="border-t border-gray-100 px-5 py-4 space-y-5">
-                  {/* COR / RAÇA */}
-                  <div data-testid="race-counts">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* COR / RAÇA */}
+                    <div data-testid="race-counts">
                     <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
                       Cor / Raça
                     </p>
@@ -4146,6 +4147,7 @@ export function StudentsComplete() {
                         </span>
                       ))}
                     </div>
+                  </div>
                   </div>
 
                   {/* ENSINO FUNDAMENTAL */}
