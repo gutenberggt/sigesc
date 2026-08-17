@@ -2,6 +2,7 @@
 Router de Alocação Institucional Temporal — `teacher_class_assignments`.
 
 Rodada 4 (Mai/2026) — Fase 4a: motor temporal do diário.
+Diário por Vínculo Docente (Ago/2026) — Fase 1: configuração aditiva do vínculo.
 
 Princípios arquiteturais (referência: diretriz oficial Mai/2026):
   - Coleção SEPARADA de `class_schedules`. Schedules = grade da turma;
@@ -15,6 +16,8 @@ Princípios arquiteturais (referência: diretriz oficial Mai/2026):
   - `source: manual|import|seed` — rastreabilidade da origem (migração).
   - NÃO bloqueia conflito na criação — fornece endpoint
     `/teacher-class-assignments/conflicts` para inspeção explícita.
+  - `diary_settings` é opcional e aditivo. Ausência do campo mantém o vínculo
+    no comportamento legado; ativação do DVD é sempre explícita.
 
 Endpoints:
   POST   /teacher-class-assignments
@@ -30,9 +33,10 @@ import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from auth_middleware import AuthMiddleware
+from services.diary_assignment_contract import DiaryProfile, StudentScope, is_class_in_scope
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +64,25 @@ class WeeklySlot(BaseModel):
         return v
 
 
+class DiarySettingsPayload(BaseModel):
+    """Configuração aditiva do DVD persistida no vínculo.
+
+    Capacidades (conteúdo/frequência/avaliação) NÃO são persistidas aqui: são
+    derivadas do `profile` pelo contrato canônico da Fase 0, evitando drift.
+    """
+
+    enabled: bool = False
+    schema_version: int = Field(default=1, ge=1, le=1)
+    profile: DiaryProfile = DiaryProfile.REGULAR
+    student_scope: StudentScope = StudentScope.ALL
+
+    @model_validator(mode="after")
+    def _group_only_for_shared(self):
+        if self.student_scope is StudentScope.GROUP and self.profile is not DiaryProfile.SHARED:
+            raise ValueError("student_scope=group é permitido apenas para profile=shared")
+        return self
+
+
 class AssignmentCreate(BaseModel):
     teacher_id: str
     class_id: str
@@ -70,6 +93,7 @@ class AssignmentCreate(BaseModel):
     valid_until: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     is_substitute: bool = False
     source: str = "manual"
+    diary_settings: Optional[DiarySettingsPayload] = None
 
     @field_validator("shift")
     @classmethod
@@ -102,6 +126,7 @@ class AssignmentUpdate(BaseModel):
     weekly_slots: Optional[List[WeeklySlot]] = Field(default=None, min_length=1, max_length=20)
     valid_until: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     is_substitute: Optional[bool] = None
+    diary_settings: Optional[DiarySettingsPayload] = None
 
 
 class AssignmentDeleteRequest(BaseModel):
@@ -121,7 +146,19 @@ async def _resolve_teacher(db, teacher_id: str) -> Optional[dict]:
 
 async def _resolve_class(db, class_id: str) -> Optional[dict]:
     return await db.classes.find_one(
-        {"id": class_id}, {"_id": 0, "id": 1, "name": 1, "school_id": 1}
+        {"id": class_id},
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "school_id": 1,
+            "mantenedora_id": 1,
+            "education_level": 1,
+            "nivel_ensino": 1,
+            "grade_level": 1,
+            "grade": 1,
+            "atendimento_programa": 1,
+        },
     )
 
 
@@ -131,6 +168,34 @@ def _public(doc):
     d = dict(doc)
     d.pop("_id", None)
     return d
+
+
+def _diary_settings_to_doc(settings: DiarySettingsPayload) -> dict:
+    return settings.model_dump(mode="json")
+
+
+def _validate_diary_settings_for_class(
+    settings: Optional[DiarySettingsPayload], klass: dict
+) -> None:
+    """Ativação do DVD somente no escopo aprovado; vínculo legado segue livre.
+
+    Importante: não bloqueia a criação de assignments para Anos Finais/EJA 3ª-4ª
+    etc. O bloqueio ocorre apenas se alguém tentar habilitar explicitamente o DVD
+    v1 nessas turmas. AEE também é recusado pelo guardrail canônico.
+    """
+    if settings is None or not settings.enabled:
+        return
+    if not is_class_in_scope(klass):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "DVD_STAGE_OUT_OF_SCOPE",
+                "message": (
+                    "Diário por Vínculo v1 só pode ser habilitado na Educação Infantil, "
+                    "1º-5º Ano e EJA 1ª-2ª Etapa; AEE permanece fora do escopo."
+                ),
+            },
+        )
 
 
 def _slots_overlap(a: dict, b: dict) -> bool:
@@ -166,6 +231,7 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
         klass = await _resolve_class(db, payload.class_id)
         if not klass:
             raise HTTPException(status_code=404, detail="Turma não encontrada")
+        _validate_diary_settings_for_class(payload.diary_settings, klass)
 
         now = datetime.now(timezone.utc).isoformat()
         doc = {
@@ -188,6 +254,9 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
             "updated_at": now,
             "updated_by": current_user["id"],
         }
+        if payload.diary_settings is not None:
+            doc["diary_settings"] = _diary_settings_to_doc(payload.diary_settings)
+
         await db.teacher_class_assignments.insert_one(doc)
         await audit_service.log(
             action="create", collection="teacher_class_assignments",
@@ -207,6 +276,7 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
                 "valid_until": payload.valid_until,
                 "is_substitute": payload.is_substitute,
                 "source": payload.source,
+                "diary_settings": doc.get("diary_settings"),
                 "change_kind": "assignment_created",
             },
         )
@@ -223,6 +293,8 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
         active_on: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
         include_deleted: bool = Query(False),
         is_substitute: Optional[bool] = Query(None),
+        diary_enabled: Optional[bool] = Query(None),
+        diary_profile: Optional[DiaryProfile] = Query(None),
     ):
         await AuthMiddleware.require_roles(VIEW_ROLES)(request)
         q: dict = {}
@@ -238,6 +310,10 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
             q["school_id"] = school_id
         if is_substitute is not None:
             q["is_substitute"] = is_substitute
+        if diary_enabled is not None:
+            q["diary_settings.enabled"] = diary_enabled
+        if diary_profile is not None:
+            q["diary_settings.profile"] = diary_profile.value
         if active_on:
             q["valid_from"] = {"$lte": active_on}
             q["$or"] = [{"valid_until": None}, {"valid_until": {"$gte": active_on}}]
@@ -404,6 +480,12 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
             set_fields["valid_until"] = patch.valid_until
         if patch.is_substitute is not None:
             set_fields["is_substitute"] = patch.is_substitute
+        if patch.diary_settings is not None:
+            klass = await _resolve_class(db, existing["class_id"])
+            if not klass:
+                raise HTTPException(status_code=404, detail="Turma da alocação não encontrada")
+            _validate_diary_settings_for_class(patch.diary_settings, klass)
+            set_fields["diary_settings"] = _diary_settings_to_doc(patch.diary_settings)
 
         await db.teacher_class_assignments.update_one({"id": assignment_id}, {"$set": set_fields})
         updated = await db.teacher_class_assignments.find_one({"id": assignment_id}, {"_id": 0})
@@ -419,6 +501,7 @@ def setup_teacher_class_assignments_router(db, audit_service, sandbox_db=None):
                 "change_kind": "assignment_updated",
                 "teacher_id": existing["teacher_id"],
                 "class_id": existing["class_id"],
+                "diary_settings_changed": "diary_settings" in set_fields,
             },
         )
         return updated
