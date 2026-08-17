@@ -48,7 +48,12 @@ class FakeCollection:
         self.docs = [dict(d) for d in docs]
 
     def find(self, query, projection=None):
-        return FakeCursor([d for d in self.docs if _matches(d, query)])
+        docs = [d for d in self.docs if _matches(d, query)]
+        if projection:
+            included = [k for k, enabled in projection.items() if enabled and k != "_id"]
+            if included:
+                docs = [{k: _get(d, k) for k in included} for d in docs]
+        return FakeCursor(docs)
 
     async def find_one(self, query, projection=None):
         for doc in self.docs:
@@ -64,7 +69,7 @@ class FakeCollection:
 
 
 class FakeDb:
-    def __init__(self, assignments):
+    def __init__(self, assignments, content_entries=None):
         self.teacher_class_assignments = FakeCollection(assignments)
         self.classes = FakeCollection([{
             "id": "class-1",
@@ -74,6 +79,8 @@ class FakeDb:
             "grade_level": "3º Ano",
             "atendimento_programa": None,
         }])
+        if content_entries is not None:
+            self.content_entries = FakeCollection(content_entries)
 
 
 def _assignment(aid="a-1", component="math"):
@@ -146,3 +153,26 @@ async def test_assignment_class_wide_continua_auto_resolvivel_sem_componente():
     )
     assert result.dvd_enabled is True
     assert result.assignment_id == "a-1"
+
+
+@pytest.mark.asyncio
+async def test_upsert_nao_sobrescreve_registro_com_proveniencia_corrompida():
+    corrupted = {
+        "id": "content-corrupt",
+        "assignment_id": "a-1",
+        "teacher_id": "teacher-2",
+        "class_id": "class-1",
+        "component_id": "math",
+        "date": "2026-08-17",
+        "deleted": False,
+    }
+    with pytest.raises(ContentAssignmentScopeError) as exc:
+        await resolve_content_assignment_for_create(
+            FakeDb([_assignment()], content_entries=[corrupted]),
+            _user(),
+            class_id="class-1",
+            component_id="math",
+            on_date="2026-08-17",
+            assignment_id="a-1",
+        )
+    assert exc.value.code == "CONTENT_PROVENANCE_MISMATCH"
