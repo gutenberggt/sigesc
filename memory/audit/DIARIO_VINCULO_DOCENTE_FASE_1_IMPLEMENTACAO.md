@@ -95,7 +95,7 @@ A autorização valida, em conjunto:
 6. vigência temporal do vínculo;
 7. acesso à escola;
 8. compatibilidade de mantenedora quando os dados estiverem disponíveis;
-9. propriedade do vínculo pelo professor;
+9. propriedade do vínculo pelo usuário **e manutenção de papel pedagógico compatível**;
 10. capability do perfil para a ação solicitada.
 
 ## 7. Gestão e override
@@ -110,7 +110,12 @@ Exemplo: nem um coordenador com override poderá lançar notas em vínculo `inte
 
 Para ações pedagógicas, conhecer ou enviar `teacher_id`/`assignment_id` não concede acesso.
 
-O serviço resolve o documento real do vínculo e compara `assignment.teacher_id` com `current_user.id`.
+O serviço resolve o documento real do vínculo e exige simultaneamente:
+
+- `assignment.teacher_id == current_user.id`; e
+- papel atual em `professor`, `coordenador` ou `apoio_pedagogico` para exercer propriedade pedagógica.
+
+Assim, um usuário que historicamente foi professor mas passou a um papel administrativo não conserva escrita no diário apenas porque seu ID permanece no vínculo antigo.
 
 Também pode receber `expected_class_id` e `expected_component_id`, impedindo que o frontend reutilize um assignment válido em outra turma/componente.
 
@@ -126,11 +131,12 @@ Novo arquivo:
 
 `backend/tests/test_diary_assignment_access_phase1.py`
 
-Cobre:
+A suíte específica da Fase 1 possui **17 testes** e cobre:
 
 - vínculo legado não ativado implicitamente;
 - validade temporal;
 - propriedade do professor;
+- perda de propriedade de escrita quando o usuário deixa de ter papel pedagógico;
 - regular com todas as capabilities;
 - integrador com frequência opcional `pdf_only` e sem notas;
 - shared com `student_scope=group`;
@@ -140,6 +146,8 @@ Cobre:
 - escrita gerencial somente com override explícito;
 - escola e tenant;
 - mismatch de turma/componente.
+
+Somada aos **54 testes da Fase 0**, a execução canônica do DVD possui **71 testes de proteção**.
 
 ## 11. CI
 
@@ -151,6 +159,8 @@ Ele executa automaticamente, em todo PR/push para `main`:
 
 - `test_diary_assignment_contract_phase0.py`;
 - `test_diary_assignment_access_phase1.py`.
+
+A execução é isolada do `tests/conftest.py` de integração e define `PYTHONPATH=.` explicitamente, pois estes guards são testes unitários puros e não dependem de MongoDB.
 
 Assim, os guardrails do DVD deixam de depender de validação manual.
 
@@ -170,7 +180,7 @@ Assim, os guardrails do DVD deixam de depender de validação manual.
 
 A Fase 2 só deve começar após:
 
-- testes Fase 0 + Fase 1 verdes no GitHub Actions;
+- **71/71** testes Fase 0 + Fase 1 verdes no GitHub Actions;
 - `ruff` e `compileall` verdes;
 - regressão existente verde;
 - diff revisado sem alterações pedagógicas acidentais;
