@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   apply:
-    if: ${{ !contains(github.event.head_commit.message, '[eja-modalidades-layout-auto]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,8 +28,12 @@ jobs:
           text = path.read_text(encoding='utf-8')
 
           start_marker = '                  {/* ETAPAS (EJA) E MODALIDADES */}'
+          applied_marker = '                  {/* EJA E MODALIDADES/ATENDIMENTOS */}'
           end_marker = '                  {/* RECONCILIAÇÃO: séries não reconhecidas (problema de cadastro/mapeamento) */}'
 
+          if text.count(start_marker) == 0 and text.count(applied_marker) == 1:
+              print('Layout já aplicado; nenhuma alteração necessária.')
+              raise SystemExit(0)
           if text.count(start_marker) != 1:
               raise SystemExit(f'Marcador inicial esperado 1 vez; encontrado {text.count(start_marker)}')
           if text.count(end_marker) != 1:
@@ -103,5 +106,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add frontend/src/pages/StudentsComplete.js
-          git commit -m "style(students): separar EJA de modalidades e atendimentos [eja-modalidades-layout-auto]"
+          git commit -m "style(students): separar EJA de modalidades e atendimentos"
           git push origin HEAD:style/students-eja-modalidades-two-columns
