@@ -3,25 +3,15 @@ Router de Conteúdo Pedagógico (Diário) — SIGESC.
 
 Rodada 2 (Mai/2026) — Fase 2: split do domínio "conteúdo" em coleção
 própria (`content_entries`), independente de `attendance`.
+DVD (Ago/2026) — Fase 2: propriedade pedagógica por `assignment_id`.
 
-Princípios arquiteturais (referência: diretriz oficial Mai/2026):
-  - 1 entry por (turma, data, componente, aula_numero, professor).
-  - Vínculo SEMÂNTICO — sem `attendance_id`. Frequência e conteúdo
-    podem existir independentemente; consolidação acontece via JOIN
-    semântico em relatórios e PDFs.
-  - Multi-autoria desde o nascimento — `teacher_id` é parte da chave.
-  - Optimistic locking (mesmo padrão da Fase 1 — `expected_version`).
-  - Soft delete (`deleted=true`) para preservar histórico.
-  - Toda escrita registra em `audit_logs` (canônico) com texto anterior.
-  - Status nasce como `draft`; transições (`published`, `corrected`)
-    serão tratadas na Rodada 3.
-
-Endpoints:
-  POST   /content-entries           cria um entry
-  GET    /content-entries           lista por class_id+date (e opcionais)
-  GET    /content-entries/{id}      detalhe
-  PUT    /content-entries/{id}      atualiza (com expected_version)
-  DELETE /content-entries/{id}      soft delete
+Princípios arquiteturais:
+  - Legado: 1 entry por (turma, data, componente, aula_numero, professor).
+  - DVD: 1 entry por (turma, data, componente, aula_numero, assignment_id).
+  - Vínculo SEMÂNTICO — sem `attendance_id`; frequência e conteúdo são independentes.
+  - `teacher_id` permanece como snapshot de autoria pedagógica; em DVD é derivado
+    do vínculo autorizado, nunca confiado isoladamente ao payload.
+  - Optimistic locking (`expected_version`) + soft delete + auditoria canônica.
 """
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -32,14 +22,19 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
+from services.content_assignment_scope import (
+    ContentAssignmentScopeError,
+    authorize_content_record,
+    filter_visible_content_entries,
+    resolve_content_assignment_for_create,
+)
 from services.content_audit import build_content_audit_extra, compute_snapshot_hash
+from services.diary_assignment_access import DiaryAction
 from utils.academic_year import create_academic_year_validators
-from tenant_scope import resolve_tenant_id_for_create
+from tenant_scope import get_mantenedora_scope, resolve_tenant_id_for_create
 
 logger = logging.getLogger(__name__)
 
-# Roles que podem CRIAR/EDITAR conteúdo. Coordenação/secretaria também
-# para correções autorizadas (registradas no audit log).
 WRITE_ROLES = [
     'professor', 'coordenador', 'admin', 'admin_teste', 'super_admin',
     'secretario', 'gerente', 'auxiliar_secretaria',
@@ -47,22 +42,19 @@ WRITE_ROLES = [
 VIEW_ROLES = WRITE_ROLES + ['diretor', 'ass_social_2', 'semed3']
 
 
-# ============================ MODELS ========================================
-
 class ContentEntryCreate(BaseModel):
     class_id: str
-    date: str  # ISO YYYY-MM-DD
+    date: str
     course_id: Optional[str] = None
     component_id: Optional[str] = None
     aula_numero: Optional[int] = None
-    teacher_id: Optional[str] = None  # default: usuário logado
-    academic_year: Optional[int] = None  # default: derivado da turma
+    teacher_id: Optional[str] = None
+    assignment_id: Optional[str] = None
+    academic_year: Optional[int] = None
     number_of_classes: int = 1
     content: str = Field(..., min_length=1, max_length=20000)
     methodology: Optional[str] = Field(default=None, max_length=5000)
     observations: Optional[str] = Field(default=None, max_length=5000)
-    # Optimistic locking — permite que o motor canônico faça upsert idempotente
-    # (mesmo caminho do HTTP e do futuro sync offline). Mesmo padrão da Frequência.
     expected_version: Optional[int] = None
     force_overwrite: bool = False
     change_note: Optional[str] = None
@@ -72,34 +64,26 @@ class ContentEntryUpdate(BaseModel):
     content: Optional[str] = Field(default=None, min_length=1, max_length=20000)
     methodology: Optional[str] = Field(default=None, max_length=5000)
     observations: Optional[str] = Field(default=None, max_length=5000)
-    # Optimistic locking (mesmo padrão da Fase 1).
     expected_version: Optional[int] = None
     force_overwrite: bool = False
     change_note: Optional[str] = None
 
 
 class ContentEntryDeleteRequest(BaseModel):
-    # Razão obrigatória para soft-delete — preserva governance.
     change_note: str = Field(..., min_length=1, max_length=500)
 
 
 class ContentEntryPublishRequest(BaseModel):
-    # Optimistic locking opcional: garante que estamos publicando a
-    # versão que o frontend viu.
     expected_version: Optional[int] = None
 
 
 class ContentEntryCorrectRequest(BaseModel):
-    # change_note OBRIGATÓRIO — auditoria institucional.
     change_note: str = Field(..., min_length=1, max_length=500)
     expected_version: Optional[int] = None
-    # Campos a corrigir (qualquer combinação). Pelo menos um deve vir.
     content: Optional[str] = Field(default=None, min_length=1, max_length=20000)
     methodology: Optional[str] = Field(default=None, max_length=5000)
     observations: Optional[str] = Field(default=None, max_length=5000)
 
-
-# ============================ HELPERS =======================================
 
 async def _resolve_class_info(db, class_id: str) -> Optional[dict]:
     return await db.classes.find_one(
@@ -119,7 +103,6 @@ async def _resolve_teacher_name(db, teacher_id: Optional[str]) -> Optional[str]:
 
 
 def _public(entry: dict) -> dict:
-    """Remove campos internos do payload de retorno (sem _id)."""
     if entry is None:
         return None
     e = dict(entry)
@@ -128,14 +111,49 @@ def _public(entry: dict) -> dict:
 
 
 def _iso(v):
-    """Serializa datetime → ISO string (detalhes de HTTPException usam json.dumps cru)."""
     return v.isoformat() if isinstance(v, datetime) else v
 
 
-# ============================ MOTOR CANÔNICO ================================
+def _assignment_error_to_http(exc: ContentAssignmentScopeError):
+    not_found = {"ASSIGNMENT_NOT_FOUND", "CLASS_NOT_FOUND"}
+    conflicts = {
+        "DVD_CONTENT_ASSIGNMENT_REQUIRED",
+        "DVD_CONTENT_ASSIGNMENT_AMBIGUOUS",
+        "ASSIGNMENT_NOT_ACTIVE",
+        "DVD_NOT_ENABLED",
+    }
+    status = 404 if exc.code in not_found else 409 if exc.code in conflicts else 403
+    raise HTTPException(
+        status_code=status,
+        detail={"code": exc.code, "message": exc.message},
+    ) from exc
+
+
+async def _authorize_dvd_record(
+    db,
+    current_user,
+    request,
+    entry,
+    *,
+    action=DiaryAction.VIEW,
+    allow_management_override=False,
+):
+    if not entry.get("assignment_id"):
+        return None
+    try:
+        return await authorize_content_record(
+            db,
+            current_user,
+            entry,
+            action=action,
+            allow_management_override=allow_management_override,
+            active_mantenedora_id=get_mantenedora_scope(current_user, request),
+        )
+    except ContentAssignmentScopeError as exc:
+        _assignment_error_to_http(exc)
+
 
 async def _resolve_bimestre_for_date(db, academic_year: int, target_date: str) -> Optional[int]:
-    """Retorna o número do bimestre (1-4) que contém a data, ou None."""
     calendario = await db.calendario_letivo.find_one({"ano_letivo": academic_year}, {"_id": 0})
     if not calendario:
         return None
@@ -148,25 +166,15 @@ async def _resolve_bimestre_for_date(db, academic_year: int, target_date: str) -
 
 
 async def save_content_canonical(db, current_user, request, entry: "ContentEntryCreate", audit_service):
-    """Motor canônico ÚNICO de escrita de conteúdo pedagógico (Diário).
+    """Motor canônico ÚNICO de escrita de conteúdo pedagógico.
 
-    Autoridade única usada pelo endpoint HTTP `POST /content-entries`, pelo adapter
-    de compatibilidade (`/api/learning-objects`) e pelo futuro sync offline. Garante:
-      - UPSERT por CHAVE NATURAL (class_id, component_id, teacher_id, date, aula_numero)
-        → idempotente: reenviar não duplica; N edições convergem para o estado final.
-      - Versionamento + optimistic locking (expected_version/force_overwrite/change_note).
-      - LOCKS DE CALENDÁRIO portados do legado (ano letivo aberto + prazo do bimestre),
-        validados SEMPRE server-side — única autoridade.
-      - Auditoria canônica em `audit_logs`.
-      - Timestamps como Date nativo do MongoDB (serializados como ISO na API).
+    O caminho legado é preservado quando não existe DVD ativo para o contexto.
+    Em DVD, `assignment_id` é a propriedade pedagógica e `teacher_id` é derivado
+    do vínculo autorizado. O adapter legado e o frontend atual podem omitir
+    assignment apenas quando houver um único vínculo DVD inequívoco do professor.
     """
     validators = create_academic_year_validators(db)
     user_role = current_user.get("role", "")
-
-    # Identidade do autor (NUNCA inventa autoria — fallback explícito)
-    teacher_id = entry.teacher_id or current_user.get("id")
-    teacher_unknown = teacher_id is None
-    teacher_name = await _resolve_teacher_name(db, teacher_id) or current_user.get("name")
 
     class_info = await db.classes.find_one(
         {"id": entry.class_id}, {"_id": 0, "name": 1, "school_id": 1, "academic_year": 1}
@@ -178,30 +186,59 @@ async def save_content_canonical(db, current_user, request, entry: "ContentEntry
     school_id = class_info.get("school_id")
     component_id = entry.component_id or entry.course_id
 
-    # ===================== LOCKS DE CALENDÁRIO (portados) =====================
-    # Ano letivo aberto (exceto admin puro).
+    try:
+        resolution = await resolve_content_assignment_for_create(
+            db,
+            current_user,
+            class_id=entry.class_id,
+            component_id=component_id,
+            on_date=entry.date,
+            assignment_id=entry.assignment_id,
+            provided_teacher_id=entry.teacher_id,
+            allow_management_override=bool(entry.assignment_id),
+            active_mantenedora_id=get_mantenedora_scope(current_user, request),
+        )
+    except ContentAssignmentScopeError as exc:
+        _assignment_error_to_http(exc)
+
+    teacher_id = resolution.teacher_id
+    teacher_unknown = teacher_id is None
+    teacher_name = (
+        resolution.teacher_name
+        or await _resolve_teacher_name(db, teacher_id)
+        or current_user.get("name")
+    )
+
     if user_role != "admin":
         await validators["verify_academic_year_open_or_raise"](school_id, academic_year)
-    # Prazo de edição do bimestre (exceto papéis administrativos).
     if user_role not in ["admin", "admin_teste", "super_admin", "gerente", "secretario"]:
         bimestre = await _resolve_bimestre_for_date(db, academic_year, entry.date)
         if bimestre:
             await validators["verify_bimestre_edit_deadline_or_raise"](academic_year, bimestre, user_role)
-    # ==========================================================================
 
-    now = datetime.now(timezone.utc)  # Date nativo MongoDB
-    nk = {
-        "class_id": entry.class_id,
-        "component_id": component_id,
-        "teacher_id": teacher_id,
-        "date": entry.date,
-        "aula_numero": entry.aula_numero,
-        "deleted": False,
-    }
+    now = datetime.now(timezone.utc)
+    if resolution.dvd_enabled:
+        nk = {
+            "class_id": entry.class_id,
+            "component_id": component_id,
+            "assignment_id": resolution.assignment_id,
+            "date": entry.date,
+            "aula_numero": entry.aula_numero,
+            "deleted": False,
+        }
+    else:
+        nk = {
+            "class_id": entry.class_id,
+            "component_id": component_id,
+            "teacher_id": teacher_id,
+            "assignment_id": {"$exists": False},
+            "date": entry.date,
+            "aula_numero": entry.aula_numero,
+            "deleted": False,
+        }
     existing = await db.content_entries.find_one(nk)
 
     if existing:
-        # Entry já publicado/corrigido exige fluxo /correct — não sobrescreve por upsert.
         if existing.get("status") != "draft":
             raise HTTPException(
                 status_code=409,
@@ -295,7 +332,6 @@ async def save_content_canonical(db, current_user, request, entry: "ContentEntry
         )
         return _public(updated)
 
-    # ---- CREATE (version 1) ----
     mantenedora_id = await resolve_tenant_id_for_create(
         db, current_user, request, class_id=entry.class_id
     )
@@ -327,6 +363,11 @@ async def save_content_canonical(db, current_user, request, entry: "ContentEntry
         "corrected_from_version": None,
         "school_id": school_id,
     }
+    if resolution.dvd_enabled:
+        doc["assignment_id"] = resolution.assignment_id
+        doc["assignment_profile_at_record"] = resolution.access_context.settings.profile.value
+        doc["assignment_schema_version_at_record"] = resolution.access_context.settings.schema_version
+
     try:
         await db.content_entries.insert_one(doc)
     except Exception as ex:  # noqa: BLE001
@@ -335,7 +376,7 @@ async def save_content_canonical(db, current_user, request, entry: "ContentEntry
                 status_code=409,
                 detail={
                     "code": "CONTENT_ENTRY_DUPLICATE",
-                    "message": "Já existe entry para esta turma/data/componente/aula/professor.",
+                    "message": "Já existe entry para esta turma/data/componente/aula/vínculo pedagógico.",
                 },
             )
         raise
@@ -359,18 +400,14 @@ async def save_content_canonical(db, current_user, request, entry: "ContentEntry
     return _public(await db.content_entries.find_one({"id": doc["id"]}, {"_id": 0}))
 
 
-# ============================ ROUTER FACTORY ================================
-
 def setup_content_entries_router(db, audit_service, sandbox_db=None):
     router = APIRouter(prefix="/content-entries", tags=["Diário - Conteúdo"])
 
-    # ---------------- CREATE (motor canônico) ----------------
     @router.post("")
     async def create_content_entry(entry: ContentEntryCreate, request: Request):
         current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
         return await save_content_canonical(db, current_user, request, entry, audit_service)
 
-    # ---------------- LIST ----------------
     @router.get("")
     async def list_content_entries(
         request: Request,
@@ -378,9 +415,10 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         date: Optional[str] = Query(None),
         teacher_id: Optional[str] = Query(None),
         component_id: Optional[str] = Query(None),
+        assignment_id: Optional[str] = Query(None),
         include_deleted: bool = Query(False),
     ):
-        await AuthMiddleware.require_roles(VIEW_ROLES)(request)
+        current_user = await AuthMiddleware.require_roles(VIEW_ROLES)(request)
         q: dict = {}
         if not include_deleted:
             q["deleted"] = False
@@ -392,28 +430,38 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
             q["teacher_id"] = teacher_id
         if component_id:
             q["component_id"] = component_id
+        if assignment_id:
+            q["assignment_id"] = assignment_id
         cursor = db.content_entries.find(q, {"_id": 0}).sort([("date", -1), ("aula_numero", 1)])
         items = await cursor.to_list(2000)
-        return {"items": items, "total": len(items)}
+        visible = await filter_visible_content_entries(
+            db,
+            current_user,
+            items,
+            active_mantenedora_id=get_mantenedora_scope(current_user, request),
+        )
+        return {"items": visible, "total": len(visible)}
 
-    # ---------------- GET BY ID ----------------
     @router.get("/{entry_id}")
     async def get_content_entry(entry_id: str, request: Request):
-        await AuthMiddleware.require_roles(VIEW_ROLES)(request)
+        current_user = await AuthMiddleware.require_roles(VIEW_ROLES)(request)
         e = await db.content_entries.find_one({"id": entry_id}, {"_id": 0})
         if not e:
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+        await _authorize_dvd_record(db, current_user, request, e, action=DiaryAction.VIEW)
         return e
 
-    # ---------------- UPDATE ----------------
     @router.put("/{entry_id}")
     async def update_content_entry(entry_id: str, patch: ContentEntryUpdate, request: Request):
         current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
         existing = await db.content_entries.find_one({"id": entry_id, "deleted": False}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+        await _authorize_dvd_record(
+            db, current_user, request, existing,
+            action=DiaryAction.CONTENT, allow_management_override=True,
+        )
 
-        # Rodada 3: PUT só em draft. Para published/corrected, exige /correct.
         if existing.get("status") != "draft":
             raise HTTPException(
                 status_code=409,
@@ -431,8 +479,6 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         current_version = existing.get("version") or 1
         ev = patch.expected_version
         change_kind = "content_updated"
-
-        # ============= OPTIMISTIC LOCKING (mesmo padrão Fase 1) =============
         if ev is not None and ev != current_version:
             if not patch.force_overwrite:
                 last_uid = existing.get("updated_by") or existing.get("created_by")
@@ -472,9 +518,7 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
                     },
                 )
             change_kind = "content_overwrite"
-        # =====================================================================
 
-        # Monta update
         new_version = current_version + 1
         set_fields = {
             "updated_by": current_user["id"],
@@ -517,16 +561,18 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         )
         return updated
 
-    # ---------------- PUBLISH (Rodada 3) ----------------
     @router.post("/{entry_id}/publish")
     async def publish_content_entry(
         entry_id: str, request: Request, payload: ContentEntryPublishRequest
     ):
-        """Transita draft → published. Computa snapshot_hash imutável."""
         current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
         existing = await db.content_entries.find_one({"id": entry_id, "deleted": False}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+        await _authorize_dvd_record(
+            db, current_user, request, existing,
+            action=DiaryAction.CONTENT, allow_management_override=True,
+        )
         if existing.get("status") != "draft":
             raise HTTPException(
                 status_code=409,
@@ -575,7 +621,7 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         extra = build_content_audit_extra(
             entry=updated, change_kind="content_published",
             expected_version=payload.expected_version, final_version=new_version,
-            previous_content=None, new_content=None,  # Sem mudança de texto no publish
+            previous_content=None, new_content=None,
             class_info=class_info,
         )
         extra["published_snapshot_hash"] = snapshot_hash
@@ -593,21 +639,18 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         )
         return updated
 
-    # ---------------- CORRECT (Rodada 3) ----------------
     @router.post("/{entry_id}/correct")
     async def correct_content_entry(
         entry_id: str, request: Request, payload: ContentEntryCorrectRequest
     ):
-        """Correção institucional de conteúdo já publicado.
-
-        Permitida apenas em published ou corrected. Preserva
-        `corrected_from_version` apontando para a versão imediatamente
-        anterior — permite reconstruir a timeline completa.
-        """
         current_user = await AuthMiddleware.require_roles(WRITE_ROLES)(request)
         existing = await db.content_entries.find_one({"id": entry_id, "deleted": False}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
+        await _authorize_dvd_record(
+            db, current_user, request, existing,
+            action=DiaryAction.CONTENT, allow_management_override=True,
+        )
 
         if existing.get("status") not in ("published", "corrected"):
             raise HTTPException(
@@ -622,7 +665,6 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
                 },
             )
 
-        # Pelo menos um campo de conteúdo deve vir
         if payload.content is None and payload.methodology is None and payload.observations is None:
             raise HTTPException(
                 status_code=422,
@@ -689,7 +731,6 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         )
         return updated
 
-    # ---------------- SOFT DELETE ----------------
     @router.delete("/{entry_id}")
     async def soft_delete_content_entry(
         entry_id: str, request: Request, payload: ContentEntryDeleteRequest
@@ -698,6 +739,10 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
         existing = await db.content_entries.find_one({"id": entry_id, "deleted": False}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado ou já excluído")
+        await _authorize_dvd_record(
+            db, current_user, request, existing,
+            action=DiaryAction.CONTENT, allow_management_override=True,
+        )
 
         now = datetime.now(timezone.utc).isoformat()
         new_version = (existing.get("version") or 1) + 1
