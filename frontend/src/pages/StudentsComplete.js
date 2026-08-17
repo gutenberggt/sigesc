@@ -4206,31 +4206,50 @@ export function StudentsComplete() {
                     </div>
                   </div>
 
-                  {/* ETAPAS (EJA) E MODALIDADES */}
-                  <div data-testid="modalidade-counts">
-                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
-                      Etapas (EJA) e Modalidades
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { label: '1ª Etapa', value: seriesCounts['1ª ETAPA'] || 0 },
-                        { label: '2ª Etapa', value: seriesCounts['2ª ETAPA'] || 0 },
-                        { label: '3ª Etapa', value: seriesCounts['3ª ETAPA'] || 0 },
-                        { label: '4ª Etapa', value: seriesCounts['4ª ETAPA'] || 0 },
-                        { label: 'EJA', value: totalEJA, isSum: true },
-                        { label: 'Regular', value: modalidadeCounts.regular || 0 },
-                        { label: 'Integral', value: modalidadeCounts.atendimento_integral || 0 },
-                        { label: 'AEE', value: modalidadeCounts.aee || 0 },
-                        { label: 'Recomp.', value: modalidadeCounts.recomposicao_aprendizagem || 0 },
-                      ].map(({ label, value, isSum }) => (
-                        <span
-                          key={label}
-                          data-testid={isSum ? 'sum-eja' : undefined}
-                          className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs ${isSum ? 'bg-purple-100 text-purple-800 border border-purple-300 font-bold' : 'bg-purple-50 text-purple-700 font-medium'}`}
-                        >
-                          {label}: {value}
-                        </span>
-                      ))}
+                  {/* EJA E MODALIDADES/ATENDIMENTOS */}
+                  <div data-testid="modalidade-counts" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div data-testid="eja-counts">
+                      <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                        EJA
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: '1ª Etapa', value: seriesCounts['1ª ETAPA'] || 0 },
+                          { label: '2ª Etapa', value: seriesCounts['2ª ETAPA'] || 0 },
+                          { label: '3ª Etapa', value: seriesCounts['3ª ETAPA'] || 0 },
+                          { label: '4ª Etapa', value: seriesCounts['4ª ETAPA'] || 0 },
+                          { label: 'EJA', value: totalEJA, isSum: true },
+                        ].map(({ label, value, isSum }) => (
+                          <span
+                            key={label}
+                            data-testid={isSum ? 'sum-eja' : undefined}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs ${isSum ? 'bg-purple-100 text-purple-800 border border-purple-300 font-bold' : 'bg-purple-50 text-purple-700 font-medium'}`}
+                          >
+                            {label}: {value}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div data-testid="modalidades-atendimentos-counts">
+                      <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+                        Modalidades e Atendimentos
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: 'Regular', value: modalidadeCounts.regular || 0 },
+                          { label: 'Integral', value: modalidadeCounts.atendimento_integral || 0 },
+                          { label: 'AEE', value: modalidadeCounts.aee || 0 },
+                          { label: 'Recomp.', value: modalidadeCounts.recomposicao_aprendizagem || 0 },
+                        ].map(({ label, value }) => (
+                          <span
+                            key={label}
+                            className="inline-flex items-center px-3 py-1.5 rounded-full text-xs bg-purple-50 text-purple-700 font-medium"
+                          >
+                            {label}: {value}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
