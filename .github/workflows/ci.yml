@@ -7,43 +7,12 @@ on:
   push:
     branches:
       - main
-      - agent/alinhar-educacao-infantil-etapas
 
   pull_request:
     branches:
       - main
 
-permissions:
-  contents: write
-
 jobs:
-  apply-students-indicators-layout:
-    name: Apply scoped students indicators layout
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: agent/alinhar-educacao-infantil-etapas
-          fetch-depth: 0
-
-      - name: Apply patch
-        run: python scripts/agent_apply_students_layout.py
-
-      - name: Commit source change when needed
-        run: |
-          if git diff --quiet -- frontend/src/pages/StudentsComplete.js; then
-            echo "Layout already applied"
-            exit 0
-          fi
-          git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/src/pages/StudentsComplete.js
-          git commit -m "style(students): alinhar educação infantil e etapas de ensino"
-          git push origin HEAD:agent/alinhar-educacao-infantil-etapas
-
   nomenclature-guard:
     name: Nomenclature - Estudante guard
     runs-on: ubuntu-latest
