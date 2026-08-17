@@ -148,6 +148,6 @@ jobs:
         # Estes testes são unitários/puros e não usam o conftest de integração,
         # que exige Mongo real e variáveis MONGO_URL/DB_NAME.
         run: |
-          pytest -q --noconftest \
+          PYTHONPATH=. pytest -q --noconftest \
             tests/test_diary_assignment_contract_phase0.py \
             tests/test_diary_assignment_access_phase1.py
