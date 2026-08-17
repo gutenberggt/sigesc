@@ -93,14 +93,20 @@ A autorização valida, em conjunto:
 2. coerência opcional com turma/componente esperados;
 3. existência da turma;
 4. escopo educacional aprovado e exclusão do AEE;
-5. `diary_settings.enabled=true`;
-6. vigência temporal do vínculo;
-7. acesso à escola;
-8. compatibilidade de mantenedora;
-9. propriedade do vínculo pelo usuário **e manutenção de papel pedagógico compatível**;
-10. capability do perfil para a ação solicitada.
+5. coerência entre `assignment.school_id` e a escola real da turma;
+6. `diary_settings.enabled=true`;
+7. vigência temporal do vínculo;
+8. acesso à escola, usando a turma como fonte de verdade;
+9. compatibilidade de mantenedora;
+10. propriedade do vínculo pelo usuário **e manutenção de papel pedagógico compatível**;
+11. capability do perfil para a ação solicitada.
 
-O guardrail de tenant segue o padrão global do SIGESC: para qualquer usuário que não seja `super_admin`, ausência de `mantenedora_id` no usuário ou no recurso é **fail-closed** e resulta em negação. `super_admin` sem escopo permanece intencionalmente cross-tenant, conforme a arquitetura já adotada pela plataforma.
+O guardrail de tenant segue o padrão global do SIGESC: para qualquer usuário que não seja `super_admin`, ausência de `mantenedora_id` no usuário ou no recurso é **fail-closed** e resulta em negação.
+
+Para `super_admin`:
+
+- sem tenant ativo informado ao serviço: comportamento cross-tenant intencional da plataforma;
+- com `active_mantenedora_id`: acesso fica restrito ao tenant ativo informado pelo consumidor.
 
 ## 7. Gestão e override
 
@@ -123,6 +129,8 @@ Assim, um usuário que historicamente foi professor mas passou a um papel admini
 
 Também pode receber `expected_class_id` e `expected_component_id`, impedindo que o frontend reutilize um assignment válido em outra turma/componente.
 
+A escola real da turma é autoritativa. Se um documento de assignment legado ou inconsistente trouxer `school_id` divergente, o acesso falha com erro estável em vez de usar o snapshot incorreto para autorizar a escola.
+
 ## 9. Legado e ativação futura
 
 A ausência de `diary_settings` resulta em `DVD_NOT_ENABLED` no novo serviço.
@@ -137,7 +145,7 @@ Novo arquivo:
 
 `backend/tests/test_diary_assignment_access_phase1.py`
 
-A suíte específica da Fase 1 possui **22 testes** e cobre:
+A suíte específica da Fase 1 possui **24 testes** e cobre:
 
 - vínculo legado não ativado implicitamente;
 - `enabled=false` como default do payload HTTP;
@@ -156,9 +164,11 @@ A suíte específica da Fase 1 possui **22 testes** e cobre:
 - fail-closed quando usuário não-super_admin não possui tenant;
 - fail-closed quando o recurso não possui tenant resolvível;
 - exceção cross-tenant intencional do `super_admin` sem escopo;
+- restrição do `super_admin` quando há tenant ativo;
+- divergência entre escola do assignment e escola real da turma;
 - mismatch de turma/componente.
 
-Somada aos **54 testes da Fase 0**, a execução canônica do DVD possui **76 testes de proteção**.
+Somada aos **54 testes da Fase 0**, a execução canônica do DVD possui **78 testes de proteção**.
 
 ## 11. CI
 
@@ -191,7 +201,7 @@ Assim, os guardrails do DVD deixam de depender de validação manual.
 
 A Fase 2 só deve começar após:
 
-- **76/76** testes Fase 0 + Fase 1 verdes no GitHub Actions;
+- **78/78** testes Fase 0 + Fase 1 verdes no GitHub Actions;
 - `ruff` e `compileall` verdes;
 - regressão existente verde;
 - diff revisado sem alterações pedagógicas acidentais;
