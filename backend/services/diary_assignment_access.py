@@ -57,6 +57,15 @@ class DiaryAssignmentAccessContext:
     management_override: bool
 
 
+# Só estes papéis podem exercer propriedade pedagógica de um assignment. A mera
+# igualdade de IDs não mantém poder de escrita se o usuário mudou para papel
+# administrativo não pedagógico.
+PEDAGOGICAL_OWNER_ROLES = frozenset({
+    "professor",
+    "coordenador",
+    "apoio_pedagogico",
+})
+
 # Papéis que podem visualizar o contexto consolidado, desde que respeitem a
 # escola/tenant. Professor comum nunca ganha visão consolidada por este conjunto.
 MANAGEMENT_VIEW_ROLES = frozenset({
@@ -107,6 +116,11 @@ def effective_diary_settings(assignment: Mapping[str, Any]) -> EffectiveDiarySet
     migração/ativação explícita.
     """
     raw = assignment.get("diary_settings") or {}
+    if not isinstance(raw, Mapping):
+        raise DiaryAssignmentAccessError(
+            "INVALID_DIARY_SETTINGS", "Configuração de diário inválida no vínculo."
+        )
+
     enabled = raw.get("enabled") is True
 
     try:
@@ -205,7 +219,7 @@ async def authorize_assignment_access(
     - DVD precisa estar explicitamente habilitado no vínculo;
     - turma precisa pertencer ao escopo aprovado da v1 e não ser AEE;
     - vínculo precisa estar vigente na data solicitada;
-    - professor/ator pedagógico proprietário usa apenas seu próprio vínculo;
+    - proprietário precisa manter papel pedagógico compatível;
     - gestão pode visualizar de forma consolidada respeitando escola/tenant;
     - escrita gerencial exige opt-in explícito do chamador;
     - a capability do perfil sempre limita a ação (integrador não lança notas).
@@ -275,11 +289,12 @@ async def authorize_assignment_access(
             "TENANT_ACCESS_DENIED", "O vínculo pertence a outra mantenedora."
         )
 
-    is_owner = assignment.get("teacher_id") == current_user.get("id")
+    role = current_user.get("role")
+    same_user = assignment.get("teacher_id") == current_user.get("id")
+    is_owner = same_user and role in PEDAGOGICAL_OWNER_ROLES
     management_override = False
 
     if not is_owner:
-        role = current_user.get("role")
         if normalized_action is DiaryAction.VIEW and role in MANAGEMENT_VIEW_ROLES:
             pass
         elif allow_management_override and role in MANAGEMENT_EDIT_ROLES:
@@ -287,7 +302,7 @@ async def authorize_assignment_access(
         else:
             raise DiaryAssignmentAccessError(
                 "ASSIGNMENT_ACCESS_DENIED",
-                "O usuário não é proprietário deste vínculo docente.",
+                "O usuário não é proprietário pedagógico deste vínculo docente.",
             )
 
     if not _action_supported(settings, normalized_action):
