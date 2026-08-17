@@ -6,7 +6,104 @@ from services.content_assignment_scope import (
     ContentAssignmentScopeError,
     resolve_content_assignment_for_create,
 )
-from tests.test_content_assignment_scope_phase2 import FakeDb, _assignment, _user
+
+
+def _get(doc, path):
+    value = doc
+    for part in path.split("."):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(part)
+    return value
+
+
+def _matches(doc, query):
+    for key, expected in query.items():
+        if key == "$or":
+            if not any(_matches(doc, option) for option in expected):
+                return False
+            continue
+        value = _get(doc, key)
+        if isinstance(expected, dict):
+            for op, target in expected.items():
+                if op == "$lte" and not (value is not None and value <= target):
+                    return False
+                if op == "$gte" and not (value is not None and value >= target):
+                    return False
+        elif value != expected:
+            return False
+    return True
+
+
+class FakeCursor:
+    def __init__(self, docs):
+        self.docs = docs
+
+    async def to_list(self, _limit):
+        return [dict(d) for d in self.docs]
+
+
+class FakeCollection:
+    def __init__(self, docs):
+        self.docs = [dict(d) for d in docs]
+
+    def find(self, query, projection=None):
+        return FakeCursor([d for d in self.docs if _matches(d, query)])
+
+    async def find_one(self, query, projection=None):
+        for doc in self.docs:
+            if _matches(doc, query):
+                if not projection:
+                    return dict(doc)
+                included = [k for k, enabled in projection.items() if enabled and k != "_id"]
+                if included:
+                    return {k: _get(doc, k) for k in included}
+                excluded = {k for k, enabled in projection.items() if not enabled}
+                return {k: v for k, v in doc.items() if k not in excluded}
+        return None
+
+
+class FakeDb:
+    def __init__(self, assignments):
+        self.teacher_class_assignments = FakeCollection(assignments)
+        self.classes = FakeCollection([{
+            "id": "class-1",
+            "school_id": "school-1",
+            "mantenedora_id": "tenant-1",
+            "education_level": "fundamental_anos_iniciais",
+            "grade_level": "3º Ano",
+            "atendimento_programa": None,
+        }])
+
+
+def _assignment(aid="a-1", component="math"):
+    return {
+        "id": aid,
+        "teacher_id": "teacher-1",
+        "teacher_name": "Professor 1",
+        "class_id": "class-1",
+        "component_id": component,
+        "school_id": "school-1",
+        "mantenedora_id": "tenant-1",
+        "valid_from": "2026-02-01",
+        "valid_until": "2026-12-20",
+        "deleted": False,
+        "diary_settings": {
+            "enabled": True,
+            "schema_version": 1,
+            "profile": "regular",
+            "student_scope": "all",
+        },
+    }
+
+
+def _user():
+    return {
+        "id": "teacher-1",
+        "role": "professor",
+        "school_ids": ["school-1"],
+        "mantenedora_id": "tenant-1",
+    }
 
 
 @pytest.mark.asyncio
