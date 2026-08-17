@@ -231,7 +231,12 @@ async def authorize_content_record(
         )
     except DiaryAssignmentAccessError as exc:
         raise ContentAssignmentScopeError(exc.code, exc.message) from exc
-    _validate_snapshot(context, entry.get("component_id"))
+
+    # O componente do registro é um snapshot histórico. Depois da gravação,
+    # mudanças administrativas no `component_id` do assignment não podem ocultar
+    # ou reatribuir retroativamente o conteúdo. A compatibilidade com componente
+    # é exigida na criação; para registros persistidos, assignment+data+turma+
+    # teacher_id formam a proveniência histórica.
     if entry.get("teacher_id") != context.assignment.get("teacher_id"):
         raise ContentAssignmentScopeError(
             "CONTENT_PROVENANCE_MISMATCH",
