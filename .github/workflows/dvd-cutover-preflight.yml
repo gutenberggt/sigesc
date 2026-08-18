@@ -1,0 +1,51 @@
+name: DVD 38G - Preflight Guard
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  preflight-readonly:
+    name: DVD 38G-A - manifest hash + backup guard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install minimal dependencies
+        run: pip install pytest python-dotenv motor
+
+      - name: Run 38G-A guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_cutover_preflight_phase38g.py
+
+      - name: Static read-only assertion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/prepare_dvd_cutover_phase38g.py')
+          src = p.read_text(encoding='utf-8')
+          forbidden = [
+              '.insert_one(', '.insert_many(', '.update_one(', '.update_many(',
+              '.replace_one(', '.delete_one(', '.delete_many(', '.bulk_write(',
+              '.find_one_and_update(', '.find_one_and_delete(', '.find_one_and_replace(',
+          ]
+          # Tokens são declarados como strings no próprio guard; rejeita apenas usos
+          # fora da declaração do tuple MONGO_MUTATOR_TOKENS.
+          lines = src.splitlines()
+          executable = '\n'.join(
+              line for line in lines
+              if not line.lstrip().startswith('"') and 'MONGO_MUTATOR_TOKENS' not in line
+          )
+          hits = [token for token in forbidden if token in executable]
+          assert not hits, f'Mutadores Mongo proibidos no preflight: {hits}'
+          print('38G-A read-only static guard PASS')
+          PY
