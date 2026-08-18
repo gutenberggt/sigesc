@@ -125,11 +125,16 @@ def _build_snapshot(
     student_scope: StudentScope,
     schema_version: int,
 ) -> dict:
+    """Congela tudo que pode alterar interpretação histórica da frequência."""
     return {
         "assignment_id": assignment.get("id"),
         "assignment_profile_at_record": profile.value,
         "assignment_schema_version_at_record": schema_version,
         "assignment_student_scope_at_record": student_scope.value,
+        "assignment_weekly_slots_at_record": [dict(slot) for slot in (assignment.get("weekly_slots") or [])],
+        "assignment_valid_from_at_record": assignment.get("valid_from"),
+        "assignment_valid_until_at_record": assignment.get("valid_until"),
+        "assignment_shift_at_record": assignment.get("shift") or class_info.get("shift"),
         "teacher_id": assignment.get("teacher_id"),
         "teacher_name": assignment.get("teacher_name"),
         "class_id": assignment.get("class_id"),
@@ -170,7 +175,7 @@ async def resolve_attendance_assignment(
     settings = access.settings
     capabilities = settings.capabilities
     assignment = access.assignment
-    class_info = access.class_info
+    auth_class_info = access.class_info
 
     # Há contrato para group, mas ainda não há no SIGESC uma fonte de verdade
     # auditável dos membros do grupo. Liberar a turma inteira seria vazamento.
@@ -188,6 +193,44 @@ async def resolve_attendance_assignment(
             "Perfil do vínculo não possui modo/natureza de frequência resolvidos.",
         )
 
+    school_id = auth_class_info.get("school_id") or assignment.get("school_id")
+    tenant_id = auth_class_info.get("mantenedora_id") or assignment.get("mantenedora_id")
+    if not school_id or not tenant_id:
+        raise AttendanceAssignmentScopeError(
+            "ATTENDANCE_RESOURCE_SCOPE_UNRESOLVED",
+            "Turma do vínculo não possui escola/mantenedora resolvíveis para frequência.",
+        )
+
+    # O autorizador central projeta somente os campos necessários à decisão de
+    # acesso. Depois dela, reconsulta a mesma turma sob a âncora tenant+escola para
+    # obter nome/ano/turno usados por UI, resumo e PDF sem consulta ampla.
+    class_info = await db.classes.find_one(
+        {
+            "id": assignment.get("class_id"),
+            "school_id": school_id,
+            "mantenedora_id": tenant_id,
+        },
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "school_id": 1,
+            "mantenedora_id": 1,
+            "academic_year": 1,
+            "education_level": 1,
+            "nivel_ensino": 1,
+            "grade_level": 1,
+            "grade": 1,
+            "shift": 1,
+            "atendimento_programa": 1,
+        },
+    )
+    if not class_info:
+        raise AttendanceAssignmentScopeError(
+            "ATTENDANCE_CLASS_SCOPE_MISMATCH",
+            "Turma do vínculo não pôde ser resolvida dentro da escola/mantenedora autorizadas.",
+        )
+
     # class_daily é canônico por turma/data: componente do vínculo não fragmenta
     # a frequência oficial. assignment_session conserva o componente do vínculo.
     effective_course_id = (
@@ -195,14 +238,6 @@ async def resolve_attendance_assignment(
         if mode is AttendanceMode.ASSIGNMENT_SESSION
         else None
     )
-
-    school_id = class_info.get("school_id") or assignment.get("school_id")
-    tenant_id = class_info.get("mantenedora_id") or assignment.get("mantenedora_id")
-    if not school_id or not tenant_id:
-        raise AttendanceAssignmentScopeError(
-            "ATTENDANCE_RESOURCE_SCOPE_UNRESOLVED",
-            "Turma do vínculo não possui escola/mantenedora resolvíveis para frequência.",
-        )
 
     slots = (
         _session_slots_for_date(assignment, reference_date)
