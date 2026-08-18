@@ -3,6 +3,7 @@ from pathlib import Path
 
 BACKEND_ROUTER = Path("routers/learning_objects.py")
 FRONTEND_BRIDGE = Path("../frontend/src/services/contentDvdBridge.js")
+LEARNING_OBJECTS_PAGE = Path("../frontend/src/pages/LearningObjects.js")
 DASHBOARD = Path("../frontend/src/components/professor/MyDiariesSection.jsx")
 PREFILL_HOOK = Path("../frontend/src/hooks/useDiaryPrefill.js")
 
@@ -16,10 +17,19 @@ def test_legacy_router_has_professor_antibypass_guards():
 
 def test_pdf_switches_to_canonical_content_entries_for_dvd():
     src = BACKEND_ROUTER.read_text(encoding="utf-8")
-    assert "dvd_mode = await professor_has_active_dvd_content" in src
+    assert "assignment_id: Optional[str] = None" in src
+    assert "await authorize_assignment_access(" in src
+    assert 'query["assignment_id"] = assignment_id' in src
+    assert "DVD_CONTENT_ASSIGNMENT_REQUIRED" in src
     assert "db.content_entries.find(" in src
     assert "filter_visible_content_entries(" in src
     assert "get_mantenedora_scope(current_user, request)" in src
+
+
+def test_frontend_pdf_propagates_assignment_id():
+    src = LEARNING_OBJECTS_PAGE.read_text(encoding="utf-8")
+    assert "new URLSearchParams(window.location.search).get('assignment_id')" in src
+    assert "params.append('assignment_id', assignmentId)" in src
 
 
 def test_frontend_bridge_is_assignment_contextual_and_canonical():
