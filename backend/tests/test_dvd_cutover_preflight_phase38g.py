@@ -5,6 +5,7 @@ import pytest
 from scripts.prepare_dvd_cutover_phase38g import (
     APPROVED_MANIFEST_SHA256,
     APPROVED_READY_COUNT,
+    SAFE_USER_BACKUP_PROJECTION,
     PreflightGateError,
     assert_script_read_only,
     validate_manifest_gate,
@@ -85,6 +86,17 @@ def test_backup_never_overwrites_existing_directory(tmp_path: Path):
             },
             bundle={"scope": {}, "collections": {}},
         )
+
+
+def test_user_backup_projection_excludes_credentials_and_secrets():
+    allowed = {key for key, enabled in SAFE_USER_BACKUP_PROJECTION.items() if enabled}
+    assert "password" not in allowed
+    assert "password_hash" not in allowed
+    assert "hashed_password" not in allowed
+    assert "refresh_token" not in allowed
+    assert "csrf_token" not in allowed
+    assert "access_token" not in allowed
+    assert SAFE_USER_BACKUP_PROJECTION["_id"] == 0
 
 
 def test_preflight_script_contains_no_mongo_mutator_calls():
