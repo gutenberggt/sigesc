@@ -14,11 +14,19 @@ from .guardians import router as guardians_router, setup_router as setup_guardia
 from .enrollments import router as enrollments_router, setup_router as setup_enrollments_router
 from .students import router as students_router, setup_students_router
 from .grades import router as grades_router, setup_grades_router
-from .attendance import router as attendance_router, setup_attendance_router
+from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
+from .attendance_dvd import install_attendance_dvd_adapter
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
 from .analytics import router as analytics_router, setup_analytics_router
+
+
+def setup_attendance_router(db, audit_service, sandbox_db=None):
+    """Configura Frequência histórica + adaptador DVD Fase 4 no mesmo router."""
+    configured = _setup_attendance_router(db, audit_service, sandbox_db)
+    return install_attendance_dvd_adapter(configured, db, audit_service, sandbox_db)
+
 
 __all__ = [
     'auth_router', 'setup_auth_router',
