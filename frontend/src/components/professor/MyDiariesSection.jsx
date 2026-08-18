@@ -11,6 +11,8 @@ const PROFILE_LABELS = {
   shared: 'Compartilhado',
 };
 
+const legacyStudentsRoute = (classId) => `/professor/turma/${classId}/alunos`; // nomenclature-allow: rota técnica legada
+
 function Capability({ icon: Icon, label, enabled, detail }) {
   return (
     <div className={`rounded-lg border p-3 ${enabled ? 'bg-white' : 'bg-gray-50 opacity-70'}`}>
@@ -242,7 +244,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate(`/professor/turma/${diary.class_id}/alunos`)}
+                      onClick={() => navigate(legacyStudentsRoute(diary.class_id))}
                       data-testid={`open-students-${diary.assignment_id}`}
                     >
                       <Users size={16} className="mr-2" />
@@ -311,7 +313,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/professor/turma/${turma.id}/alunos`)}
+                    onClick={() => navigate(legacyStudentsRoute(turma.id))}
                     className="flex items-center gap-1"
                   >
                     <Users size={14} />
