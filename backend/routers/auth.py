@@ -27,9 +27,31 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
 def setup_router(db, audit_service):
     """Configura o router com as dependências necessárias"""
     
-    async def get_effective_role_from_lotacoes(email: str, base_role: str):
-        """Determina o role efetivo baseado nas lotações ativas do usuário"""
-        staff = await db.staff.find_one({"email": email}, {"_id": 0, "id": 1})
+    async def get_effective_role_from_lotacoes(user_id: str, email: str, base_role: str):
+        """Determina role e escolas efetivas a partir das lotações ativas.
+
+        A identidade funcional é resolvida prioritariamente pelo vínculo estável
+        ``users.id -> staff.user_id``. O e-mail é apenas fallback de
+        compatibilidade para registros legados que ainda não possuem ``user_id``
+        em ``staff``.
+
+        Essa ordem evita perda de escopo quando o usuário altera seu e-mail de
+        acesso, sem romper cadastros antigos que ainda dependem da associação por
+        e-mail.
+        """
+        staff = await db.staff.find_one(
+            {"user_id": user_id},
+            {"_id": 0, "id": 1}
+        )
+
+        # Compatibilidade legada: preserva o comportamento anterior apenas
+        # quando não existe vínculo canônico staff.user_id -> users.id.
+        if not staff and email:
+            staff = await db.staff.find_one(
+                {"email": email},
+                {"_id": 0, "id": 1}
+            )
+
         if not staff:
             return base_role, []
         
@@ -114,7 +136,7 @@ def setup_router(db, audit_service):
         effective_school_links = user.school_links or []
         
         if user.role in ['professor', 'secretario', 'coordenador', 'auxiliar_secretaria', 'diretor']:
-            effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
+            effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.id, user.email, user.role)
             if lotacao_school_links:
                 effective_school_links = lotacao_school_links
         
@@ -213,7 +235,7 @@ def setup_router(db, audit_service):
             effective_school_links = user.school_links or []
             
             if user.role in ['professor', 'secretario', 'coordenador', 'auxiliar_secretaria', 'diretor']:
-                effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
+                effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.id, user.email, user.role)
                 if lotacao_school_links:
                     effective_school_links = lotacao_school_links
             
@@ -699,15 +721,31 @@ def setup_router(db, audit_service):
         # Aplica
         await db.users.update_one({"id": user_id}, {"$set": {"email": new_email}})
 
-        # Sincroniza staff por email antigo
+        # Sincroniza o cadastro funcional usando primeiro a identidade canônica.
+        # O fallback pelo e-mail antigo é mantido apenas para staff legado sem
+        # user_id. Isso impede que uma troca de e-mail volte a quebrar o vínculo
+        # users.id -> staff.user_id e evita atualizar um staff que já pertença
+        # explicitamente a outro usuário.
         staff_synced = False
-        if old_email:
-            staff = await db.staff.find_one({"email": old_email}, {"_id": 0, "id": 1})
-            if staff:
-                await db.staff.update_one(
-                    {"id": staff['id']}, {"$set": {"email": new_email}}
-                )
-                staff_synced = True
+        staff = await db.staff.find_one(
+            {"user_id": user_id},
+            {"_id": 0, "id": 1, "user_id": 1}
+        )
+
+        if not staff and old_email:
+            legacy_staff = await db.staff.find_one(
+                {"email": old_email},
+                {"_id": 0, "id": 1, "user_id": 1}
+            )
+            if legacy_staff and not legacy_staff.get("user_id"):
+                staff = legacy_staff
+
+        if staff:
+            await db.staff.update_one(
+                {"id": staff['id']},
+                {"$set": {"email": new_email}}
+            )
+            staff_synced = True
 
         await db.email_change_requests.update_one(
             {"id": req['id']},
