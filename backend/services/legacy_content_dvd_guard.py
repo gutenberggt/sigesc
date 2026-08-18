@@ -1,36 +1,68 @@
 """Guard de cutover do conteúdo legado para Diário por Vínculo Docente.
 
 A decisão é deliberadamente simples e fail-closed para professor comum:
-se existe teacher_class_assignment habilitado para a turma/componente, o endpoint
-legado /learning-objects não pode ser usado como caminho alternativo de leitura
-ou escrita. O frontend DVD deve usar content_entries, cuja autorização é canônica.
+se existe teacher_class_assignment habilitado e vigente para o contexto, o
+endpoint legado /learning-objects não pode ser usado como caminho alternativo
+de leitura ou escrita. O frontend DVD usa content_entries, cuja autorização é
+canônica.
 
+Uma requisição ampla do professor sem class_id também é bloqueada quando ele
+possui qualquer DVD vigente, evitando contornar o isolamento omitindo filtros.
 Gestão não é reclassificada aqui; suas visões consolidadas continuam nos fluxos
 existentes até contrato específico de gestão.
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Mapping, Optional
 
 
 def build_professor_dvd_query(
-    current_user: Mapping[str, Any], *, class_id: str, course_id: Optional[str] = None
+    current_user: Mapping[str, Any],
+    *,
+    class_id: Optional[str] = None,
+    course_id: Optional[str] = None,
+    on_date: Optional[str] = None,
 ) -> Optional[dict]:
-    if current_user.get("role") != "professor" or not current_user.get("id") or not class_id:
+    if current_user.get("role") != "professor" or not current_user.get("id"):
         return None
+
+    target_date = on_date or date.today().isoformat()
+    clauses: list[dict] = [
+        {
+            "$or": [
+                {"valid_from": {"$lte": target_date}},
+                {"valid_from": None},
+                {"valid_from": {"$exists": False}},
+            ]
+        },
+        {
+            "$or": [
+                {"valid_until": {"$gte": target_date}},
+                {"valid_until": None},
+                {"valid_until": {"$exists": False}},
+            ]
+        },
+    ]
 
     query: dict = {
         "teacher_id": current_user["id"],
-        "class_id": class_id,
         "deleted": False,
         "diary_settings.enabled": True,
+        "$and": clauses,
     }
+    if class_id:
+        query["class_id"] = class_id
     if course_id:
-        query["$or"] = [
-            {"component_id": course_id},
-            {"component_id": None},
-            {"component_id": {"$exists": False}},
-        ]
+        clauses.append(
+            {
+                "$or": [
+                    {"component_id": course_id},
+                    {"component_id": None},
+                    {"component_id": {"$exists": False}},
+                ]
+            }
+        )
     return query
 
 
@@ -38,11 +70,15 @@ async def professor_has_active_dvd_content(
     db,
     current_user: Mapping[str, Any],
     *,
-    class_id: str,
+    class_id: Optional[str] = None,
     course_id: Optional[str] = None,
+    on_date: Optional[str] = None,
 ) -> bool:
     query = build_professor_dvd_query(
-        current_user, class_id=class_id, course_id=course_id
+        current_user,
+        class_id=class_id,
+        course_id=course_id,
+        on_date=on_date,
     )
     if query is None:
         return False
