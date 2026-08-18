@@ -1009,6 +1009,10 @@ export const LearningObjects = () => {
       if (pdfCourseId) {
         params.append('course_id', pdfCourseId);
       }
+      const assignmentId = new URLSearchParams(window.location.search).get('assignment_id');
+      if (assignmentId) {
+        params.append('assignment_id', assignmentId);
+      }
       const response = await fetch(
         `${API}/api/learning-objects/pdf/bimestre/${selectedClass}?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }

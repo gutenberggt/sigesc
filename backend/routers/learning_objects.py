@@ -24,6 +24,9 @@ from tenant_scope import (
     get_mantenedora_scope,
 )
 from services.content_assignment_scope import filter_visible_content_entries
+from services.diary_assignment_access import (
+    DiaryAction, DiaryAssignmentAccessError, authorize_assignment_access,
+)
 from services.legacy_content_dvd_guard import (
     legacy_content_block_detail, professor_has_active_dvd_content,
 )
@@ -404,7 +407,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         request: Request,
         bimestre: int = Query(..., ge=1, le=4),
         academic_year: Optional[int] = None,
-        course_id: Optional[str] = None
+        course_id: Optional[str] = None,
+        assignment_id: Optional[str] = None
     ):
         """Gera PDF dos objetos de conhecimento por bimestre"""
         current_user = await AuthMiddleware.get_current_user(request)
@@ -446,11 +450,37 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }
             period_start, period_end = periodos.get(bimestre, (None, None))
 
-        # Buscar registros do bimestre. Professor com DVD ativo usa exclusivamente
-        # content_entries e passa pelo filtro canônico de visibilidade/autoria.
-        dvd_mode = await professor_has_active_dvd_content(
-            db, current_user, class_id=class_id, course_id=course_id
-        )
+        # Buscar registros do bimestre. No DVD, assignment_id é a identidade
+        # técnica do PDF e nunca é aceito sem revalidação central.
+        dvd_mode = False
+        if assignment_id:
+            try:
+                await authorize_assignment_access(
+                    db, current_user, assignment_id,
+                    action=DiaryAction.VIEW,
+                    on_date=datetime.now().date().isoformat(),
+                    expected_class_id=class_id,
+                    active_mantenedora_id=get_mantenedora_scope(current_user, request),
+                )
+            except DiaryAssignmentAccessError as exc:
+                raise HTTPException(
+                    status_code=403,
+                    detail={"code": exc.code, "message": exc.message},
+                ) from exc
+            dvd_mode = True
+        else:
+            dvd_mode = await professor_has_active_dvd_content(
+                db, current_user, class_id=class_id, course_id=course_id
+            )
+            if dvd_mode and current_user.get('role') == 'professor':
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "DVD_CONTENT_ASSIGNMENT_REQUIRED",
+                        "message": "Informe assignment_id para gerar o PDF deste Diário por Vínculo.",
+                    },
+                )
+
         if dvd_mode:
             query = {
                 "class_id": class_id,
@@ -458,6 +488,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "date": {"$gte": period_start, "$lte": period_end},
                 "deleted": False,
             }
+            if assignment_id:
+                query["assignment_id"] = assignment_id
             if course_id:
                 query["component_id"] = course_id
             candidates = await db.content_entries.find(
