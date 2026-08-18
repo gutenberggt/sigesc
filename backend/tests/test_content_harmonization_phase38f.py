@@ -2,6 +2,7 @@ from pathlib import Path
 
 
 BACKEND_ROUTER = Path("routers/learning_objects.py")
+CONTENT_ENTRIES_ROUTER = Path("routers/content_entries.py")
 FRONTEND_BRIDGE = Path("../frontend/src/services/contentDvdBridge.js")
 LEARNING_OBJECTS_PAGE = Path("../frontend/src/pages/LearningObjects.js")
 DASHBOARD = Path("../frontend/src/components/professor/MyDiariesSection.jsx")
@@ -39,6 +40,17 @@ def test_frontend_bridge_is_assignment_contextual_and_canonical():
     assert "if (!assignmentId || !isLearningObjectsUrl" in src
     assert "__contentDvdList" in src
     assert "change_note" in src
+
+
+def test_legacy_save_semantics_become_publish_or_versioned_correction():
+    bridge = FRONTEND_BRIDGE.read_text(encoding="utf-8")
+    canonical = CONTENT_ENTRIES_ROUTER.read_text(encoding="utf-8")
+    assert "__contentDvdAutoPublish = true" in bridge
+    assert "/publish`" in bridge
+    assert "/correct`" in bridge
+    assert "current.status === 'published' || current.status === 'corrected'" in bridge
+    assert "number_of_classes: Optional[int]" in canonical
+    assert 'set_fields["number_of_classes"] = payload.number_of_classes' in canonical
 
 
 def test_learning_objects_page_installs_bridge_through_existing_prefill_hook():
