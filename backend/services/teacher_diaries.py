@@ -1,8 +1,8 @@
-"""Leitura segura de "Meus Diários" — DVD Fase 3.
+"""Leitura segura de "Meus Diários" — DVD Fase 3+5.
 
-Esta camada é somente organizadora. Ela lista vínculos DVD vigentes do professor
-logado e deriva capacidades do contrato canônico. Não grava conteúdo, frequência
-ou notas e não altera o comportamento dos módulos pedagógicos existentes.
+Esta camada é organizadora. Ela lista vínculos DVD vigentes do professor logado
+e deriva capacidades do contrato canônico. Na Fase 5 expõe também o indicador
+institucional de responsável oficial pela avaliação em vínculos ``shared``.
 """
 
 from datetime import date
@@ -28,20 +28,7 @@ async def list_teacher_diaries(
     reference_date: Optional[str] = None,
     active_mantenedora_id: Optional[str] = None,
 ) -> dict:
-    """Retorna somente os vínculos DVD vigentes do professor autenticado.
-
-    Invariantes:
-    - nunca aceita `teacher_id` externo; usa exclusivamente `current_user.id`;
-    - só considera `diary_settings.enabled=true` e assignments não excluídos;
-    - cada candidato é revalidado por `authorize_assignment_access`;
-    - AEE e etapas fora do DVD v1 são eliminados pelo autorizador canônico;
-    - tenant e escola permanecem fail-closed;
-    - enriquecimento de turma/escola/componente permanece preso ao tenant já
-      autorizado; metadados cross-tenant nunca são exibidos;
-    - capacidades são derivadas do perfil, nunca persistidas novamente;
-    - frequência/notas podem aparecer como capacidades, mas a Fase 3 não as
-      integra funcionalmente aos módulos existentes.
-    """
+    """Retorna somente os vínculos DVD vigentes do professor autenticado."""
     teacher_id = current_user.get("id")
     if not teacher_id:
         return {"items": [], "total": 0, "blocked_total": 0}
@@ -74,9 +61,6 @@ async def list_teacher_diaries(
             blocked_total += 1
             continue
 
-        # A turma já autorizada é a âncora do tenant e da escola para todo o
-        # enriquecimento visual. O endpoint é exclusivo de professor, portanto
-        # tenant ausente nunca pode virar consulta ampla/cross-tenant.
         authorized_tenant_id = context.class_info.get("mantenedora_id")
         authorized_school_id = context.class_info.get("school_id") or assignment.get("school_id")
         if not authorized_tenant_id or not authorized_school_id:
@@ -160,6 +144,9 @@ async def list_teacher_diaries(
             "profile": context.settings.profile.value,
             "student_scope": context.settings.student_scope.value,
             "schema_version": context.settings.schema_version,
+            # Fase 5: em shared/all, somente um assignment pode ser responsável
+            # oficial pela avaliação. Regular não depende deste flag.
+            "grades_official_owner": bool(assignment.get("grades_official_owner")),
             "capabilities": {
                 "content_enabled": capabilities.content_enabled,
                 "attendance_enabled": capabilities.attendance_enabled,
