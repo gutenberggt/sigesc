@@ -162,4 +162,5 @@ jobs:
             tests/test_grade_assignment_hardening_phase5.py \
             tests/test_dvd_cutover_audit_phase38.py \
             tests/test_dvd_cutover_plan_phase38b.py \
-            tests/test_dvd_schedule_blockers_phase38c.py
+            tests/test_dvd_schedule_blockers_phase38c.py \
+            tests/test_dvd_schedule_recovery_phase38d.py
