@@ -16,10 +16,16 @@ from .students import router as students_router, setup_students_router
 from .grades import router as grades_router, setup_grades_router
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
 from .attendance_dvd import install_attendance_dvd_adapter
+from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
 from .analytics import router as analytics_router, setup_analytics_router
+
+# `server.py` importa attendance_ext somente depois deste pacote. Envolver o
+# setup aqui garante que o endpoint legado de PDF seja protegido antes de ser
+# registrado na aplicação, sem alterar o gerador/layout do PDF.
+install_attendance_ext_dvd_setup()
 
 
 def setup_attendance_router(db, audit_service, sandbox_db=None):
