@@ -4,6 +4,7 @@ import { BookOpen, CheckSquare, ClipboardList, School, Users, AlertTriangle, Gra
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { teacherDiariesAPI } from '../../services/teacherDiaries';
+import { buildDiaryActionUrl } from '../../utils/diaryPrefill';
 
 const PROFILE_LABELS = {
   regular: 'Regular',
@@ -74,7 +75,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
             Meus Diários
           </h2>
           <p className="text-sm text-slate-500">
-            Turmas e vínculos docentes organizados em um só lugar — {academicYear}.
+            Turmas, componentes e ações do diário organizados em um só lugar — {academicYear}.
           </p>
         </div>
         {!loading && visibleTotal > 0 && (
@@ -128,6 +129,13 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
             const unresolvedGroup = diary.profile === 'shared' && diary.student_scope === 'group';
             const sharedGradeOwner = diary.profile !== 'shared' || diary.grades_official_owner === true;
             const gradesOperational = !!caps.grades_enabled && !unresolvedGroup && sharedGradeOwner;
+            const actionContext = {
+              academicYear: diary.academic_year || academicYear,
+              schoolId: diary.school_id,
+              classId: diary.class_id,
+              courseId: diary.component_id,
+              assignmentId: diary.assignment_id,
+            };
             const attendanceDetail = !caps.attendance_enabled
               ? 'Não se aplica a este vínculo.'
               : unresolvedGroup
@@ -179,7 +187,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                       label="Conteúdos"
                       enabled={!!caps.content_enabled}
                       detail={caps.content_enabled
-                        ? 'Disponível neste perfil; a abertura pela nova organização será habilitada quando a tela atual estiver harmonizada.'
+                        ? 'Disponível neste perfil; a abertura pelo vínculo aguarda a harmonização do módulo atual.'
                         : 'Não se aplica a este vínculo.'}
                     />
                     <Capability
@@ -212,7 +220,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                         size="sm"
                         variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
                         disabled={unresolvedGroup}
-                        onClick={() => navigate(`/professor/frequencia?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
+                        onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))}
                         data-testid={`open-attendance-${diary.assignment_id}`}
                       >
                         <CheckSquare size={16} className="mr-2" />
@@ -220,7 +228,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                           ? 'Frequência aguardando grupo'
                           : caps.attendance_purpose === 'pdf_only'
                             ? 'Abrir registro documental'
-                            : 'Abrir Frequência'}
+                            : 'Frequência'}
                       </Button>
                     )}
                     {caps.grades_enabled && (
@@ -229,7 +237,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                         size="sm"
                         variant="outline"
                         disabled={!gradesOperational}
-                        onClick={() => navigate(`/professor/notas?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
+                        onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
                         data-testid={`open-grades-${diary.assignment_id}`}
                       >
                         <ClipboardList size={16} className="mr-2" />
@@ -237,7 +245,20 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                           ? 'Avaliação aguardando grupo'
                           : !sharedGradeOwner
                             ? 'Avaliação aguardando responsável'
-                            : 'Abrir Avaliação'}
+                            : 'Notas / Conceitos'}
+                      </Button>
+                    )}
+                    {caps.content_enabled && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled
+                        title="Conteúdos por vínculo será habilitado após a harmonização com content_entries."
+                        data-testid={`open-content-disabled-${diary.assignment_id}`}
+                      >
+                        <BookOpen size={16} className="mr-2" />
+                        Conteúdos
                       </Button>
                     )}
                     <Button
@@ -253,7 +274,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                   </div>
 
                   <div className="rounded-md border border-dashed px-3 py-2 text-xs text-slate-500">
-                    Frequência e Avaliação usam autoria por vínculo docente. Conteúdos será habilitado quando a tela atual estiver harmonizada com o backend canônico.
+                    Frequência e Notas/Conceitos abrem com o vínculo, a turma e o componente já definidos. Conteúdos permanece bloqueado no DVD até a harmonização com o backend canônico.
                   </div>
                 </CardContent>
               </Card>
@@ -284,23 +305,58 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm font-medium text-gray-700">Componentes:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {(turma.componentes || []).map((comp) => (
-                      <span
-                        key={comp.id}
-                        className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full"
-                      >
-                        {comp.name}
-                      </span>
-                    ))}
-                    {(!turma.componentes || turma.componentes.length === 0) && (
-                      <span className="text-xs text-slate-500">Nenhum componente informado</span>
-                    )}
-                  </div>
+                <div className="space-y-3 mb-4">
+                  <p className="text-sm font-medium text-gray-700">Componentes e ações:</p>
+                  {(turma.componentes || []).map((comp) => {
+                    const actionContext = {
+                      academicYear: turma.academic_year || academicYear,
+                      schoolId: turma.school_id,
+                      classId: turma.id,
+                      courseId: comp.id,
+                    };
+                    return (
+                      <div key={comp.id} className="rounded-lg border bg-slate-50/60 p-2.5 space-y-2">
+                        <p className="text-sm font-medium text-purple-700">{comp.name}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))}
+                            className="flex items-center justify-center gap-1"
+                            data-testid={`legacy-attendance-${turma.id}-${comp.id}`}
+                          >
+                            <CheckSquare size={14} />
+                            Frequência
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
+                            className="flex items-center justify-center gap-1"
+                            data-testid={`legacy-grades-${turma.id}-${comp.id}`}
+                          >
+                            <ClipboardList size={14} />
+                            Notas / Conceitos
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
+                            className="flex items-center justify-center gap-1"
+                            data-testid={`legacy-content-${turma.id}-${comp.id}`}
+                          >
+                            <BookOpen size={14} />
+                            Conteúdos
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(!turma.componentes || turma.componentes.length === 0) && (
+                    <span className="text-xs text-slate-500">Nenhum componente informado para criar atalhos diretos.</span>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 border-t pt-3">
                   <Button
                     variant="outline"
                     size="sm"
@@ -328,7 +384,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
 
       {!loading && visibleTotal > 0 && (
         <p className="text-xs text-slate-500">
-          “Fluxo atual” identifica turmas que ainda não possuem um Diário por Vínculo ativo ou que permanecem fora do escopo atual do DVD.
+          “Fluxo atual” identifica turmas que ainda não possuem um Diário por Vínculo ativo ou que permanecem fora do escopo atual do DVD. Os atalhos usam somente filtros já autorizados ao professor.
         </p>
       )}
     </section>

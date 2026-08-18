@@ -31,6 +31,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDiaryPrefill } from '@/hooks/useDiaryPrefill';
 import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI, attendanceAPI, calendarAPI, curriculumAPI } from '@/services/api';
 
 
@@ -137,6 +138,21 @@ export const LearningObjects = () => {
   const [copyTargetDate, setCopyTargetDate] = useState('');
   const [copying, setCopying] = useState(false);
   const [availableClasses, setAvailableClasses] = useState([]);
+
+  useDiaryPrefill({
+    schools,
+    selectedSchool,
+    setSelectedSchool,
+    classes,
+    selectedClass,
+    setSelectedClass,
+    courses,
+    selectedCourse,
+    setSelectedCourse,
+    onCourseApplied: (courseId) => {
+      setSelectedCourses((current) => current.length > 0 ? current : [courseId]);
+    },
+  });
 
   // Carrega turmas do professor uma vez (para uso no modal de cópia)
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useOffline } from '@/contexts/OfflineContext';
+import { useDiaryPrefill } from '@/hooks/useDiaryPrefill';
 import {
   fetchAttendanceDvdContext,
   fetchAttendanceDvdDiary,
@@ -30,6 +31,22 @@ const useDvdBinding = (baseContext) => {
   const [dvdError, setDvdError] = useState(null);
   const [dvdLoading, setDvdLoading] = useState(false);
   const [dvdSessionAula, setDvdSessionAulaState] = useState(locationState.aulaNumero);
+
+  // Fluxo legado: os parâmetros do card apenas pré-selecionam opções que já
+  // existem nas listas autorizadas da própria tela. No modo DVD, o vínculo
+  // validado pelo backend continua sendo a fonte de verdade do contexto.
+  useDiaryPrefill({
+    schools: baseContext.schools,
+    selectedSchool: baseContext.selectedSchool,
+    setSelectedSchool: baseContext.setSelectedSchool,
+    classes: baseContext.classes,
+    selectedClass: baseContext.selectedClass,
+    setSelectedClass: baseContext.setSelectedClass,
+    courses: baseContext.courses,
+    selectedCourse: baseContext.selectedCourse,
+    setSelectedCourse: baseContext.setSelectedCourse,
+    enabled: !assignmentId,
+  });
 
   useEffect(() => {
     if (!assignmentId) {
