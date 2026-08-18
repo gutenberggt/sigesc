@@ -15,6 +15,7 @@ from .enrollments import router as enrollments_router, setup_router as setup_enr
 from .students import router as students_router, setup_students_router
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
+from .grades_dvd_hardening import install_grades_dvd_hardening
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
 from .attendance_dvd import install_attendance_dvd_adapter
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
@@ -44,12 +45,17 @@ def setup_grades_router(
         verify_bimestre_edit_deadline_or_raise,
         sandbox_db,
     )
-    return install_grades_dvd_adapter(
+    configured = install_grades_dvd_adapter(
         configured,
         db,
         audit_service,
         verify_academic_year_open_or_raise=verify_academic_year_open_or_raise,
         verify_bimestre_edit_deadline_or_raise=verify_bimestre_edit_deadline_or_raise,
+        sandbox_db=sandbox_db,
+    )
+    return install_grades_dvd_hardening(
+        configured,
+        db,
         sandbox_db=sandbox_db,
     )
 
