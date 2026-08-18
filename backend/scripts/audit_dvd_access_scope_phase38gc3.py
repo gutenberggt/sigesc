@@ -128,6 +128,11 @@ async def main() -> None:
              "mantenedora_id": 1, "full_name": 1, "name": 1},
         ).to_list(len(teacher_ids) + 20)
         users_by_id = {str(row.get("id")): row for row in users if row.get("id")}
+        user_emails = sorted({
+            str(row.get("email") or "").strip()
+            for row in users
+            if str(row.get("email") or "").strip()
+        })
 
         legacy_ids = sorted({
             str((row.get("cutover_provenance") or {}).get("source_legacy_assignment_id"))
@@ -141,11 +146,17 @@ async def main() -> None:
         ).to_list(len(legacy_ids) + 20)
         legacy_by_id = {str(row.get("id")): row for row in legacy if row.get("id")}
 
-        staff_ids = sorted({str(row.get("staff_id")) for row in legacy if row.get("staff_id")})
+        legacy_staff_ids = sorted({str(row.get("staff_id")) for row in legacy if row.get("staff_id")})
+        staff_query_parts = []
+        if legacy_staff_ids:
+            staff_query_parts.append({"id": {"$in": legacy_staff_ids}})
+        if user_emails:
+            staff_query_parts.append({"email": {"$in": user_emails}})
+        staff_query = {"$or": staff_query_parts} if staff_query_parts else {"id": {"$in": []}}
         staff = await db.staff.find(
-            {"id": {"$in": staff_ids}},
+            staff_query,
             {"_id": 0, "id": 1, "user_id": 1, "email": 1, "nome": 1, "full_name": 1, "status": 1},
-        ).to_list(len(staff_ids) + 20)
+        ).to_list(max(len(legacy_staff_ids) + len(user_emails) + 100, 500))
         staff_by_id = {str(row.get("id")): row for row in staff if row.get("id")}
         staff_by_email: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for row in staff:
@@ -153,11 +164,12 @@ async def main() -> None:
             if email:
                 staff_by_email[email].append(row)
 
+        relevant_staff_ids = sorted({str(row.get("id")) for row in staff if row.get("id")})
         all_lotacoes = await db.school_assignments.find(
-            {"staff_id": {"$in": staff_ids}, "status": "ativo"},
+            {"staff_id": {"$in": relevant_staff_ids}, "status": "ativo"},
             {"_id": 0, "id": 1, "staff_id": 1, "school_id": 1, "funcao": 1,
              "academic_year": 1, "status": 1, "mantenedora_id": 1},
-        ).to_list(5000)
+        ).to_list(10000)
         lots_by_staff: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for row in all_lotacoes:
             lots_by_staff[str(row.get("staff_id") or "")].append(row)
@@ -178,12 +190,12 @@ async def main() -> None:
             legacy_row = legacy_by_id.get(str(source or ""))
             source_staff_id = str((legacy_row or {}).get("staff_id") or "")
             source_staff = staff_by_id.get(source_staff_id)
+            exact_lots: list[dict[str, Any]] = []
+            login_school_ids: list[str] = []
+            effective_role = ""
 
             if not user:
                 blockers.append("USER_MISSING")
-                effective_role = ""
-                login_school_ids = []
-                exact_lots = []
             else:
                 if user.get("status") != "active":
                     blockers.append("USER_NOT_ACTIVE")
@@ -194,11 +206,15 @@ async def main() -> None:
                     blockers.append("LOGIN_STAFF_BY_EMAIL_MISSING")
                     login_staff_id = ""
                 else:
-                    login_staff_id = str(email_staff_rows[0].get("id") or "")
+                    # O login usa find_one({email}); duplicidade é ambígua por natureza.
+                    # Para o censo, se houver >1 não fingimos saber qual vencerá.
                     if len(email_staff_rows) > 1:
-                        notes.append("DUPLICATE_STAFF_EMAIL")
-                    if source_staff_id and login_staff_id != source_staff_id:
-                        blockers.append("LOGIN_STAFF_ID_DIFFERS_FROM_LEGACY_STAFF")
+                        blockers.append("DUPLICATE_STAFF_EMAIL_LOGIN_AMBIGUOUS")
+                    login_staff_id = str(email_staff_rows[0].get("id") or "")
+                    if source_staff_id and all(str(r.get("id") or "") != source_staff_id for r in email_staff_rows):
+                        blockers.append("LOGIN_STAFF_EMAIL_SET_EXCLUDES_LEGACY_STAFF")
+                    elif source_staff_id and login_staff_id != source_staff_id:
+                        notes.append("LOGIN_FIRST_STAFF_DIFFERS_FROM_LEGACY_STAFF")
 
                 exact_lots = [
                     row for row in lots_by_staff.get(login_staff_id, [])
@@ -221,7 +237,7 @@ async def main() -> None:
                     if exact_lots:
                         notes.append("ACTIVE_LOTACAO_EXISTS_OTHER_SCHOOL")
                     elif school_id in school_ids_from_links(user.get("school_links") or []):
-                        notes.append("FALLBACK_LINK_HAS_SCHOOL_BUT_NOT_USED_UNEXPECTED")
+                        notes.append("USER_SCHOOL_LINK_HAS_ASSIGNMENT_SCHOOL")
                     else:
                         notes.append("NO_LOGIN_SCOPE_SOURCE_FOR_ASSIGNMENT_SCHOOL")
 
