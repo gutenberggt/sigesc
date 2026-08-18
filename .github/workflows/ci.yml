@@ -142,9 +142,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install test runner
-        run: pip install pytest pytest-asyncio
+        run: pip install pytest pytest-asyncio python-dotenv motor
 
-      - name: Run Fase 0 + Fase 1 + Fase 2 + Fase 3 + Fase 4 + Fase 5 guard tests
+      - name: Run Fase 0 + Fase 1 + Fase 2 + Fase 3 + Fase 4 + Fase 5 + cutover 38A-38F guards
         # Estes testes são unitários/puros e não usam o conftest de integração,
         # que exige Mongo real e variáveis MONGO_URL/DB_NAME.
         run: |
@@ -159,4 +159,11 @@ jobs:
             tests/test_attendance_assignment_indexes_phase4.py \
             tests/test_grade_assignment_scope_phase5.py \
             tests/test_grade_assignment_adapter_phase5.py \
-            tests/test_grade_assignment_hardening_phase5.py
+            tests/test_grade_assignment_hardening_phase5.py \
+            tests/test_dvd_cutover_audit_phase38.py \
+            tests/test_dvd_cutover_plan_phase38b.py \
+            tests/test_dvd_schedule_blockers_phase38c.py \
+            tests/test_dvd_schedule_recovery_phase38d.py \
+            tests/test_dvd_first_wave_manifest_phase38e.py \
+            tests/test_legacy_content_dvd_guard_phase38f.py \
+            tests/test_content_harmonization_phase38f.py

@@ -66,6 +66,40 @@ jobs:
       - name: Bootstrap super_admin de CI (banco efêmero)
         run: python scripts/ci_bootstrap_admin.py
 
+      - name: Smoke auditor DVD read-only (Mongo efêmero)
+        run: |
+          python scripts/audit_dvd_cutover.py \
+            --academic-year 2026 \
+            --reference-date 2026-08-18 \
+            --details-limit 0 \
+            --json /tmp/dvd-cutover-audit-ci.json
+          test -s /tmp/dvd-cutover-audit-ci.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('/tmp/dvd-cutover-audit-ci.json').read_text())
+          assert report['meta']['mode'] == 'READ_ONLY'
+          assert report['meta']['academic_year'] == 2026
+          print('Auditor DVD read-only executou contra Mongo efêmero com sucesso.')
+          PY
+
+      - name: Smoke plano DVD 38B read-only (Mongo efêmero)
+        run: |
+          python scripts/audit_dvd_cutover_plan.py \
+            --academic-year 2026 \
+            --reference-date 2026-08-18 \
+            --json /tmp/dvd-cutover-plan-ci.json
+          test -s /tmp/dvd-cutover-plan-ci.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('/tmp/dvd-cutover-plan-ci.json').read_text())
+          assert report['meta']['mode'] == 'READ_ONLY_DRY_RUN'
+          assert report['meta']['academic_year'] == 2026
+          assert report['meta']['historical_ownership_migration'] is False
+          print('Plano DVD 38B read-only executou contra Mongo efêmero com sucesso.')
+          PY
+
       - name: Start backend (uvicorn)
         run: |
           nohup uvicorn server:app --host 0.0.0.0 --port 8001 > /tmp/backend.log 2>&1 &

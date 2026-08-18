@@ -83,6 +83,7 @@ class ContentEntryCorrectRequest(BaseModel):
     content: Optional[str] = Field(default=None, min_length=1, max_length=20000)
     methodology: Optional[str] = Field(default=None, max_length=5000)
     observations: Optional[str] = Field(default=None, max_length=5000)
+    number_of_classes: Optional[int] = Field(default=None, ge=1)
 
 
 async def _resolve_class_info(db, class_id: str) -> Optional[dict]:
@@ -665,12 +666,20 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
                 },
             )
 
-        if payload.content is None and payload.methodology is None and payload.observations is None:
+        if (
+            payload.content is None
+            and payload.methodology is None
+            and payload.observations is None
+            and payload.number_of_classes is None
+        ):
             raise HTTPException(
                 status_code=422,
                 detail={
                     "code": "EMPTY_CORRECTION",
-                    "message": "Informe pelo menos um campo a corrigir (content, methodology ou observations).",
+                    "message": (
+                        "Informe pelo menos um campo a corrigir "
+                        "(content, methodology, observations ou number_of_classes)."
+                    ),
                 },
             )
 
@@ -703,6 +712,8 @@ def setup_content_entries_router(db, audit_service, sandbox_db=None):
             set_fields["methodology"] = payload.methodology
         if payload.observations is not None:
             set_fields["observations"] = payload.observations
+        if payload.number_of_classes is not None:
+            set_fields["number_of_classes"] = payload.number_of_classes
 
         await db.content_entries.update_one({"id": entry_id}, {"$set": set_fields})
         updated = await db.content_entries.find_one({"id": entry_id}, {"_id": 0})

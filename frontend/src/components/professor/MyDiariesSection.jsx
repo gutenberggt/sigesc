@@ -187,7 +187,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                       label="Conteúdos"
                       enabled={!!caps.content_enabled}
                       detail={caps.content_enabled
-                        ? 'Disponível neste perfil; a abertura pelo vínculo aguarda a harmonização do módulo atual.'
+                        ? 'Operacional por vínculo docente; cada professor acessa seus próprios registros.'
                         : 'Não se aplica a este vínculo.'}
                     />
                     <Capability
@@ -253,9 +253,8 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                         type="button"
                         size="sm"
                         variant="outline"
-                        disabled
-                        title="Conteúdos por vínculo será habilitado após a harmonização com content_entries."
-                        data-testid={`open-content-disabled-${diary.assignment_id}`}
+                        onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
+                        data-testid={`open-content-${diary.assignment_id}`}
                       >
                         <BookOpen size={16} className="mr-2" />
                         Conteúdos
@@ -274,7 +273,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                   </div>
 
                   <div className="rounded-md border border-dashed px-3 py-2 text-xs text-slate-500">
-                    Frequência e Notas/Conceitos abrem com o vínculo, a turma e o componente já definidos. Conteúdos permanece bloqueado no DVD até a harmonização com o backend canônico.
+                    Frequência, Notas/Conceitos e Conteúdos abrem com o vínculo, a turma e o componente já definidos.
                   </div>
                 </CardContent>
               </Card>

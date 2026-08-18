@@ -1,0 +1,88 @@
+name: DVD Cutover - Read-only Smoke
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  schedule-diagnostic-readonly:
+    name: DVD 38C/38D/38E - Mongo read-only smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: sigesc_dvd_cutover_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install minimal dependencies
+        run: pip install motor python-dotenv
+
+      - name: Wait for MongoDB
+        run: |
+          for i in $(seq 1 30); do
+            if python -c "from pymongo import MongoClient; MongoClient('$MONGO_URL', serverSelectionTimeoutMS=1000).admin.command('ping')" 2>/dev/null; then
+              echo "MongoDB pronto"; exit 0
+            fi
+            sleep 1
+          done
+          echo "MongoDB não respondeu"; exit 1
+
+      - name: Run 38C read-only diagnostic
+        run: |
+          python scripts/audit_dvd_schedule_blockers.py \
+            --academic-year 2026 \
+            --json /tmp/dvd-schedule-blockers-ci.json
+          test -s /tmp/dvd-schedule-blockers-ci.json
+
+      - name: Run 38D read-only recovery analysis
+        run: |
+          python scripts/audit_dvd_schedule_recovery.py \
+            --academic-year 2026 \
+            --json /tmp/dvd-schedule-recovery-ci.json
+          test -s /tmp/dvd-schedule-recovery-ci.json
+
+      - name: Run 38E read-only first-wave manifest
+        run: |
+          python scripts/audit_dvd_first_wave_manifest.py \
+            --academic-year 2026 \
+            --reference-date 2026-08-18 \
+            --json /tmp/dvd-first-wave-ci.json
+          test -s /tmp/dvd-first-wave-ci.json
+
+      - name: Assert read-only contracts
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          c = json.loads(Path('/tmp/dvd-schedule-blockers-ci.json').read_text())
+          assert c['meta']['mode'] == 'READ_ONLY_SCHEDULE_DIAGNOSTIC'
+          assert c['meta']['academic_year'] == 2026
+          assert c['meta']['mutates_database'] is False
+
+          d = json.loads(Path('/tmp/dvd-schedule-recovery-ci.json').read_text())
+          assert d['meta']['mode'] == 'READ_ONLY_RECOVERY_ANALYSIS'
+          assert d['meta']['academic_year'] == 2026
+          assert d['meta']['mutates_database'] is False
+
+          e = json.loads(Path('/tmp/dvd-first-wave-ci.json').read_text())
+          assert e['meta']['mode'] == 'READ_ONLY_FIRST_WAVE_MANIFEST'
+          assert e['meta']['academic_year'] == 2026
+          assert e['meta']['mutates_database'] is False
+          assert e['meta']['historical_ownership_migration'] is False
+          print('DVD 38C/38D/38E read-only smoke PASS')
+          PY
