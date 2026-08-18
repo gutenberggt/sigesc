@@ -8,6 +8,9 @@ import {
   ChevronRight,
   Trash2,
   Stethoscope,
+  Link2,
+  AlertTriangle,
+  WifiOff,
 } from 'lucide-react';
 import {
   DependencyBadge,
@@ -28,6 +31,12 @@ const formatDate = (dateStr) => {
   return `${day}/${month}/${year}`;
 };
 
+const unitLabel = (type, value) => {
+  if (type === 'sessoes') return value === 1 ? 'sessão' : 'sessões';
+  if (type === 'aulas') return value === 1 ? 'aula' : 'aulas';
+  return value === 1 ? 'dia' : 'dias';
+};
+
 export const LancamentoTab = () => {
   const {
     academicYear, setAcademicYear, availableYears,
@@ -45,10 +54,73 @@ export const LancamentoTab = () => {
     isStudentBlockedForProfessor, getBlockedMessage,
     medicalCertificates, setShowDeleteModal,
     attendanceDraft, restoreAttendanceDraft, discardAttendanceDraft,
+    dvdMode, dvdAssignmentId, dvdDiary, dvdContext, dvdError, dvdLoading,
+    dvdSessionAula, setDvdSessionAula, dvdOnline,
   } = useAttendance();
+
+  const dvdSessionSlots = dvdContext?.session_slots || [];
+  const dvdNeedsSession = dvdMode
+    && dvdContext?.attendance_mode === 'assignment_session'
+    && dvdSessionSlots.length > 1;
+  const dvdDocumentary = dvdContext?.attendance_purpose === 'pdf_only'
+    || dvdDiary?.capabilities?.attendance_purpose === 'pdf_only';
+  const dvdLoadBlocked = dvdMode && (
+    !dvdOnline || dvdLoading || !!dvdError || (dvdNeedsSession && !dvdSessionAula)
+  );
 
   return (
     <div className="space-y-4" data-testid="attendance-lancamento-tab">
+      {dvdMode && (
+        <div className={`rounded-lg border p-4 ${dvdDocumentary ? 'border-amber-300 bg-amber-50' : 'border-indigo-200 bg-indigo-50'}`} data-testid="attendance-dvd-banner">
+          <div className="flex items-start gap-3">
+            <Link2 size={20} className={dvdDocumentary ? 'text-amber-700 mt-0.5' : 'text-indigo-700 mt-0.5'} />
+            <div className="flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong className={dvdDocumentary ? 'text-amber-900' : 'text-indigo-900'}>
+                  Frequência por vínculo docente
+                </strong>
+                {dvdDiary?.profile && (
+                  <span className="rounded-full bg-white/80 border px-2 py-0.5 text-xs font-medium">
+                    {dvdDiary.profile === 'integrator' ? 'Componente integrador' : dvdDiary.profile === 'shared' ? 'Compartilhado' : 'Regular'}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-slate-700">
+                {dvdDiary?.class_name || 'Turma do vínculo'}
+                {dvdDiary?.component_name ? ` • ${dvdDiary.component_name}` : ''}
+                {dvdDiary?.teacher_name ? ` • ${dvdDiary.teacher_name}` : ''}
+              </p>
+              {dvdDocumentary ? (
+                <p className="text-sm font-medium text-amber-900">
+                  Registro opcional e documental. Não gera faltas, pendências, Busca Ativa, Bolsa Família, indicadores ou qualquer efeito acadêmico oficial.
+                </p>
+              ) : (
+                <p className="text-sm text-indigo-900">
+                  O vínculo determina automaticamente autoria, turma, componente e natureza da frequência. Os filtros abaixo ficam bloqueados para evitar troca acidental de contexto.
+                </p>
+              )}
+              <p className="text-xs text-slate-500">Vínculo: {dvdAssignmentId}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dvdMode && !dvdOnline && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 flex items-start gap-2" data-testid="attendance-dvd-offline-guard">
+          <WifiOff size={18} className="mt-0.5 shrink-0" />
+          <span>
+            O modo DVD está temporariamente em somente leitura quando offline. O cache histórico ainda é indexado por turma/data e não será usado para misturar sessões de vínculos diferentes. Reconecte para carregar ou salvar este diário.
+          </span>
+        </div>
+      )}
+
+      {dvdMode && dvdError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 flex items-start gap-2" data-testid="attendance-dvd-error">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <span>{dvdError}</span>
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="lg:col-span-1">
@@ -56,7 +128,8 @@ export const LancamentoTab = () => {
           <select
             value={academicYear}
             onChange={(e) => setAcademicYear(parseInt(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            disabled={dvdMode}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
           >
             {availableYears.map(year => (
               <option key={year} value={year}>{year}</option>
@@ -69,7 +142,8 @@ export const LancamentoTab = () => {
           <select
             value={selectedSchool}
             onChange={(e) => setSelectedSchool(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            disabled={dvdMode}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
           >
             <option value="">Selecione a escola</option>
             {schools.map(s => (
@@ -83,8 +157,8 @@ export const LancamentoTab = () => {
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            disabled={!selectedSchool}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            disabled={!selectedSchool || dvdMode}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
           >
             <option value="">Selecione a turma</option>
             {classes.map(c => (
@@ -93,14 +167,14 @@ export const LancamentoTab = () => {
           </select>
         </div>
 
-        {attendanceType === 'by_component' && (
+        {(attendanceType === 'by_component' || (dvdMode && dvdDiary?.component_id)) && (
           <div className="lg:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular</label>
             <select
               value={selectedCourse}
               onChange={(e) => setSelectedCourse(e.target.value)}
-              disabled={!selectedClass}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              disabled={!selectedClass || dvdMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
             >
               <option value="">Selecione o componente</option>
               {courses.map(c => (
@@ -111,28 +185,28 @@ export const LancamentoTab = () => {
         )}
 
         {selectedClass && attendanceSummary && (
-          <div className={`${attendanceType === 'by_component' ? 'lg:col-span-2' : 'lg:col-span-3'} flex items-end`}>
+          <div className={`${(attendanceType === 'by_component' || (dvdMode && dvdDiary?.component_id)) ? 'lg:col-span-2' : 'lg:col-span-3'} flex items-end`}>
             <div className="w-full grid grid-cols-3 gap-2" data-testid="attendance-summary">
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-center">
                 <p className="text-xs font-medium text-blue-600">
-                  {attendanceSummary.type === 'aulas' ? 'Previstas' : 'Previstos'}
+                  {attendanceSummary.optional ? 'Referência' : (attendanceSummary.type === 'aulas' ? 'Previstas' : 'Previstos')}
                 </p>
                 <p className="text-lg font-bold text-blue-800">
-                  {attendanceSummary.previstos} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
+                  {attendanceSummary.previstos} <span className="text-xs font-normal">{unitLabel(attendanceSummary.type, attendanceSummary.previstos)}</span>
                 </p>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
-                <p className="text-xs font-medium text-green-600">
-                  {attendanceSummary.type === 'aulas' ? 'Registradas' : 'Registrados'}
-                </p>
+                <p className="text-xs font-medium text-green-600">Registrados</p>
                 <p className="text-lg font-bold text-green-800">
-                  {attendanceSummary.registrados} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
+                  {attendanceSummary.registrados} <span className="text-xs font-normal">{unitLabel(attendanceSummary.type, attendanceSummary.registrados)}</span>
                 </p>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
-                <p className="text-xs font-medium text-amber-600">Restantes</p>
+                <p className="text-xs font-medium text-amber-600">{attendanceSummary.optional ? 'Obrigatoriedade' : 'Restantes'}</p>
                 <p className="text-lg font-bold text-amber-800">
-                  {attendanceSummary.restantes} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
+                  {attendanceSummary.optional
+                    ? <span className="text-sm">Opcional</span>
+                    : <>{attendanceSummary.restantes} <span className="text-xs font-normal">{unitLabel(attendanceSummary.type, attendanceSummary.restantes)}</span></>}
                 </p>
               </div>
             </div>
@@ -141,7 +215,7 @@ export const LancamentoTab = () => {
       </div>
 
       {/* Seletor de Data */}
-      <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
+      <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg flex-wrap">
         <Button variant="outline" size="sm" onClick={() => navigateDate(-1)}>
           <ChevronLeft size={18} />
         </Button>
@@ -171,6 +245,27 @@ export const LancamentoTab = () => {
           Hoje
         </Button>
 
+        {dvdMode && dvdContext?.attendance_mode === 'assignment_session' && dvdSessionSlots.length > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-1.5">
+            <label className="text-sm font-medium text-indigo-800">Sessão/Aula</label>
+            <select
+              value={dvdSessionAula ?? ''}
+              onChange={(e) => setDvdSessionAula(e.target.value)}
+              className="px-2 py-1 border border-indigo-200 rounded text-sm"
+              data-testid="dvd-session-select"
+              disabled={dvdSessionSlots.length === 1}
+            >
+              {dvdSessionSlots.length > 1 && <option value="">Selecione</option>}
+              {dvdSessionSlots.map((slot) => (
+                <option key={`${slot.aula_numero}-${slot.start_time || ''}`} value={slot.aula_numero}>
+                  {slot.aula_numero ? `${slot.aula_numero}ª aula` : 'Sessão'}
+                  {slot.start_time ? ` • ${slot.start_time}${slot.end_time ? `–${slot.end_time}` : ''}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {dateCheck && (
           <div className={`ml-auto px-3 py-1 rounded-full text-sm ${
             dateCheck.can_record ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -185,9 +280,9 @@ export const LancamentoTab = () => {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
           <strong>{EDUCATION_LEVEL_LABELS[inferEducationLevel(selectedClassData)] || selectedClassData.education_level || inferEducationLevel(selectedClassData)}</strong>
           {' - '}
-          {attendanceType === 'daily'
-            ? 'Frequência diária (uma por dia)'
-            : 'Frequência por componente curricular'}
+          {dvdMode
+            ? (dvdContext?.attendance_mode === 'assignment_session' ? 'Frequência por sessão do vínculo' : 'Frequência diária canônica da turma')
+            : (attendanceType === 'daily' ? 'Frequência diária (uma por dia)' : 'Frequência por componente curricular')}
         </div>
       )}
 
@@ -195,9 +290,9 @@ export const LancamentoTab = () => {
       <div className="flex gap-2 flex-wrap items-center">
         <Button
           onClick={loadAttendance}
-          disabled={!selectedClass || !selectedDate || (attendanceType === 'by_component' && !selectedCourse)}
+          disabled={dvdLoadBlocked || !selectedClass || !selectedDate || (!dvdMode && attendanceType === 'by_component' && !selectedCourse)}
         >
-          Carregar Frequência
+          {dvdLoading ? 'Carregando vínculo...' : 'Carregar Frequência'}
         </Button>
 
         {attendanceData && canEdit && (
@@ -478,7 +573,7 @@ export const LancamentoTab = () => {
                 )}
               </div>
               <Button data-testid="save-attendance-btn" onClick={saveAttendance} disabled={saving || !hasChanges}>
-                {saving ? 'Salvando...' : 'Salvar Frequência'}
+                {saving ? 'Salvando...' : (dvdDocumentary ? 'Salvar registro documental' : 'Salvar Frequência')}
               </Button>
             </div>
           )}
@@ -486,7 +581,7 @@ export const LancamentoTab = () => {
       ) : (
         <div className="text-center py-12 text-gray-500">
           <Users size={48} className="mx-auto mb-4 opacity-30" />
-          <p>Selecione os filtros e clique em "Carregar Frequência"</p>
+          <p>{dvdMode ? 'Confirme a data/sessão e clique em "Carregar Frequência"' : 'Selecione os filtros e clique em "Carregar Frequência"'}</p>
         </div>
       )}
     </div>
