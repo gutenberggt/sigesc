@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BookOpen, CheckSquare, ClipboardList, School, Users, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Button } from '../ui/button';
 import { teacherDiariesAPI } from '../../services/teacherDiaries';
 
 const PROFILE_LABELS = {
@@ -22,6 +24,7 @@ function Capability({ icon: Icon, label, enabled, detail }) {
 }
 
 export default function MyDiariesSection() {
+  const navigate = useNavigate();
   const academicYear = new Date().getFullYear();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ items: [], total: 0, blocked_total: 0 });
@@ -110,11 +113,14 @@ export default function MyDiariesSection() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {diaries.map((diary) => {
             const caps = diary.capabilities || {};
+            const unresolvedGroup = diary.profile === 'shared' && diary.student_scope === 'group';
             const attendanceDetail = !caps.attendance_enabled
               ? 'Não se aplica a este vínculo.'
-              : caps.attendance_purpose === 'pdf_only'
-                ? 'Opcional e exclusiva deste diário.'
-                : 'Disponível neste perfil; abertura por vínculo será habilitada em etapa posterior.';
+              : unresolvedGroup
+                ? 'Aguarda a definição auditável dos estudantes do grupo antes do lançamento.'
+                : caps.attendance_purpose === 'pdf_only'
+                  ? 'Operacional: registro opcional, documental e exclusivo deste diário; não produz efeitos oficiais.'
+                  : 'Operacional por vínculo docente nesta fase.';
             const gradesDetail = caps.grades_enabled
               ? 'Disponível neste perfil; abertura por vínculo será habilitada em etapa posterior.'
               : 'Não se aplica a este vínculo.';
@@ -159,7 +165,7 @@ export default function MyDiariesSection() {
                     <Capability
                       icon={CheckSquare}
                       label="Frequência"
-                      enabled={!!caps.attendance_enabled}
+                      enabled={!!caps.attendance_enabled && !unresolvedGroup}
                       detail={attendanceDetail}
                     />
                     <Capability
@@ -173,12 +179,34 @@ export default function MyDiariesSection() {
                   {diary.student_scope === 'group' && (
                     <div className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600 flex items-center gap-2">
                       <Users size={15} />
-                      Vínculo compartilhado com grupo específico de estudantes.
+                      {unresolvedGroup
+                        ? 'Vínculo compartilhado por grupo: lançamento bloqueado até existir uma lista canônica e auditável de membros.'
+                        : 'Vínculo compartilhado com grupo específico de estudantes.'}
+                    </div>
+                  )}
+
+                  {caps.attendance_enabled && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
+                        disabled={unresolvedGroup}
+                        onClick={() => navigate(`/professor/frequencia?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
+                        data-testid={`open-attendance-${diary.assignment_id}`}
+                      >
+                        <CheckSquare size={16} className="mr-2" />
+                        {unresolvedGroup
+                          ? 'Frequência aguardando grupo'
+                          : caps.attendance_purpose === 'pdf_only'
+                            ? 'Abrir registro documental'
+                            : 'Abrir Frequência'}
+                      </Button>
                     </div>
                   )}
 
                   <div className="rounded-md border border-dashed px-3 py-2 text-xs text-slate-500">
-                    Nesta etapa, “Meus Diários” organiza seus vínculos. As ações serão liberadas progressivamente, sem substituir as telas que você já utiliza.
+                    Frequência já usa o vínculo docente quando liberada acima. Conteúdos e Avaliação continuam sendo habilitados progressivamente, sem substituir as telas atuais.
                   </div>
                 </CardContent>
               </Card>
