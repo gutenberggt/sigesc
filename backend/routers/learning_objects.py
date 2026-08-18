@@ -19,7 +19,14 @@ from models import *
 from auth_middleware import AuthMiddleware
 from pdf_generator import generate_learning_objects_pdf
 from pdf_cache import get_mantenedora_cached, get_calendario_cached, get_school_cached
-from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create
+from tenant_scope import (
+    apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create,
+    get_mantenedora_scope,
+)
+from services.content_assignment_scope import filter_visible_content_entries
+from services.legacy_content_dvd_guard import (
+    legacy_content_block_detail, professor_has_active_dvd_content,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +49,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     verify_academic_year_open_or_raise = kwargs.get('verify_academic_year_open_or_raise')
     check_academic_year_open = kwargs.get('check_academic_year_open')
 
+    async def _block_legacy_if_dvd(current_user, class_id, course_id=None):
+        if await professor_has_active_dvd_content(
+            db, current_user, class_id=class_id, course_id=course_id
+        ):
+            raise HTTPException(status_code=409, detail=legacy_content_block_detail())
+
     @router.get("/learning-objects")
     async def list_learning_objects(
         request: Request,
@@ -53,6 +66,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ):
         """Lista objetos de conhecimento (conteúdos ministrados)"""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3'])(request)
+
+        await _block_legacy_if_dvd(current_user, class_id, course_id)
 
         query = {}
         if class_id:
@@ -97,6 +112,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not obj:
             raise HTTPException(status_code=404, detail="Registro não encontrado")
 
+        await _block_legacy_if_dvd(current_user, obj.get('class_id'), obj.get('course_id'))
         return obj
 
 
@@ -105,6 +121,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Cria um registro de objeto de conhecimento"""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor'])(request)
         user_role = current_user.get('role', '')
+
+        await _block_legacy_if_dvd(current_user, data.class_id, data.course_id)
 
         # Verifica se o ano letivo está aberto (apenas para não-admins)
         academic_year = data.academic_year or datetime.now().year
@@ -177,6 +195,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not existing:
             raise HTTPException(status_code=404, detail="Registro não encontrado")
 
+        await _block_legacy_if_dvd(current_user, existing.get('class_id'), existing.get('course_id'))
+
         # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
         if user_role not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']:
             academic_year = existing.get('academic_year', datetime.now().year)
@@ -217,6 +237,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not existing:
             raise HTTPException(status_code=404, detail="Registro não encontrado")
 
+        await _block_legacy_if_dvd(current_user, existing.get('class_id'), existing.get('course_id'))
         await db.learning_objects.delete_one({"id": object_id})
 
         return {"message": "Registro excluído com sucesso"}
@@ -247,6 +268,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         original = await db.learning_objects.find_one({"id": object_id}, {"_id": 0})
         if not original:
             raise HTTPException(status_code=404, detail="Registro original não encontrado")
+
+        await _block_legacy_if_dvd(current_user, original.get('class_id'), original.get('course_id'))
 
         try:
             body = await request.json()
@@ -360,6 +383,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Verifica se existe registro para uma data específica"""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
+        await _block_legacy_if_dvd(current_user, class_id, course_id)
+
         existing = await db.learning_objects.find_one({
             "class_id": class_id,
             "course_id": course_id,
@@ -382,7 +407,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         course_id: Optional[str] = None
     ):
         """Gera PDF dos objetos de conhecimento por bimestre"""
-        await AuthMiddleware.get_current_user(request)
+        current_user = await AuthMiddleware.get_current_user(request)
 
         if not academic_year:
             academic_year = datetime.now().year
@@ -421,16 +446,40 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }
             period_start, period_end = periodos.get(bimestre, (None, None))
 
-        # Buscar registros do bimestre
-        query = {
-            "class_id": class_id,
-            "academic_year": academic_year,
-            "date": {"$gte": period_start, "$lte": period_end}
-        }
-        if course_id:
-            query["course_id"] = course_id
-
-        records = await db.learning_objects.find(query, {"_id": 0}).sort("date", 1).to_list(1000)
+        # Buscar registros do bimestre. Professor com DVD ativo usa exclusivamente
+        # content_entries e passa pelo filtro canônico de visibilidade/autoria.
+        dvd_mode = await professor_has_active_dvd_content(
+            db, current_user, class_id=class_id, course_id=course_id
+        )
+        if dvd_mode:
+            query = {
+                "class_id": class_id,
+                "academic_year": academic_year,
+                "date": {"$gte": period_start, "$lte": period_end},
+                "deleted": False,
+            }
+            if course_id:
+                query["component_id"] = course_id
+            candidates = await db.content_entries.find(
+                query, {"_id": 0}
+            ).sort("date", 1).to_list(2000)
+            records = await filter_visible_content_entries(
+                db, current_user, candidates,
+                active_mantenedora_id=get_mantenedora_scope(current_user, request),
+            )
+            for record in records:
+                record["course_id"] = record.get("course_id") or record.get("component_id")
+        else:
+            query = {
+                "class_id": class_id,
+                "academic_year": academic_year,
+                "date": {"$gte": period_start, "$lte": period_end}
+            }
+            if course_id:
+                query["course_id"] = course_id
+            records = await db.learning_objects.find(
+                query, {"_id": 0}
+            ).sort("date", 1).to_list(1000)
 
         # Enriquecer com nomes dos componentes (1 query batch, não N+1)
         course_ids_unicos = list({r.get('course_id') for r in records if r.get('course_id')})
@@ -461,6 +510,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
             if teacher:
                 teacher_name = teacher.get('nome', '')
+        if dvd_mode:
+            teacher_name = next(
+                (r.get('teacher_name') for r in records if r.get('teacher_name')),
+                current_user.get('full_name') or current_user.get('name') or '',
+            )
 
         # Calcular dias previstos no bimestre usando calendar_events (mesma fonte do calendário de Registros)
         dias_previstos = 0
@@ -521,7 +575,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         try:
             from services.class_teachers import get_multi_teacher_names_for_pdf
-            teacher_names = await get_multi_teacher_names_for_pdf(db, turma, academic_year)
+            teacher_names = (
+                [teacher_name] if dvd_mode and teacher_name
+                else await get_multi_teacher_names_for_pdf(db, turma, academic_year)
+            )
             pdf_buffer = generate_learning_objects_pdf(
                 school=school,
                 class_info=turma,
