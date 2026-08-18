@@ -36,6 +36,8 @@ async def list_teacher_diaries(
     - cada candidato é revalidado por `authorize_assignment_access`;
     - AEE e etapas fora do DVD v1 são eliminados pelo autorizador canônico;
     - tenant e escola permanecem fail-closed;
+    - enriquecimento de turma/escola/componente permanece preso ao tenant já
+      autorizado; metadados cross-tenant nunca são exibidos;
     - capacidades são derivadas do perfil, nunca persistidas novamente;
     - frequência/notas podem aparecer como capacidades, mas a Fase 3 não as
       integra funcionalmente aos módulos existentes.
@@ -72,8 +74,21 @@ async def list_teacher_diaries(
             blocked_total += 1
             continue
 
+        # A turma já autorizada é a âncora do tenant e da escola para todo o
+        # enriquecimento visual. O endpoint é exclusivo de professor, portanto
+        # tenant ausente nunca pode virar consulta ampla/cross-tenant.
+        authorized_tenant_id = context.class_info.get("mantenedora_id")
+        authorized_school_id = context.class_info.get("school_id") or assignment.get("school_id")
+        if not authorized_tenant_id or not authorized_school_id:
+            blocked_total += 1
+            continue
+
         class_info = await db.classes.find_one(
-            {"id": assignment.get("class_id")},
+            {
+                "id": assignment.get("class_id"),
+                "mantenedora_id": authorized_tenant_id,
+                "school_id": authorized_school_id,
+            },
             {
                 "_id": 0,
                 "id": 1,
@@ -98,18 +113,30 @@ async def list_teacher_diaries(
             if class_year is not None and str(class_year) != str(academic_year):
                 continue
 
-        school = None
-        if class_info.get("school_id"):
-            school = await db.schools.find_one(
-                {"id": class_info.get("school_id")}, {"_id": 0, "id": 1, "name": 1}
-            )
+        school = await db.schools.find_one(
+            {
+                "id": authorized_school_id,
+                "mantenedora_id": authorized_tenant_id,
+            },
+            {"_id": 0, "id": 1, "name": 1, "mantenedora_id": 1},
+        )
+        if not school:
+            blocked_total += 1
+            continue
 
         component = None
-        if assignment.get("component_id"):
+        component_id = assignment.get("component_id")
+        if component_id:
             component = await db.courses.find_one(
-                {"id": assignment.get("component_id")},
-                {"_id": 0, "id": 1, "name": 1},
+                {
+                    "id": component_id,
+                    "mantenedora_id": authorized_tenant_id,
+                },
+                {"_id": 0, "id": 1, "name": 1, "mantenedora_id": 1},
             )
+            if not component:
+                blocked_total += 1
+                continue
 
         capabilities = context.settings.capabilities
         attendance_purpose = capabilities.attendance_purpose
@@ -119,9 +146,9 @@ async def list_teacher_diaries(
             "teacher_id": assignment.get("teacher_id"),
             "class_id": assignment.get("class_id"),
             "class_name": class_info.get("name") or assignment.get("class_name"),
-            "school_id": class_info.get("school_id") or assignment.get("school_id"),
-            "school_name": school.get("name") if school else None,
-            "component_id": assignment.get("component_id"),
+            "school_id": authorized_school_id,
+            "school_name": school.get("name"),
+            "component_id": component_id,
             "component_name": component.get("name") if component else None,
             "academic_year": class_info.get("academic_year"),
             "education_level": class_info.get("education_level") or class_info.get("nivel_ensino"),
