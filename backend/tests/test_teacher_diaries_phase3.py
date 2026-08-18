@@ -120,6 +120,26 @@ def _class(**overrides):
     return doc
 
 
+def _school(**overrides):
+    doc = {
+        "id": "s-1",
+        "name": "Escola Municipal",
+        "mantenedora_id": "tenant-1",
+    }
+    doc.update(overrides)
+    return doc
+
+
+def _course(**overrides):
+    doc = {
+        "id": "math",
+        "name": "Matemática",
+        "mantenedora_id": "tenant-1",
+    }
+    doc.update(overrides)
+    return doc
+
+
 def _user(**overrides):
     doc = {
         "id": "teacher-1",
@@ -131,12 +151,12 @@ def _user(**overrides):
     return doc
 
 
-def _db(assignment=None, klass=None):
+def _db(assignment=None, klass=None, school=None, course=None):
     return FakeDb(
         assignments=[assignment or _assignment()],
         classes=[klass or _class()],
-        schools=[{"id": "s-1", "name": "Escola Municipal"}],
-        courses=[{"id": "math", "name": "Matemática"}],
+        schools=[school or _school()],
+        courses=[course or _course()],
     )
 
 
@@ -228,8 +248,8 @@ async def test_vinculo_desabilitado_ou_expirado_nem_e_candidato():
     db = FakeDb(
         assignments=[disabled, expired],
         classes=[_class()],
-        schools=[{"id": "s-1", "name": "Escola Municipal"}],
-        courses=[{"id": "math", "name": "Matemática"}],
+        schools=[_school()],
+        courses=[_course()],
     )
     result = await list_teacher_diaries(db, _user(), reference_date="2026-08-17")
     assert result["total"] == 0
@@ -242,8 +262,8 @@ async def test_assignment_de_outro_professor_nunca_entra_na_consulta():
     db = FakeDb(
         assignments=[other],
         classes=[_class()],
-        schools=[{"id": "s-1", "name": "Escola Municipal"}],
-        courses=[{"id": "math", "name": "Matemática"}],
+        schools=[_school()],
+        courses=[_course()],
     )
     result = await list_teacher_diaries(db, _user(), reference_date="2026-08-17")
     assert result["items"] == []
@@ -259,6 +279,30 @@ async def test_assignment_class_wide_e_representado_sem_inventar_componente():
     item = result["items"][0]
     assert item["component_id"] is None
     assert item["component_name"] is None
+
+
+@pytest.mark.asyncio
+async def test_componente_cross_tenant_bloqueia_card_sem_vazar_nome():
+    result = await list_teacher_diaries(
+        _db(course=_course(mantenedora_id="tenant-2", name="Componente de Outro Tenant")),
+        _user(),
+        reference_date="2026-08-17",
+    )
+    assert result["items"] == []
+    assert result["total"] == 0
+    assert result["blocked_total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_escola_cross_tenant_bloqueia_card_sem_vazar_nome():
+    result = await list_teacher_diaries(
+        _db(school=_school(mantenedora_id="tenant-2", name="Escola de Outro Tenant")),
+        _user(),
+        reference_date="2026-08-17",
+    )
+    assert result["items"] == []
+    assert result["total"] == 0
+    assert result["blocked_total"] == 1
 
 
 @pytest.mark.asyncio
