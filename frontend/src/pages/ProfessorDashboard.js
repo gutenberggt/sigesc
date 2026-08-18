@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import MyDiariesSection from '../components/professor/MyDiariesSection';
 import { 
   GraduationCap, 
   Users, 
@@ -272,6 +273,9 @@ export default function ProfessorDashboard() {
             </Card>
           </div>
         </div>
+
+        {/* Diário por Vínculo Docente — camada organizadora */}
+        <MyDiariesSection />
 
         {/* Carga Horária */}
         {profile?.carga_horaria_semanal && (
