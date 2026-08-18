@@ -11,6 +11,10 @@ const isCheckDateUrl = (url = '') => url.includes('/learning-objects/check-date/
 const isCopyUrl = (url = '') => url.includes('/copy-to-class');
 
 const canonicalBase = (url = '') => url.replace('/learning-objects', '/content-entries');
+const canonicalRoot = (url = '') => {
+  const prefix = url.split('/content-entries')[0];
+  return `${prefix}/content-entries`;
+};
 const recordCache = new Map();
 
 const normalizeRecord = (record = {}) => ({
@@ -37,6 +41,8 @@ const filterByLegacyListParams = (items, meta = {}) => {
     return true;
   });
 };
+
+const correctionNote = 'Correção realizada pelo Diário de Conteúdos por Vínculo.';
 
 // Bridge estritamente contextual: sem assignment_id, o fluxo legado permanece intacto.
 axios.interceptors.request.use((config) => {
@@ -100,7 +106,9 @@ axios.interceptors.request.use((config) => {
     return config;
   }
 
-  // POST de criação: ownership vem do assignment_id e é revalidado pelo backend.
+  // A tela histórica entende "Salvar" como lançamento concluído. No DVD, o
+  // bridge cria/upserta o draft pelo motor canônico e o publica no response
+  // interceptor, preservando esse contrato sem pular versionamento/auditoria.
   if (method === 'post' && /\/learning-objects\/?$/.test(url)) {
     const payload = { ...(config.data || {}) };
     payload.assignment_id = assignmentId;
@@ -108,11 +116,10 @@ axios.interceptors.request.use((config) => {
     config.url = canonicalBase(url);
     config.data = payload;
     config.__contentDvdRecord = true;
+    config.__contentDvdAutoPublish = true;
     return config;
   }
 
-  // PUT da tela legada vira UPSERT canônico por chave natural. O cache foi
-  // preenchido pela listagem autorizada; nunca inventamos turma/data/componente.
   if (method === 'put') {
     const id = url.split('/').filter(Boolean).pop();
     const current = recordCache.get(id);
@@ -125,8 +132,28 @@ axios.interceptors.request.use((config) => {
       return Promise.reject(error);
     }
     const patch = { ...(config.data || {}) };
+
+    // Conteúdo publicado/corrigido nunca volta para PUT/upsert: usa a rota
+    // institucional de correção com motivo e expected_version.
+    if (current.status === 'published' || current.status === 'corrected') {
+      config.method = 'post';
+      config.url = `${canonicalRoot(canonicalBase(url))}/${id}/correct`;
+      config.data = {
+        change_note: correctionNote,
+        expected_version: current.version ?? null,
+        content: patch.content ?? current.content ?? '',
+        methodology: patch.methodology ?? current.methodology ?? null,
+        observations: patch.observations ?? current.observations ?? null,
+        number_of_classes: patch.number_of_classes ?? current.number_of_classes ?? 1,
+      };
+      config.__contentDvdRecord = true;
+      return config;
+    }
+
+    // Draft: upsert canônico e publicação imediata para manter a semântica da
+    // tela atual de uma única ação "Salvar".
     config.method = 'post';
-    config.url = canonicalBase(url).replace(`/${id}`, '');
+    config.url = canonicalRoot(canonicalBase(url));
     config.data = {
       class_id: current.class_id,
       course_id: current.course_id || current.component_id,
@@ -142,6 +169,7 @@ axios.interceptors.request.use((config) => {
       assignment_id: assignmentId,
     };
     config.__contentDvdRecord = true;
+    config.__contentDvdAutoPublish = true;
     return config;
   }
 
@@ -157,7 +185,7 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
-axios.interceptors.response.use((response) => {
+axios.interceptors.response.use(async (response) => {
   const config = response.config || {};
 
   if (config.__contentDvdList) {
@@ -177,6 +205,21 @@ axios.interceptors.response.use((response) => {
       record: items[0] || null,
     };
     return response;
+  }
+
+  if (config.__contentDvdAutoPublish && response.data?.id) {
+    const draft = normalizeRecord(response.data);
+    if (draft.status === 'draft') {
+      const publishResponse = await axios.post(
+        `${canonicalRoot(config.url)}/${draft.id}/publish`,
+        { expected_version: draft.version ?? null },
+        { __skipContentDvdBridge: true }
+      );
+      const published = normalizeRecord(publishResponse.data);
+      cacheRecords([published]);
+      response.data = published;
+      return response;
+    }
   }
 
   if (config.__contentDvdRecord && response.data) {
