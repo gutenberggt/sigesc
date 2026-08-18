@@ -160,6 +160,8 @@ async def list_teacher_diaries(
             "profile": context.settings.profile.value,
             "student_scope": context.settings.student_scope.value,
             "schema_version": context.settings.schema_version,
+            # Fase 5: shared/all exige um único responsável oficial pela avaliação.
+            "grades_official_owner": bool(assignment.get("grades_official_owner")),
             "capabilities": {
                 "content_enabled": capabilities.content_enabled,
                 "attendance_enabled": capabilities.attendance_enabled,

@@ -114,16 +114,24 @@ export default function MyDiariesSection() {
           {diaries.map((diary) => {
             const caps = diary.capabilities || {};
             const unresolvedGroup = diary.profile === 'shared' && diary.student_scope === 'group';
+            const sharedGradeOwner = diary.profile !== 'shared' || diary.grades_official_owner === true;
+            const gradesOperational = !!caps.grades_enabled && !unresolvedGroup && sharedGradeOwner;
             const attendanceDetail = !caps.attendance_enabled
               ? 'Não se aplica a este vínculo.'
               : unresolvedGroup
                 ? 'Aguarda a definição auditável dos estudantes do grupo antes do lançamento.'
                 : caps.attendance_purpose === 'pdf_only'
                   ? 'Operacional: registro opcional, documental e exclusivo deste diário; não produz efeitos oficiais.'
-                  : 'Operacional por vínculo docente nesta fase.';
-            const gradesDetail = caps.grades_enabled
-              ? 'Disponível neste perfil; abertura por vínculo será habilitada em etapa posterior.'
-              : 'Não se aplica a este vínculo.';
+                  : 'Operacional por vínculo docente.';
+            const gradesDetail = !caps.grades_enabled
+              ? 'Não se aplica a este vínculo.'
+              : unresolvedGroup
+                ? 'Aguarda a definição auditável dos estudantes do grupo antes do lançamento.'
+                : !sharedGradeOwner
+                  ? 'A coordenação deve definir qual vínculo shared é o responsável oficial pela avaliação.'
+                  : diary.profile === 'shared'
+                    ? 'Este vínculo é o responsável oficial pela avaliação compartilhada.'
+                    : 'Operacional com autoria por vínculo e por período avaliativo.';
 
             return (
               <Card key={diary.assignment_id} className="border-l-4 border-l-indigo-500" data-testid={`diario-card-${diary.assignment_id}`}>
@@ -171,7 +179,7 @@ export default function MyDiariesSection() {
                     <Capability
                       icon={ClipboardList}
                       label="Avaliação"
-                      enabled={!!caps.grades_enabled}
+                      enabled={gradesOperational}
                       detail={gradesDetail}
                     />
                   </div>
@@ -185,28 +193,47 @@ export default function MyDiariesSection() {
                     </div>
                   )}
 
-                  {caps.attendance_enabled && (
+                  {(caps.attendance_enabled || caps.grades_enabled) && (
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
-                        disabled={unresolvedGroup}
-                        onClick={() => navigate(`/professor/frequencia?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
-                        data-testid={`open-attendance-${diary.assignment_id}`}
-                      >
-                        <CheckSquare size={16} className="mr-2" />
-                        {unresolvedGroup
-                          ? 'Frequência aguardando grupo'
-                          : caps.attendance_purpose === 'pdf_only'
-                            ? 'Abrir registro documental'
-                            : 'Abrir Frequência'}
-                      </Button>
+                      {caps.attendance_enabled && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
+                          disabled={unresolvedGroup}
+                          onClick={() => navigate(`/professor/frequencia?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
+                          data-testid={`open-attendance-${diary.assignment_id}`}
+                        >
+                          <CheckSquare size={16} className="mr-2" />
+                          {unresolvedGroup
+                            ? 'Frequência aguardando grupo'
+                            : caps.attendance_purpose === 'pdf_only'
+                              ? 'Abrir registro documental'
+                              : 'Abrir Frequência'}
+                        </Button>
+                      )}
+                      {caps.grades_enabled && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!gradesOperational}
+                          onClick={() => navigate(`/professor/notas?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
+                          data-testid={`open-grades-${diary.assignment_id}`}
+                        >
+                          <ClipboardList size={16} className="mr-2" />
+                          {unresolvedGroup
+                            ? 'Avaliação aguardando grupo'
+                            : !sharedGradeOwner
+                              ? 'Avaliação aguardando responsável'
+                              : 'Abrir Avaliação'}
+                        </Button>
+                      )}
                     </div>
                   )}
 
                   <div className="rounded-md border border-dashed px-3 py-2 text-xs text-slate-500">
-                    Frequência já usa o vínculo docente quando liberada acima. Conteúdos e Avaliação continuam sendo habilitados progressivamente, sem substituir as telas atuais.
+                    Frequência e Avaliação usam autoria por vínculo docente. Conteúdos será habilitado quando a tela atual estiver harmonizada com o backend canônico.
                   </div>
                 </CardContent>
               </Card>

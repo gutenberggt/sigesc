@@ -13,7 +13,9 @@ from .classes import router as classes_router, setup_router as setup_classes_rou
 from .guardians import router as guardians_router, setup_router as setup_guardians_router
 from .enrollments import router as enrollments_router, setup_router as setup_enrollments_router
 from .students import router as students_router, setup_students_router
-from .grades import router as grades_router, setup_grades_router
+from .grades import router as grades_router, setup_grades_router as _setup_grades_router
+from .grades_dvd import install_grades_dvd_adapter
+from .grades_dvd_hardening import install_grades_dvd_hardening
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
 from .attendance_dvd import install_attendance_dvd_adapter
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
@@ -26,6 +28,36 @@ from .analytics import router as analytics_router, setup_analytics_router
 # setup aqui garante que o endpoint legado de PDF seja protegido antes de ser
 # registrado na aplicação, sem alterar o gerador/layout do PDF.
 install_attendance_ext_dvd_setup()
+
+
+def setup_grades_router(
+    db,
+    audit_service,
+    verify_academic_year_open_or_raise=None,
+    verify_bimestre_edit_deadline_or_raise=None,
+    sandbox_db=None,
+):
+    """Configura Notas históricas + adaptador DVD Fase 5 no mesmo router."""
+    configured = _setup_grades_router(
+        db,
+        audit_service,
+        verify_academic_year_open_or_raise,
+        verify_bimestre_edit_deadline_or_raise,
+        sandbox_db,
+    )
+    configured = install_grades_dvd_adapter(
+        configured,
+        db,
+        audit_service,
+        verify_academic_year_open_or_raise=verify_academic_year_open_or_raise,
+        verify_bimestre_edit_deadline_or_raise=verify_bimestre_edit_deadline_or_raise,
+        sandbox_db=sandbox_db,
+    )
+    return install_grades_dvd_hardening(
+        configured,
+        db,
+        sandbox_db=sandbox_db,
+    )
 
 
 def setup_attendance_router(db, audit_service, sandbox_db=None):
