@@ -3,15 +3,24 @@
 Mantém ``Grades.js``, ``/grades`` e o gerador PDF existentes. O backend deriva o
 assignment do professor quando ele é unívoco; ``assignment_id`` explícito é
 sempre revalidado e nunca confiado como autoria.
+
+Invariantes adicionais:
+- autoria pedagógica é por campo em ``grade_ownership``;
+- professor comum não recebe valores/metadados pertencentes a outro vínculo;
+- sync offline usa o mesmo motor DVD e não grava ``grades`` diretamente;
+- calendário de autoria lê ``calendario_letivo`` com a mesma prioridade
+  escola → calendário geral utilizada pelo SIGESC;
+- PDF reutiliza o gerador/layout existente e recebe somente dados do vínculo.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
+import logging
 import uuid
 
-from fastapi import HTTPException, Query, Request
+from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from auth_middleware import AuthMiddleware
@@ -38,6 +47,7 @@ from tenant_scope import get_mantenedora_scope
 from utils.academic_event_lens import record_lock_audit, resolve_student_ownership
 from utils.dependency_validator import validate_dependency_link
 
+logger = logging.getLogger(__name__)
 
 PEDAGOGICAL_ROLES = {"professor", "coordenador", "apoio_pedagogico"}
 MANAGEMENT_WRITE_ROLES = {
@@ -61,6 +71,7 @@ def _http_scope_error(exc: GradeAssignmentScopeError) -> HTTPException:
         "GRADE_LEGACY_FIELD_REQUIRES_REVIEW",
         "GRADE_PERIOD_OUTSIDE_ASSIGNMENT",
         "DVD_ASSIGNMENT_REQUIRED",
+        "GRADE_BATCH_SCOPE_MISMATCH",
     }
     status_code = 409 if exc.code in conflict_codes else 403
     return HTTPException(
@@ -71,42 +82,76 @@ def _http_scope_error(exc: GradeAssignmentScopeError) -> HTTPException:
 
 def _remove_route(base_router, path: str, method: str):
     for route in list(base_router.routes):
-        if getattr(route, "path", None) == path and method.upper() in (getattr(route, "methods", set()) or set()):
+        if (
+            getattr(route, "path", None) == path
+            and method.upper() in (getattr(route, "methods", set()) or set())
+        ):
             endpoint = route.endpoint
             base_router.routes.remove(route)
             return endpoint
     return None
 
 
-async def _calendar_periods(current_db, academic_year: int) -> dict[int, tuple[str, str]]:
-    """Mesmos períodos/fallback já usados pelo router histórico de notas."""
-    calendario = await get_mantenedora_cached(current_db)
+async def _calendar_periods(
+    current_db,
+    academic_year: int,
+    *,
+    school_id: Optional[str] = None,
+) -> dict[int, tuple[str, str]]:
+    """Resolve os 4 bimestres pela fonte institucional ``calendario_letivo``.
+
+    Mantém a mesma prioridade de ``school_calendar_helper``: calendário da escola
+    quando existente, depois calendário geral (`school_id=None`). O fallback só é
+    usado quando não há datas institucionais configuradas.
+    """
+    calendario = None
+    if school_id:
+        calendario = await current_db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": school_id},
+            {"_id": 0},
+        )
+    if not calendario:
+        calendario = await current_db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": None},
+            {"_id": 0},
+        )
+
     fallback = {
         1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
         2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
         3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
         4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
     }
-    result = {}
-    for b in (1, 2, 3, 4):
-        ini = (calendario or {}).get(f"bimestre_{b}_inicio")
-        fim = (calendario or {}).get(f"bimestre_{b}_fim")
-        result[b] = (
-            str(ini)[:10] if ini else fallback[b][0],
-            str(fim)[:10] if fim else fallback[b][1],
+    result: dict[int, tuple[str, str]] = {}
+    for bimestre in (1, 2, 3, 4):
+        ini = (calendario or {}).get(f"bimestre_{bimestre}_inicio")
+        fim = (calendario or {}).get(f"bimestre_{bimestre}_fim")
+        result[bimestre] = (
+            str(ini)[:10] if ini else fallback[bimestre][0],
+            str(fim)[:10] if fim else fallback[bimestre][1],
         )
     return result
 
 
-async def _class_has_dvd_grades(current_db, class_id: str, course_id: str, academic_year: int) -> bool:
+async def _class_has_dvd_grades(
+    current_db,
+    class_id: str,
+    course_id: str,
+    academic_year: int,
+) -> bool:
     docs = await current_db.teacher_class_assignments.find(
         {
             "class_id": class_id,
             "deleted": False,
             "diary_settings.enabled": True,
-            "diary_settings.profile": {"$in": [DiaryProfile.REGULAR.value, DiaryProfile.SHARED.value]},
+            "diary_settings.profile": {
+                "$in": [DiaryProfile.REGULAR.value, DiaryProfile.SHARED.value]
+            },
             "valid_from": {"$lte": f"{academic_year}-12-31"},
-            "$or": [{"valid_until": None}, {"valid_until": {"$gte": f"{academic_year}-01-01"}}],
+            "$or": [
+                {"valid_until": None},
+                {"valid_until": {"$gte": f"{academic_year}-01-01"}},
+            ],
         },
         {"_id": 0, "id": 1, "component_id": 1},
     ).to_list(500)
@@ -155,10 +200,12 @@ async def _context_or_legacy(
         if context is not None:
             return context
         if await _class_has_dvd_grades(current_db, class_id, course_id, academic_year):
-            raise _http_scope_error(GradeAssignmentScopeError(
-                "DVD_ASSIGNMENT_REQUIRED",
-                "Esta avaliação usa Diário por Vínculo e não existe um vínculo próprio unívoco para o usuário.",
-            ))
+            raise _http_scope_error(
+                GradeAssignmentScopeError(
+                    "DVD_ASSIGNMENT_REQUIRED",
+                    "Esta avaliação usa Diário por Vínculo e não existe um vínculo próprio unívoco para o usuário.",
+                )
+            )
     return None
 
 
@@ -198,8 +245,8 @@ async def _validate_academic_event(current_db, user, request, payload: Mapping[s
         target_date=ownership.get("governing_effective_date"),
         target_resource="grade",
         reason_code=ownership["blocked_reason"],
-        ip=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
+        ip=request.client.host if request and request.client else None,
+        user_agent=request.headers.get("user-agent") if request else None,
     )
     raise HTTPException(
         status_code=409,
@@ -212,6 +259,29 @@ async def _validate_academic_event(current_db, user, request, payload: Mapping[s
     )
 
 
+def _filter_masked_null_noops(
+    existing: Mapping[str, Any],
+    update_fields: Mapping[str, Any],
+    context: GradeAssignmentContext,
+) -> dict[str, Any]:
+    """Ignora ``null`` enviado por uma UI que recebeu o campo mascarado.
+
+    ``Grades.js`` envia todos os campos no batch. Quando um campo de outro
+    vínculo/legado é ocultado como ``null``, esse ``null`` não pode ser tratado
+    como tentativa de apagar o valor real. Valor não-nulo divergente continua
+    sendo validado e bloqueado pelo motor de ownership.
+    """
+    ownership = existing.get("grade_ownership") or {}
+    filtered = dict(update_fields)
+    for field in list(filtered):
+        if filtered[field] is not None or existing.get(field) is None:
+            continue
+        owner = ownership.get(field)
+        if not owner or owner.get("assignment_id") != context.assignment_id:
+            filtered.pop(field, None)
+    return filtered
+
+
 async def _save_one_dvd_grade(
     current_db,
     user: Mapping[str, Any],
@@ -219,19 +289,18 @@ async def _save_one_dvd_grade(
     context: GradeAssignmentContext,
     payload: Mapping[str, Any],
 ) -> tuple[dict, Optional[dict]]:
-    """Salva um estudante e retorna (grade atualizada, mudança auditável)."""
+    """Salva um estudante e retorna ``(grade atualizada, mudança auditável)``."""
     if payload.get("class_id") != context.class_id or payload.get("course_id") != context.course_id:
-        raise _http_scope_error(GradeAssignmentScopeError(
-            "GRADE_BATCH_SCOPE_MISMATCH",
-            "Todos os dados do lote devem pertencer à turma/componente do vínculo.",
-        ))
+        raise _http_scope_error(
+            GradeAssignmentScopeError(
+                "GRADE_BATCH_SCOPE_MISMATCH",
+                "Todos os dados do lote devem pertencer à turma/componente do vínculo.",
+            )
+        )
     await _validate_dependency(current_db, user, request, payload)
     await _validate_academic_event(current_db, user, request, payload)
 
-    from routers.grades import (
-        _strip_frozen_grade_fields,
-        calculate_and_update_grade,
-    )
+    from routers.grades import _strip_frozen_grade_fields, calculate_and_update_grade
 
     key = {
         "student_id": payload["student_id"],
@@ -240,17 +309,29 @@ async def _save_one_dvd_grade(
         "academic_year": payload["academic_year"],
     }
     existing = await current_db.grades.find_one(key, {"_id": 0})
-    grade_keys = list(GRADE_OWNERSHIP_FIELDS)
-    update_fields = {k: payload.get(k) for k in grade_keys if k in payload}
+    update_fields = {
+        field: payload.get(field)
+        for field in GRADE_OWNERSHIP_FIELDS
+        if field in payload
+    }
     if existing:
         update_fields = _strip_frozen_grade_fields(
-            update_fields, existing, str(user.get("role") or "")
+            update_fields,
+            existing,
+            str(user.get("role") or ""),
         )
+        if context.access.is_owner:
+            update_fields = _filter_masked_null_noops(existing, update_fields, context)
+
     changes = changed_grade_fields(existing, update_fields)
     if existing and not changes:
         return existing, None
 
-    periods = await _calendar_periods(current_db, int(payload["academic_year"]))
+    periods = await _calendar_periods(
+        current_db,
+        int(payload["academic_year"]),
+        school_id=context.snapshot.get("school_id"),
+    )
     try:
         grade_ownership = await apply_grade_field_ownership(
             current_db,
@@ -259,7 +340,9 @@ async def _save_one_dvd_grade(
             changes,
             context,
             periods=periods,
-            allow_management_override=user.get("role") in MANAGEMENT_WRITE_ROLES and not context.access.is_owner,
+            allow_management_override=(
+                user.get("role") in MANAGEMENT_WRITE_ROLES and not context.access.is_owner
+            ),
             active_mantenedora_id=get_mantenedora_scope(user, request),
         )
     except GradeAssignmentScopeError as exc:
@@ -268,12 +351,14 @@ async def _save_one_dvd_grade(
     now = datetime.now(timezone.utc).isoformat()
     if existing:
         set_data = dict(changes)
-        set_data.update({
-            "grade_ownership": grade_ownership,
-            "updated_at": now,
-            "updated_by": user.get("id"),
-            "last_updated_by": user.get("id"),
-        })
+        set_data.update(
+            {
+                "grade_ownership": grade_ownership,
+                "updated_at": now,
+                "updated_by": user.get("id"),
+                "last_updated_by": user.get("id"),
+            }
+        )
         old_values = {field: existing.get(field) for field in changes}
         await current_db.grades.update_one({"id": existing["id"]}, {"$set": set_data})
         updated = await calculate_and_update_grade(current_db, existing["id"])
@@ -318,16 +403,71 @@ async def _save_one_dvd_grade(
     }
 
 
-def _annotate_grade(grade: Mapping[str, Any], context: GradeAssignmentContext) -> dict:
+def _mask_grade_for_assignment(
+    grade: Mapping[str, Any],
+    context: GradeAssignmentContext,
+    *,
+    mask_foreign: bool,
+) -> dict[str, Any]:
     out = dict(grade)
-    owned = sorted(owned_fields_for_assignment(out, context.assignment_id))
+    ownership = grade.get("grade_ownership") or {}
+    owned = sorted(owned_fields_for_assignment(grade, context.assignment_id))
     locked = sorted(
-        field for field in GRADE_OWNERSHIP_FIELDS
-        if out.get(field) is not None and field not in owned
+        field
+        for field in GRADE_OWNERSHIP_FIELDS
+        if grade.get(field) is not None and field not in owned
     )
+    if mask_foreign:
+        for field in GRADE_OWNERSHIP_FIELDS:
+            if field not in owned:
+                out[field] = None
+        # Snapshot de outro professor também é dado de autoria e não deve vazar.
+        out["grade_ownership"] = {
+            field: dict(snapshot)
+            for field, snapshot in ownership.items()
+            if field in owned and isinstance(snapshot, Mapping)
+        }
+        foreign_value = any(
+            grade.get(field) is not None and field not in owned
+            for field in GRADE_VALUE_FIELDS
+        )
+        if foreign_value:
+            out["final_average"] = None
+            out["status"] = "cursando"
     out["dvd_assignment_id"] = context.assignment_id
     out["dvd_owned_fields"] = owned
     out["dvd_locked_fields"] = locked
+    return out
+
+
+def _mask_grade_for_teacher(grade: Mapping[str, Any], teacher_id: str) -> Optional[dict[str, Any]]:
+    """Visão histórica/offline: somente campos cujo snapshot pertence ao professor."""
+    ownership = grade.get("grade_ownership") or {}
+    owned = {
+        field
+        for field, snapshot in ownership.items()
+        if isinstance(snapshot, Mapping) and snapshot.get("teacher_id") == teacher_id
+    }
+    if not owned:
+        return None
+    out = dict(grade)
+    for field in GRADE_OWNERSHIP_FIELDS:
+        if field not in owned:
+            out[field] = None
+    out["grade_ownership"] = {
+        field: dict(snapshot)
+        for field, snapshot in ownership.items()
+        if field in owned and isinstance(snapshot, Mapping)
+    }
+    foreign_value = any(
+        grade.get(field) is not None and field not in owned
+        for field in GRADE_VALUE_FIELDS
+    )
+    if foreign_value:
+        out["final_average"] = None
+        out["status"] = "cursando"
+    out["dvd_owned_fields"] = sorted(owned)
+    out["dvd_locked_fields"] = []
     return out
 
 
@@ -345,20 +485,27 @@ async def _dvd_pdf(
 
     tenant_id = context.snapshot.get("mantenedora_id")
     class_info = await current_db.classes.find_one(
-        {"id": class_id, "mantenedora_id": tenant_id}, {"_id": 0}
+        {"id": class_id, "mantenedora_id": tenant_id},
+        {"_id": 0},
     )
     course = await current_db.courses.find_one(
-        {"id": course_id, "mantenedora_id": tenant_id}, {"_id": 0}
+        {"id": course_id, "mantenedora_id": tenant_id},
+        {"_id": 0},
     )
     if not class_info:
         raise HTTPException(status_code=404, detail="Turma do vínculo não encontrada")
     if not course:
         raise HTTPException(status_code=404, detail="Componente do vínculo não encontrado")
     school = await current_db.schools.find_one(
-        {"id": context.snapshot.get("school_id"), "mantenedora_id": tenant_id}, {"_id": 0}
+        {
+            "id": context.snapshot.get("school_id"),
+            "mantenedora_id": tenant_id,
+        },
+        {"_id": 0},
     ) or {"name": ""}
     mantenedora = await current_db.mantenedoras.find_one(
-        {"id": tenant_id}, {"_id": 0}
+        {"id": tenant_id},
+        {"_id": 0},
     ) or await get_mantenedora_cached(current_db) or {}
 
     enrollments = await current_db.enrollments.find(
@@ -374,7 +521,8 @@ async def _dvd_pdf(
             "enrollment_number": item.get("enrollment_number"),
             "student_series": item.get("student_series", ""),
         }
-        for item in enrollments if item.get("student_id")
+        for item in enrollments
+        if item.get("student_id")
     }
     for student in direct_students:
         sid = student.get("id")
@@ -383,33 +531,47 @@ async def _dvd_pdf(
                 "enrollment_number": student.get("enrollment_number"),
                 "student_series": student.get("student_series", ""),
             }
+
     student_ids = list(enrollment_map)
     students = []
     if student_ids:
         students = await current_db.students.find(
             {"id": {"$in": student_ids}},
-            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "student_series": 1},
+            {
+                "_id": 0,
+                "id": 1,
+                "full_name": 1,
+                "enrollment_number": 1,
+                "student_series": 1,
+            },
         ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
     if student_series:
         from utils.serie_canonical import canonicalize_serie
 
         def _series_match(a, b):
-            ca, cb = canonicalize_serie(a or ""), canonicalize_serie(b or "")
+            ca = canonicalize_serie(a or "")
+            cb = canonicalize_serie(b or "")
             if ca and cb:
                 return ca == cb
             return (a or "").strip().lower() == (b or "").strip().lower()
 
         students = [
-            student for student in students
+            student
+            for student in students
             if _series_match(
-                enrollment_map.get(student["id"], {}).get("student_series") or student.get("student_series"),
+                enrollment_map.get(student["id"], {}).get("student_series")
+                or student.get("student_series"),
                 student_series,
             )
         ]
 
     grades = await current_db.grades.find(
-        {"class_id": class_id, "course_id": course_id, "academic_year": academic_year},
+        {
+            "class_id": class_id,
+            "course_id": course_id,
+            "academic_year": academic_year,
+        },
         {"_id": 0},
     ).to_list(1000)
     grades_map = {grade.get("student_id"): grade for grade in grades}
@@ -417,16 +579,33 @@ async def _dvd_pdf(
     for student in students:
         grade = grades_map.get(student["id"], {})
         owned = owned_fields_for_assignment(grade, context.assignment_id)
-        students_data.append({
-            "full_name": student.get("full_name", ""),
-            "enrollment_number": enrollment_map.get(student["id"], {}).get("enrollment_number") or student.get("enrollment_number", ""),
-            **{field: grade.get(field) if field in owned else None for field in GRADE_VALUE_FIELDS},
-            # Média/status são derivados pelo sistema; não recebem autoria manual.
-            "final_average": grade.get("final_average"),
-            "status": grade.get("status", "cursando"),
-        })
+        foreign_value = any(
+            grade.get(field) is not None and field not in owned
+            for field in GRADE_VALUE_FIELDS
+        )
+        students_data.append(
+            {
+                "full_name": student.get("full_name", ""),
+                "enrollment_number": (
+                    enrollment_map.get(student["id"], {}).get("enrollment_number")
+                    or student.get("enrollment_number", "")
+                ),
+                **{
+                    field: grade.get(field) if field in owned else None
+                    for field in GRADE_VALUE_FIELDS
+                },
+                # Média/situação agregadas só podem aparecer quando não dependem
+                # de um valor pertencente a outro vínculo.
+                "final_average": None if foreign_value else grade.get("final_average"),
+                "status": "cursando" if foreign_value else grade.get("status", "cursando"),
+            }
+        )
 
-    bims = [int(value.strip()) for value in bimestres.split(",") if value.strip().isdigit()]
+    bims = [
+        int(value.strip())
+        for value in bimestres.split(",")
+        if value.strip().isdigit()
+    ]
     buffer = generate_grades_report_pdf(
         school=school,
         class_info=class_info,
@@ -448,6 +627,160 @@ async def _dvd_pdf(
     )
 
 
+def _install_sync_adapter(db, audit_service, sandbox_db=None):
+    """Fecha o bypass de ``/sync/push``/``pull`` para notas DVD do professor."""
+    import routers.sync as sync_mod
+
+    if getattr(sync_mod, "_dvd_phase5_grades_installed", False):
+        return
+
+    original_process = sync_mod.process_sync_operation
+    original_fetch = sync_mod.fetch_collection_data_paginated
+
+    async def dvd_process(db_arg, user, op, request=None):
+        if op.collection != "grades" or user.get("role") != "professor":
+            return await original_process(db_arg, user, op, request)
+
+        data = op.data or {}
+        class_id = data.get("class_id")
+        course_id = data.get("course_id")
+        academic_year = data.get("academic_year")
+        if not class_id or not course_id or not academic_year:
+            return sync_mod.SyncPushResult(
+                recordId=op.recordId,
+                success=False,
+                error="Nota offline sem turma, componente ou ano letivo.",
+            )
+
+        try:
+            context = await resolve_own_grade_assignment(
+                db_arg,
+                user,
+                class_id=class_id,
+                course_id=course_id,
+                on_date=datetime.now(timezone.utc).date().isoformat(),
+                active_mantenedora_id=get_mantenedora_scope(user, request),
+            )
+            if context is None:
+                if await _class_has_dvd_grades(
+                    db_arg,
+                    class_id,
+                    course_id,
+                    int(academic_year),
+                ):
+                    return sync_mod.SyncPushResult(
+                        recordId=op.recordId,
+                        success=False,
+                        error="409: DVD_ASSIGNMENT_REQUIRED",
+                    )
+                return await original_process(db_arg, user, op, request)
+
+            if op.operation == "delete":
+                return sync_mod.SyncPushResult(
+                    recordId=op.recordId,
+                    success=False,
+                    error="Exclusão offline de avaliação DVD não é permitida.",
+                )
+            if op.operation not in {"create", "update"}:
+                return sync_mod.SyncPushResult(
+                    recordId=op.recordId,
+                    success=False,
+                    error=f"Operação desconhecida: {op.operation}",
+                )
+
+            current_db = _db_for_user(db_arg, sandbox_db, user)
+            updated, change = await _save_one_dvd_grade(
+                current_db,
+                user,
+                request,
+                context,
+                data,
+            )
+            if change:
+                await audit_service.log(
+                    action="create" if change.get("action") == "create" else "update",
+                    collection="grades",
+                    user=user,
+                    request=request,
+                    document_id=updated.get("id"),
+                    description=(
+                        f"Sincronizou avaliação DVD offline do vínculo {context.assignment_id}"
+                    ),
+                    school_id=context.snapshot.get("school_id"),
+                    academic_year=int(academic_year),
+                    extra_data={
+                        "assignment_id": context.assignment_id,
+                        "change": change,
+                        "source": "offline_sync",
+                    },
+                )
+            return sync_mod.SyncPushResult(
+                recordId=op.recordId,
+                success=True,
+                serverId=updated.get("id"),
+            )
+        except (GradeAssignmentScopeError, HTTPException) as exc:
+            if isinstance(exc, HTTPException):
+                detail = exc.detail
+                if isinstance(detail, dict):
+                    detail = detail.get("message") or detail.get("code") or str(detail)
+                return sync_mod.SyncPushResult(
+                    recordId=op.recordId,
+                    success=False,
+                    error=f"{exc.status_code}: {detail}",
+                )
+            return sync_mod.SyncPushResult(
+                recordId=op.recordId,
+                success=False,
+                error=f"409: {exc.code}: {exc.message}",
+            )
+        except Exception as exc:  # pragma: no cover - defesa de transporte
+            logger.exception("Falha no sync DVD de notas")
+            return sync_mod.SyncPushResult(
+                recordId=op.recordId,
+                success=False,
+                error=str(exc),
+            )
+
+    async def dvd_fetch(
+        db_arg,
+        user,
+        collection,
+        class_id,
+        academic_year,
+        last_sync,
+        page=1,
+        page_size=100,
+        request=None,
+    ):
+        data, total = await original_fetch(
+            db_arg,
+            user,
+            collection,
+            class_id,
+            academic_year,
+            last_sync,
+            page,
+            page_size,
+            request,
+        )
+        if collection != "grades" or user.get("role") != "professor":
+            return data, total
+        masked = []
+        for grade in data:
+            own = _mask_grade_for_teacher(grade, user.get("id"))
+            if own is not None:
+                masked.append(own)
+        # O total exposto ao professor corresponde apenas aos registros que
+        # possuem pelo menos um campo de autoria dele nesta página. O sync é
+        # cache auxiliar; não deve revelar a contagem consolidada de terceiros.
+        return masked, len(masked)
+
+    sync_mod.process_sync_operation = dvd_process
+    sync_mod.fetch_collection_data_paginated = dvd_fetch
+    sync_mod._dvd_phase5_grades_installed = True
+
+
 def install_grades_dvd_adapter(
     base_router,
     db,
@@ -460,13 +793,27 @@ def install_grades_dvd_adapter(
     if getattr(base_router, "_dvd_phase5_installed", False):
         return base_router
 
+    _install_sync_adapter(db, audit_service, sandbox_db)
+
     legacy_list = _remove_route(base_router, "/grades", "GET")
-    legacy_by_class = _remove_route(base_router, "/grades/by-class/{class_id}/{course_id}", "GET")
-    legacy_by_student = _remove_route(base_router, "/grades/by-student/{student_id}", "GET")
+    legacy_by_class = _remove_route(
+        base_router,
+        "/grades/by-class/{class_id}/{course_id}",
+        "GET",
+    )
+    legacy_by_student = _remove_route(
+        base_router,
+        "/grades/by-student/{student_id}",
+        "GET",
+    )
     legacy_create = _remove_route(base_router, "/grades", "POST")
     legacy_update = _remove_route(base_router, "/grades/{grade_id}", "PUT")
     legacy_batch = _remove_route(base_router, "/grades/batch", "POST")
-    legacy_pdf = _remove_route(base_router, "/grades/pdf/{class_id}/{course_id}", "GET")
+    legacy_pdf = _remove_route(
+        base_router,
+        "/grades/pdf/{class_id}/{course_id}",
+        "GET",
+    )
 
     @base_router.put("/dvd/shared-owner/{assignment_id}")
     async def set_shared_grade_owner(assignment_id: str, request: Request):
@@ -481,12 +828,21 @@ def install_grades_dvd_adapter(
                 active_mantenedora_id=get_mantenedora_scope(user, request),
             )
         except DiaryAssignmentAccessError as exc:
-            raise HTTPException(status_code=403, detail={"code": exc.code, "message": exc.message}) from exc
+            raise HTTPException(
+                status_code=403,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
         if access.settings.profile is not DiaryProfile.SHARED:
-            raise HTTPException(status_code=422, detail={
-                "code": "GRADE_OWNER_REQUIRES_SHARED",
-                "message": "Responsável oficial explícito é configurável apenas para profile=shared.",
-            })
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "GRADE_OWNER_REQUIRES_SHARED",
+                    "message": (
+                        "Responsável oficial explícito é configurável apenas para profile=shared."
+                    ),
+                },
+            )
+
         component_id = access.assignment.get("component_id")
         peer_filter: dict[str, Any] = {
             "class_id": access.assignment.get("class_id"),
@@ -494,21 +850,24 @@ def install_grades_dvd_adapter(
             "diary_settings.enabled": True,
             "diary_settings.profile": DiaryProfile.SHARED.value,
         }
-        if component_id is None:
-            pass
-        else:
-            peer_filter["$or"] = [{"component_id": component_id}, {"component_id": None}]
+        if component_id is not None:
+            peer_filter["$or"] = [
+                {"component_id": component_id},
+                {"component_id": None},
+            ]
         await current_db.teacher_class_assignments.update_many(
             peer_filter,
             {"$set": {"grades_official_owner": False}},
         )
         await current_db.teacher_class_assignments.update_one(
             {"id": assignment_id},
-            {"$set": {
-                "grades_official_owner": True,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "updated_by": user.get("id"),
-            }},
+            {
+                "$set": {
+                    "grades_official_owner": True,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_by": user.get("id"),
+                }
+            },
         )
         await audit_service.log(
             action="update",
@@ -518,7 +877,10 @@ def install_grades_dvd_adapter(
             document_id=assignment_id,
             description="Definiu vínculo shared como responsável oficial pela avaliação",
             school_id=access.class_info.get("school_id"),
-            extra_data={"grades_official_owner": True, "component_id": component_id},
+            extra_data={
+                "grades_official_owner": True,
+                "component_id": component_id,
+            },
         )
         return {"assignment_id": assignment_id, "grades_official_owner": True}
 
@@ -534,17 +896,30 @@ def install_grades_dvd_adapter(
         user = await AuthMiddleware.get_current_user(request)
         current_db = _db_for_user(db, sandbox_db, user)
         year = academic_year or datetime.now().year
+        result = await legacy_list(
+            request,
+            student_id,
+            class_id,
+            course_id,
+            academic_year,
+        )
         if class_id and course_id:
             context = await _context_or_legacy(
-                current_db, user, request,
-                class_id=class_id, course_id=course_id, academic_year=year,
+                current_db,
+                user,
+                request,
+                class_id=class_id,
+                course_id=course_id,
+                academic_year=year,
                 assignment_id=assignment_id,
             )
-            result = await legacy_list(request, student_id, class_id, course_id, academic_year)
             if context:
-                return [_annotate_grade(grade, context) for grade in result]
-            return result
-        return await legacy_list(request, student_id, class_id, course_id, academic_year)
+                mask = user.get("role") == "professor"
+                return [
+                    _mask_grade_for_assignment(grade, context, mask_foreign=mask)
+                    for grade in result
+                ]
+        return result
 
     @base_router.get("/by-class/{class_id}/{course_id}")
     async def dvd_aware_by_class(
@@ -558,16 +933,30 @@ def install_grades_dvd_adapter(
         current_db = _db_for_user(db, sandbox_db, user)
         year = academic_year or datetime.now().year
         context = await _context_or_legacy(
-            current_db, user, request,
-            class_id=class_id, course_id=course_id, academic_year=year,
+            current_db,
+            user,
+            request,
+            class_id=class_id,
+            course_id=course_id,
+            academic_year=year,
             assignment_id=assignment_id,
         )
-        result = await legacy_by_class(class_id, course_id, request, academic_year)
+        result = await legacy_by_class(
+            class_id,
+            course_id,
+            request,
+            academic_year,
+        )
         if not context:
             return result
+        mask = user.get("role") == "professor"
         for item in result:
             if item.get("grade"):
-                item["grade"] = _annotate_grade(item["grade"], context)
+                item["grade"] = _mask_grade_for_assignment(
+                    item["grade"],
+                    context,
+                    mask_foreign=mask,
+                )
         return result
 
     @base_router.get("/by-student/{student_id}")
@@ -576,9 +965,19 @@ def install_grades_dvd_adapter(
         request: Request,
         academic_year: Optional[int] = None,
     ):
-        # Mantém a consulta consolidada para continuidade pedagógica. Escritas
-        # subsequentes continuam protegidas por campo no PUT/POST.
-        return await legacy_by_student(student_id, request, academic_year)
+        user = await AuthMiddleware.get_current_user(request)
+        result = await legacy_by_student(student_id, request, academic_year)
+        if user.get("role") != "professor":
+            return result
+        visible = []
+        for grade in result.get("grades") or []:
+            own = _mask_grade_for_teacher(grade, user.get("id"))
+            if own is not None:
+                visible.append(own)
+        return {
+            **result,
+            "grades": visible,
+        }
 
     @base_router.post("")
     async def dvd_aware_create(
@@ -586,19 +985,37 @@ def install_grades_dvd_adapter(
         request: Request,
         assignment_id: Optional[str] = None,
     ):
-        user = await AuthMiddleware.require_roles([
-            "admin", "admin_teste", "secretario", "professor", "coordenador", "auxiliar_secretaria", "apoio_pedagogico"
-        ])(request)
+        user = await AuthMiddleware.require_roles(
+            [
+                "admin",
+                "admin_teste",
+                "secretario",
+                "professor",
+                "coordenador",
+                "auxiliar_secretaria",
+                "apoio_pedagogico",
+            ]
+        )(request)
         current_db = _db_for_user(db, sandbox_db, user)
         payload = grade_data.model_dump()
         context = await _context_or_legacy(
-            current_db, user, request,
-            class_id=payload["class_id"], course_id=payload["course_id"],
-            academic_year=payload["academic_year"], assignment_id=assignment_id,
+            current_db,
+            user,
+            request,
+            class_id=payload["class_id"],
+            course_id=payload["course_id"],
+            academic_year=payload["academic_year"],
+            assignment_id=assignment_id,
         )
         if not context:
             return await legacy_create(grade_data, request)
-        updated, change = await _save_one_dvd_grade(current_db, user, request, context, payload)
+        updated, change = await _save_one_dvd_grade(
+            current_db,
+            user,
+            request,
+            context,
+            payload,
+        )
         if change:
             await audit_service.log(
                 action="create" if change.get("action") == "create" else "update",
@@ -609,9 +1026,17 @@ def install_grades_dvd_adapter(
                 description=f"Lançou/atualizou avaliação DVD do vínculo {context.assignment_id}",
                 school_id=context.snapshot.get("school_id"),
                 academic_year=payload["academic_year"],
-                extra_data={"assignment_id": context.assignment_id, "change": change},
+                extra_data={
+                    "assignment_id": context.assignment_id,
+                    "change": change,
+                    "ownership_model": "field_snapshot_v1",
+                },
             )
-        return updated
+        return _mask_grade_for_assignment(
+            updated,
+            context,
+            mask_foreign=user.get("role") == "professor",
+        )
 
     @base_router.put("/{grade_id}")
     async def dvd_aware_update(
@@ -620,17 +1045,29 @@ def install_grades_dvd_adapter(
         request: Request,
         assignment_id: Optional[str] = None,
     ):
-        user = await AuthMiddleware.require_roles([
-            "admin", "admin_teste", "secretario", "professor", "coordenador", "auxiliar_secretaria", "apoio_pedagogico"
-        ])(request)
+        user = await AuthMiddleware.require_roles(
+            [
+                "admin",
+                "admin_teste",
+                "secretario",
+                "professor",
+                "coordenador",
+                "auxiliar_secretaria",
+                "apoio_pedagogico",
+            ]
+        )(request)
         current_db = _db_for_user(db, sandbox_db, user)
         existing = await current_db.grades.find_one({"id": grade_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Nota não encontrada")
         context = await _context_or_legacy(
-            current_db, user, request,
-            class_id=existing["class_id"], course_id=existing["course_id"],
-            academic_year=existing["academic_year"], assignment_id=assignment_id,
+            current_db,
+            user,
+            request,
+            class_id=existing["class_id"],
+            course_id=existing["course_id"],
+            academic_year=existing["academic_year"],
+            assignment_id=assignment_id,
         )
         if not context:
             return await legacy_update(grade_id, grade_update, request)
@@ -642,7 +1079,13 @@ def install_grades_dvd_adapter(
             "dependency_id": existing.get("dependency_id"),
             **grade_update.model_dump(exclude_unset=True),
         }
-        updated, change = await _save_one_dvd_grade(current_db, user, request, context, payload)
+        updated, change = await _save_one_dvd_grade(
+            current_db,
+            user,
+            request,
+            context,
+            payload,
+        )
         if change:
             await audit_service.log(
                 action="update",
@@ -653,9 +1096,17 @@ def install_grades_dvd_adapter(
                 description=f"Atualizou avaliação DVD do vínculo {context.assignment_id}",
                 school_id=context.snapshot.get("school_id"),
                 academic_year=existing["academic_year"],
-                extra_data={"assignment_id": context.assignment_id, "change": change},
+                extra_data={
+                    "assignment_id": context.assignment_id,
+                    "change": change,
+                    "ownership_model": "field_snapshot_v1",
+                },
             )
-        return updated
+        return _mask_grade_for_assignment(
+            updated,
+            context,
+            mask_foreign=user.get("role") == "professor",
+        )
 
     @base_router.post("/batch")
     async def dvd_aware_batch(
@@ -663,17 +1114,29 @@ def install_grades_dvd_adapter(
         grades: list[dict],
         assignment_id: Optional[str] = None,
     ):
-        user = await AuthMiddleware.require_roles([
-            "admin", "admin_teste", "secretario", "professor", "coordenador", "auxiliar_secretaria", "apoio_pedagogico"
-        ])(request)
+        user = await AuthMiddleware.require_roles(
+            [
+                "admin",
+                "admin_teste",
+                "secretario",
+                "professor",
+                "coordenador",
+                "auxiliar_secretaria",
+                "apoio_pedagogico",
+            ]
+        )(request)
         current_db = _db_for_user(db, sandbox_db, user)
         if not grades:
             return await legacy_batch(request, grades)
         first = grades[0]
         context = await _context_or_legacy(
-            current_db, user, request,
-            class_id=first["class_id"], course_id=first["course_id"],
-            academic_year=first["academic_year"], assignment_id=assignment_id,
+            current_db,
+            user,
+            request,
+            class_id=first["class_id"],
+            course_id=first["course_id"],
+            academic_year=first["academic_year"],
+            assignment_id=assignment_id,
         )
         if not context:
             return await legacy_batch(request, grades)
@@ -684,30 +1147,56 @@ def install_grades_dvd_adapter(
                 or row.get("course_id") != context.course_id
                 or row.get("academic_year") != first.get("academic_year")
             ):
-                raise _http_scope_error(GradeAssignmentScopeError(
-                    "GRADE_BATCH_SCOPE_MISMATCH",
-                    "Lote DVD deve conter uma única turma, componente e ano letivo.",
-                ))
+                raise _http_scope_error(
+                    GradeAssignmentScopeError(
+                        "GRADE_BATCH_SCOPE_MISMATCH",
+                        "Lote DVD deve conter uma única turma, componente e ano letivo.",
+                    )
+                )
 
         role = str(user.get("role") or "")
-        if role not in {"admin", "admin_teste", "super_admin", "gerente"} and verify_academic_year_open_or_raise:
+        if (
+            role not in {"admin", "admin_teste", "super_admin", "gerente"}
+            and verify_academic_year_open_or_raise
+        ):
             await verify_academic_year_open_or_raise(
-                context.snapshot.get("school_id"), first["academic_year"]
+                context.snapshot.get("school_id"),
+                first["academic_year"],
             )
-        if role not in {"admin", "admin_teste", "super_admin", "gerente", "secretario"} and verify_bimestre_edit_deadline_or_raise:
+        if (
+            role
+            not in {"admin", "admin_teste", "super_admin", "gerente", "secretario"}
+            and verify_bimestre_edit_deadline_or_raise
+        ):
             bimestres = set()
             for row in grades:
                 for field in ("b1", "b2", "b3", "b4"):
                     if row.get(field) is not None:
                         bimestres.add(int(field[1]))
             for bimestre in bimestres:
-                await verify_bimestre_edit_deadline_or_raise(first["academic_year"], bimestre, role)
+                await verify_bimestre_edit_deadline_or_raise(
+                    first["academic_year"],
+                    bimestre,
+                    role,
+                )
 
         results = []
         changes = []
         for row in grades:
-            updated, change = await _save_one_dvd_grade(current_db, user, request, context, row)
-            results.append(updated)
+            updated, change = await _save_one_dvd_grade(
+                current_db,
+                user,
+                request,
+                context,
+                row,
+            )
+            results.append(
+                _mask_grade_for_assignment(
+                    updated,
+                    context,
+                    mask_foreign=user.get("role") == "professor",
+                )
+            )
             if change:
                 changes.append(change)
 
@@ -745,13 +1234,22 @@ def install_grades_dvd_adapter(
         current_db = _db_for_user(db, sandbox_db, user)
         year = academic_year or datetime.now().year
         context = await _context_or_legacy(
-            current_db, user, request,
-            class_id=class_id, course_id=course_id, academic_year=year,
+            current_db,
+            user,
+            request,
+            class_id=class_id,
+            course_id=course_id,
+            academic_year=year,
             assignment_id=assignment_id,
         )
         if not context:
             return await legacy_pdf(
-                class_id, course_id, request, bimestres, academic_year, student_series
+                class_id,
+                course_id,
+                request,
+                bimestres,
+                academic_year,
+                student_series,
             )
         return await _dvd_pdf(
             current_db,
