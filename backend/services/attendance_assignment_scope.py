@@ -286,14 +286,10 @@ def resolve_session_aula_numero(
 
     slots = context.session_slots
     if not slots:
-        # Exceções de calendário/substituições podem ocorrer fora do slot semanal;
-        # há no máximo uma sessão não programada do vínculo naquela data.
-        if requested_aula_numero is not None:
-            raise AttendanceAssignmentScopeError(
-                "ASSIGNMENT_SESSION_SLOT_INVALID",
-                "Aula informada não pertence aos slots do vínculo nesta data.",
-            )
-        return None
+        raise AttendanceAssignmentScopeError(
+            "ASSIGNMENT_SESSION_NOT_SCHEDULED",
+            "O vínculo não possui sessão prevista nesta data; frequência bloqueada até existir autorização auditável para aula excepcional ou substituição.",
+        )
 
     allowed = {slot.get("aula_numero") for slot in slots if slot.get("aula_numero") is not None}
     if requested_aula_numero is None:
