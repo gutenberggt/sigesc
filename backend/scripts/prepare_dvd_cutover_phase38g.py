@@ -43,6 +43,18 @@ MONGO_MUTATOR_TOKENS = (
     ".find_one_and_update(", ".find_one_and_delete(", ".find_one_and_replace(",
 )
 
+SAFE_USER_BACKUP_PROJECTION = {
+    "_id": 0,
+    "id": 1,
+    "full_name": 1,
+    "name": 1,
+    "role": 1,
+    "school_id": 1,
+    "school_ids": 1,
+    "mantenedora_id": 1,
+    "is_active": 1,
+}
+
 
 class PreflightGateError(RuntimeError):
     pass
@@ -148,7 +160,11 @@ async def collect_backup_bundle(db, manifest: list[Mapping[str, Any]], *, academ
         },
     ) if class_ids else []
     classes = await _find_all(db.classes, {"id": {"$in": class_ids}}) if class_ids else []
-    users = await _find_all(db.users, {"id": {"$in": teacher_ids}}) if teacher_ids else []
+    users = await _find_all(
+        db.users,
+        {"id": {"$in": teacher_ids}},
+        SAFE_USER_BACKUP_PROJECTION,
+    ) if teacher_ids else []
     courses = await _find_all(db.courses, {"id": {"$in": component_ids}}) if component_ids else []
 
     return {
