@@ -157,4 +157,5 @@ jobs:
             tests/test_teacher_diaries_phase3.py \
             tests/test_attendance_assignment_scope_phase4.py \
             tests/test_attendance_assignment_indexes_phase4.py \
-            tests/test_grade_assignment_scope_phase5.py
+            tests/test_grade_assignment_scope_phase5.py \
+            tests/test_grade_assignment_adapter_phase5.py
