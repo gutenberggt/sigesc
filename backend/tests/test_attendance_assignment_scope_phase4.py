@@ -201,8 +201,9 @@ async def test_multiplos_slots_exigem_sessao_explicita():
 
 
 @pytest.mark.asyncio
-async def test_assignment_session_sem_slot_na_data_falha_fechado():
-    assignment = _assignment(diary_settings=_settings("shared"))
+@pytest.mark.parametrize("profile", ["shared", "integrator"])
+async def test_assignment_session_sem_slot_na_data_falha_fechado(profile):
+    assignment = _assignment(diary_settings=_settings(profile))
     context = await resolve_attendance_assignment(
         FakeDb(assignment=assignment), _user(), "a-1", on_date="2026-08-18"
     )
@@ -220,18 +221,6 @@ async def test_assignment_session_sem_slot_rejeita_tambem_aula_numero_forjado():
     )
     with pytest.raises(AttendanceAssignmentScopeError) as exc:
         resolve_session_aula_numero(context, 2)
-    assert exc.value.code == "ASSIGNMENT_SESSION_NOT_SCHEDULED"
-
-
-@pytest.mark.asyncio
-async def test_integrator_opcional_tambem_nao_inventa_sessao_fora_da_grade():
-    assignment = _assignment(diary_settings=_settings("integrator"))
-    context = await resolve_attendance_assignment(
-        FakeDb(assignment=assignment), _user(), "a-1", on_date="2026-08-18"
-    )
-    assert context.attendance_purpose.value == "pdf_only"
-    with pytest.raises(AttendanceAssignmentScopeError) as exc:
-        resolve_session_aula_numero(context, None)
     assert exc.value.code == "ASSIGNMENT_SESSION_NOT_SCHEDULED"
 
 
