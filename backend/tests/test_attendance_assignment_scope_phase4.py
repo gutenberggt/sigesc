@@ -213,6 +213,17 @@ async def test_assignment_session_sem_slot_na_data_falha_fechado():
 
 
 @pytest.mark.asyncio
+async def test_assignment_session_sem_slot_rejeita_tambem_aula_numero_forjado():
+    assignment = _assignment(diary_settings=_settings("shared"))
+    context = await resolve_attendance_assignment(
+        FakeDb(assignment=assignment), _user(), "a-1", on_date="2026-08-18"
+    )
+    with pytest.raises(AttendanceAssignmentScopeError) as exc:
+        resolve_session_aula_numero(context, 2)
+    assert exc.value.code == "ASSIGNMENT_SESSION_NOT_SCHEDULED"
+
+
+@pytest.mark.asyncio
 async def test_slot_forjado_e_rejeitado():
     assignment = _assignment(diary_settings=_settings("shared"))
     context = await resolve_attendance_assignment(
