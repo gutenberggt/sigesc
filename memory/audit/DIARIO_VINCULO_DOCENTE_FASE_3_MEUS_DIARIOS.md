@@ -24,6 +24,8 @@ Cada assignment candidato é revalidado por `authorize_assignment_access(...)`, 
 - exclusão de AEE;
 - capabilities derivadas do perfil canônico.
 
+Após a autorização, a `mantenedora_id` e a `school_id` da turma autorizada tornam-se a âncora obrigatória de todo enriquecimento visual. Turma, escola e componente são consultados dentro desse mesmo tenant; metadados de outra mantenedora nunca são usados para montar o card.
+
 ## 3. Compatibilidade com o legado
 
 O endpoint já existente `/api/professor/turmas` continua usando `teacher_assignments` e não foi substituído nesta fase.
@@ -43,6 +45,8 @@ Cada card representa exatamente um `assignment_id` e apresenta:
 - capacidades efetivas de Conteúdos, Frequência e Avaliação.
 
 As capacidades são derivadas do contrato da Fase 0; não são duplicadas em banco.
+
+Se a escola ou um componente explicitamente informado no vínculo não puder ser resolvido dentro da mantenedora já autorizada, o card não é exibido e o vínculo é contabilizado somente em `blocked_total`. Isso preserva a política fail-closed inclusive diante de assignment inconsistente ou corrompido.
 
 ## 5. Ações deliberadamente não habilitadas
 
@@ -87,13 +91,16 @@ Invariantes da Fase 3:
 3. vínculo desabilitado, expirado ou soft-deleted não aparece como diário ativo;
 4. AEE e etapas fora do DVD v1 falham fechado;
 5. escola e mantenedora continuam obrigatórias segundo a autorização central;
-6. `blocked_total` informa que existem vínculos candidatos rejeitados sem expor dados de outro vínculo;
-7. nenhum card concede capacidade que não exista no contrato canônico;
-8. a existência visual de uma capability não equivale a liberação da tela operacional.
+6. turma, escola e componente usados no card permanecem presos ao tenant autorizado;
+7. componente explícito inexistente ou cross-tenant bloqueia o card em vez de revelar metadados;
+8. escola inexistente ou cross-tenant bloqueia o card em vez de revelar metadados;
+9. `blocked_total` informa que existem vínculos candidatos rejeitados sem expor dados de outro vínculo;
+10. nenhum card concede capacidade que não exista no contrato canônico;
+11. a existência visual de uma capability não equivale a liberação da tela operacional.
 
 ## 8. Testes
 
-A Fase 3 adiciona `backend/tests/test_teacher_diaries_phase3.py` com proteção para:
+A Fase 3 adiciona `backend/tests/test_teacher_diaries_phase3.py` com 13 guards para:
 
 - vínculo próprio vigente;
 - enriquecimento de turma/escola/componente;
@@ -106,9 +113,11 @@ A Fase 3 adiciona `backend/tests/test_teacher_diaries_phase3.py` com proteção 
 - vínculo desabilitado/expirado;
 - assignment de outro professor;
 - vínculo class-wide sem componente inventado;
+- componente cross-tenant fail-closed;
+- escola cross-tenant fail-closed;
 - usuário sem identidade.
 
-O job obrigatório **Backend - Diário por Vínculo guards** foi mantido com o mesmo nome exigido pelo ruleset da `main` e passa a incluir também a suíte da Fase 3.
+O job obrigatório **Backend - Diário por Vínculo guards** foi mantido com o mesmo nome exigido pelo ruleset da `main` e passa a incluir também a suíte da Fase 3. Com os dois guards adicionais, a suíte acumulada esperada das Fases 0+1+2+3 passa de 118 para **120 testes**.
 
 ## 9. Fora do escopo
 
