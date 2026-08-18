@@ -10,6 +10,8 @@ import unicodedata
 
 from models import *
 from auth_middleware import AuthMiddleware
+from services.teacher_diaries import list_teacher_diaries
+from tenant_scope import get_mantenedora_scope
 
 
 router = APIRouter(tags=["Professor"])
@@ -91,6 +93,23 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     })
 
         return list(turmas_dict.values())
+
+
+    @router.get("/professor/diarios")
+    async def get_professor_diarios(request: Request, academic_year: Optional[int] = None):
+        """Lista os vínculos DVD vigentes do professor logado para "Meus Diários".
+
+        A Fase 3 é somente organizadora: este endpoint não altera conteúdo,
+        frequência, notas ou PDFs e nunca aceita `teacher_id` arbitrário.
+        """
+        current_user = await AuthMiddleware.require_roles(['professor'])(request)
+        scoped_db = get_db_for_user(current_user)
+        return await list_teacher_diaries(
+            scoped_db,
+            current_user,
+            academic_year=academic_year,
+            active_mantenedora_id=get_mantenedora_scope(current_user, request),
+        )
 
 
     @router.get("/professor/turmas/{class_id}/alunos")
