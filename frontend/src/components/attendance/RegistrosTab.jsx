@@ -1,11 +1,17 @@
-import { Calendar } from 'lucide-react';
+import { Calendar, Info } from 'lucide-react';
 import { useAttendance } from '@/contexts/AttendanceContext';
 
 export const RegistrosTab = () => {
   const {
     selectedClass, isMultiAula, registrosLoading, academicYear,
     registrosBimSummary, registrosBlockedDates, registrosSabLetivos, registrosAttDates,
+    dvdMode, dvdDiary, dvdContext,
   } = useAttendance();
+
+  const documentary = dvdMode && (
+    dvdContext?.attendance_purpose === 'pdf_only'
+    || dvdDiary?.capabilities?.attendance_purpose === 'pdf_only'
+  );
 
   if (!selectedClass) {
     return (
@@ -40,6 +46,15 @@ export const RegistrosTab = () => {
 
   return (
     <div className="space-y-4" data-testid="attendance-registros-tab">
+      {documentary && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 flex items-start gap-2">
+          <Info size={18} className="mt-0.5 shrink-0" />
+          <span>
+            Este calendário mostra apenas os registros documentais realizados pelo componente integrador. Dias/sessões sem registro não representam falta, pendência ou diário incompleto, pois este lançamento é opcional e não oficial.
+          </span>
+        </div>
+      )}
+
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-700">
@@ -48,7 +63,7 @@ export const RegistrosTab = () => {
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-200 border border-green-400"></span> Com registro</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span> Não letivo</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span> Sem registro</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span> {documentary ? 'Sem registro (opcional)' : 'Sem registro'}</span>
           </div>
         </div>
 
@@ -68,6 +83,11 @@ export const RegistrosTab = () => {
                     <span className="text-gray-500">{bim.label_reg}:</span>
                     <span className="font-bold text-green-600">{bim.registrados}</span>
                   </div>
+                  {bim.optional && (
+                    <div className="pt-1 text-[11px] text-amber-700 font-medium">
+                      Registro opcional — sem pendência por ausência.
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -133,7 +153,13 @@ export const RegistrosTab = () => {
                       <div
                         key={d}
                         className={`text-[11px] py-0.5 rounded ${bgClass} ${textClass} ${isToday ? 'ring-1 ring-blue-500' : ''}`}
-                        title={isBlocked ? (isHoliday ? 'Feriado / Recesso' : 'Dia não letivo') : hasRecord ? 'Frequência registrada' : ''}
+                        title={isBlocked
+                          ? (isHoliday ? 'Feriado / Recesso' : 'Dia não letivo')
+                          : hasRecord
+                            ? 'Frequência registrada'
+                            : documentary
+                              ? 'Sem registro documental — opcional'
+                              : ''}
                       >
                         {d}
                       </div>
