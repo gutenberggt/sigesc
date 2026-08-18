@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CheckSquare, ClipboardList, School, Users, AlertTriangle } from 'lucide-react';
+import { BookOpen, CheckSquare, ClipboardList, School, Users, AlertTriangle, GraduationCap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { teacherDiariesAPI } from '../../services/teacherDiaries';
@@ -23,7 +23,7 @@ function Capability({ icon: Icon, label, enabled, detail }) {
   );
 }
 
-export default function MyDiariesSection() {
+export default function MyDiariesSection({ legacyClasses = [] }) {
   const navigate = useNavigate();
   const academicYear = new Date().getFullYear();
   const [loading, setLoading] = useState(true);
@@ -53,6 +53,15 @@ export default function MyDiariesSection() {
   }, [academicYear]);
 
   const diaries = useMemo(() => data?.items || [], [data]);
+  const diaryClassIds = useMemo(
+    () => new Set(diaries.map((diary) => diary.class_id).filter(Boolean)),
+    [diaries]
+  );
+  const legacyFallbackClasses = useMemo(
+    () => (legacyClasses || []).filter((turma) => !diaryClassIds.has(turma.id)),
+    [legacyClasses, diaryClassIds]
+  );
+  const visibleTotal = diaries.length + legacyFallbackClasses.length;
 
   return (
     <section data-testid="meus-diarios-section" className="space-y-4">
@@ -63,12 +72,12 @@ export default function MyDiariesSection() {
             Meus Diários
           </h2>
           <p className="text-sm text-slate-500">
-            Seus diários ativos organizados por vínculo docente — {academicYear}.
+            Turmas e vínculos docentes organizados em um só lugar — {academicYear}.
           </p>
         </div>
-        {!loading && diaries.length > 0 && (
+        {!loading && visibleTotal > 0 && (
           <span className="text-sm text-slate-500" data-testid="meus-diarios-total">
-            {diaries.length} vínculo(s) ativo(s)
+            {visibleTotal} turma(s) / diário(s)
           </span>
         )}
       </div>
@@ -83,7 +92,10 @@ export default function MyDiariesSection() {
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="p-4 flex items-start gap-2 text-amber-900">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-            <span>{typeof error === 'string' ? error : 'Não foi possível carregar seus diários por vínculo.'}</span>
+            <span>
+              {typeof error === 'string' ? error : 'Não foi possível carregar seus diários por vínculo.'}
+              {' '}Suas turmas continuam disponíveis abaixo no fluxo atual.
+            </span>
           </CardContent>
         </Card>
       )}
@@ -92,19 +104,17 @@ export default function MyDiariesSection() {
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 flex items-start gap-2">
           <AlertTriangle size={17} className="mt-0.5 shrink-0" />
           <span>
-            Há {data.blocked_total} vínculo(s) que precisam ser revisado(s) pela coordenação antes de aparecerem aqui.
+            Há {data.blocked_total} vínculo(s) que precisam ser revisado(s) pela coordenação. A turma correspondente permanece disponível no fluxo atual quando aplicável.
           </span>
         </div>
       )}
 
-      {!loading && !error && diaries.length === 0 && (
+      {!loading && !error && diaries.length === 0 && legacyFallbackClasses.length === 0 && (
         <Card>
           <CardContent className="p-6 text-center text-slate-500">
             <BookOpen size={42} className="mx-auto mb-2 text-slate-300" />
-            <p className="font-medium text-slate-700">Nenhum Diário por Vínculo ativo para {academicYear}.</p>
-            <p className="mt-1 text-sm">
-              Suas turmas atuais continuam disponíveis no fluxo já existente abaixo. O novo diário aparecerá aqui quando o vínculo for habilitado pela gestão.
-            </p>
+            <p className="font-medium text-slate-700">Nenhuma turma ou Diário por Vínculo disponível para {academicYear}.</p>
+            <p className="mt-1 text-sm">Entre em contato com a coordenação para revisar sua lotação.</p>
           </CardContent>
         </Card>
       )}
@@ -193,44 +203,52 @@ export default function MyDiariesSection() {
                     </div>
                   )}
 
-                  {(caps.attendance_enabled || caps.grades_enabled) && (
-                    <div className="flex flex-wrap gap-2">
-                      {caps.attendance_enabled && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
-                          disabled={unresolvedGroup}
-                          onClick={() => navigate(`/professor/frequencia?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
-                          data-testid={`open-attendance-${diary.assignment_id}`}
-                        >
-                          <CheckSquare size={16} className="mr-2" />
-                          {unresolvedGroup
-                            ? 'Frequência aguardando grupo'
-                            : caps.attendance_purpose === 'pdf_only'
-                              ? 'Abrir registro documental'
-                              : 'Abrir Frequência'}
-                        </Button>
-                      )}
-                      {caps.grades_enabled && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={!gradesOperational}
-                          onClick={() => navigate(`/professor/notas?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
-                          data-testid={`open-grades-${diary.assignment_id}`}
-                        >
-                          <ClipboardList size={16} className="mr-2" />
-                          {unresolvedGroup
-                            ? 'Avaliação aguardando grupo'
-                            : !sharedGradeOwner
-                              ? 'Avaliação aguardando responsável'
-                              : 'Abrir Avaliação'}
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {caps.attendance_enabled && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
+                        disabled={unresolvedGroup}
+                        onClick={() => navigate(`/professor/frequencia?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
+                        data-testid={`open-attendance-${diary.assignment_id}`}
+                      >
+                        <CheckSquare size={16} className="mr-2" />
+                        {unresolvedGroup
+                          ? 'Frequência aguardando grupo'
+                          : caps.attendance_purpose === 'pdf_only'
+                            ? 'Abrir registro documental'
+                            : 'Abrir Frequência'}
+                      </Button>
+                    )}
+                    {caps.grades_enabled && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!gradesOperational}
+                        onClick={() => navigate(`/professor/notas?assignment_id=${encodeURIComponent(diary.assignment_id)}`)}
+                        data-testid={`open-grades-${diary.assignment_id}`}
+                      >
+                        <ClipboardList size={16} className="mr-2" />
+                        {unresolvedGroup
+                          ? 'Avaliação aguardando grupo'
+                          : !sharedGradeOwner
+                            ? 'Avaliação aguardando responsável'
+                            : 'Abrir Avaliação'}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/professor/turma/${diary.class_id}/alunos`)}
+                      data-testid={`open-students-${diary.assignment_id}`}
+                    >
+                      <Users size={16} className="mr-2" />
+                      Estudantes
+                    </Button>
+                  </div>
 
                   <div className="rounded-md border border-dashed px-3 py-2 text-xs text-slate-500">
                     Frequência e Avaliação usam autoria por vínculo docente. Conteúdos será habilitado quando a tela atual estiver harmonizada com o backend canônico.
@@ -240,6 +258,76 @@ export default function MyDiariesSection() {
             );
           })}
         </div>
+      )}
+
+      {!loading && legacyFallbackClasses.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="turmas-fluxo-atual">
+          {legacyFallbackClasses.map((turma) => (
+            <Card key={turma.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-slate-300">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <GraduationCap className="text-blue-600" size={20} />
+                      {turma.name}
+                    </CardTitle>
+                    <CardDescription className="mt-1 flex items-center gap-1">
+                      <School size={14} />
+                      {turma.school_name}
+                    </CardDescription>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 whitespace-nowrap">
+                    Fluxo atual
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 mb-4">
+                  <p className="text-sm font-medium text-gray-700">Componentes:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(turma.componentes || []).map((comp) => (
+                      <span
+                        key={comp.id}
+                        className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full"
+                      >
+                        {comp.name}
+                      </span>
+                    ))}
+                    {(!turma.componentes || turma.componentes.length === 0) && (
+                      <span className="text-xs text-slate-500">Nenhum componente informado</span>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/professor/turma/${turma.id}/diario`)}
+                    className="flex items-center gap-1"
+                  >
+                    <ClipboardList size={14} />
+                    Diário
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/professor/turma/${turma.id}/alunos`)}
+                    className="flex items-center gap-1"
+                  >
+                    <Users size={14} />
+                    Estudantes
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {!loading && visibleTotal > 0 && (
+        <p className="text-xs text-slate-500">
+          “Fluxo atual” identifica turmas que ainda não possuem um Diário por Vínculo ativo ou que permanecem fora do escopo atual do DVD.
+        </p>
       )}
     </section>
   );
