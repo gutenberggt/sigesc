@@ -1,9 +1,34 @@
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAttendance } from '@/contexts/AttendanceContext';
 
 export const AlertasTab = () => {
-  const { schools, selectedSchool, setSelectedSchool, loadAlerts, loading, alertsData } = useAttendance();
+  const {
+    schools, selectedSchool, setSelectedSchool, loadAlerts, loading, alertsData,
+    dvdMode, dvdDiary, dvdContext,
+  } = useAttendance();
+
+  if (dvdMode) {
+    const documentary = dvdContext?.attendance_purpose === 'pdf_only'
+      || dvdDiary?.capabilities?.attendance_purpose === 'pdf_only';
+    return (
+      <div className="space-y-4" data-testid="attendance-alertas-tab">
+        <div className={`rounded-lg border p-4 flex items-start gap-3 ${documentary ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-indigo-200 bg-indigo-50 text-indigo-900'}`}>
+          <Info size={20} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold">
+              {documentary ? 'Registro documental não gera alertas de frequência' : 'Alertas acadêmicos permanecem consolidados'}
+            </p>
+            <p className="mt-1 text-sm">
+              {documentary
+                ? 'O componente integrador é opcional e não oficial. Suas marcações não geram faltas, infrequência, Busca Ativa, Bolsa Família ou qualquer alerta acadêmico.'
+                : 'Esta aba histórica calcula alertas consolidados da escola/turma e não é uma visão por assignment_id. Para evitar exposição de dados de outros vínculos dentro de Meus Diários, ela fica indisponível neste contexto. Os alertas oficiais continuam sendo calculados exclusivamente a partir da frequência acadêmica canônica.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4" data-testid="attendance-alertas-tab">
