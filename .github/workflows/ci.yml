@@ -144,7 +144,7 @@ jobs:
       - name: Install test runner
         run: pip install pytest pytest-asyncio
 
-      - name: Run Fase 0 + Fase 1 + Fase 2 + Fase 3 + Fase 4 + Fase 5 guard tests
+      - name: Run Fase 0 + Fase 1 + Fase 2 + Fase 3 + Fase 4 + Fase 5 + cutover audit guards
         # Estes testes são unitários/puros e não usam o conftest de integração,
         # que exige Mongo real e variáveis MONGO_URL/DB_NAME.
         run: |
@@ -159,4 +159,5 @@ jobs:
             tests/test_attendance_assignment_indexes_phase4.py \
             tests/test_grade_assignment_scope_phase5.py \
             tests/test_grade_assignment_adapter_phase5.py \
-            tests/test_grade_assignment_hardening_phase5.py
+            tests/test_grade_assignment_hardening_phase5.py \
+            tests/test_dvd_cutover_audit_phase38.py
