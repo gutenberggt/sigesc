@@ -24,9 +24,9 @@ from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .calendar import router as calendar_router, setup_calendar_router
-from .staff import router as staff_router, setup_staff_router
-from .announcements import router as announcements_router, setup_announcements_router
-from .analytics import router as analytics_router, setup_analytics_router
+from .staff import router as staff_router, setup_router as setup_staff_router
+from .announcements import router as announcements_router, setup_router as setup_announcements_router
+from .analytics import router as analytics_router, setup_router as setup_analytics_router
 
 # FastAPI resolve anotações postergadas usando o namespace global do módulo que
 # declara a função. O adaptador de abas registra o mesmo payload Pydantic da
@@ -35,10 +35,11 @@ _attendance_tabs_dvd_mod.dvd_mod = _attendance_dvd_mod
 
 # P0 DVD Conteúdos — instala os adaptadores antes de server.py importar
 # setup_content_entries_router/learning_objects. Os routers originais permanecem
-# intactos; somente as superfícies de leitura recebem compatibilidade histórica.
+# intactos; leitura histórica e cópia segura são adicionadas sobre o motor canônico.
 from . import content_entries as _content_entries_mod
 from . import learning_objects as _learning_objects_mod
 from .content_dvd_history import install_content_history_setups
+from .content_copy_dvd import install_content_copy_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -46,6 +47,7 @@ from .content_dvd_history import install_content_history_setups
 # de ser registrado na aplicação, sem alterar o gerador/layout legado.
 install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
+install_content_copy_setup(_content_entries_mod)
 
 
 def setup_grades_router(
