@@ -4,13 +4,16 @@ Princípios:
 - leitura dos dados acadêmicos/cadastrais oficiais do SIGESC;
 - notas/conceitos, resultado e data valem APENAS para a emissão solicitada;
 - nenhuma escrita em grades, attendance, students, enrollments ou student_history;
-- o PDF é gerado pelo mesmo ``generate_ficha_individual_pdf`` da ficha oficial.
+- o PDF usa exatamente o código do ``generate_ficha_individual_pdf`` oficial;
+- resultado/data são sobrescritos em uma cópia isolada da função, sem monkeypatch
+  global e sem risco de alterar uma emissão normal concorrente.
 """
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 from io import BytesIO
+import types
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -19,7 +22,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from auth_middleware import AuthMiddleware
-from pdf.ficha_individual import generate_ficha_individual_pdf
+from pdf import ficha_individual as ficha_individual_module
 from pdf.utils import (
     CONCEITOS_ANOS_INICIAIS,
     CONCEITOS_EDUCACAO_INFANTIL,
@@ -53,6 +56,21 @@ _ALLOWED_RESULTS = {
     "FALECIDO",
 }
 
+_RESULT_COLORS = {
+    "CURSANDO": "#2563eb",
+    "EM ANDAMENTO": "#2563eb",
+    "PROMOVIDO(A)": "#16a34a",
+    "CONCLUIU A ETAPA": "#16a34a",
+    "APROVADO": "#16a34a",
+    "APROVADO COM DEPENDÊNCIA": "#ca8a04",
+    "EM DEPENDÊNCIA": "#7c3aed",
+    "REPROVADO": "#dc2626",
+    "REPROVADO POR FREQUÊNCIA": "#991b1b",
+    "TRANSFERIDO": "#2563eb",
+    "DESISTENTE": "#6b7280",
+    "FALECIDO": "#6b7280",
+}
+
 
 class ManualGradeIn(BaseModel):
     course_id: str
@@ -80,13 +98,6 @@ class ManualFichaIn(BaseModel):
         if normalized not in _ALLOWED_RESULTS:
             raise ValueError("Resultado inválido")
         return normalized
-
-
-class ManualFichaPreviewQuery(BaseModel):
-    school_id: str
-    class_id: str
-    student_id: str
-    student_series: Optional[str] = None
 
 
 def _user_school_ids(user: dict) -> set[str]:
@@ -221,11 +232,23 @@ async def _load_context(db, *, user: dict, school_id: str, class_id: str,
         class_id=class_id,
         academic_year=academic_year,
         courses=courses,
-        nivel_ensino=nivel_ensino,
     )
 
     calendario = await _load_calendar(db, academic_year)
-    mantenedora = await db.mantenedora.find_one({}, {"_id": 0}) or {}
+
+    mantenedora_query: dict[str, Any] = {}
+    mantenedora_id = school.get("mantenedora_id") or school.get("tenant_id")
+    if mantenedora_id:
+        mantenedora_query = {"$or": [{"id": mantenedora_id}, {"mantenedora_id": mantenedora_id}]}
+    mantenedora = await db.mantenedora.find_one(mantenedora_query, {"_id": 0}) or {}
+
+    # Replica a resolução do nome de escola anexa usada no módulo oficial de documentos.
+    school = dict(school)
+    anexa_a = school.get("anexa_a")
+    if school.get("tipo_unidade") == "anexa" and anexa_a:
+        sede = await db.schools.find_one({"id": anexa_a}, {"_id": 0, "name": 1})
+        if sede and sede.get("name"):
+            school["anexa_a"] = sede["name"]
 
     return {
         "school": school,
@@ -301,8 +324,7 @@ async def _load_calendar(db, academic_year: int) -> dict[str, Any]:
 
 
 async def _build_attendance_data(db, *, student_id: str, class_id: str,
-                                 academic_year: int, courses: list[dict],
-                                 nivel_ensino: str) -> dict[str, Any]:
+                                 academic_year: int, courses: list[dict]) -> dict[str, Any]:
     records = await db.attendance.find(
         {"class_id": class_id, "academic_year": academic_year}, {"_id": 0}
     ).to_list(None)
@@ -403,10 +425,13 @@ def _convert_manual_grades(payload: ManualFichaIn, ctx: dict[str, Any]) -> list[
         raise HTTPException(status_code=400, detail=f"Componente fora do currículo resolvido: {invalid[0]}")
 
     conceptual = _is_conceptual(ctx["nivel_ensino"], ctx["grade_level"])
-    allowed_concepts = {
-        *CONCEITOS_EDUCACAO_INFANTIL.keys(),
-        *CONCEITOS_ANOS_INICIAIS.keys(),
-    }
+    if ctx["nivel_ensino"] == "educacao_infantil":
+        allowed_concepts = set(CONCEITOS_EDUCACAO_INFANTIL)
+    elif is_serie_conceitual_anos_iniciais(ctx["grade_level"]):
+        allowed_concepts = set(CONCEITOS_ANOS_INICIAIS)
+    else:
+        allowed_concepts = set()
+
     converted: list[dict[str, Any]] = []
     fields = ("b1", "b2", "rec_s1", "b3", "b4", "rec_s2")
     for item in payload.grades:
@@ -427,7 +452,7 @@ def _convert_manual_grades(payload: ManualFichaIn, ctx: dict[str, Any]) -> list[
                     continue
                 code = str(value).strip().upper()
                 if code not in allowed_concepts:
-                    raise HTTPException(status_code=400, detail=f"Conceito inválido: {code}")
+                    raise HTTPException(status_code=400, detail=f"Conceito inválido para a etapa: {code}")
                 numeric = conceito_para_valor(code)
                 if numeric is None:
                     raise HTTPException(status_code=400, detail=f"Conceito inválido: {code}")
@@ -442,6 +467,48 @@ def _convert_manual_grades(payload: ManualFichaIn, ctx: dict[str, Any]) -> list[
                 row[field] = numeric
         converted.append(row)
     return converted
+
+
+def _generate_official_pdf_with_overrides(*, resultado: str, data_emissao: date, **kwargs) -> BytesIO:
+    """Executa o MESMO código da ficha oficial com globals isolados por emissão.
+
+    Não altera ``pdf.ficha_individual`` globalmente. A função é clonada com o mesmo
+    code object e recebe apenas duas dependências substituídas no dicionário de globals:
+    o cálculo do resultado e ``date.today()``. Portanto emissões oficiais concorrentes
+    continuam usando comportamento normal.
+    """
+    original = ficha_individual_module.generate_ficha_individual_pdf
+    isolated_globals = dict(original.__globals__)
+
+    def manual_result(*args, **inner_kwargs):
+        return {
+            "resultado": resultado,
+            "cor": _RESULT_COLORS.get(resultado, "#111827"),
+            "componentes_reprovados": [],
+            "media_geral": None,
+            "detalhes": "Resultado informado manualmente na emissão de contingência",
+            "reprovado_por_frequencia": resultado == "REPROVADO POR FREQUÊNCIA",
+        }
+
+    override_value = data_emissao
+
+    class ManualDate(date):
+        @classmethod
+        def today(cls):
+            return override_value
+
+    isolated_globals["determinar_resultado_documento"] = manual_result
+    isolated_globals["date"] = ManualDate
+
+    cloned = types.FunctionType(
+        original.__code__,
+        isolated_globals,
+        name=original.__name__,
+        argdefs=original.__defaults__,
+        closure=original.__closure__,
+    )
+    cloned.__kwdefaults__ = original.__kwdefaults__
+    return cloned(**kwargs)
 
 
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
@@ -501,27 +568,20 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         )
         grades = _convert_manual_grades(payload, ctx)
 
-        try:
-            pdf_buffer = generate_ficha_individual_pdf(
-                student=ctx["student"],
-                school=ctx["school"],
-                class_info=ctx["class_info"],
-                enrollment=ctx["enrollment"],
-                academic_year=ctx["academic_year"],
-                grades=grades,
-                courses=ctx["courses"],
-                attendance_data=ctx["attendance_data"],
-                mantenedora=ctx["mantenedora"],
-                calendario_letivo=ctx["calendario"],
-                resultado_override=payload.resultado,
-                data_emissao_override=payload.data_emissao,
-            )
-        except TypeError as exc:
-            # Falha explícita durante desenvolvimento caso o gerador oficial ainda não
-            # tenha recebido os parâmetros retrocompatíveis de override.
-            if "resultado_override" in str(exc) or "data_emissao_override" in str(exc):
-                raise HTTPException(status_code=500, detail="Gerador oficial da Ficha Individual ainda não suporta os overrides de Urgências")
-            raise
+        pdf_buffer = _generate_official_pdf_with_overrides(
+            resultado=payload.resultado,
+            data_emissao=payload.data_emissao,
+            student=ctx["student"],
+            school=ctx["school"],
+            class_info=ctx["class_info"],
+            enrollment=ctx["enrollment"],
+            academic_year=ctx["academic_year"],
+            grades=grades,
+            courses=ctx["courses"],
+            attendance_data=ctx["attendance_data"],
+            mantenedora=ctx["mantenedora"],
+            calendario_letivo=ctx["calendario"],
+        )
 
         raw = pdf_buffer.getvalue()
         digest = sha256(raw).hexdigest()
@@ -541,6 +601,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "issued_at": datetime.now(timezone.utc).isoformat(),
             "pdf_sha256": digest,
             "source": "urgencias",
+            "mantenedora_id": ctx["school"].get("mantenedora_id") or ctx["school"].get("tenant_id"),
         }
         # Única escrita do fluxo: trilha documental independente. Não é dado acadêmico.
         await active_db.manual_document_issuances.insert_one(issuance)
