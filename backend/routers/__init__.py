@@ -16,6 +16,7 @@ from .students import router as students_router, setup_students_router
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
+from .grades_dvd_parity import install_grades_dvd_parity
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
 from . import attendance_dvd as _attendance_dvd_mod
 from .attendance_dvd import install_attendance_dvd_adapter
@@ -57,7 +58,7 @@ def setup_grades_router(
     verify_bimestre_edit_deadline_or_raise=None,
     sandbox_db=None,
 ):
-    """Configura Notas históricas + adaptador DVD Fase 5 no mesmo router."""
+    """Configura Notas históricas + DVD Fase 5 + paridade histórica P0."""
     configured = _setup_grades_router(
         db,
         audit_service,
@@ -73,7 +74,12 @@ def setup_grades_router(
         verify_bimestre_edit_deadline_or_raise=verify_bimestre_edit_deadline_or_raise,
         sandbox_db=sandbox_db,
     )
-    return install_grades_dvd_hardening(
+    configured = install_grades_dvd_hardening(
+        configured,
+        db,
+        sandbox_db=sandbox_db,
+    )
+    return install_grades_dvd_parity(
         configured,
         db,
         sandbox_db=sandbox_db,
