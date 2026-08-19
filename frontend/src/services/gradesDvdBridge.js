@@ -3,6 +3,7 @@ import axios from 'axios';
 const BRIDGE_FLAG = '__sigescGradesDvdBridgeInstalled';
 const gradeAssignmentById = new Map();
 const gradeAssignmentByScope = new Map();
+const gradeCreationByStudentCourse = new Map();
 let currentAcademicYear = new Date().getFullYear();
 
 const getAssignmentId = () => {
@@ -32,20 +33,50 @@ const parseData = (data) => {
   }
 };
 
+const replaceData = (config, original, payload) => {
+  config.data = typeof original === 'string' ? JSON.stringify(payload) : payload;
+};
+
 const scopeKey = (studentId, classId, courseId) => (
   `${studentId || ''}|${classId || ''}|${courseId || ''}`
 );
+const studentCourseKey = (studentId, courseId) => (
+  `${studentId || ''}|${courseId || ''}`
+);
 
 const rememberStudentAssignments = (payload) => {
+  gradeAssignmentById.clear();
+  gradeAssignmentByScope.clear();
+  gradeCreationByStudentCourse.clear();
+
   const grades = payload?.grades || [];
   grades.forEach((grade) => {
     const assignmentId = grade?.dvd_assignment_id;
-    if (!assignmentId) return;
+    const studentId = grade?.student_id;
+    const classId = grade?.class_id;
+    const courseId = grade?.course_id;
+    if (!assignmentId || !studentId || !classId || !courseId) return;
+
     if (grade.id) gradeAssignmentById.set(String(grade.id), assignmentId);
     gradeAssignmentByScope.set(
-      scopeKey(grade.student_id, grade.class_id, grade.course_id),
+      scopeKey(studentId, classId, courseId),
       assignmentId,
     );
+
+    // Grades.js legado cria a primeira nota usando selectedStudent.class_id.
+    // Guardamos a linha canônica para poder corrigir o class_id antes do POST.
+    const simpleKey = studentCourseKey(studentId, courseId);
+    const existing = gradeCreationByStudentCourse.get(simpleKey);
+    const candidate = { assignmentId, classId };
+    if (existing === undefined) {
+      gradeCreationByStudentCourse.set(simpleKey, candidate);
+    } else if (
+      existing !== null
+      && (existing.assignmentId !== assignmentId || existing.classId !== classId)
+    ) {
+      // Mesmo estudante/componente em mais de uma turma: não arbitramos.
+      gradeCreationByStudentCourse.set(simpleKey, null);
+    }
   });
 };
 
@@ -74,8 +105,6 @@ export const installGradesDvdAxiosBridge = () => {
       }
     }
 
-    // Grades.js legado pede todos os estudantes. No portal do professor essa
-    // chamada é substituída pelo roster canônico dos vínculos avaliativos.
     if (
       isProfessorGradesPage()
       && (config?.method || 'get').toLowerCase() === 'get'
@@ -90,36 +119,57 @@ export const installGradesDvdAxiosBridge = () => {
     }
 
     if (!url.includes('/grades')) return config;
-
-    // Leituras agregadas resolvem vários vínculos no backend; nunca devem ser
-    // presas ao assignment da URL raiz do diário.
     if (isAggregateStudentRead(url)) return config;
 
     const method = (config?.method || 'get').toLowerCase();
 
-    // Edição da aba Por Estudante: vínculo da própria linha, não o da página.
-    if (method === 'put') {
+    // PUT individual é exclusivo da visão Por Estudante na tela atual.
+    if (isProfessorGradesPage() && method === 'put') {
       const match = url.match(/\/grades\/([^/?]+)(?:\?|$)/);
       const gradeId = match?.[1];
       const rowAssignment = gradeId ? gradeAssignmentById.get(String(gradeId)) : null;
       if (rowAssignment) {
         config.url = appendAssignmentId(url, rowAssignment);
-        return config;
       }
+      // Sem mapa, deixa o backend resolver/falhar fechado; nunca reutiliza o
+      // assignment raiz de outro componente para uma edição agregada.
+      return config;
     }
 
-    // Mantém suporte defensivo para criação individual futura na aba agregada.
-    if (method === 'post' && !url.includes('/grades/batch')) {
-      const payload = parseData(config.data);
-      if (payload?.student_id && payload?.class_id && payload?.course_id) {
-        const rowAssignment = gradeAssignmentByScope.get(
-          scopeKey(payload.student_id, payload.class_id, payload.course_id),
-        );
-        if (rowAssignment) {
-          config.url = appendAssignmentId(url, rowAssignment);
-          return config;
+    if (
+      isProfessorGradesPage()
+      && method === 'post'
+      && !url.includes('/grades/batch')
+    ) {
+      const originalData = config.data;
+      const payload = parseData(originalData);
+      if (payload?.student_id && payload?.course_id) {
+        let assignmentId = null;
+
+        if (payload.class_id) {
+          assignmentId = gradeAssignmentByScope.get(
+            scopeKey(payload.student_id, payload.class_id, payload.course_id),
+          ) || null;
+        }
+
+        if (!assignmentId) {
+          const creationScope = gradeCreationByStudentCourse.get(
+            studentCourseKey(payload.student_id, payload.course_id),
+          );
+          if (creationScope) {
+            payload.class_id = creationScope.classId;
+            assignmentId = creationScope.assignmentId;
+            replaceData(config, originalData, payload);
+          }
+        }
+
+        if (assignmentId) {
+          config.url = appendAssignmentId(url, assignmentId);
         }
       }
+      // Sem resolução unívoca, backend recebe a requisição sem spoof de vínculo
+      // e decide fail-closed pelo class/course informado.
+      return config;
     }
 
     const assignmentId = getAssignmentId();
