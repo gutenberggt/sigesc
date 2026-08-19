@@ -5,10 +5,10 @@ import { Layout } from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import MyDiariesSection from '../components/professor/MyDiariesSection';
-import { 
-  GraduationCap, 
-  Users, 
-  BookOpen, 
+import {
+  GraduationCap,
+  Users,
+  BookOpen,
   ClipboardList,
   Calendar,
   CheckSquare,
@@ -40,16 +40,16 @@ export default function ProfessorDashboard() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [profileData, turmasData, mantenedoraData] = await Promise.all([
         professorAPI.getProfile(),
         professorAPI.getTurmas(),
         mantenedoraAPI.get().catch(() => null)
       ]);
-      
+
       setProfile(profileData);
       setTurmas(turmasData);
-      
+
       if (mantenedoraData?.mensagem_destaque) {
         setMensagemDestaque(mantenedoraData.mensagem_destaque);
         setMensagemDestaqueCor(mantenedoraData.mensagem_destaque_cor || 'azul_marinho');
@@ -73,13 +73,11 @@ export default function ProfessorDashboard() {
     navigate('/professor');
   };
 
-  // Separar turmas regulares e AEE
   const turmasAEE = turmas.filter(t => t.atendimento_programa === 'aee');
   const turmasRegulares = turmas.filter(t => !t.atendimento_programa || (t.atendimento_programa !== 'aee' && t.atendimento_programa !== 'reforco' && t.atendimento_programa !== 'recomposicao'));
   const hasRegularTurmas = turmasRegulares.length > 0;
   const hasAeeTurmas = turmasAEE.length > 0;
 
-  // Calcular estatísticas
   const totalTurmas = turmas.length;
   const totalComponentes = turmas.reduce((sum, t) => sum + (t.componentes?.length || 0), 0);
   const escolas = [...new Set(turmas.map(t => t.school_name))];
@@ -108,29 +106,21 @@ export default function ProfessorDashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header com boas-vindas */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
           <div className="flex items-center gap-4">
-            <div className="bg-white/20 rounded-full p-3">
-              <User size={32} />
-            </div>
+            <div className="bg-white/20 rounded-full p-3"><User size={32} /></div>
             <div>
-              <h1 className="text-2xl font-bold">
-                Olá, {profile?.nome?.split(' ')[0] || user?.full_name?.split(' ')[0]}!
-              </h1>
-              <p className="text-blue-100">
-                {profile?.cargo_especifico || 'Professor(a)'} • Matrícula: {profile?.matricula || 'N/A'}
-              </p>
+              <h1 className="text-2xl font-bold">Olá, {profile?.nome?.split(' ')[0] || user?.full_name?.split(' ')[0]}!</h1>
+              <p className="text-blue-100">{profile?.cargo_especifico || 'Professor(a)'} • Matrícula: {profile?.matricula || 'N/A'}</p>
             </div>
           </div>
         </div>
 
-        {/* Mensagem de Destaque */}
         {mensagemDestaque && (
           <div
             data-testid="mensagem-destaque-professor-dashboard"
             className="p-4 bg-gray-50 border-l-4 rounded-lg font-semibold text-base"
-            style={{ 
+            style={{
               color: { azul_marinho: '#001f5b', verde: '#16a34a', amarelo: '#ca8a04', vermelho: '#dc2626' }[mensagemDestaqueCor] || '#001f5b',
               borderColor: { azul_marinho: '#001f5b', verde: '#16a34a', amarelo: '#ca8a04', vermelho: '#dc2626' }[mensagemDestaqueCor] || '#001f5b'
             }}
@@ -139,210 +129,81 @@ export default function ProfessorDashboard() {
           </div>
         )}
 
-        {/* Cards de estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 p-3 rounded-lg">
-                  <GraduationCap className="text-blue-600" size={24} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{totalTurmas}</p>
-                  <p className="text-sm text-gray-500">Turma(s)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-purple-100 p-3 rounded-lg">
-                  <BookOpen className="text-purple-600" size={24} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{totalComponentes}</p>
-                  <p className="text-sm text-gray-500">Componente(s)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-green-100 p-3 rounded-lg">
-                  <School className="text-green-600" size={24} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{escolas.length}</p>
-                  <p className="text-sm text-gray-500">Escola(s)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="bg-blue-100 p-3 rounded-lg"><GraduationCap className="text-blue-600" size={24} /></div><div><p className="text-2xl font-bold">{totalTurmas}</p><p className="text-sm text-gray-500">Turma(s)</p></div></div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="bg-purple-100 p-3 rounded-lg"><BookOpen className="text-purple-600" size={24} /></div><div><p className="text-2xl font-bold">{totalComponentes}</p><p className="text-sm text-gray-500">Componente(s)</p></div></div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="bg-green-100 p-3 rounded-lg"><School className="text-green-600" size={24} /></div><div><p className="text-2xl font-bold">{escolas.length}</p><p className="text-sm text-gray-500">Escola(s)</p></div></div></CardContent></Card>
         </div>
 
-        {/* Menu de Acesso Rápido */}
         <div>
           <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {hasRegularTurmas && (
               <>
-                <Card 
-                  className="cursor-pointer hover:bg-blue-50 transition-colors"
-                  onClick={() => navigate('/professor/notas')}
-                  data-testid="menu-lancar-notas"
-                >
+                <Card className="cursor-pointer hover:bg-blue-50 transition-colors" onClick={openFromMyDiaries} data-testid="menu-lancar-notas">
                   <CardContent className="p-4 text-center">
                     <ClipboardList className="mx-auto mb-2 text-blue-600" size={32} />
                     <p className="font-medium">Lançar Notas</p>
-                  </CardContent>
-                </Card>
-
-                <Card 
-                  className="cursor-pointer hover:bg-green-50 transition-colors"
-                  onClick={openFromMyDiaries}
-                  data-testid="menu-frequencia"
-                >
-                  <CardContent className="p-4 text-center">
-                    <CheckSquare className="mx-auto mb-2 text-green-600" size={32} />
-                    <p className="font-medium">Frequência</p>
                     <p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p>
                   </CardContent>
                 </Card>
 
-                <Card 
-                  className="cursor-pointer hover:bg-purple-50 transition-colors"
-                  onClick={openFromMyDiaries}
-                  data-testid="menu-objetos-conhecimento"
-                >
-                  <CardContent className="p-4 text-center">
-                    <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
-                    <p className="font-medium">Objetos de Conhecimento</p>
-                    <p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p>
-                  </CardContent>
+                <Card className="cursor-pointer hover:bg-green-50 transition-colors" onClick={openFromMyDiaries} data-testid="menu-frequencia">
+                  <CardContent className="p-4 text-center"><CheckSquare className="mx-auto mb-2 text-green-600" size={32} /><p className="font-medium">Frequência</p><p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p></CardContent>
                 </Card>
 
-                <Card 
-                  className="cursor-pointer hover:bg-emerald-50 transition-colors"
-                  onClick={() => navigate('/admin/promotion')}
-                  data-testid="menu-livro-promocao"
-                >
-                  <CardContent className="p-4 text-center">
-                    <Award className="mx-auto mb-2 text-emerald-600" size={32} />
-                    <p className="font-medium">Livro de Promoção</p>
-                  </CardContent>
+                <Card className="cursor-pointer hover:bg-purple-50 transition-colors" onClick={openFromMyDiaries} data-testid="menu-objetos-conhecimento">
+                  <CardContent className="p-4 text-center"><BookOpen className="mx-auto mb-2 text-purple-600" size={32} /><p className="font-medium">Objetos de Conhecimento</p><p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p></CardContent>
+                </Card>
+
+                <Card className="cursor-pointer hover:bg-emerald-50 transition-colors" onClick={() => navigate('/admin/promotion')} data-testid="menu-livro-promocao">
+                  <CardContent className="p-4 text-center"><Award className="mx-auto mb-2 text-emerald-600" size={32} /><p className="font-medium">Livro de Promoção</p></CardContent>
                 </Card>
               </>
             )}
 
             {hasAeeTurmas && (
-              <Card 
-                className="cursor-pointer hover:bg-teal-50 transition-colors"
-                onClick={() => navigate('/admin/diario-aee')}
-                data-testid="menu-diario-aee"
-              >
-                <CardContent className="p-4 text-center">
-                  <FileText className="mx-auto mb-2 text-teal-600" size={32} />
-                  <p className="font-medium">Diário AEE</p>
-                </CardContent>
+              <Card className="cursor-pointer hover:bg-teal-50 transition-colors" onClick={() => navigate('/admin/diario-aee')} data-testid="menu-diario-aee">
+                <CardContent className="p-4 text-center"><FileText className="mx-auto mb-2 text-teal-600" size={32} /><p className="font-medium">Diário AEE</p></CardContent>
               </Card>
             )}
 
-            <Card 
-              className="cursor-pointer hover:bg-violet-50 transition-colors"
-              onClick={() => navigate('/admin/text-improvement')}
-              data-testid="menu-apoio-escrita"
-            >
-              <CardContent className="p-4 text-center">
-                <Sparkles className="mx-auto mb-2 text-violet-600" size={32} />
-                <p className="font-medium">Apoio à Escrita</p>
-                <p className="text-[11px] text-slate-500 mt-1">Sugestões automáticas dos seus registros</p>
-              </CardContent>
+            <Card className="cursor-pointer hover:bg-violet-50 transition-colors" onClick={() => navigate('/admin/text-improvement')} data-testid="menu-apoio-escrita">
+              <CardContent className="p-4 text-center"><Sparkles className="mx-auto mb-2 text-violet-600" size={32} /><p className="font-medium">Apoio à Escrita</p><p className="text-[11px] text-slate-500 mt-1">Sugestões automáticas dos seus registros</p></CardContent>
             </Card>
 
-            <Card 
-              className="cursor-pointer hover:bg-indigo-50 transition-colors"
-              onClick={() => navigate('/professor/calendario')}
-              data-testid="menu-calendario"
-            >
-              <CardContent className="p-4 text-center">
-                <Calendar className="mx-auto mb-2 text-indigo-600" size={32} />
-                <p className="font-medium">Calendário</p>
-              </CardContent>
+            <Card className="cursor-pointer hover:bg-indigo-50 transition-colors" onClick={() => navigate('/professor/calendario')} data-testid="menu-calendario">
+              <CardContent className="p-4 text-center"><Calendar className="mx-auto mb-2 text-indigo-600" size={32} /><p className="font-medium">Calendário</p></CardContent>
             </Card>
 
-            <Card 
-              className="cursor-pointer hover:bg-orange-50 transition-colors"
-              onClick={() => navigate('/professor/perfil')}
-              data-testid="menu-perfil"
-            >
-              <CardContent className="p-4 text-center">
-                <User className="mx-auto mb-2 text-orange-600" size={32} />
-                <p className="font-medium">Meu Perfil</p>
-              </CardContent>
+            <Card className="cursor-pointer hover:bg-orange-50 transition-colors" onClick={() => navigate('/professor/perfil')} data-testid="menu-perfil">
+              <CardContent className="p-4 text-center"><User className="mx-auto mb-2 text-orange-600" size={32} /><p className="font-medium">Meu Perfil</p></CardContent>
             </Card>
           </div>
         </div>
 
-        {/* Turmas regulares e Diário por Vínculo em uma única seção */}
         <MyDiariesSection legacyClasses={turmasRegulares} />
 
-        {/* Carga Horária */}
         {profile?.carga_horaria_semanal && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-100 p-3 rounded-lg">
-                  <Clock className="text-orange-600" size={24} />
-                </div>
-                <div>
-                  <p className="text-lg font-medium">Carga Horária Semanal</p>
-                  <p className="text-2xl font-bold text-orange-600">{profile.carga_horaria_semanal}h</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="bg-orange-100 p-3 rounded-lg"><Clock className="text-orange-600" size={24} /></div><div><p className="text-lg font-medium">Carga Horária Semanal</p><p className="text-2xl font-bold text-orange-600">{profile.carga_horaria_semanal}h</p></div></div></CardContent></Card>
         )}
 
-        {/* AEE permanece separado e sem alteração funcional */}
         {hasAeeTurmas && (
           <div>
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <GraduationCap className="text-blue-600" />
-              Minhas Turmas
-            </h2>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><GraduationCap className="text-blue-600" />Minhas Turmas</h2>
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-teal-700">
-                  <FileText size={18} />
-                  Turmas AEE
-                </h3>
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-teal-700"><FileText size={18} />Turmas AEE</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {turmasAEE.map((turma) => (
                     <Card key={turma.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-teal-500">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="text-teal-600" size={20} />
-                          {turma.name}
-                        </CardTitle>
-                        <CardDescription className="flex items-center gap-1">
-                          <School size={14} />
-                          {turma.school_name}
-                        </CardDescription>
+                        <CardTitle className="text-lg flex items-center gap-2"><FileText className="text-teal-600" size={20} />{turma.name}</CardTitle>
+                        <CardDescription className="flex items-center gap-1"><School size={14} />{turma.school_name}</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate('/admin/diario-aee')}
-                          className="w-full flex items-center gap-1 border-teal-300 text-teal-700 hover:bg-teal-50"
-                          data-testid={`diario-aee-${turma.id}`}
-                        >
-                          <FileText size={14} />
-                          Abrir Diário AEE
+                        <Button variant="outline" size="sm" onClick={() => navigate('/admin/diario-aee')} className="w-full flex items-center gap-1 border-teal-300 text-teal-700 hover:bg-teal-50" data-testid={`diario-aee-${turma.id}`}>
+                          <FileText size={14} />Abrir Diário AEE
                         </Button>
                       </CardContent>
                     </Card>
