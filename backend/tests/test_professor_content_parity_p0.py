@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BRIDGE = ROOT / "frontend/src/services/contentDvdBridge.js"
 DASHBOARD = ROOT / "frontend/src/pages/ProfessorDashboard.js"
 COPY_ADAPTER = ROOT / "backend/routers/content_copy_dvd.py"
+HISTORY_ADAPTER = ROOT / "backend/routers/content_dvd_history.py"
 ROUTERS_INIT = ROOT / "backend/routers/__init__.py"
 
 
@@ -74,6 +75,23 @@ def test_copy_never_writes_to_learning_objects():
         'db.learning_objects.replace_one',
     ):
         assert forbidden not in source
+
+
+def test_initial_years_pdf_aggregates_only_authorized_content_siblings():
+    source = HISTORY_ADAPTER.read_text(encoding="utf-8")
+    assert 'list_teacher_diaries' in source
+    assert '_is_multi_component_day_level' in source
+    assert '_pdf_assignment_ids' in source
+    assert 'item.get("capabilities", {}).get("content_enabled") is True' in source
+    assert 'item.get("class_id") == primary_assignment.get("class_id")' in source
+    assert '_merged_pdf_history' in source
+    assert 'assignment_ids=assignment_ids' in source
+
+
+def test_final_years_or_explicit_component_pdf_stays_single_assignment():
+    source = HISTORY_ADAPTER.read_text(encoding="utf-8")
+    assert 'if course_id or not _is_multi_component_day_level(class_info):' in source
+    assert 'return [primary_id]' in source
 
 
 def test_copy_setup_is_installed_after_history_bridge():
