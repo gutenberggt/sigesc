@@ -71,13 +71,14 @@ def test_read_models_de_escopo_nao_escrevem_em_notas():
             assert token not in source
 
 
-def test_bridge_nao_prende_leitura_agregada_ao_assignment_raiz():
+def test_bridge_nao_prende_leitura_ou_edicao_agregada_ao_assignment_raiz():
     assert "url.includes('/grades/by-student/')" in BRIDGE
     assert "url.includes('/grades/dvd/teacher-students')" in BRIDGE
     assert 'gradeAssignmentById' in BRIDGE
     assert 'gradeAssignmentByScope' in BRIDGE
+    assert 'gradeCreationByStudentCourse' in BRIDGE
     assert '/grades/dvd/teacher-students' in BRIDGE
-    assert 'nunca reutiliza o\n      // assignment raiz' in BRIDGE
+    assert 'assignment raiz de outro componente' in BRIDGE
 
 
 def test_ui_bloqueia_campos_historicos_e_preserva_conceitos():
@@ -92,9 +93,10 @@ def test_ui_bloqueia_campos_historicos_e_preserva_conceitos():
     assert 'Histórico anterior ao Diário por Vínculo' in GRADES_TABLE
 
 
-def test_boletim_online_e_pdf_exigem_roster_para_professor():
+def test_boletim_online_indice_dependencia_e_pdf_exigem_escopo_docente():
     assert 'ensure_teacher_student_grade_access' in BULLETINS
     assert 'role == "professor"' in BULLETINS
+    assert 'if str(item.get("class_id") or "") in memberships' in BULLETINS
     assert 'TEACHER_DEPENDENCY_BULLETIN_SCOPE_DENIED' in BULLETINS
     assert 'ensure_teacher_student_grade_access' in BULLETIN_PDF
     assert 'role == "professor" and job.get("document_type") == "bulletin"' in BULLETIN_PDF
