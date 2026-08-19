@@ -62,7 +62,7 @@ async def list_teacher_grade_scopes(
     """Lista vínculos avaliativos vigentes do professor autenticado.
 
     A tela ``Por Estudante`` e o Boletim usam a mesma lista, evitando que cada
-    módulo invente um conceito diferente de "aluno do professor".
+    módulo invente um conceito diferente de "estudante do professor".
     """
     teacher_id = str(current_user.get("id") or "")
     if not teacher_id:
