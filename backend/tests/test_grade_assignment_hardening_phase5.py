@@ -8,11 +8,14 @@ HARDENING = (ROOT / "routers" / "grades_dvd_hardening.py").read_text(encoding="u
 ROUTERS_INIT = (ROOT / "routers" / "__init__.py").read_text(encoding="utf-8")
 
 
-def test_hardening_e_instalado_depois_do_adapter_principal():
+def test_hardening_e_instalado_depois_do_adapter_principal_e_antes_da_paridade():
     assert "from .grades_dvd_hardening import install_grades_dvd_hardening" in ROUTERS_INIT
+    assert "from .grades_dvd_parity import install_grades_dvd_parity" in ROUTERS_INIT
     assert "configured = install_grades_dvd_adapter(" in ROUTERS_INIT
-    assert "return install_grades_dvd_hardening(" in ROUTERS_INIT
+    assert "configured = install_grades_dvd_hardening(" in ROUTERS_INIT
+    assert "return install_grades_dvd_parity(" in ROUTERS_INIT
     assert ROUTERS_INIT.index("install_grades_dvd_adapter(") < ROUTERS_INIT.index("install_grades_dvd_hardening(")
+    assert ROUTERS_INIT.index("install_grades_dvd_hardening(") < ROUTERS_INIT.index("install_grades_dvd_parity(")
 
 
 def test_hardening_bloqueia_escrita_com_ownership_historico_sem_vinculo_ativo():
