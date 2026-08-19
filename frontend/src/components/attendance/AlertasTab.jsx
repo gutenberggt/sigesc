@@ -8,21 +8,21 @@ export const AlertasTab = () => {
     dvdMode, dvdDiary, dvdContext,
   } = useAttendance();
 
-  if (dvdMode) {
-    const documentary = dvdContext?.attendance_purpose === 'pdf_only'
-      || dvdDiary?.capabilities?.attendance_purpose === 'pdf_only';
+  const documentary = dvdMode && (
+    dvdContext?.attendance_purpose === 'pdf_only'
+    || dvdDiary?.capabilities?.attendance_purpose === 'pdf_only'
+  );
+
+  if (documentary) {
     return (
       <div className="space-y-4" data-testid="attendance-alertas-tab">
-        <div className={`rounded-lg border p-4 flex items-start gap-3 ${documentary ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-indigo-200 bg-indigo-50 text-indigo-900'}`}>
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 flex items-start gap-3 text-amber-900">
           <Info size={20} className="mt-0.5 shrink-0" />
           <div>
-            <p className="font-semibold">
-              {documentary ? 'Registro documental não gera alertas de frequência' : 'Alertas acadêmicos permanecem consolidados'}
-            </p>
+            <p className="font-semibold">Registro documental não gera alertas de frequência</p>
             <p className="mt-1 text-sm">
-              {documentary
-                ? 'O componente integrador é opcional e não oficial. Suas marcações não geram faltas, infrequência, Busca Ativa, Bolsa Família ou qualquer alerta acadêmico.'
-                : 'Esta aba histórica calcula alertas consolidados da escola/turma e não é uma visão por assignment_id. Para evitar exposição de dados de outros vínculos dentro de Meus Diários, ela fica indisponível neste contexto. Os alertas oficiais continuam sendo calculados exclusivamente a partir da frequência acadêmica canônica.'}
+              O componente integrador é opcional e não oficial. Suas marcações não geram faltas,
+              infrequência, Busca Ativa, Bolsa Família ou qualquer alerta acadêmico.
             </p>
           </div>
         </div>
@@ -32,16 +32,31 @@ export const AlertasTab = () => {
 
   return (
     <div className="space-y-4" data-testid="attendance-alertas-tab">
+      {dvdMode && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 flex items-start gap-3 text-indigo-900">
+          <Info size={20} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold">Alertas do seu Diário por Vínculo</p>
+            <p className="mt-1 text-sm">
+              Esta visão considera somente a frequência oficial da turma acessível pelo seu vínculo,
+              incluindo o histórico legado compatível quando o vínculo veio do cutover. Dados de outros
+              vínculos docentes não são expostos.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-4">
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Escola</label>
           <select
             value={selectedSchool}
             onChange={(e) => setSelectedSchool(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={dvdMode}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
             data-testid="alertas-school-select"
           >
-            <option value="">Todas as escolas</option>
+            {!dvdMode && <option value="">Todas as escolas</option>}
             {schools.map(s => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
@@ -61,10 +76,12 @@ export const AlertasTab = () => {
         </div>
       ) : alertsData ? (
         <div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-2 text-red-700">
-              <AlertTriangle size={20} />
-              <span className="font-semibold">{alertsData.total_alerts} estudantes com frequência abaixo de 75%</span>
+          <div className={`${alertsData.total_alerts > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4 mb-4`}>
+            <div className={`flex items-center gap-2 ${alertsData.total_alerts > 0 ? 'text-red-700' : 'text-green-700'}`}>
+              {alertsData.total_alerts > 0 ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
+              <span className="font-semibold">
+                {alertsData.total_alerts} estudante(s) com frequência abaixo de 75%
+              </span>
             </div>
           </div>
 
@@ -81,7 +98,7 @@ export const AlertasTab = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {alertsData.alerts.map((alert, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
+                    <tr key={`${alert.student_id || idx}-${idx}`} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{alert.student_name}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{alert.class_name}</td>
                       <td className="px-4 py-3 text-center text-red-600 font-bold">{alert.absent}</td>

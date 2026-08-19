@@ -17,12 +17,20 @@ from .grades import router as grades_router, setup_grades_router as _setup_grade
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
+from . import attendance_dvd as _attendance_dvd_mod
 from .attendance_dvd import install_attendance_dvd_adapter
+from . import attendance_tabs_dvd as _attendance_tabs_dvd_mod
+from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
 from .analytics import router as analytics_router, setup_analytics_router
+
+# FastAPI resolve anotações postergadas usando o namespace global do módulo que
+# declara a função. O adaptador de abas registra o mesmo payload Pydantic da
+# Fase 4 dinamicamente; expor este alias evita ForwardRef dependente de closure.
+_attendance_tabs_dvd_mod.dvd_mod = _attendance_dvd_mod
 
 # P0 DVD Conteúdos — instala os adaptadores antes de server.py importar
 # setup_content_entries_router/learning_objects. Os routers originais permanecem
@@ -33,8 +41,8 @@ from .content_dvd_history import install_content_history_setups
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
-# setup aqui garante que o endpoint legado de PDF seja protegido antes de ser
-# registrado na aplicação, sem alterar o gerador/layout do PDF.
+# setup aqui garante que o endpoint legado de PDF/alertas seja protegido antes
+# de ser registrado na aplicação, sem alterar o gerador/layout legado.
 install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 
@@ -70,9 +78,15 @@ def setup_grades_router(
 
 
 def setup_attendance_router(db, audit_service, sandbox_db=None):
-    """Configura Frequência histórica + adaptador DVD Fase 4 no mesmo router."""
+    """Configura Frequência histórica + DVD Fase 4 + paridade das abas."""
     configured = _setup_attendance_router(db, audit_service, sandbox_db)
-    return install_attendance_dvd_adapter(configured, db, audit_service, sandbox_db)
+    configured = install_attendance_dvd_adapter(configured, db, audit_service, sandbox_db)
+    return install_attendance_tabs_dvd_adapter(
+        configured,
+        db,
+        audit_service,
+        sandbox_db,
+    )
 
 
 __all__ = [

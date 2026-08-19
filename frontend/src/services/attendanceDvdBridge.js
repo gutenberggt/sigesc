@@ -102,6 +102,8 @@ export const installAttendanceDvdAxiosBridge = () => {
       '/attendance/attendance-summary/',
       '/attendance/dates-with-records',
       '/attendance/bimestre-summary',
+      '/attendance/class-students-info/',
+      '/attendance/alerts',
     ];
     if (method === 'get' && assignmentAwareReads.some((path) => url.includes(path))) {
       url = appendQuery(url, 'assignment_id', assignmentId);
