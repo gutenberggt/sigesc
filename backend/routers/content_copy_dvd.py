@@ -48,7 +48,55 @@ def _scope_error(exc: Exception) -> HTTPException:
     )
 
 
-async def _resolve_authorized_source(db, user, request, source_id: str, source_assignment_id: Optional[str]):
+async def _assert_visible_through_source_assignment(
+    db,
+    user,
+    request,
+    *,
+    source_id: str,
+    source_assignment_id: Optional[str],
+    class_id: Optional[str],
+    component_id: Optional[str],
+) -> None:
+    """Prova que uma origem sem assignment próprio é visível pelo vínculo informado."""
+    if not source_assignment_id:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "SOURCE_ASSIGNMENT_REQUIRED",
+                "message": "A cópia de conteúdo histórico requer o vínculo docente de origem.",
+            },
+        )
+
+    try:
+        visible = await list_assignment_content_history(
+            db,
+            user,
+            assignment_id=source_assignment_id,
+            class_id=class_id,
+            component_id=component_id,
+            active_mantenedora_id=get_mantenedora_scope(user, request),
+        )
+    except ContentHistoryBridgeError as exc:
+        raise _scope_error(exc) from exc
+
+    if not any(item.get("id") == source_id for item in visible.get("items", [])):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "SOURCE_CONTENT_NOT_VISIBLE",
+                "message": "O conteúdo de origem não pertence ao histórico visível deste vínculo.",
+            },
+        )
+
+
+async def _resolve_authorized_source(
+    db,
+    user,
+    request,
+    source_id: str,
+    source_assignment_id: Optional[str],
+):
     canonical = await db.content_entries.find_one(
         {"id": source_id, "deleted": False}, {"_id": 0}
     )
@@ -65,40 +113,31 @@ async def _resolve_authorized_source(db, user, request, source_id: str, source_a
                 )
             except ContentAssignmentScopeError as exc:
                 raise _scope_error(exc) from exc
+        else:
+            await _assert_visible_through_source_assignment(
+                db,
+                user,
+                request,
+                source_id=source_id,
+                source_assignment_id=source_assignment_id,
+                class_id=canonical.get("class_id"),
+                component_id=canonical.get("component_id") or canonical.get("course_id"),
+            )
         return canonical, "content_entries"
 
     legacy = await db.learning_objects.find_one({"id": source_id}, {"_id": 0})
     if not legacy:
         raise HTTPException(status_code=404, detail="Conteúdo de origem não encontrado")
-    if not source_assignment_id:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "SOURCE_ASSIGNMENT_REQUIRED",
-                "message": "A cópia de conteúdo histórico requer o vínculo docente de origem.",
-            },
-        )
 
-    try:
-        visible = await list_assignment_content_history(
-            db,
-            user,
-            assignment_id=source_assignment_id,
-            class_id=legacy.get("class_id"),
-            component_id=legacy.get("course_id"),
-            active_mantenedora_id=get_mantenedora_scope(user, request),
-        )
-    except ContentHistoryBridgeError as exc:
-        raise _scope_error(exc) from exc
-
-    if not any(item.get("id") == source_id for item in visible.get("items", [])):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "SOURCE_CONTENT_NOT_VISIBLE",
-                "message": "O conteúdo de origem não pertence ao histórico visível deste vínculo.",
-            },
-        )
+    await _assert_visible_through_source_assignment(
+        db,
+        user,
+        request,
+        source_id=source_id,
+        source_assignment_id=source_assignment_id,
+        class_id=legacy.get("class_id"),
+        component_id=legacy.get("course_id"),
+    )
     return legacy, "learning_objects"
 
 
