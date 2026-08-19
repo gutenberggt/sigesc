@@ -126,6 +126,7 @@ def _run_validator(
     tmp_path,
     *,
     institutional_input=None,
+    mode="baseline",
 ):
     entry = _base_entry()
 
@@ -189,6 +190,8 @@ def _run_validator(
             str(input_path),
             "--report",
             str(report_path),
+            "--mode",
+            mode,
         ],
     )
 
@@ -374,3 +377,77 @@ def test_source_contains_no_mongodb_mutators():
             "Validador institucional read-only contém "
             f"mutador MongoDB: {token}"
         )
+
+
+
+def test_baseline_mode_preserves_baseline_gate(
+    monkeypatch,
+    tmp_path,
+):
+    report = _run_validator(
+        monkeypatch,
+        tmp_path,
+        mode="baseline",
+    )
+
+    assert report["gate_mode"] == "baseline"
+    assert report["summary"]["baseline_expected_pending"] is True
+    assert report["summary"]["baseline_gate"] == "REVIEW_REQUIRED"
+    assert report["summary"]["operational_state"] == "PENDING"
+    assert report["summary"]["operational_gate"] == "REVIEW_REQUIRED"
+    assert report["summary"]["selected_gate"] == "REVIEW_REQUIRED"
+
+
+def test_operational_complete_confirmation_passes_gate(
+    monkeypatch,
+    tmp_path,
+):
+    report = _run_validator(
+        monkeypatch,
+        tmp_path,
+        institutional_input=_complete_input(),
+        mode="operational",
+    )
+
+    assert report["gate_mode"] == "operational"
+    assert report["summary"]["baseline_expected_pending"] is False
+    assert report["summary"]["operational_state"] == "READY_FOR_DRY_RUN"
+    assert report["summary"]["operational_gate"] == "PASS"
+    assert report["summary"]["selected_gate"] == "PASS"
+
+
+def test_operational_missing_data_remains_review_required(
+    monkeypatch,
+    tmp_path,
+):
+    report = _run_validator(
+        monkeypatch,
+        tmp_path,
+        mode="operational",
+    )
+
+    assert report["summary"]["operational_state"] == "PENDING"
+    assert report["summary"]["operational_gate"] == "REVIEW_REQUIRED"
+    assert report["summary"]["selected_gate"] == "REVIEW_REQUIRED"
+
+
+def test_operational_invalid_data_remains_review_required(
+    monkeypatch,
+    tmp_path,
+):
+    data = _complete_input()
+    data["slot_times_confirmed"]["1"] = {
+        "start": "09:00",
+        "end": "08:00",
+    }
+
+    report = _run_validator(
+        monkeypatch,
+        tmp_path,
+        institutional_input=data,
+        mode="operational",
+    )
+
+    assert report["summary"]["operational_state"] == "INVALID"
+    assert report["summary"]["operational_gate"] == "REVIEW_REQUIRED"
+    assert report["summary"]["selected_gate"] == "REVIEW_REQUIRED"

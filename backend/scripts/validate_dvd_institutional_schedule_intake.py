@@ -45,6 +45,13 @@ def parse_args():
         help="Arquivo JSON de saída",
     )
 
+    parser.add_argument(
+        "--mode",
+        choices=("baseline", "operational"),
+        default="baseline",
+        help="Modo do gate final: baseline ou operational",
+    )
+
     return parser.parse_args()
 
 
@@ -815,12 +822,39 @@ baseline_pass = (
     ] == 0
 )
 
+# Gate operacional fail-closed:
+# INVALID prevalece; depois PENDING; READY somente
+# quando todas as classes estiverem completas e validas.
+if not classes:
+    operational_state = "INVALID"
+elif state_counts["INVALID"] > 0:
+    operational_state = "INVALID"
+elif state_counts["PENDING"] > 0:
+    operational_state = "PENDING"
+elif state_counts["READY_FOR_DRY_RUN"] == len(classes):
+    operational_state = "READY_FOR_DRY_RUN"
+else:
+    operational_state = "INVALID"
+
+operational_pass = (
+    operational_state == "READY_FOR_DRY_RUN"
+)
+
+selected_gate_pass = (
+    baseline_pass
+    if args.mode == "baseline"
+    else operational_pass
+)
+
 report = {
     "audit":
         "DVD_38H_C5_INSTITUTIONAL_VALIDATOR",
 
     "mode":
         "READ_ONLY_VALIDATION",
+
+    "gate_mode":
+        args.mode,
 
     "mutates_database":
         False,
@@ -841,12 +875,29 @@ report = {
             dict(error_counts),
 
         "baseline_expected_pending":
-            True,
+            args.mode == "baseline",
 
         "baseline_gate":
             (
                 "PASS"
                 if baseline_pass
+                else "REVIEW_REQUIRED"
+            ),
+
+        "operational_state":
+            operational_state,
+
+        "operational_gate":
+            (
+                "PASS"
+                if operational_pass
+                else "REVIEW_REQUIRED"
+            ),
+
+        "selected_gate":
+            (
+                "PASS"
+                if selected_gate_pass
                 else "REVIEW_REQUIRED"
             ),
     },
@@ -895,7 +946,7 @@ print(
     "STATUS="
     + (
         "PASS"
-        if baseline_pass
+        if selected_gate_pass
         else "REVIEW_REQUIRED"
     )
 )
