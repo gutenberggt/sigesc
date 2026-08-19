@@ -47,6 +47,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Auditoria de Matrículas', icon: ClipboardCheck, color: 'red', route: '/admin/auditoria-matriculas', testId: 'nav-enrollment-audit-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('gerente') },
       { label: 'Livro de Promoção', icon: Award, color: 'emerald', route: '/admin/promotion', testId: 'nav-promotion-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isProfessor || c.isSemed },
       { label: 'Painel da Rede (CTUE)', icon: BarChart3, color: 'violet', route: '/admin/rede', testId: 'nav-network-panel-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isSemed },
+      { label: 'Urgências', icon: Siren, color: 'red', route: '/admin/urgencias', testId: 'nav-urgencias-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.hasRole('auxiliar_secretaria') },
     ],
   },
   {
