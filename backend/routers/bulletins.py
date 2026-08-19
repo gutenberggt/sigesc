@@ -127,7 +127,7 @@ def setup_bulletins_router(db) -> APIRouter:
     ):
         """Catálogo de boletins disponíveis (regular + dependência por turma)."""
         user = await AuthMiddleware.get_current_user(request)
-        await _ensure_can_view_student(
+        memberships = await _ensure_can_view_student(
             db,
             user,
             student_id,
@@ -139,6 +139,12 @@ def setup_bulletins_router(db) -> APIRouter:
             student_id=student_id,
             academic_year=academic_year,
         )
+        if user.get("role") == "professor":
+            items = [
+                item
+                for item in items
+                if str(item.get("class_id") or "") in memberships
+            ]
         return {
             "student_id": student_id,
             "academic_year": academic_year,
