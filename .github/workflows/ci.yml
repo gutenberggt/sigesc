@@ -171,4 +171,5 @@ jobs:
             tests/test_startup_attendance_index_authority.py \
             tests/test_professor_attendance_entrypoint_p0.py \
             tests/test_professor_attendance_tabs_parity_p0.py \
-            tests/test_professor_attendance_pdf_status_p0.py
+            tests/test_professor_attendance_pdf_status_p0.py \
+            tests/test_professor_attendance_pdf_document_parity_p0.py
