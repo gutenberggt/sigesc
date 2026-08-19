@@ -29,6 +29,36 @@ from .analytics import router as analytics_router, setup_analytics_router
 # registrado na aplicação, sem alterar o gerador/layout do PDF.
 install_attendance_ext_dvd_setup()
 
+# Urgências / Ficha Individual: `server.py` já registra `routers.documents.router`
+# em /api. Para evitar tocar no server.py e manter o diff mínimo, envolvemos o
+# setup do módulo documents e anexamos o router de contingência ao MESMO router
+# sem prefixo. Resultado final:
+#   /api/documents/ficha-individual-manual/preview
+#   /api/documents/ficha-individual-manual
+# A instalação é feita uma única vez por processo.
+from . import documents as _documents_module
+from .manual_ficha_individual import setup_router as _setup_manual_ficha_router
+
+_original_documents_setup_router = _documents_module.setup_router
+_urgencias_manual_installed = False
+
+
+def _setup_documents_with_urgencias(db, audit_service=None, sandbox_db=None, **kwargs):
+    global _urgencias_manual_installed
+    configured = _original_documents_setup_router(
+        db, audit_service, sandbox_db, **kwargs
+    )
+    if not _urgencias_manual_installed:
+        manual_router = _setup_manual_ficha_router(
+            db, audit_service, sandbox_db, **kwargs
+        )
+        _documents_module.router.include_router(manual_router)
+        _urgencias_manual_installed = True
+    return configured
+
+
+_documents_module.setup_router = _setup_documents_with_urgencias
+
 
 def setup_grades_router(
     db,
