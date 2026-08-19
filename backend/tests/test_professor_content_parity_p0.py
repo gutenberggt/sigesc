@@ -15,6 +15,7 @@ def test_quick_access_content_requires_diary_context():
     assert 'data-testid="menu-objetos-conhecimento"' in source
     assert 'onClick={openFromMyDiaries}' in source
     assert source.count('Escolha o diário/vínculo abaixo') >= 2
+    assert "onClick={() => navigate('/professor/objetos-conhecimento')}" not in source
 
 
 def test_content_bridge_resolves_authorized_diaries_and_sibling_assignments():
@@ -52,6 +53,27 @@ def test_copy_backend_reuses_canonical_content_engine_and_preserves_traceability
     assert '"copied_from_id": source_id' in source
     assert '"copied_from_source": source_kind' in source
     assert 'target_assignment_id: str' in source
+
+
+def test_copy_source_without_own_assignment_requires_authorized_history_view():
+    source = COPY_ADAPTER.read_text(encoding="utf-8")
+    assert 'SOURCE_ASSIGNMENT_REQUIRED' in source
+    assert 'SOURCE_CONTENT_NOT_VISIBLE' in source
+    assert '_assert_visible_through_source_assignment' in source
+    assert 'if canonical.get("assignment_id")' in source
+    assert 'else:\n            await _assert_visible_through_source_assignment' in source
+
+
+def test_copy_never_writes_to_learning_objects():
+    source = COPY_ADAPTER.read_text(encoding="utf-8")
+    assert 'db.learning_objects.find_one' in source
+    for forbidden in (
+        'db.learning_objects.insert_one',
+        'db.learning_objects.update_one',
+        'db.learning_objects.delete_one',
+        'db.learning_objects.replace_one',
+    ):
+        assert forbidden not in source
 
 
 def test_copy_setup_is_installed_after_history_bridge():
