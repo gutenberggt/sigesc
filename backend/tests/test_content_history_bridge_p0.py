@@ -1,7 +1,7 @@
 """P0 — regressão de visibilidade do histórico de Conteúdos no DVD."""
 
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,6 +21,8 @@ def _matches(doc, query):
         value = doc.get(key)
         if isinstance(expected, dict):
             if "$lt" in expected and not (value is not None and value < expected["$lt"]):
+                return False
+            if "$gte" in expected and not (value is not None and value >= expected["$gte"]):
                 return False
             continue
         if value != expected:
@@ -54,15 +56,15 @@ def _assignment(**overrides):
     return data
 
 
-def _canonical(**overrides):
+def _canonical(doc_id="canonical-1", date="2026-08-18", **overrides):
     data = {
-        "id": "canonical-1",
+        "id": doc_id,
         "assignment_id": "assignment-1",
         "class_id": "class-1",
         "component_id": "math",
         "course_id": "math",
         "teacher_id": "teacher-1",
-        "date": "2026-08-18",
+        "date": date,
         "aula_numero": 1,
         "deleted": False,
         "content": "Conteúdo DVD",
@@ -100,7 +102,11 @@ def authorized(monkeypatch):
 @pytest.mark.asyncio
 async def test_merge_preserva_legado_e_canonico_na_fronteira(authorized):
     db = FakeDb(
-        canonical=[_canonical()],
+        canonical=[
+            _canonical("canonical-before", "2026-08-17"),
+            _canonical("canonical-boundary", "2026-08-18"),
+            _canonical("canonical-after", "2026-08-19"),
+        ],
         legacy=[
             _legacy("legacy-before", "2026-08-17"),
             _legacy("legacy-boundary", "2026-08-18"),
@@ -117,10 +123,12 @@ async def test_merge_preserva_legado_e_canonico_na_fronteira(authorized):
     )
 
     ids = [item["id"] for item in result["items"]]
-    assert "canonical-1" in ids
     assert "legacy-before" in ids
     assert "legacy-boundary" not in ids
     assert "legacy-after" not in ids
+    assert "canonical-before" not in ids
+    assert "canonical-boundary" in ids
+    assert "canonical-after" in ids
     assert result["history_bridge"]["valid_from"] == "2026-08-18"
 
 
@@ -145,7 +153,7 @@ async def test_legado_e_explicitamente_read_only_sem_assignment_retroativo(autho
 
 
 @pytest.mark.asyncio
-async def test_data_exata_anterior_consulta_legado(authorized):
+async def test_data_exata_anterior_retorna_somente_legado(authorized):
     db = FakeDb(
         canonical=[_canonical(date="2026-08-17")],
         legacy=[_legacy(date="2026-08-17")],
@@ -158,11 +166,11 @@ async def test_data_exata_anterior_consulta_legado(authorized):
         component_id="math",
         date="2026-08-17",
     )
-    assert any(item["legacy"] for item in result["items"])
+    assert [item["id"] for item in result["items"]] == ["legacy-1"]
 
 
 @pytest.mark.asyncio
-async def test_data_exata_no_cutover_nao_consulta_legado(authorized):
+async def test_data_exata_no_cutover_retorna_somente_canonico(authorized):
     db = FakeDb(
         canonical=[_canonical(date="2026-08-18")],
         legacy=[_legacy(date="2026-08-18")],
