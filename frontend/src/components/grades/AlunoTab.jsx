@@ -5,6 +5,7 @@ import {
   StatusBadge,
   formatGrade,
   valorParaConceito,
+  calcularMaiorConceito,
   usaAvaliacaoConceitual,
   isAnosIniciaisConceitual,
   CONCEITOS_ANOS_INICIAIS,
@@ -200,8 +201,11 @@ export const AlunoTab = () => {
                     const conceptMap = anosIniciais
                       ? CONCEITOS_ANOS_INICIAIS
                       : CONCEITOS_EDUCACAO_INFANTIL;
+                    const conceptualAverage = conceptual
+                      ? calcularMaiorConceito(grade.b1, grade.b2, grade.b3, grade.b4)
+                      : null;
                     const finalConcept = conceptual
-                      ? valorParaConceito(grade.final_average, grade.grade_level)
+                      ? valorParaConceito(conceptualAverage, grade.grade_level)
                       : null;
                     return (
                       <tr key={`${grade.class_id}:${grade.course_id}`} className="hover:bg-gray-50">
@@ -247,7 +251,7 @@ export const AlunoTab = () => {
                         <td className="px-4 py-3 text-center">
                           {conceptual ? (
                             <span className={`font-bold ${conceptMap[finalConcept]?.cor || 'text-gray-400'}`}>
-                              {grade.final_average !== null ? finalConcept : '-'}
+                              {conceptualAverage !== null ? finalConcept : '-'}
                             </span>
                           ) : (
                             <span className={`font-bold ${
