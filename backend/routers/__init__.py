@@ -24,7 +24,7 @@ from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .calendar import router as calendar_router, setup_calendar_router
-from .staff import router as staff_router, setup_router as setup_staff_router
+from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_router as setup_announcements_router
 from .analytics import router as analytics_router, setup_router as setup_analytics_router
 
