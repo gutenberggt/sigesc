@@ -14,9 +14,10 @@ def _read(path: Path) -> str:
 def test_quick_access_frequency_does_not_open_naked_legacy_route():
     source = _read(PROFESSOR_DASHBOARD)
 
-    assert "const openAttendanceFromMyDiaries = () =>" in source
+    assert "const openFromMyDiaries = () =>" in source
     assert "document.querySelector('[data-testid=\"meus-diarios-section\"]')" in source
-    assert "onClick={openAttendanceFromMyDiaries}" in source
+    assert 'data-testid="menu-frequencia"' in source
+    assert "onClick={openFromMyDiaries}" in source
     assert "onClick={() => navigate('/professor/frequencia')}" not in source
 
 

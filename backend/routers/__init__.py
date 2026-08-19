@@ -35,10 +35,11 @@ _attendance_tabs_dvd_mod.dvd_mod = _attendance_dvd_mod
 
 # P0 DVD Conteúdos — instala os adaptadores antes de server.py importar
 # setup_content_entries_router/learning_objects. Os routers originais permanecem
-# intactos; somente as superfícies de leitura recebem compatibilidade histórica.
+# intactos; leitura histórica e cópia segura são adicionadas sobre o motor canônico.
 from . import content_entries as _content_entries_mod
 from . import learning_objects as _learning_objects_mod
 from .content_dvd_history import install_content_history_setups
+from .content_copy_dvd import install_content_copy_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -46,6 +47,7 @@ from .content_dvd_history import install_content_history_setups
 # de ser registrado na aplicação, sem alterar o gerador/layout legado.
 install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
+install_content_copy_setup(_content_entries_mod)
 
 
 def setup_grades_router(

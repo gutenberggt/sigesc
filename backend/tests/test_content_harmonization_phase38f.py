@@ -37,7 +37,11 @@ def test_frontend_bridge_is_assignment_contextual_and_canonical():
     src = FRONTEND_BRIDGE.read_text(encoding="utf-8")
     assert "assignment_id" in src
     assert "'/content-entries'" in src
-    assert "if (!assignmentId || !isLearningObjectsUrl" in src
+    assert "if (!isLearningObjectsUrl(config.url) || isPdfUrl(config.url)) return config" in src
+    assert "shouldAttemptDvd(rootAssignmentId)" in src
+    assert "isProfessorContentPage" in src
+    assert "/professor/diarios" in src
+    assert "__skipContentDvdBridge: true" in src
     assert "__contentDvdList" in src
     assert "change_note" in src
 
