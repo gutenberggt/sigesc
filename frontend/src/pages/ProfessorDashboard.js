@@ -192,12 +192,13 @@ export default function ProfessorDashboard() {
               <>
                 <Card 
                   className="cursor-pointer hover:bg-blue-50 transition-colors"
-                  onClick={() => navigate('/professor/notas')}
+                  onClick={openFromMyDiaries}
                   data-testid="menu-lancar-notas"
                 >
                   <CardContent className="p-4 text-center">
                     <ClipboardList className="mx-auto mb-2 text-blue-600" size={32} />
                     <p className="font-medium">Lançar Notas</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p>
                   </CardContent>
                 </Card>
 

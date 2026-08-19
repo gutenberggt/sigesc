@@ -1,43 +1,84 @@
 """Endpoints públicos e autenticados para o Boletim Oficial (PDF assíncrono).
 
-Rotas:
-  POST /api/bulletins/{student_id}/render-pdf?academic_year=YYYY
-    → Enfileira render_job (document_type='bulletin'). Retorna job_id.
-  GET  /api/render-jobs/{job_id}/file
-    → Download do PDF gerado. Auth obrigatória.
-  GET  /api/verify/boletim/{token}  (sem auth, sem CSRF)
-    → Verificação pública do documento. JSON LGPD-safe.
+PR #54 endurece o acesso do professor: solicitar ou baixar um boletim exige que
+o estudante pertença ao roster avaliativo autorizado do Diário por Vínculo.
 """
 from __future__ import annotations
 
 import hashlib
-import os
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 
 from auth_middleware import AuthMiddleware
+from services.document_files import fetch_pdf
+from services.teacher_grade_access import (
+    TeacherGradeAccessError,
+    ensure_teacher_student_grade_access,
+)
 from tenant_scope import get_mantenedora_scope
 from utils.render_jobs import compute_idempotency_key, find_existing_job, now_iso
-from services.document_files import fetch_pdf
 
 BULLETIN_TEMPLATE_VERSION = "boletim_v1.0.0"
 BULLETIN_RENDER_ENGINE_VERSION = "reportlab+qrcode-v1"
 
 
+async def _ensure_professor_bulletin_scope(
+    db,
+    user,
+    request: Request,
+    *,
+    student_id: str,
+    academic_year: int,
+) -> None:
+    if user.get("role") != "professor":
+        return
+    try:
+        await ensure_teacher_student_grade_access(
+            db,
+            user,
+            student_id=student_id,
+            academic_year=int(academic_year),
+            active_mantenedora_id=get_mantenedora_scope(user, request),
+        )
+    except TeacherGradeAccessError as exc:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+
+def _bulletin_job_subject(job: dict) -> tuple[str | None, int | None]:
+    student_id = job.get("student_id")
+    academic_year = job.get("academic_year")
+    if student_id and academic_year:
+        try:
+            return str(student_id), int(academic_year)
+        except (TypeError, ValueError):
+            return None, None
+
+    source = str(job.get("source_snapshot_id") or "")
+    if not source.startswith("boletim:"):
+        return None, None
+    parts = source.split(":", 2)
+    if len(parts) != 3:
+        return None, None
+    try:
+        return parts[1], int(parts[2])
+    except (TypeError, ValueError):
+        return None, None
+
+
 def setup_bulletin_pdf_router(db, audit_service=None):
     router = APIRouter(tags=["Boletim Oficial PDF"])
 
-    # =======================================================================
     @router.post("/bulletins/{student_id}/render-pdf")
     async def request_bulletin_pdf(
         student_id: str,
         academic_year: int,
         request: Request,
     ):
-        """Enfileira um job de geração do Boletim Oficial.
-        Idempotente: chamada subsequente com mesma (aluno, ano, versão de template) retorna o mesmo job.
-        """
+        """Enfileira um job de geração do Boletim Oficial."""
         user = await AuthMiddleware.get_current_user(request)
         allowed = {
             "super_admin", "admin", "admin_teste", "gerente", "secretario",
@@ -47,11 +88,20 @@ def setup_bulletin_pdf_router(db, audit_service=None):
         if user.get("role") not in allowed:
             raise HTTPException(status_code=403, detail="Sem permissão.")
 
+        await _ensure_professor_bulletin_scope(
+            db,
+            user,
+            request,
+            student_id=student_id,
+            academic_year=academic_year,
+        )
+
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
         if not student:
             raise HTTPException(status_code=404, detail="Estudante não encontrado")
-        # Diretor/coordenador/professor: só da própria escola
-        if user.get("role") in {"diretor", "coordenador", "professor", "secretario"}:
+
+        # Demais perfis escolares mantêm a regra preexistente de escola.
+        if user.get("role") in {"diretor", "coordenador", "secretario"}:
             if user.get("school_id") and student.get("school_id") != user.get("school_id"):
                 raise HTTPException(status_code=403, detail="Estudante fora da sua escola")
 
@@ -71,8 +121,8 @@ def setup_bulletin_pdf_router(db, audit_service=None):
                 "idempotent_hit": True,
             }
 
-        # Cria via mesma rotina do router /render-jobs
         import uuid
+
         now_s = now_iso()
         tenant = get_mantenedora_scope(user, request)
         job = {
@@ -81,10 +131,13 @@ def setup_bulletin_pdf_router(db, audit_service=None):
             "document_type": "bulletin",
             "source_snapshot_id": source_snapshot_id,
             "source_collection": "students",
+            # Metadados explícitos facilitam ACL do download sem depender só de parsing.
+            "student_id": student_id,
+            "academic_year": int(academic_year),
             "template_version": BULLETIN_TEMPLATE_VERSION,
             "render_engine_version": BULLETIN_RENDER_ENGINE_VERSION,
             "render_options": {"page_size": "A4", "include_qr": True},
-            "payload_hash": idem_key,  # mesmo hash já é canônico
+            "payload_hash": idem_key,
             "status": "pending",
             "generated_file_id": None,
             "generated_file_size_bytes": None,
@@ -110,10 +163,9 @@ def setup_bulletin_pdf_router(db, audit_service=None):
         await db.document_render_jobs.insert_one(job)
         return {"id": job["id"], "status": "pending", "idempotent_hit": False}
 
-    # =======================================================================
     @router.get("/render-jobs/{job_id}/file")
     async def download_render_job_file(job_id: str, request: Request):
-        """Baixa o PDF de um job COMPLETO. Aceita também forçar download via ?download=1."""
+        """Baixa o PDF de um job completo, respeitando ACL do documento."""
         user = await AuthMiddleware.get_current_user(request)
         job = await db.document_render_jobs.find_one({"id": job_id}, {"_id": 0})
         if not job:
@@ -121,14 +173,32 @@ def setup_bulletin_pdf_router(db, audit_service=None):
         if job.get("status") != "completed":
             raise HTTPException(
                 status_code=409,
-                detail=f"Job ainda não concluído (status={job.get('status')})"
+                detail=f"Job ainda não concluído (status={job.get('status')})",
             )
-        # ACL: super_admin/admin → tudo. Outros: mesma mantenedora.
+
         role = user.get("role")
         if role not in ("super_admin", "admin", "admin_teste", "gerente"):
             tenant = get_mantenedora_scope(user, request)
             if tenant and job.get("mantenedora_id") and job.get("mantenedora_id") != tenant:
                 raise HTTPException(status_code=403, detail="Job de outra mantenedora")
+
+        if role == "professor" and job.get("document_type") == "bulletin":
+            student_id, academic_year = _bulletin_job_subject(job)
+            if not student_id or not academic_year:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "code": "BULLETIN_JOB_SCOPE_UNRESOLVED",
+                        "message": "Não foi possível comprovar o estudante/ano deste boletim.",
+                    },
+                )
+            await _ensure_professor_bulletin_scope(
+                db,
+                user,
+                request,
+                student_id=student_id,
+                academic_year=academic_year,
+            )
 
         file_id = job.get("generated_file_id")
         if not file_id:
@@ -146,14 +216,9 @@ def setup_bulletin_pdf_router(db, audit_service=None):
             },
         )
 
-    # =======================================================================
     @router.get("/verify/boletim/{token}")
     async def verify_bulletin(token: str):
-        """Endpoint público de verificação (sem auth, sem CSRF).
-
-        Retorna apenas dados-resumo LGPD-safe: aluno, escola, ano, status,
-        hash do PDF, data de emissão. NÃO retorna notas detalhadas.
-        """
+        """Verificação pública LGPD-safe do Boletim Oficial."""
         if not token or len(token) < 12:
             raise HTTPException(status_code=400, detail="Token inválido")
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()

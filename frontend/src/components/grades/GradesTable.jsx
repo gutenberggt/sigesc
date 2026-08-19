@@ -65,23 +65,34 @@ export const GradesTable = () => {
       const isBlocked = isStudentBlockedForProfessor(item.student);
       const blockedMessage = getBlockedMessage(item.student);
       const hasActionLabel = !!item.student.action_label;
-      const hasAnyBlocking = isBlocked || hasActionLabel || 
+      const hasAnyBlocking = isBlocked || hasActionLabel ||
         (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.length > 0) ||
         (item.student.blocked_after_action && item.student.blocked_after_action.length > 0);
 
-      // Fase 2 — Dependência de Estudos (cf. DIARY_API_CONTRACT.md §17)
       const isDependency = !!item.student.is_dependency;
       const showDependencyDivider = shouldShowDependencyDivider(gradesData, index);
-
-      // Helper: verifica se um bimestre específico está bloqueado para este aluno
-      const canEditBim = (bim) => canEditStudentGrade(item.student, bim, item.grade);
-      // Feb 2026: nota migrada da turma origem
       const isMigratedGrade = !!item.grade?.migrated_from_class_id;
-      
-      // Tooltip para campos bloqueados por data de matrícula
-      const getBlockTooltip = (bim) => {
+
+      const dvdLockedFields = new Set(item.grade?.dvd_locked_fields || []);
+      const dvdReadOnlyFields = new Set(item.grade?.dvd_read_only_fields || []);
+      const isDvdLocked = (field) => dvdLockedFields.has(field) || dvdReadOnlyFields.has(field);
+      const canEditBim = (bim) => (
+        canEditStudentGrade(item.student, bim, item.grade)
+        && !isDvdLocked(`b${bim}`)
+      );
+      const canEditRecovery = (field, bims) => (
+        !isDvdLocked(field) && bims.some((bim) => canEditBim(bim))
+      );
+
+      const getBlockTooltip = (bim, field = `b${bim}`) => {
+        if (dvdReadOnlyFields.has(field)) {
+          return 'Histórico anterior ao Diário por Vínculo — somente leitura.';
+        }
+        if (dvdLockedFields.has(field)) {
+          return 'Campo pertencente a outro vínculo docente — somente leitura.';
+        }
         if (isMigratedGrade && (item.student.migrated_bimesters || []).includes(bim) && !hasRole(user, ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'])) {
-          return 'Nota/conceito migrado da turma de origem — somente leitura. Os demais bimestres (após a data da ação) podem ser editados.';
+          return 'Nota/conceito migrado da turma de origem — somente leitura. Os demais bimestres podem ser editados.';
         }
         if (item.student.blocked_after_action && item.student.blocked_after_action.includes(bim)) {
           return `${item.student.action_label || 'Movimentado'} - bimestre bloqueado`;
@@ -94,7 +105,7 @@ export const GradesTable = () => {
         }
         return '';
       };
-      
+
       return (
       <React.Fragment key={item.student.id}>
         {showDependencyDivider && (
@@ -115,28 +126,23 @@ export const GradesTable = () => {
                   </span>
                 )}
                 {isMigratedGrade && (
-                  <span
-                    className="ml-2 inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full"
-                    title="Notas migradas da turma de origem"
-                    data-testid={`migrated-badge-${item.student.id}`}
-                  >
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full" title="Notas migradas da turma de origem" data-testid={`migrated-badge-${item.student.id}`}>
                     Migrado
                   </span>
                 )}
+                {item.grade?.legacy_history && (
+                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-medium rounded-full" title="Histórico anterior ao Diário por Vínculo — somente leitura.">
+                    <Lock size={10} /> Histórico
+                  </span>
+                )}
                 {isDependency && (
-                  <DependencyBadge
-                    student={item.student}
-                    originAcademicYear={item.student.origin_academic_year}
-                    className="ml-2"
-                  />
+                  <DependencyBadge student={item.student} originAcademicYear={item.student.origin_academic_year} className="ml-2" />
                 )}
               </div>
               <div className="text-xs text-gray-500">
                 {item.student.enrollment_number}
                 {item.student.enrollment_date && (
-                  <span className="ml-2 text-gray-400">
-                    Matr: {item.student.enrollment_date.split('-').reverse().join('/')}
-                  </span>
+                  <span className="ml-2 text-gray-400">Matr: {item.student.enrollment_date.split('-').reverse().join('/')}</span>
                 )}
               </div>
             </div>
@@ -149,84 +155,48 @@ export const GradesTable = () => {
         </td>
         <td className={`px-4 py-3 text-center ${!canEditBim(1) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(1)}>
           {usaConceito ? (
-            <ConceitoSelect
-              value={item.grade.b1}
-              onChange={(v) => updateLocalGrade(index, 'b1', v)}
-              disabled={!canEditBim(1)}
-              gradeLevel={currentGradeLevel}
-            />
+            <ConceitoSelect value={item.grade.b1} onChange={(v) => updateLocalGrade(index, 'b1', v)} disabled={!canEditBim(1)} gradeLevel={currentGradeLevel} />
           ) : (
-            <GradeInput
-              value={item.grade.b1}
-              onChange={(v) => updateLocalGrade(index, 'b1', v)}
-              disabled={!canEditBim(1)}
-            />
+            <GradeInput value={item.grade.b1} onChange={(v) => updateLocalGrade(index, 'b1', v)} disabled={!canEditBim(1)} />
           )}
         </td>
         <td className={`px-4 py-3 text-center ${!canEditBim(2) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(2)}>
           {usaConceito ? (
-            <ConceitoSelect
-              value={item.grade.b2}
-              onChange={(v) => updateLocalGrade(index, 'b2', v)}
-              disabled={!canEditBim(2)}
-              gradeLevel={currentGradeLevel}
-            />
+            <ConceitoSelect value={item.grade.b2} onChange={(v) => updateLocalGrade(index, 'b2', v)} disabled={!canEditBim(2)} gradeLevel={currentGradeLevel} />
           ) : (
-            <GradeInput
-              value={item.grade.b2}
-              onChange={(v) => updateLocalGrade(index, 'b2', v)}
-              disabled={!canEditBim(2)}
-            />
+            <GradeInput value={item.grade.b2} onChange={(v) => updateLocalGrade(index, 'b2', v)} disabled={!canEditBim(2)} />
           )}
         </td>
         {!usaConceito && (
-          <td className="px-4 py-3 text-center bg-blue-50">
+          <td className="px-4 py-3 text-center bg-blue-50" title={getBlockTooltip(2, 'rec_s1')}>
             <GradeInput
               value={item.grade.rec_s1}
               onChange={(v) => updateLocalGrade(index, 'rec_s1', v)}
-              disabled={!canEditBim(1) && !canEditBim(2)}
+              disabled={!canEditRecovery('rec_s1', [1, 2])}
               placeholder="-"
             />
           </td>
         )}
         <td className={`px-4 py-3 text-center ${!canEditBim(3) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(3)}>
           {usaConceito ? (
-            <ConceitoSelect
-              value={item.grade.b3}
-              onChange={(v) => updateLocalGrade(index, 'b3', v)}
-              disabled={!canEditBim(3)}
-              gradeLevel={currentGradeLevel}
-            />
+            <ConceitoSelect value={item.grade.b3} onChange={(v) => updateLocalGrade(index, 'b3', v)} disabled={!canEditBim(3)} gradeLevel={currentGradeLevel} />
           ) : (
-            <GradeInput
-              value={item.grade.b3}
-              onChange={(v) => updateLocalGrade(index, 'b3', v)}
-              disabled={!canEditBim(3)}
-            />
+            <GradeInput value={item.grade.b3} onChange={(v) => updateLocalGrade(index, 'b3', v)} disabled={!canEditBim(3)} />
           )}
         </td>
         <td className={`px-4 py-3 text-center ${!canEditBim(4) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(4)}>
           {usaConceito ? (
-            <ConceitoSelect
-              value={item.grade.b4}
-              onChange={(v) => updateLocalGrade(index, 'b4', v)}
-              disabled={!canEditBim(4)}
-              gradeLevel={currentGradeLevel}
-            />
+            <ConceitoSelect value={item.grade.b4} onChange={(v) => updateLocalGrade(index, 'b4', v)} disabled={!canEditBim(4)} gradeLevel={currentGradeLevel} />
           ) : (
-            <GradeInput
-              value={item.grade.b4}
-              onChange={(v) => updateLocalGrade(index, 'b4', v)}
-              disabled={!canEditBim(4)}
-            />
+            <GradeInput value={item.grade.b4} onChange={(v) => updateLocalGrade(index, 'b4', v)} disabled={!canEditBim(4)} />
           )}
         </td>
         {!usaConceito && (
-          <td className="px-4 py-3 text-center bg-blue-50">
+          <td className="px-4 py-3 text-center bg-blue-50" title={getBlockTooltip(4, 'rec_s2')}>
             <GradeInput
               value={item.grade.rec_s2}
               onChange={(v) => updateLocalGrade(index, 'rec_s2', v)}
-              disabled={!canEditBim(3) && !canEditBim(4)}
+              disabled={!canEditRecovery('rec_s2', [3, 4])}
               placeholder="-"
             />
           </td>
@@ -234,7 +204,7 @@ export const GradesTable = () => {
         <td className="px-4 py-3 text-center">
           {usaConceito ? (
             <span className={`font-bold ${
-              isAnosIniciaisConc 
+              isAnosIniciaisConc
                 ? (CONCEITOS_ANOS_INICIAIS[valorParaConceito(item.grade.final_average, currentGradeLevel)]?.cor || 'text-gray-400')
                 : (CONCEITOS_EDUCACAO_INFANTIL[valorParaConceito(item.grade.final_average, currentGradeLevel)]?.cor || 'text-gray-400')
             }`}>
@@ -250,9 +220,7 @@ export const GradesTable = () => {
             </span>
           )}
         </td>
-        <td className="px-4 py-3 text-center">
-          <StatusBadge status={item.grade.status} />
-        </td>
+        <td className="px-4 py-3 text-center"><StatusBadge status={item.grade.status} /></td>
       </tr>
       </React.Fragment>
     )})}

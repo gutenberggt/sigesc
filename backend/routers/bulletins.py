@@ -1,16 +1,15 @@
 """
 Bulletins router — Boletim Online (Passo 5 — MVP, Fev/2026).
 
-Único endpoint canônico, READ-ONLY ABSOLUTO:
+Endpoint canônico, READ-ONLY ABSOLUTO:
 - GET /api/students/{student_id}/bulletin?academic_year=YYYY
 
-Princípio: boletim é PROJEÇÃO. Consome `bulletin_builder` que por sua vez
-consome `compute_composite_closure` (NUNCA o diário vivo).
+Princípio: boletim é PROJEÇÃO. Consome ``bulletin_builder`` que por sua vez
+consome ``compute_composite_closure`` (NUNCA o diário vivo).
 
-PROIBIDO nesta V1:
-- ❌ POST/PUT/DELETE
-- ❌ PDF/HTML/QR/Hash/Assinatura/Snapshot
-- ❌ render_jobs (camada Fase 6)
+PR #54: professor só acessa estudante pertencente ao seu roster avaliativo
+canônico do Diário por Vínculo. Tenant/escola isolados não são autorização
+pedagógica suficiente.
 """
 from __future__ import annotations
 
@@ -20,6 +19,10 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from auth_middleware import AuthMiddleware
+from services.teacher_grade_access import (
+    TeacherGradeAccessError,
+    ensure_teacher_student_grade_access,
+)
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope
 from utils.bulletin_builder import (
     build_student_bulletin,
@@ -33,49 +36,77 @@ ROLES_VIEW_BULLETIN = {
     "super_admin", "admin", "admin_teste", "gerente", "secretario", "diretor",
     "coordenador", "apoio_pedagogico", "professor",
     "semed", "semed1", "semed2", "semed3",
-    # Aluno e responsável: acesso restringido em runtime (ver lógica abaixo).
     "aluno", "responsavel",
 }
+
+
+async def _ensure_can_view_student(
+    db,
+    user,
+    student_id: str,
+    request: Request,
+    *,
+    academic_year: int,
+) -> set[str]:
+    """Valida acesso e retorna turmas autorizadas quando o papel é professor."""
+    role = user.get("role")
+    if role not in ROLES_VIEW_BULLETIN:
+        raise HTTPException(status_code=403, detail="Sem permissão.")
+
+    if role == "aluno":
+        uid = user.get("student_id") or user.get("linked_student_id")
+        if not uid or uid != student_id:
+            raise HTTPException(status_code=403, detail="Estudante só vê o próprio boletim.")
+        return set()
+
+    if role == "responsavel":
+        allowed = set(user.get("dependents") or user.get("student_ids") or [])
+        if student_id not in allowed:
+            raise HTTPException(status_code=403, detail="Responsável só vê estudantes vinculados.")
+        return set()
+
+    if role == "professor":
+        try:
+            _, memberships = await ensure_teacher_student_grade_access(
+                db,
+                user,
+                student_id=student_id,
+                academic_year=academic_year,
+                active_mantenedora_id=get_mantenedora_scope(user, request),
+            )
+        except TeacherGradeAccessError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
+        return memberships
+
+    # Demais perfis institucionais mantêm o tenant scope existente.
+    stu_filter = apply_tenant_filter({"id": student_id}, user, request)
+    student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
+    if not student:
+        raise HTTPException(status_code=404, detail="Estudante não encontrado")
+    return set()
 
 
 def setup_bulletins_router(db) -> APIRouter:
     router = APIRouter(prefix="/students", tags=["Bulletins (Boletim Online)"])
 
-    # -------------------------------------------------------------------
     @router.get("/{student_id}/bulletin")
     async def get_student_bulletin(
         student_id: str,
         request: Request,
         academic_year: int = Query(..., ge=1900, le=2100),
     ):
-        """Retorna o boletim canônico do aluno no ano (read-model)."""
+        """Retorna o boletim canônico do estudante no ano (read-model)."""
         user = await AuthMiddleware.get_current_user(request)
-        role = user.get("role")
-        if role not in ROLES_VIEW_BULLETIN:
-            raise HTTPException(status_code=403, detail="Sem permissão.")
-
-        # Aluno só pode ver o próprio boletim
-        if role == "aluno":
-            user_student_id = user.get("student_id") or user.get("linked_student_id")
-            if not user_student_id or user_student_id != student_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Estudante só pode acessar o próprio boletim.",
-                )
-        # Responsável só vê alunos vinculados (relação guardian-student)
-        elif role == "responsavel":
-            allowed_ids = set(user.get("dependents") or user.get("student_ids") or [])
-            if student_id not in allowed_ids:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Responsável só pode acessar estudantes vinculados.",
-                )
-        else:
-            # Demais roles: validar tenant scope
-            stu_filter = apply_tenant_filter({"id": student_id}, user, request)
-            student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
-            if not student:
-                raise HTTPException(status_code=404, detail="Estudante não encontrado")
+        await _ensure_can_view_student(
+            db,
+            user,
+            student_id,
+            request,
+            academic_year=academic_year,
+        )
 
         tenant = get_mantenedora_scope(user, request)
         bulletin = await build_student_bulletin(
@@ -84,31 +115,9 @@ def setup_bulletins_router(db) -> APIRouter:
             academic_year=academic_year,
             mantenedora_id=tenant,
         )
-        # Caso aluno not found (skipped tenant filter para aluno/responsavel)
         if bulletin.get("student") is None:
             raise HTTPException(status_code=404, detail="Estudante não encontrado")
         return bulletin
-
-    # ----------------------------------------------------------------------
-    # Catálogo de boletins disponíveis para o aluno (regular + N dependência)
-    # ----------------------------------------------------------------------
-    async def _ensure_can_view_student(user, student_id: str, request: Request) -> None:
-        role = user.get("role")
-        if role not in ROLES_VIEW_BULLETIN:
-            raise HTTPException(status_code=403, detail="Sem permissão.")
-        if role == "aluno":
-            uid = user.get("student_id") or user.get("linked_student_id")
-            if not uid or uid != student_id:
-                raise HTTPException(status_code=403, detail="Estudante só vê o próprio boletim.")
-        elif role == "responsavel":
-            allowed = set(user.get("dependents") or user.get("student_ids") or [])
-            if student_id not in allowed:
-                raise HTTPException(status_code=403, detail="Responsável só vê estudantes vinculados.")
-        else:
-            stu_filter = apply_tenant_filter({"id": student_id}, user, request)
-            student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
-            if not student:
-                raise HTTPException(status_code=404, detail="Estudante não encontrado")
 
     @router.get("/{student_id}/bulletins-index")
     async def get_student_bulletins_index(
@@ -118,10 +127,24 @@ def setup_bulletins_router(db) -> APIRouter:
     ):
         """Catálogo de boletins disponíveis (regular + dependência por turma)."""
         user = await AuthMiddleware.get_current_user(request)
-        await _ensure_can_view_student(user, student_id, request)
-        items = await list_student_bulletins(
-            db, student_id=student_id, academic_year=academic_year
+        memberships = await _ensure_can_view_student(
+            db,
+            user,
+            student_id,
+            request,
+            academic_year=academic_year,
         )
+        items = await list_student_bulletins(
+            db,
+            student_id=student_id,
+            academic_year=academic_year,
+        )
+        if user.get("role") == "professor":
+            items = [
+                item
+                for item in items
+                if str(item.get("class_id") or "") in memberships
+            ]
         return {
             "student_id": student_id,
             "academic_year": academic_year,
@@ -136,14 +159,24 @@ def setup_bulletins_router(db) -> APIRouter:
         target_class_id: str = Query(..., min_length=1),
         academic_year: int = Query(..., ge=1900, le=2100),
     ):
-        """Boletim de dependência para turma específica.
-
-        Componentes = só os `course_id`s das dependências ativas do aluno
-        na `target_class_id`. Aprovação aplica regras pedagógicas da
-        mantenedora apenas sobre esses componentes.
-        """
+        """Boletim de dependência para turma específica."""
         user = await AuthMiddleware.get_current_user(request)
-        await _ensure_can_view_student(user, student_id, request)
+        memberships = await _ensure_can_view_student(
+            db,
+            user,
+            student_id,
+            request,
+            academic_year=academic_year,
+        )
+        if user.get("role") == "professor" and target_class_id not in memberships:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "TEACHER_DEPENDENCY_BULLETIN_SCOPE_DENIED",
+                    "message": "A turma da dependência não pertence ao escopo avaliativo do professor.",
+                },
+            )
+
         tenant = get_mantenedora_scope(user, request)
         bulletin = await build_student_dependency_bulletin(
             db,
@@ -160,11 +193,7 @@ def setup_bulletins_router(db) -> APIRouter:
 
 
 def setup_admin_bulletins_router(db) -> APIRouter:
-    """Variante usada quando precisamos do prefixo /api/bulletins (não obrigatório).
-
-    Mantida apenas para retrocompatibilidade futura. O endpoint canônico
-    permanece em /api/students/{id}/bulletin.
-    """
+    """Alias compatível em ``/api/bulletins/student/{student_id}``."""
     router = APIRouter(prefix="/bulletins", tags=["Bulletins (alias)"])
 
     @router.get("/student/{student_id}")
@@ -173,29 +202,22 @@ def setup_admin_bulletins_router(db) -> APIRouter:
         request: Request,
         academic_year: int = Query(..., ge=1900, le=2100),
     ):
-        # Reusa a lógica do endpoint canônico via redirecionamento interno.
         from utils.bulletin_builder import build_student_bulletin as _build
+
         user = await AuthMiddleware.get_current_user(request)
-        role = user.get("role")
-        if role not in ROLES_VIEW_BULLETIN:
-            raise HTTPException(status_code=403, detail="Sem permissão.")
-        if role == "aluno":
-            uid = user.get("student_id") or user.get("linked_student_id")
-            if not uid or uid != student_id:
-                raise HTTPException(status_code=403, detail="Sem permissão.")
-        elif role == "responsavel":
-            allowed = set(user.get("dependents") or user.get("student_ids") or [])
-            if student_id not in allowed:
-                raise HTTPException(status_code=403, detail="Sem permissão.")
-        else:
-            stu_filter = apply_tenant_filter({"id": student_id}, user, request)
-            student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
-            if not student:
-                raise HTTPException(status_code=404, detail="Estudante não encontrado")
+        await _ensure_can_view_student(
+            db,
+            user,
+            student_id,
+            request,
+            academic_year=academic_year,
+        )
 
         tenant = get_mantenedora_scope(user, request)
         bulletin = await _build(
-            db, student_id=student_id, academic_year=academic_year,
+            db,
+            student_id=student_id,
+            academic_year=academic_year,
             mantenedora_id=tenant,
         )
         if bulletin.get("student") is None:
