@@ -19,6 +19,7 @@ from services.content_history_bridge import (
     ContentHistoryBridgeError,
     list_assignment_content_history,
 )
+from services.teacher_diaries import list_teacher_diaries
 from tenant_scope import get_mantenedora_scope
 
 
@@ -56,6 +57,102 @@ def _remove_route(router, path: str, method: str):
         return None
     router.routes.remove(route)
     return route.endpoint
+
+
+def _is_multi_component_day_level(class_info: dict) -> bool:
+    """Níveis cuja UI registra o dia da turma com vários componentes/campos."""
+    level = str(
+        class_info.get("education_level")
+        or class_info.get("nivel_ensino")
+        or ""
+    ).lower()
+    return level in {
+        "educacao_infantil",
+        "fundamental_anos_iniciais",
+        "eja_inicial",
+        "eja",
+    }
+
+
+async def _pdf_assignment_ids(
+    db,
+    current_user,
+    request,
+    *,
+    primary_assignment: dict,
+    class_info: dict,
+    academic_year: int,
+    course_id: Optional[str],
+) -> list[str]:
+    """Resolve vínculos de conteúdo do próprio professor que compõem o PDF.
+
+    Anos Finais/EJA final e PDFs com componente explícito continuam estritamente
+    no assignment selecionado. Infantil/Anos Iniciais sem componente explícito
+    reúnem os assignments irmãos do mesmo professor/turma, conforme a UI diária.
+    """
+    primary_id = primary_assignment.get("id")
+    if not primary_id:
+        return []
+    if course_id or not _is_multi_component_day_level(class_info):
+        return [primary_id]
+
+    reference_date = str(
+        primary_assignment.get("valid_from") or datetime.now().date().isoformat()
+    )[:10]
+    diaries = await list_teacher_diaries(
+        db,
+        current_user,
+        academic_year=academic_year,
+        reference_date=reference_date,
+        active_mantenedora_id=get_mantenedora_scope(current_user, request),
+    )
+    sibling_ids = [
+        item.get("assignment_id")
+        for item in diaries.get("items", [])
+        if item.get("class_id") == primary_assignment.get("class_id")
+        and item.get("capabilities", {}).get("content_enabled") is True
+        and item.get("assignment_id")
+    ]
+    if primary_id not in sibling_ids:
+        sibling_ids.append(primary_id)
+    return list(dict.fromkeys(sibling_ids))
+
+
+async def _merged_pdf_history(
+    db,
+    current_user,
+    request,
+    *,
+    assignment_ids: list[str],
+    class_id: str,
+    course_id: Optional[str],
+) -> list[dict]:
+    """Compõe histórias autorizadas sem cruzar autoria entre professores."""
+    merged_items: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for current_assignment_id in assignment_ids:
+        try:
+            history = await list_assignment_content_history(
+                db,
+                current_user,
+                assignment_id=current_assignment_id,
+                class_id=class_id,
+                component_id=course_id,
+                active_mantenedora_id=get_mantenedora_scope(current_user, request),
+            )
+        except ContentHistoryBridgeError as exc:
+            if current_assignment_id == assignment_ids[0]:
+                raise
+            # Um vínculo irmão que deixou de ser válido não pode derrubar o
+            # vínculo principal já autorizado nem ampliar acesso por fallback.
+            continue
+        for item in history.get("items", []):
+            key = (str(item.get("source") or ""), str(item.get("id") or ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged_items.append(dict(item))
+    return merged_items
 
 
 def install_content_entries_history_adapter(base_router, db, sandbox_db=None):
@@ -201,21 +298,45 @@ def install_learning_objects_history_setup(learning_objects_mod):
                 }
                 period_start, period_end = periodos[bimestre]
 
+            assignment = await db.teacher_class_assignments.find_one(
+                {"id": assignment_id, "deleted": False},
+                {
+                    "_id": 0,
+                    "id": 1,
+                    "teacher_id": 1,
+                    "teacher_name": 1,
+                    "class_id": 1,
+                    "component_id": 1,
+                    "valid_from": 1,
+                },
+            )
+            if not assignment:
+                raise HTTPException(status_code=404, detail="Vínculo docente não encontrado")
+
+            assignment_ids = await _pdf_assignment_ids(
+                db,
+                current_user,
+                request,
+                primary_assignment=assignment,
+                class_info=turma,
+                academic_year=academic_year,
+                course_id=course_id,
+            )
             try:
-                merged = await list_assignment_content_history(
+                merged_items = await _merged_pdf_history(
                     db,
                     current_user,
-                    assignment_id=assignment_id,
+                    request,
+                    assignment_ids=assignment_ids,
                     class_id=class_id,
-                    component_id=course_id,
-                    active_mantenedora_id=get_mantenedora_scope(current_user, request),
+                    course_id=course_id,
                 )
             except ContentHistoryBridgeError as exc:
                 raise _http_bridge_error(exc) from exc
 
             records = [
                 dict(item)
-                for item in merged.get("items", [])
+                for item in merged_items
                 if period_start <= str(item.get("date") or "")[:10] <= period_end
                 and (
                     item.get("academic_year") in (None, academic_year, str(academic_year))
@@ -235,10 +356,6 @@ def install_learning_objects_history_setup(learning_objects_mod):
             for record in records:
                 record["course_name"] = course_names.get(record.get("course_id"), "")
 
-            assignment = await db.teacher_class_assignments.find_one(
-                {"id": assignment_id, "deleted": False},
-                {"_id": 0, "teacher_id": 1, "teacher_name": 1},
-            )
             teacher_name = (assignment or {}).get("teacher_name") or ""
             if not teacher_name and (assignment or {}).get("teacher_id"):
                 teacher = await db.users.find_one(
@@ -299,10 +416,7 @@ def install_learning_objects_history_setup(learning_objects_mod):
                     pass
 
             try:
-                from services.class_teachers import get_multi_teacher_names_for_pdf
-                teacher_names = [teacher_name] if teacher_name else await get_multi_teacher_names_for_pdf(
-                    db, turma, academic_year
-                )
+                teacher_names = [teacher_name] if teacher_name else None
                 pdf_buffer = learning_objects_mod.generate_learning_objects_pdf(
                     school=school,
                     class_info=turma,
