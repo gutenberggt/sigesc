@@ -39,7 +39,23 @@ def test_escopo_por_estudante_resolve_assignment_por_componente_e_reusa_pr53():
     assert '_decorate_context_with_legacy_history(' in STUDENT_SCOPE
     assert '_project_grade_for_assignment(grade, context)' in STUDENT_SCOPE
     assert 'GRADE_STUDENT_SCOPE_AMBIGUOUS' in STUDENT_SCOPE
-    assert 'dvd_assignment_id' not in STUDENT_SCOPE or '_project_grade_for_assignment' in STUDENT_SCOPE
+
+
+def test_primeiro_lancamento_tem_linha_autorizada_sem_criar_dado_no_read_model():
+    assert 'def _empty_grade(' in STUDENT_SCOPE
+    assert 'scope.component_id is None' in STUDENT_SCOPE
+    assert 'scope_keys.add((scope.class_id, scope.component_id))' in STUDENT_SCOPE
+    assert '"has_grade_record": bool(grade.get("id"))' in STUDENT_SCOPE
+    assert 'gradeCreationByStudentCourse' in BRIDGE
+    assert 'payload.class_id = creationScope.classId' in BRIDGE
+    assert 'config.url = appendAssignmentId(url, assignmentId)' in BRIDGE
+
+
+def test_componente_duplicado_entre_turmas_falha_fechado():
+    assert 'GRADE_STUDENT_COMPONENT_MULTI_CLASS_AMBIGUOUS' in STUDENT_SCOPE
+    assert 'classes_by_course' in STUDENT_SCOPE
+    assert 'if len(class_ids) > 1' in STUDENT_SCOPE
+    assert 'gradeCreationByStudentCourse.set(simpleKey, null)' in BRIDGE
 
 
 def test_read_models_de_escopo_nao_escrevem_em_notas():
@@ -61,14 +77,16 @@ def test_bridge_nao_prende_leitura_agregada_ao_assignment_raiz():
     assert 'gradeAssignmentById' in BRIDGE
     assert 'gradeAssignmentByScope' in BRIDGE
     assert '/grades/dvd/teacher-students' in BRIDGE
+    assert 'nunca reutiliza o\n      // assignment raiz' in BRIDGE
 
 
-def test_ui_bloqueia_campos_historicos_sem_depender_so_do_backend():
+def test_ui_bloqueia_campos_historicos_e_preserva_conceitos():
     assert 'dvd_read_only_fields' in ALUNO_TAB
     assert 'dvd_locked_fields' in ALUNO_TAB
     assert 'Histórico read-only' in ALUNO_TAB
     assert 'ConceitoSelect' in ALUNO_TAB
     assert 'usaAvaliacaoConceitual' in ALUNO_TAB
+    assert 'calcularMaiorConceito' in ALUNO_TAB
     assert 'dvd_read_only_fields' in GRADES_TABLE
     assert 'dvd_locked_fields' in GRADES_TABLE
     assert 'Histórico anterior ao Diário por Vínculo' in GRADES_TABLE
