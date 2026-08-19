@@ -95,10 +95,12 @@ def test_regular_dvd_alerts_are_enabled_but_documentary_remains_non_official():
     assert 'fica indisponível neste contexto' not in source
 
 
-def test_parity_adapter_is_installed_after_phase4_adapter():
+def test_parity_adapters_are_installed_in_safe_order():
     source = _read(ROUTERS_INIT)
 
     phase4 = source.index('configured = install_attendance_dvd_adapter')
-    parity = source.index('return install_attendance_tabs_dvd_adapter')
-    assert phase4 < parity
+    tabs = source.index('configured = install_attendance_tabs_dvd_adapter')
+    pdf = source.index('return install_attendance_pdf_dvd_parity')
+
+    assert phase4 < tabs < pdf
     assert '_attendance_tabs_dvd_mod.dvd_mod = _attendance_dvd_mod' in source
