@@ -1,0 +1,61 @@
+"""P0 — paridade operacional de Objetos de Conhecimento no DVD."""
+
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+BRIDGE = ROOT / "frontend/src/services/contentDvdBridge.js"
+DASHBOARD = ROOT / "frontend/src/pages/ProfessorDashboard.js"
+COPY_ADAPTER = ROOT / "backend/routers/content_copy_dvd.py"
+ROUTERS_INIT = ROOT / "backend/routers/__init__.py"
+
+
+def test_quick_access_content_requires_diary_context():
+    source = DASHBOARD.read_text(encoding="utf-8")
+    assert 'data-testid="menu-objetos-conhecimento"' in source
+    assert 'onClick={openFromMyDiaries}' in source
+    assert source.count('Escolha o diário/vínculo abaixo') >= 2
+
+
+def test_content_bridge_resolves_authorized_diaries_and_sibling_assignments():
+    source = BRIDGE.read_text(encoding="utf-8")
+    assert '/professor/diarios' in source
+    assert 'contentDiariesFor' in source
+    assert 'resolveAssignment' in source
+    assert 'siblings:' in source
+    assert 'sibling.assignment_id' in source
+    assert 'sibling.component_id' in source
+    assert 'assignment_id: assignmentId' in source
+
+
+def test_multicomponent_create_uses_component_specific_assignment():
+    source = BRIDGE.read_text(encoding="utf-8")
+    assert 'const componentId = payload.component_id || payload.course_id || null' in source
+    assert 'payload.assignment_id = assignmentId' in source
+    assert 'preferredAssignmentId: rootAssignmentId' in source
+
+
+def test_dvd_copy_is_enabled_only_with_target_assignment():
+    source = BRIDGE.read_text(encoding="utf-8")
+    assert "Cópia entre turmas ainda não está disponível" not in source
+    assert 'CONTENT_COPY_TARGET_ASSIGNMENT_REQUIRED' in source
+    assert 'target_assignment_id: targetAssignmentId' in source
+    assert 'source_assignment_id:' in source
+
+
+def test_copy_backend_reuses_canonical_content_engine_and_preserves_traceability():
+    source = COPY_ADAPTER.read_text(encoding="utf-8")
+    assert 'save_content_canonical' in source
+    assert 'ContentEntryCreate' in source
+    assert 'authorize_content_record' in source
+    assert 'list_assignment_content_history' in source
+    assert '"copied_from_id": source_id' in source
+    assert '"copied_from_source": source_kind' in source
+    assert 'target_assignment_id: str' in source
+
+
+def test_copy_setup_is_installed_after_history_bridge():
+    source = ROUTERS_INIT.read_text(encoding="utf-8")
+    history = source.index('install_content_history_setups(')
+    copy = source.index('install_content_copy_setup(')
+    assert history < copy
