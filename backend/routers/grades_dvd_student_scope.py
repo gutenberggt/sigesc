@@ -7,6 +7,8 @@ adaptador mantém o comportamento legado para demais perfis e, para professor:
 - expõe um roster derivado somente dos vínculos avaliativos autorizados;
 - exige que o estudante pertença a uma turma do professor;
 - resolve um ``assignment_id`` próprio por turma/componente;
+- inclui componentes autorizados ainda sem documento ``grades`` para permitir o
+  primeiro lançamento pelo motor canônico da Fase 5;
 - aplica a mesma projeção histórica read-only do PR #53;
 - nunca grava ``grades`` e não cria ownership.
 """
@@ -137,6 +139,32 @@ async def _student_series_by_class(
     }
 
 
+def _empty_grade(
+    *,
+    student_id: str,
+    class_id: str,
+    course_id: str,
+    academic_year: int,
+) -> dict[str, Any]:
+    return {
+        "student_id": student_id,
+        "class_id": class_id,
+        "course_id": course_id,
+        "academic_year": academic_year,
+        "b1": None,
+        "b2": None,
+        "b3": None,
+        "b4": None,
+        "rec_s1": None,
+        "rec_s2": None,
+        "recovery": None,
+        "observations": None,
+        "final_average": None,
+        "status": "cursando",
+        "grade_ownership": {},
+    }
+
+
 def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
     if getattr(base_router, "_dvd_grades_student_scope_installed", False):
         return base_router
@@ -163,7 +191,6 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
             academic_year=year,
             active_mantenedora_id=get_mantenedora_scope(user, request),
         )
-        # Shape compatível com studentsAPI.getAll usado pela busca atual.
         return {
             "items": roster,
             "total": len(roster),
@@ -228,17 +255,27 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
             },
             {"_id": 0},
         ).to_list(1000)
+        raw_by_scope = {
+            (str(grade.get("class_id") or ""), str(grade.get("course_id") or "")): grade
+            for grade in raw_grades
+            if grade.get("class_id") and grade.get("course_id")
+        }
+
+        # Toda linha já existente é candidata; além disso, vínculos com
+        # componente explícito geram uma linha vazia quando ainda não existe
+        # documento grades. Vínculo de regência (component_id=None) não inventa
+        # currículo aqui: ele só projeta componentes que já existam no dado.
+        scope_keys: set[tuple[str, str]] = set(raw_by_scope)
+        for scope in scopes:
+            if scope.class_id not in memberships or scope.component_id is None:
+                continue
+            scope_keys.add((scope.class_id, scope.component_id))
 
         class_cache: dict[str, dict[str, Any]] = {}
         course_cache: dict[str, dict[str, Any]] = {}
         visible: list[dict[str, Any]] = []
 
-        for grade in raw_grades:
-            class_id = str(grade.get("class_id") or "")
-            course_id = str(grade.get("course_id") or "")
-            if not class_id or not course_id:
-                continue
-
+        for class_id, course_id in sorted(scope_keys):
             context = await _resolve_unique_grade_context(
                 current_db,
                 user,
@@ -249,9 +286,14 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
                 active_mantenedora_id=tenant_id,
             )
             if context is None:
-                # Campo de componente não lecionado não aparece na visão docente.
                 continue
 
+            grade = raw_by_scope.get((class_id, course_id)) or _empty_grade(
+                student_id=student_id,
+                class_id=class_id,
+                course_id=course_id,
+                academic_year=year,
+            )
             projected = _project_grade_for_assignment(grade, context)
 
             if class_id not in class_cache:
@@ -287,6 +329,7 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
                     ),
                     "student_series": student_series,
                     "is_multi_grade": bool(class_info.get("is_multi_grade")),
+                    "has_grade_record": bool(grade.get("id")),
                 }
             )
             visible.append(projected)
