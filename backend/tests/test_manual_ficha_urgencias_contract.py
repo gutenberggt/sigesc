@@ -4,6 +4,7 @@ Não importa FastAPI/ReportLab/Mongo. O objetivo é impedir regressões arquitet
 - a contingência não pode escrever nas coleções acadêmicas;
 - a única escrita admitida é a trilha independente manual_document_issuances;
 - o gerador oficial deve ser reutilizado de forma isolada, sem monkeypatch global;
+- todas as leituras acadêmicas sensíveis devem respeitar o escopo multi-tenant;
 - frontend e Dashboard devem manter as rotas/avisos essenciais.
 """
 from __future__ import annotations
@@ -83,6 +84,23 @@ def test_manual_router_reuses_official_pdf_without_global_monkeypatch():
     # Não permitir atribuição direta aos globals do módulo oficial.
     assert "ficha_individual_module.determinar_resultado_documento =" not in source
     assert "ficha_individual_module.date =" not in source
+
+
+def test_manual_router_enforces_tenant_scope():
+    source = _source(BACKEND_ROUTER)
+    assert "from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_active_mantenedora" in source
+
+    # Entidades acadêmicas/cadastrais principais devem ser consultadas sob tenant scope.
+    for literal in (
+        'apply_tenant_filter({"id": school_id}, user, request)',
+        'apply_tenant_filter({"id": class_id}, user, request)',
+        'apply_tenant_filter({"id": student_id}, user, request)',
+        'course_query = apply_tenant_filter({"id": {"$in": ids}}, user, request)',
+    ):
+        assert literal in source, f"Escopo multi-tenant ausente: {literal}"
+
+    assert "resolve_active_mantenedora(" in source
+    assert "apply_tenant_filter(\n            {\"class_id\": class_id, \"academic_year\": academic_year}, user, request" in source
 
 
 def test_manual_routes_are_attached_to_existing_documents_router():
