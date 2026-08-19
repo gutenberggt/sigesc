@@ -32,6 +32,7 @@ from pdf.utils import (
     ordenar_componentes_por_nivel,
 )
 from services.attendance_utils import fetch_medical_days_for_student
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_active_mantenedora
 from utils.curriculum_resolver import resolve_curriculum
 
 router = APIRouter(tags=["Urgências - Ficha Individual"])
@@ -150,32 +151,53 @@ def _is_conceptual(nivel_ensino: str, grade_level: str) -> bool:
     return nivel_ensino == "educacao_infantil" or is_serie_conceitual_anos_iniciais(grade_level)
 
 
-async def _load_context(db, *, user: dict, school_id: str, class_id: str,
-                        student_id: str, student_series: Optional[str]) -> dict[str, Any]:
+async def _load_context(
+    db,
+    *,
+    user: dict,
+    request: Request,
+    school_id: str,
+    class_id: str,
+    student_id: str,
+    student_series: Optional[str],
+) -> dict[str, Any]:
     _ensure_role_and_school(user, school_id)
 
-    school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+    school = await db.schools.find_one(
+        apply_tenant_filter({"id": school_id}, user, request), {"_id": 0}
+    )
     if not school:
         raise HTTPException(status_code=404, detail="Escola não encontrada")
+    assert_same_tenant(school, user, request)
 
-    class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
+    class_info = await db.classes.find_one(
+        apply_tenant_filter({"id": class_id}, user, request), {"_id": 0}
+    )
     if not class_info:
         raise HTTPException(status_code=404, detail="Turma não encontrada")
+    assert_same_tenant(class_info, user, request)
     if str(class_info.get("school_id")) != str(school_id):
         raise HTTPException(status_code=400, detail="A turma selecionada não pertence à escola informada")
 
-    student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    student = await db.students.find_one(
+        apply_tenant_filter({"id": student_id}, user, request), {"_id": 0}
+    )
     if not student:
         raise HTTPException(status_code=404, detail="Estudante não encontrado")
+    assert_same_tenant(student, user, request)
 
     academic_year = int(class_info.get("academic_year") or datetime.now().year)
     enrollment = await db.enrollments.find_one(
-        {
-            "student_id": student_id,
-            "class_id": class_id,
-            "academic_year": academic_year,
-            "status": {"$in": ["active", "relocated", "transferred"]},
-        },
+        apply_tenant_filter(
+            {
+                "student_id": student_id,
+                "class_id": class_id,
+                "academic_year": academic_year,
+                "status": {"$in": ["active", "relocated", "transferred"]},
+            },
+            user,
+            request,
+        ),
         {"_id": 0},
         sort=[("status", 1)],
     )
@@ -184,6 +206,7 @@ async def _load_context(db, *, user: dict, school_id: str, class_id: str,
             status_code=400,
             detail="Não existe matrícula do estudante na turma e ano letivo selecionados",
         )
+    assert_same_tenant(enrollment, user, request)
 
     enrollment_series = (enrollment.get("student_series") or "").strip()
     if _is_multigrade(class_info):
@@ -218,7 +241,13 @@ async def _load_context(db, *, user: dict, school_id: str, class_id: str,
     )
     resolved = resolution.get("components") or []
     ids = [item.get("course_id") for item in resolved if item.get("course_id")]
-    course_docs = await db.courses.find({"id": {"$in": ids}}, {"_id": 0}).to_list(300) if ids else []
+    if ids:
+        course_query = apply_tenant_filter({"id": {"$in": ids}}, user, request)
+        course_docs = await db.courses.find(course_query, {"_id": 0}).to_list(300)
+    else:
+        course_docs = []
+    for course in course_docs:
+        assert_same_tenant(course, user, request)
     by_id = {c.get("id"): c for c in course_docs}
     courses = [by_id[cid] for cid in ids if cid in by_id]
     courses = ordenar_componentes_por_nivel(courses, nivel_ensino)
@@ -228,27 +257,31 @@ async def _load_context(db, *, user: dict, school_id: str, class_id: str,
 
     attendance_data = await _build_attendance_data(
         db,
+        user=user,
+        request=request,
         student_id=student_id,
         class_id=class_id,
         academic_year=academic_year,
         courses=courses,
     )
 
-    calendario = await _load_calendar(db, academic_year)
-
-    mantenedora_query: dict[str, Any] = {}
-    mantenedora_id = school.get("mantenedora_id") or school.get("tenant_id")
-    if mantenedora_id:
-        mantenedora_query = {"$or": [{"id": mantenedora_id}, {"mantenedora_id": mantenedora_id}]}
-    mantenedora = await db.mantenedora.find_one(mantenedora_query, {"_id": 0}) or {}
+    calendario = await _load_calendar(db, academic_year, user=user, request=request)
+    mantenedora = await resolve_active_mantenedora(
+        db, user, request, fallback_to_first=True
+    ) or {}
 
     # Replica a resolução do nome de escola anexa usada no módulo oficial de documentos.
     school = dict(school)
     anexa_a = school.get("anexa_a")
     if school.get("tipo_unidade") == "anexa" and anexa_a:
-        sede = await db.schools.find_one({"id": anexa_a}, {"_id": 0, "name": 1})
-        if sede and sede.get("name"):
-            school["anexa_a"] = sede["name"]
+        sede = await db.schools.find_one(
+            apply_tenant_filter({"id": anexa_a}, user, request),
+            {"_id": 0, "name": 1, "mantenedora_id": 1},
+        )
+        if sede:
+            assert_same_tenant(sede, user, request)
+            if sede.get("name"):
+                school["anexa_a"] = sede["name"]
 
     return {
         "school": school,
@@ -266,23 +299,40 @@ async def _load_context(db, *, user: dict, school_id: str, class_id: str,
     }
 
 
-async def _load_calendar(db, academic_year: int) -> dict[str, Any]:
+async def _load_calendar(
+    db,
+    academic_year: int,
+    *,
+    user: dict,
+    request: Request,
+) -> dict[str, Any]:
     calendario = await db.calendario_letivo.find_one(
-        {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
+        apply_tenant_filter(
+            {"ano_letivo": academic_year, "school_id": None}, user, request
+        ),
+        {"_id": 0},
     )
     if not calendario:
         calendario = await db.calendario_letivo.find_one(
-            {"ano_letivo": academic_year}, {"_id": 0}
+            apply_tenant_filter({"ano_letivo": academic_year}, user, request),
+            {"_id": 0},
         )
     if not calendario:
         return {}
+    assert_same_tenant(calendario, user, request)
 
     events = await db.calendar_events.find(
-        {"academic_year": {"$in": [academic_year, str(academic_year)]}}, {"_id": 0}
+        apply_tenant_filter(
+            {"academic_year": {"$in": [academic_year, str(academic_year)]}},
+            user,
+            request,
+        ),
+        {"_id": 0},
     ).to_list(1000)
     non_school: set[date] = set()
     school_saturdays: set[date] = set()
     for event in events:
+        assert_same_tenant(event, user, request)
         start = (event.get("start_date") or "")[:10]
         end = (event.get("end_date") or start)[:10]
         if not start:
@@ -323,12 +373,29 @@ async def _load_calendar(db, academic_year: int) -> dict[str, Any]:
     return calendario
 
 
-async def _build_attendance_data(db, *, student_id: str, class_id: str,
-                                 academic_year: int, courses: list[dict]) -> dict[str, Any]:
+async def _build_attendance_data(
+    db,
+    *,
+    user: dict,
+    request: Request,
+    student_id: str,
+    class_id: str,
+    academic_year: int,
+    courses: list[dict],
+) -> dict[str, Any]:
     records = await db.attendance.find(
-        {"class_id": class_id, "academic_year": academic_year}, {"_id": 0}
+        apply_tenant_filter(
+            {"class_id": class_id, "academic_year": academic_year}, user, request
+        ),
+        {"_id": 0},
     ).to_list(None)
+    for record in records:
+        assert_same_tenant(record, user, request)
+
     dates = {(doc.get("date") or "")[:10] for doc in records if doc.get("date")}
+    # A busca de atestado é limitada pelo student_id já validado no tenant. Alguns
+    # documentos legados não possuem mantenedora_id, então não aplicamos filtro que
+    # os faria desaparecer indevidamente.
     certs = await db.medical_certificates.find(
         {
             "student_id": student_id,
@@ -525,6 +592,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ctx = await _load_context(
             active_db,
             user=user,
+            request=request,
             school_id=school_id,
             class_id=class_id,
             student_id=student_id,
@@ -561,6 +629,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ctx = await _load_context(
             active_db,
             user=user,
+            request=request,
             school_id=payload.school_id,
             class_id=payload.class_id,
             student_id=payload.student_id,
@@ -601,7 +670,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "issued_at": datetime.now(timezone.utc).isoformat(),
             "pdf_sha256": digest,
             "source": "urgencias",
-            "mantenedora_id": ctx["school"].get("mantenedora_id") or ctx["school"].get("tenant_id"),
+            "mantenedora_id": ctx["mantenedora"].get("id") or ctx["school"].get("mantenedora_id"),
         }
         # Única escrita do fluxo: trilha documental independente. Não é dado acadêmico.
         await active_db.manual_document_issuances.insert_one(issuance)
