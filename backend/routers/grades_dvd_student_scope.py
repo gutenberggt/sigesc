@@ -10,6 +10,8 @@ adaptador mantém o comportamento legado para demais perfis e, para professor:
 - inclui componentes autorizados ainda sem documento ``grades`` para permitir o
   primeiro lançamento pelo motor canônico da Fase 5;
 - aplica a mesma projeção histórica read-only do PR #53;
+- falha fechado se o mesmo componente aparecer em mais de uma turma na visão
+  agregada, pois a UI legada identifica edição local por ``course_id``;
 - nunca grava ``grades`` e não cria ownership.
 """
 
@@ -261,10 +263,10 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
             if grade.get("class_id") and grade.get("course_id")
         }
 
-        # Toda linha já existente é candidata; além disso, vínculos com
-        # componente explícito geram uma linha vazia quando ainda não existe
-        # documento grades. Vínculo de regência (component_id=None) não inventa
-        # currículo aqui: ele só projeta componentes que já existam no dado.
+        # Toda linha já existente é candidata; vínculos com componente explícito
+        # também geram uma linha vazia para permitir o primeiro lançamento.
+        # Regência (component_id=None) não inventa currículo aqui: projeta apenas
+        # componentes que já existam no dado canônico.
         scope_keys: set[tuple[str, str]] = set(raw_by_scope)
         for scope in scopes:
             if scope.class_id not in memberships or scope.component_id is None:
@@ -333,6 +335,35 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
                 }
             )
             visible.append(projected)
+
+        # Grades.js legado localiza a linha editada por course_id. Se o mesmo
+        # componente estiver em duas turmas simultaneamente, não existe chave
+        # local segura para escolher uma delas. Falhamos fechado em vez de
+        # modificar a linha errada; a visão Por Turma continua disponível.
+        classes_by_course: dict[str, set[str]] = {}
+        for item in visible:
+            course_id = str(item.get("course_id") or "")
+            class_id = str(item.get("class_id") or "")
+            if course_id and class_id:
+                classes_by_course.setdefault(course_id, set()).add(class_id)
+        ambiguous_courses = sorted(
+            course_id
+            for course_id, class_ids in classes_by_course.items()
+            if len(class_ids) > 1
+        )
+        if ambiguous_courses:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "GRADE_STUDENT_COMPONENT_MULTI_CLASS_AMBIGUOUS",
+                    "message": (
+                        "O mesmo componente aparece em mais de uma turma autorizada "
+                        "para este estudante. Use a visão Por Turma até a situação "
+                        "ser reconciliada."
+                    ),
+                    "course_ids": ambiguous_courses,
+                },
+            )
 
         visible.sort(
             key=lambda item: (
