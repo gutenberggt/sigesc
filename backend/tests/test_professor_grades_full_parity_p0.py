@@ -28,8 +28,18 @@ def test_roster_do_professor_deriva_de_assignment_e_capability_grades():
     assert 'profile is DiaryProfile.SHARED' in TEACHER_SCOPE
     assert 'student_scope is StudentScope.GROUP' in TEACHER_SCOPE
     assert 'grades_official_owner' in TEACHER_SCOPE
-    assert 'status": "active"' in TEACHER_SCOPE
     assert 'TEACHER_STUDENT_GRADE_SCOPE_DENIED' in TEACHER_SCOPE
+
+
+def test_escopo_e_ancorado_no_ano_e_preserva_historico_com_evidencia():
+    assert 'def _year_bounds(' in TEACHER_SCOPE
+    assert 'def _assignment_authorization_date(' in TEACHER_SCOPE
+    assert '"valid_from": {"$lte": year_end}' in TEACHER_SCOPE
+    assert '{"valid_until": {"$gte": year_start}}' in TEACHER_SCOPE
+    assert 'academic_year": {"$in": [int(academic_year), str(int(academic_year))]}' in TEACHER_SCOPE
+    assert 'grade_rows = await db.grades.find(' in TEACHER_SCOPE
+    assert 'inclusive após transferência/remanejamento' in TEACHER_SCOPE
+    assert 'if int(academic_year) == date.today().year:' in TEACHER_SCOPE
 
 
 def test_escopo_por_estudante_resolve_assignment_por_componente_e_reusa_pr53():
