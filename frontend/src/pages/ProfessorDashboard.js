@@ -62,6 +62,18 @@ export default function ProfessorDashboard() {
     }
   };
 
+  // No DVD, a frequência do professor precisa nascer do card do vínculo para
+  // carregar assignment_id. O atalho genérico apenas posiciona o usuário na
+  // seção canônica "Meus Diários", evitando cair no endpoint legado bloqueado.
+  const openAttendanceFromMyDiaries = () => {
+    const section = document.querySelector('[data-testid="meus-diarios-section"]');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    navigate('/professor');
+  };
+
   // Separar turmas regulares e AEE
   const turmasAEE = turmas.filter(t => t.atendimento_programa === 'aee');
   const turmasRegulares = turmas.filter(t => !t.atendimento_programa || (t.atendimento_programa !== 'aee' && t.atendimento_programa !== 'reforco' && t.atendimento_programa !== 'recomposicao'));
@@ -192,12 +204,13 @@ export default function ProfessorDashboard() {
 
                 <Card 
                   className="cursor-pointer hover:bg-green-50 transition-colors"
-                  onClick={() => navigate('/professor/frequencia')}
+                  onClick={openAttendanceFromMyDiaries}
                   data-testid="menu-frequencia"
                 >
                   <CardContent className="p-4 text-center">
                     <CheckSquare className="mx-auto mb-2 text-green-600" size={32} />
                     <p className="font-medium">Frequência</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p>
                   </CardContent>
                 </Card>
 
