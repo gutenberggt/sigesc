@@ -1,0 +1,103 @@
+name: Gate - Urgências Ficha Individual
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/routers/manual_ficha_individual.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/pdf/ficha_individual.py'
+      - 'backend/pdf/utils.py'
+      - 'backend/utils/curriculum_resolver.py'
+      - 'backend/tests/test_manual_ficha_urgencias_e2e_http.py'
+      - 'frontend/src/App.js'
+      - 'frontend/src/pages/Dashboard.js'
+      - 'frontend/src/pages/Urgencias.jsx'
+      - 'frontend/src/pages/UrgenciaFichaIndividual.jsx'
+      - '.github/workflows/urgencias-ficha-functional.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/routers/manual_ficha_individual.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/pdf/ficha_individual.py'
+      - 'backend/pdf/utils.py'
+      - 'backend/utils/curriculum_resolver.py'
+      - 'backend/tests/test_manual_ficha_urgencias_e2e_http.py'
+      - 'frontend/src/App.js'
+      - 'frontend/src/pages/Dashboard.js'
+      - 'frontend/src/pages/Urgencias.jsx'
+      - 'frontend/src/pages/UrgenciaFichaIndividual.jsx'
+      - '.github/workflows/urgencias-ficha-functional.yml'
+
+jobs:
+  urgencias-ficha-functional:
+    name: GATE - Ficha Individual de Urgência
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: sigesc_ci
+      JWT_SECRET_KEY: ci-urgencias-secret-not-for-prod
+      CORS_ORIGINS: http://localhost:8001
+      REACT_APP_BACKEND_URL: http://localhost:8001
+      DISABLE_RENDER_WORKER: "true"
+      CI: "true"
+      CI_ADMIN_EMAIL: ci-admin@sigesc.aprenderdigital.top
+      CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD || 'CiRegress!2026' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+
+      - name: Wait for MongoDB
+        run: |
+          for i in $(seq 1 30); do
+            if python -c "from pymongo import MongoClient; MongoClient('$MONGO_URL', serverSelectionTimeoutMS=1000).admin.command('ping')" 2>/dev/null; then
+              echo "MongoDB pronto"; exit 0
+            fi
+            sleep 1
+          done
+          echo "MongoDB não respondeu"; exit 1
+
+      - name: Bootstrap super_admin de CI
+        run: python scripts/ci_bootstrap_admin.py
+
+      - name: Start backend (uvicorn)
+        run: |
+          nohup uvicorn server:app --host 0.0.0.0 --port 8001 > /tmp/backend-urgencias.log 2>&1 &
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/api/ || true)
+            if [ "$code" = "200" ]; then echo "Backend pronto"; exit 0; fi
+            sleep 1
+          done
+          echo "Backend não subiu. Logs:"; tail -n 100 /tmp/backend-urgencias.log; exit 1
+
+      - name: Run functional homologation
+        run: pytest -q tests/test_manual_ficha_urgencias_e2e_http.py
+
+      - name: Homologation gate summary
+        if: success()
+        run: |
+          echo "PASS: Ficha Individual de Urgência validada em backend real + Mongo efêmero."
+          echo "Cobertura: regular, multisseriada, numérica, conceitual, PDF, data/resultado e não-mutação acadêmica."
+          echo "Este gate não faz merge nem deploy."
+
+      - name: Backend logs on failure
+        if: failure()
+        run: tail -n 120 /tmp/backend-urgencias.log || true
