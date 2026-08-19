@@ -24,10 +24,19 @@ from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
 from .analytics import router as analytics_router, setup_analytics_router
 
+# P0 DVD Conteúdos — instala os adaptadores antes de server.py importar
+# setup_content_entries_router/learning_objects. Os routers originais permanecem
+# intactos; somente as superfícies de leitura recebem compatibilidade histórica.
+from . import content_entries as _content_entries_mod
+from . import learning_objects as _learning_objects_mod
+from .content_dvd_history import install_content_history_setups
+
+
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
 # setup aqui garante que o endpoint legado de PDF seja protegido antes de ser
 # registrado na aplicação, sem alterar o gerador/layout do PDF.
 install_attendance_ext_dvd_setup()
+install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 
 
 def setup_grades_router(
