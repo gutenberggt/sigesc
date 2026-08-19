@@ -34,6 +34,11 @@ const normalizeRecord = (record = {}) => ({
   read_only: record.read_only === true,
 });
 
+const withHistoryAssignment = (record = {}, historyAssignmentId = '') => ({
+  ...record,
+  history_assignment_id: record.assignment_id || record.history_assignment_id || historyAssignmentId || null,
+});
+
 const cacheRecords = (records = []) => {
   records.forEach((record) => {
     if (record?.id) recordCache.set(record.id, normalizeRecord(record));
@@ -222,6 +227,7 @@ axios.interceptors.request.use(async (config) => {
       academicYear,
       month: original.month,
       classId,
+      primaryAssignmentId: primary.assignment_id,
       siblings: componentId
         ? []
         : candidates
@@ -296,7 +302,7 @@ axios.interceptors.request.use(async (config) => {
     config.url = canonicalBase(url);
     config.data = {
       ...body,
-      source_assignment_id: current.assignment_id || rootAssignmentId || null,
+      source_assignment_id: current.assignment_id || current.history_assignment_id || rootAssignmentId || null,
       target_assignment_id: targetAssignmentId,
     };
     config.__contentDvdRecord = true;
@@ -378,7 +384,11 @@ axios.interceptors.response.use(async (response) => {
   const config = response.config || {};
 
   if (config.__contentDvdList) {
-    const raw = Array.isArray(response.data?.items) ? response.data.items : [];
+    const primaryHistoryAssignmentId =
+      response.data?.history_bridge?.assignment_id || config.__contentDvdList.primaryAssignmentId || '';
+    const raw = Array.isArray(response.data?.items)
+      ? response.data.items.map((item) => withHistoryAssignment(item, primaryHistoryAssignmentId))
+      : [];
     const combined = [...raw];
 
     for (const sibling of config.__contentDvdList.siblings || []) {
@@ -392,7 +402,9 @@ axios.interceptors.response.use(async (response) => {
         __skipContentDvdBridge: true,
       });
       if (Array.isArray(siblingResponse.data?.items)) {
-        combined.push(...siblingResponse.data.items);
+        combined.push(
+          ...siblingResponse.data.items.map((item) => withHistoryAssignment(item, sibling.assignment_id))
+        );
       }
     }
 
@@ -411,7 +423,10 @@ axios.interceptors.response.use(async (response) => {
   }
 
   if (config.__contentDvdCheckDate) {
-    const raw = Array.isArray(response.data?.items) ? response.data.items : [];
+    const historyAssignmentId = response.data?.history_bridge?.assignment_id || config.params?.assignment_id || '';
+    const raw = Array.isArray(response.data?.items)
+      ? response.data.items.map((item) => withHistoryAssignment(item, historyAssignmentId))
+      : [];
     const items = raw.map(normalizeRecord);
     cacheRecords(items);
     response.data = {
