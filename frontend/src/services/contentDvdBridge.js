@@ -22,6 +22,8 @@ const normalizeRecord = (record = {}) => ({
   course_id: record.course_id || record.component_id || null,
   component_id: record.component_id || record.course_id || null,
   source: record.source || 'content_entries',
+  legacy: record.legacy === true,
+  read_only: record.read_only === true,
 });
 
 const cacheRecords = (records = []) => {
@@ -43,6 +45,32 @@ const filterByLegacyListParams = (items, meta = {}) => {
 };
 
 const correctionNote = 'Correção realizada pelo Diário de Conteúdos por Vínculo.';
+const legacyReadOnlyMessage = 'Este conteúdo pertence ao histórico anterior ao Diário por Vínculo e está disponível somente para consulta.';
+
+const isLegacyReadOnly = (record) => Boolean(record?.legacy || record?.read_only || record?.source === 'learning_objects');
+
+const rejectLegacyWrite = () => {
+  const error = new Error(legacyReadOnlyMessage);
+  error.response = {
+    status: 409,
+    data: {
+      detail: {
+        code: 'DVD_LEGACY_CONTENT_READ_ONLY',
+        message: legacyReadOnlyMessage,
+      },
+    },
+  };
+  return Promise.reject(error);
+};
+
+const cachedLegacyAdapter = (record) => async (config) => ({
+  data: record,
+  status: 200,
+  statusText: 'OK',
+  headers: {},
+  config,
+  request: null,
+});
 
 // Bridge estritamente contextual: sem assignment_id, o fluxo legado permanece intacto.
 axios.interceptors.request.use((config) => {
@@ -76,8 +104,8 @@ axios.interceptors.request.use((config) => {
     return config;
   }
 
-  // GET de lista: content_entries retorna {items,total}; mês/ano são filtrados
-  // no response bridge, sem relaxar a filtragem/autorização server-side.
+  // GET de lista: o backend devolve a visão consolidada autorizada
+  // content_entries + learning_objects histórico read-only.
   if (method === 'get' && /\/learning-objects\/?(?:\?|$)/.test(url)) {
     const original = { ...(config.params || {}) };
     config.url = canonicalBase(url);
@@ -99,8 +127,16 @@ axios.interceptors.request.use((config) => {
     return config;
   }
 
-  // GET individual.
+  // GET individual. Itens legados já recebidos na listagem são servidos do
+  // cache local somente para visualização; nunca são convertidos em content_entry.
   if (method === 'get') {
+    const id = url.split('/').filter(Boolean).pop();
+    const current = recordCache.get(id);
+    if (isLegacyReadOnly(current)) {
+      config.adapter = cachedLegacyAdapter(current);
+      config.__contentDvdRecord = true;
+      return config;
+    }
     config.url = canonicalBase(url);
     config.__contentDvdRecord = true;
     return config;
@@ -131,6 +167,8 @@ axios.interceptors.request.use((config) => {
       };
       return Promise.reject(error);
     }
+    if (isLegacyReadOnly(current)) return rejectLegacyWrite();
+
     const patch = { ...(config.data || {}) };
 
     // Conteúdo publicado/corrigido nunca volta para PUT/upsert: usa a rota
@@ -174,6 +212,10 @@ axios.interceptors.request.use((config) => {
   }
 
   if (method === 'delete') {
+    const id = url.split('/').filter(Boolean).pop();
+    const current = recordCache.get(id);
+    if (isLegacyReadOnly(current)) return rejectLegacyWrite();
+
     config.url = canonicalBase(url);
     config.data = {
       change_note: 'Exclusão realizada pelo Diário de Conteúdos por Vínculo.',
