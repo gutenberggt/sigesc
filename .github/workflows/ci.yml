@@ -174,4 +174,5 @@ jobs:
             tests/test_professor_attendance_pdf_status_p0.py \
             tests/test_professor_attendance_pdf_document_parity_p0.py \
             tests/test_professor_content_parity_p0.py \
-            tests/test_professor_grades_history_parity_p0.py
+            tests/test_professor_grades_history_parity_p0.py \
+            tests/test_professor_grades_full_parity_p0.py
