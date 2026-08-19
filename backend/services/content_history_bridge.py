@@ -80,8 +80,8 @@ async def list_assignment_content_history(
 
     Regras:
     - autoriza o vínculo vivo para VIEW usando a política central DVD;
-    - ``date < valid_from`` pode vir de ``learning_objects``;
-    - ``date >= valid_from`` vem somente de ``content_entries``;
+    - ``date < valid_from`` pode vir somente de ``learning_objects``;
+    - ``date >= valid_from`` pode vir somente de ``content_entries``;
     - legado é filtrado pelo ``recorded_by`` histórico do proprietário;
     - nenhuma operação de escrita é executada.
     """
@@ -123,26 +123,33 @@ async def list_assignment_content_history(
 
     resolved_component_id = component_id or assignment_component_id
 
-    canonical_query: dict[str, Any] = {"assignment_id": assignment_id}
-    if not include_deleted:
-        canonical_query["deleted"] = False
-    if resolved_class_id:
-        canonical_query["class_id"] = resolved_class_id
-    if resolved_component_id:
-        canonical_query["component_id"] = resolved_component_id
-    if date:
-        canonical_query["date"] = date
+    # Fechamento temporal explícito: conteúdo canônico nunca é projetado para o
+    # período anterior ao início do vínculo, mesmo que exista dado inconsistente.
+    canonical_date_allowed = not date or str(date) >= str(valid_from)
+    canonical_items: list[dict] = []
+    if canonical_date_allowed:
+        canonical_query: dict[str, Any] = {"assignment_id": assignment_id}
+        if not include_deleted:
+            canonical_query["deleted"] = False
+        if resolved_class_id:
+            canonical_query["class_id"] = resolved_class_id
+        if resolved_component_id:
+            canonical_query["component_id"] = resolved_component_id
+        if date:
+            canonical_query["date"] = date
+        else:
+            canonical_query["date"] = {"$gte": valid_from}
 
-    canonical_candidates = await db.content_entries.find(
-        canonical_query, {"_id": 0}
-    ).to_list(2000)
-    canonical_visible = await filter_visible_content_entries(
-        db,
-        current_user,
-        canonical_candidates,
-        active_mantenedora_id=active_mantenedora_id,
-    )
-    canonical_items = [_canonical_public(item) for item in canonical_visible]
+        canonical_candidates = await db.content_entries.find(
+            canonical_query, {"_id": 0}
+        ).to_list(2000)
+        canonical_visible = await filter_visible_content_entries(
+            db,
+            current_user,
+            canonical_candidates,
+            active_mantenedora_id=active_mantenedora_id,
+        )
+        canonical_items = [_canonical_public(item) for item in canonical_visible]
 
     legacy_items: list[dict] = []
     legacy_date_allowed = not date or str(date) < str(valid_from)
