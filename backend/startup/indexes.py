@@ -5,6 +5,8 @@ preservados exatamente — apenas modularizados.
 """
 import logging
 
+from services.attendance_assignment_scope import ensure_attendance_assignment_indexes
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,16 +109,10 @@ async def create_all_indexes(db):
     await db.attendance.create_index("id", unique=True)
     await db.attendance.create_index([("class_id", 1), ("date", 1)])
     await db.attendance.create_index([("class_id", 1), ("academic_year", 1)])
-    # Fase 1 (Mai/2026) — UNIQUE composto que reflete a granularidade real
-    # do diário: por turma+data, e em anos finais também por componente+aula.
-    # Previne duplicidade silenciosa (mesma chave criada por professores
-    # diferentes em race condition).
-    await db.attendance.create_index(
-        [("class_id", 1), ("date", 1), ("course_id", 1), ("aula_numero", 1)],
-        unique=True,
-        name="ux_attendance_class_date_course_aula",
-        background=True,
-    )
+    # DVD Fase 4 é a autoridade única para a unicidade lógica de frequência.
+    # O serviço mantém a chave legada com filtro parcial e cria a chave por
+    # assignment_session sem reescrever documentos históricos.
+    await ensure_attendance_assignment_indexes(db)
     # Índice de suporte para queries por professor (autor) — usado por
     # relatórios "minhas frequências lançadas" e timeline de auditoria.
     await db.attendance.create_index(
