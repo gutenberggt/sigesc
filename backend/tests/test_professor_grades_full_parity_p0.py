@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from services.teacher_grade_access import _assignment_authorization_date
+
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
@@ -40,6 +42,26 @@ def test_escopo_e_ancorado_no_ano_e_preserva_historico_com_evidencia():
     assert 'grade_rows = await db.grades.find(' in TEACHER_SCOPE
     assert 'inclusive após transferência/remanejamento' in TEACHER_SCOPE
     assert 'if int(academic_year) == date.today().year:' in TEACHER_SCOPE
+
+
+def test_intersecao_temporal_do_vinculo_rejeita_ano_estranho_e_respeita_fim():
+    assignment = {
+        "valid_from": "2026-08-18",
+        "valid_until": "2026-12-20",
+    }
+    assert _assignment_authorization_date(assignment, 2026) == "2026-08-18"
+    assert _assignment_authorization_date(assignment, 2025) is None
+    assert _assignment_authorization_date(assignment, 2027) is None
+    assert _assignment_authorization_date(
+        assignment,
+        2026,
+        reference_date="2026-09-01",
+    ) == "2026-09-01"
+    assert _assignment_authorization_date(
+        assignment,
+        2026,
+        reference_date="2026-01-10",
+    ) is None
 
 
 def test_escopo_por_estudante_resolve_assignment_por_componente_e_reusa_pr53():
