@@ -169,4 +169,5 @@ jobs:
             tests/test_content_harmonization_phase38f.py \
             tests/test_content_history_bridge_p0.py \
             tests/test_startup_attendance_index_authority.py \
-            tests/test_professor_attendance_entrypoint_p0.py
+            tests/test_professor_attendance_entrypoint_p0.py \
+            tests/test_professor_attendance_tabs_parity_p0.py
