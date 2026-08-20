@@ -176,10 +176,11 @@ class _FakeCollection:
 
 
 class _FakeDB:
-    def __init__(self, *, class_info, enrollments=None, student=None):
+    def __init__(self, *, class_info, enrollments=None, student=None, course=None):
         self.classes = _FakeCollection(one=class_info)
         self.enrollments = _FakeCollection(rows=enrollments or [])
         self.students = _FakeCollection(one=student)
+        self.courses = _FakeCollection(one=course)
 
 
 def _context_class(**updates):
@@ -198,18 +199,38 @@ def _context_class(**updates):
     return base
 
 
+def _student(**updates):
+    base = {
+        "id": "student-1",
+        "class_id": "class-1",
+        "school_id": "school-1",
+        "mantenedora_id": "tenant-a",
+        "student_series": "2º ANO",
+    }
+    base.update(updates)
+    return base
+
+
+def _course(**updates):
+    base = {
+        "id": "math",
+        "mantenedora_id": "tenant-a",
+        "school_id": None,
+        "nivel_ensino": "fundamental_anos_iniciais",
+        "grade_levels": [],
+        "name": "Matemática",
+    }
+    base.update(updates)
+    return base
+
+
 @pytest.mark.asyncio
 async def test_context_builder_uses_annual_enrollment_and_tenant_scoped_class():
     db = _FakeDB(
         class_info=_context_class(),
         enrollments=[{"id": "e1", "student_series": "2º ANO"}],
-        student={
-            "id": "student-1",
-            "class_id": "class-1",
-            "school_id": "school-1",
-            "mantenedora_id": "tenant-a",
-            "student_series": "1º ANO",
-        },
+        student=_student(student_series="1º ANO"),
+        course=_course(grade_levels=["1º ANO", "2º ANO"]),
     )
 
     context = await build_assessment_policy_context(
@@ -227,12 +248,17 @@ async def test_context_builder_uses_annual_enrollment_and_tenant_scoped_class():
     assert context.student_series == "2º ANO"
     assert context.education_stage == "fundamental_anos_iniciais"
     assert context.modality == "regular"
+    assert context.component_id == "math"
     assert db.classes.find_one_calls[0][0] == {
         "id": "class-1",
         "mantenedora_id": "tenant-a",
     }
     assert db.enrollments.find_calls[0][0]["academic_year"] == {
         "$in": [2026, "2026"]
+    }
+    assert db.courses.find_one_calls[0][0] == {
+        "id": "math",
+        "mantenedora_id": "tenant-a",
     }
 
 
@@ -265,13 +291,7 @@ async def test_context_builder_historical_context_requires_annual_membership():
             grade_level="4º ANO",
         ),
         enrollments=[],
-        student={
-            "id": "student-1",
-            "class_id": "class-1",
-            "school_id": "school-1",
-            "mantenedora_id": "tenant-a",
-            "student_series": "5º ANO",
-        },
+        student=_student(student_series="5º ANO"),
     )
 
     with pytest.raises(AssessmentPolicyError) as exc:
@@ -294,13 +314,7 @@ async def test_context_builder_multigrade_without_individual_series_fails_closed
     db = _FakeDB(
         class_info=_context_class(),
         enrollments=[{"id": "e1", "student_series": None}],
-        student={
-            "id": "student-1",
-            "class_id": "class-1",
-            "school_id": "school-1",
-            "mantenedora_id": "tenant-a",
-            "student_series": None,
-        },
+        student=_student(student_series=None),
     )
 
     with pytest.raises(AssessmentPolicyError) as exc:
@@ -316,3 +330,129 @@ async def test_context_builder_multigrade_without_individual_series_fails_closed
         )
 
     assert exc.value.code == STUDENT_SERIES_REQUIRED
+
+
+@pytest.mark.asyncio
+async def test_context_builder_rejects_component_outside_active_tenant():
+    db = _FakeDB(
+        class_info=_context_class(),
+        enrollments=[{"id": "e1", "student_series": "2º ANO"}],
+        student=_student(),
+        course=None,
+    )
+
+    with pytest.raises(AssessmentPolicyError) as exc:
+        await build_assessment_policy_context(
+            db,
+            mantenedora_id="tenant-a",
+            school_id="school-1",
+            class_id="class-1",
+            student_id="student-1",
+            component_id="foreign-course",
+            academic_year=2026,
+            reference_date=date(2026, 8, 19),
+            current_year=2026,
+        )
+
+    assert exc.value.code == POLICY_CONTEXT_MISMATCH
+    assert db.courses.find_one_calls[0][0]["mantenedora_id"] == "tenant-a"
+
+
+@pytest.mark.asyncio
+async def test_context_builder_rejects_component_restricted_to_other_school():
+    db = _FakeDB(
+        class_info=_context_class(),
+        enrollments=[{"id": "e1", "student_series": "2º ANO"}],
+        student=_student(),
+        course=_course(school_id="school-2"),
+    )
+
+    with pytest.raises(AssessmentPolicyError) as exc:
+        await build_assessment_policy_context(
+            db,
+            mantenedora_id="tenant-a",
+            school_id="school-1",
+            class_id="class-1",
+            student_id="student-1",
+            component_id="math",
+            academic_year=2026,
+            reference_date=date(2026, 8, 19),
+            current_year=2026,
+        )
+
+    assert exc.value.code == POLICY_CONTEXT_MISMATCH
+
+
+@pytest.mark.asyncio
+async def test_context_builder_rejects_component_from_other_education_stage():
+    db = _FakeDB(
+        class_info=_context_class(),
+        enrollments=[{"id": "e1", "student_series": "2º ANO"}],
+        student=_student(),
+        course=_course(nivel_ensino="fundamental_anos_finais"),
+    )
+
+    with pytest.raises(AssessmentPolicyError) as exc:
+        await build_assessment_policy_context(
+            db,
+            mantenedora_id="tenant-a",
+            school_id="school-1",
+            class_id="class-1",
+            student_id="student-1",
+            component_id="math",
+            academic_year=2026,
+            reference_date=date(2026, 8, 19),
+            current_year=2026,
+        )
+
+    assert exc.value.code == POLICY_CONTEXT_MISMATCH
+
+
+@pytest.mark.asyncio
+async def test_context_builder_rejects_component_not_applicable_to_effective_series():
+    db = _FakeDB(
+        class_info=_context_class(),
+        enrollments=[{"id": "e1", "student_series": "2º ANO"}],
+        student=_student(),
+        course=_course(grade_levels=["1º ANO"]),
+    )
+
+    with pytest.raises(AssessmentPolicyError) as exc:
+        await build_assessment_policy_context(
+            db,
+            mantenedora_id="tenant-a",
+            school_id="school-1",
+            class_id="class-1",
+            student_id="student-1",
+            component_id="math",
+            academic_year=2026,
+            reference_date=date(2026, 8, 19),
+            current_year=2026,
+        )
+
+    assert exc.value.code == POLICY_CONTEXT_MISMATCH
+
+
+@pytest.mark.asyncio
+async def test_context_builder_accepts_global_component_for_effective_series():
+    db = _FakeDB(
+        class_info=_context_class(),
+        enrollments=[{"id": "e1", "student_series": "2º ANO"}],
+        student=_student(),
+        course=_course(nivel_ensino="global", grade_levels=[]),
+    )
+
+    context = await build_assessment_policy_context(
+        db,
+        mantenedora_id="tenant-a",
+        school_id="school-1",
+        class_id="class-1",
+        student_id="student-1",
+        component_id="math",
+        academic_year=2026,
+        reference_date=date(2026, 8, 19),
+        current_year=2026,
+    )
+
+    assert context.component_id == "math"
+    assert context.student_series == "2º ANO"
