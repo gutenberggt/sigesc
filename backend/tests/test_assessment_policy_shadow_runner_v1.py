@@ -16,6 +16,7 @@ from assessment_policy.models import (
     AttendanceBasis,
     CalculationRule,
     CalculationStrategy,
+    NormativeSource,
     NumericScale,
     PeriodRule,
     PolicyScope,
@@ -133,6 +134,12 @@ def _published_policy():
             minimum_attendance_percentage=75,
             attendance_basis=AttendanceBasis.GLOBAL,
         ),
+        normative_sources=[
+            NormativeSource(
+                type="internal_policy",
+                title="Política formal da mantenedora",
+            )
+        ],
         rule_hash=None,
     )
     return policy.model_copy(update={"rule_hash": calculate_rule_hash(policy)})
@@ -321,7 +328,7 @@ async def test_reader_scopes_classes_by_tenant_and_year_before_grades():
 
 
 def test_shadow_runner_source_has_no_mongo_write_primitives_or_legacy_recalculation():
-    source = Path("assessment_policy/shadow_runner.py").read_text(encoding="utf-8")
+    source = Path("backend/assessment_policy/shadow_runner.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
 
     forbidden_attributes = {
