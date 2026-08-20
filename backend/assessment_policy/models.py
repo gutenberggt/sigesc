@@ -62,6 +62,19 @@ class AttendanceBasis(str, Enum):
     STAGE = "stage"
 
 
+class ComponentOutcomeStrategy(str, Enum):
+    """Estratégia de rendimento por componentes suportada pela Outcome v1."""
+
+    ALL_REQUIRED_COMPONENTS = "all_required_components"
+
+
+class DependencyMode(str, Enum):
+    """Modos acadêmicos já existentes no domínio StudentDependency."""
+
+    WITH_DEPENDENCY = "with_dependency"
+    DEPENDENCY_ONLY = "dependency_only"
+
+
 class PolicyScope(BaseModel):
     """Dimensões de aplicabilidade.
 
@@ -231,13 +244,45 @@ class CouncilRule(BaseModel):
     requires_audit_event: bool = True
 
 
+class DependencyOutcomeRange(BaseModel):
+    """Faixa explícita de componentes não atingidos para um modo de dependência."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mode: DependencyMode
+    min_failed_components: int = Field(ge=1)
+    max_failed_components: Optional[int] = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if (
+            self.max_failed_components is not None
+            and self.max_failed_components < self.min_failed_components
+        ):
+            raise ValueError("max_failed_components não pode ser menor que min_failed_components")
+        return self
+
+
+class DependencyRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    outcomes: List[DependencyOutcomeRange] = Field(default_factory=list)
+
+
 class AcademicOutcomeRule(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     minimum_component_average: Optional[float] = None
+    # Compatibilidade temporária com o schema Foundation. Na Outcome v1,
+    # `False` não recebe semântica implícita e é rejeitado pelo validator.
     require_all_components: bool = True
+    component_strategy: ComponentOutcomeStrategy = (
+        ComponentOutcomeStrategy.ALL_REQUIRED_COMPONENTS
+    )
     minimum_attendance_percentage: Optional[float] = Field(default=None, ge=0, le=100)
     attendance_basis: Optional[AttendanceBasis] = None
+    dependency: DependencyRule = Field(default_factory=DependencyRule)
     council: CouncilRule = Field(default_factory=CouncilRule)
 
 
