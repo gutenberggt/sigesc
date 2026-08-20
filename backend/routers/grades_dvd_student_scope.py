@@ -1,18 +1,8 @@
-"""Paridade segura da aba ``Por Estudante`` para professor DVD.
+"""Paridade segura da aba ``Por Estudante`` para Professor.
 
-A tela histórica de Notas agregava estudantes em escopo amplo e o endpoint
-``/grades/by-student/{id}`` não resolvia autorização por componente. Este
-adaptador mantém o comportamento legado para demais perfis e, para professor:
-
-- expõe um roster derivado somente dos vínculos avaliativos autorizados;
-- exige que o estudante pertença a uma turma do professor;
-- resolve um ``assignment_id`` próprio por turma/componente;
-- inclui componentes autorizados ainda sem documento ``grades`` para permitir o
-  primeiro lançamento pelo motor canônico da Fase 5;
-- aplica a mesma projeção histórica read-only do PR #53;
-- falha fechado se o mesmo componente aparecer em mais de uma turma na visão
-  agregada, pois a UI legada identifica edição local por ``course_id``;
-- nunca grava ``grades`` e não cria ownership.
+A leitura usa o escopo avaliativo híbrido: vínculos DVD continuam passando pelo
+motor de assignment/ownership; vínculos legados autorizados permanecem editáveis
+pelo fluxo histórico sem forjar ``assignment_id``.
 """
 
 from __future__ import annotations
@@ -76,12 +66,13 @@ async def _resolve_unique_grade_context(
     academic_year: int,
     active_mantenedora_id: Optional[str],
 ) -> Optional[GradeAssignmentContext]:
-    """Resolve o único vínculo autorizado para uma linha da aba Por Estudante."""
+    """Resolve somente o vínculo DVD; legado não recebe assignment artificial."""
     on_date = date.today().isoformat()
     candidates = [
         scope
         for scope in scopes
-        if scope.class_id == class_id
+        if scope.source == "dvd"
+        and scope.class_id == class_id
         and scope.component_id in (None, course_id)
     ]
 
@@ -167,6 +158,20 @@ def _empty_grade(
     }
 
 
+def _legacy_projection(grade: dict, scope: TeacherGradeScope) -> dict[str, Any]:
+    """Mantém dados legados íntegros e explicitamente fora do ownership DVD."""
+    return {
+        **grade,
+        "dvd_assignment_id": None,
+        "dvd_owned_fields": [],
+        "dvd_locked_fields": [],
+        "dvd_read_only_fields": [],
+        "legacy_history": False,
+        "history_source": "grades_legacy",
+        "legacy_assignment_id": scope.legacy_assignment_id,
+    }
+
+
 def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
     if getattr(base_router, "_dvd_grades_student_scope_installed", False):
         return base_router
@@ -199,7 +204,7 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
             "page": 1,
             "page_size": len(roster),
             "academic_year": year,
-            "scope": "teacher_grade_roster",
+            "scope": "teacher_grade_roster_hybrid",
         }
 
     @base_router.get("/by-student/{student_id}")
@@ -263,10 +268,6 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
             if grade.get("class_id") and grade.get("course_id")
         }
 
-        # Toda linha já existente é candidata; vínculos com componente explícito
-        # também geram uma linha vazia para permitir o primeiro lançamento.
-        # Regência (component_id=None) não inventa currículo aqui: projeta apenas
-        # componentes que já existam no dado canônico.
         scope_keys: set[tuple[str, str]] = set(raw_by_scope)
         for scope in scopes:
             if scope.class_id not in memberships or scope.component_id is None:
@@ -278,6 +279,16 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
         visible: list[dict[str, Any]] = []
 
         for class_id, course_id in sorted(scope_keys):
+            legacy_scope = next(
+                (
+                    scope
+                    for scope in scopes
+                    if scope.source == "legacy"
+                    and scope.class_id == class_id
+                    and scope.component_id == course_id
+                ),
+                None,
+            )
             context = await _resolve_unique_grade_context(
                 current_db,
                 user,
@@ -287,7 +298,7 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
                 academic_year=year,
                 active_mantenedora_id=tenant_id,
             )
-            if context is None:
+            if context is None and legacy_scope is None:
                 continue
 
             grade = raw_by_scope.get((class_id, course_id)) or _empty_grade(
@@ -296,7 +307,10 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
                 course_id=course_id,
                 academic_year=year,
             )
-            projected = _project_grade_for_assignment(grade, context)
+            if context is not None:
+                projected = _project_grade_for_assignment(grade, context)
+            else:
+                projected = _legacy_projection(grade, legacy_scope)
 
             if class_id not in class_cache:
                 class_cache[class_id] = await current_db.classes.find_one(
@@ -336,10 +350,6 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
             )
             visible.append(projected)
 
-        # Grades.js legado localiza a linha editada por course_id. Se o mesmo
-        # componente estiver em duas turmas simultaneamente, não existe chave
-        # local segura para escolher uma delas. Falhamos fechado em vez de
-        # modificar a linha errada; a visão Por Turma continua disponível.
         classes_by_course: dict[str, set[str]] = {}
         for item in visible:
             course_id = str(item.get("course_id") or "")
@@ -380,7 +390,7 @@ def install_grades_dvd_student_scope(base_router, db, *, sandbox_db=None):
             },
             "grades": visible,
             "academic_year": year,
-            "scope": "teacher_grade_assignments",
+            "scope": "teacher_grade_assignments_hybrid",
         }
 
     base_router._dvd_grades_student_scope_installed = True
