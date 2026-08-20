@@ -173,3 +173,24 @@ def test_frontend_rotates_entire_session_after_role_switch():
     assert "setCsrfToken(newCsrfToken)" in source
     assert "setUser(sessionUser)" in source
     assert "saveUserDataLocally(sessionUser)" in source
+
+
+def test_multi_role_switcher_is_available_from_global_layout():
+    layout = (
+        REPO_ROOT / "frontend" / "src" / "components" / "Layout.js"
+    ).read_text(encoding="utf-8")
+    dashboard = (
+        REPO_ROOT / "frontend" / "src" / "pages" / "Dashboard.js"
+    ).read_text(encoding="utf-8")
+
+    assert "const { user, logout, switchRole, getAvailableRoles } = useAuth();" in layout
+    assert 'data-testid="global-role-switcher-button"' in layout
+    assert 'data-testid="global-role-switcher-menu"' in layout
+    assert "availableRoles.map((role)" in layout
+    assert "const result = await switchRole(newRole);" in layout
+    assert "window.location.assign('/dashboard');" in layout
+
+    # O /dashboard continua sendo o roteador canônico pós-troca: professor é
+    # encaminhado à sua home própria; os demais papéis permanecem no dashboard.
+    assert "if (isProfessor)" in dashboard
+    assert '<Navigate to="/professor" replace />' in dashboard
