@@ -9,6 +9,7 @@ DASHBOARD = ROOT / "frontend/src/pages/ProfessorDashboard.js"
 COPY_ERROR_NORMALIZER = ROOT / "frontend/src/utils/contentCopyErrorNormalizer.js"
 FRONTEND_INDEX = ROOT / "frontend/src/index.js"
 COPY_ADAPTER = ROOT / "backend/routers/content_copy_dvd.py"
+LEGACY_OBJECTS = ROOT / "backend/routers/learning_objects.py"
 HISTORY_ADAPTER = ROOT / "backend/routers/content_dvd_history.py"
 ROUTERS_INIT = ROOT / "backend/routers/__init__.py"
 
@@ -62,6 +63,26 @@ def test_copy_does_not_fail_only_because_frontend_record_cache_is_empty():
     assert 'current?.academic_year || Number(String(targetDate).slice(0, 4))' in source
     assert 'current?.assignment_id || current?.history_assignment_id || rootAssignmentId || null' in source
     assert 'source_assignment_id: sourceAssignmentId' in source
+
+
+def test_copy_without_dvd_context_stays_on_legacy_endpoint_with_backend_rbac():
+    bridge = BRIDGE.read_text(encoding="utf-8")
+    legacy = LEGACY_OBJECTS.read_text(encoding="utf-8")
+    copy_start = bridge.index("if (isCopyUrl(url) && method === 'post')")
+    copy_end = bridge.index("if (method === 'put')", copy_start)
+    copy_block = bridge[copy_start:copy_end]
+
+    assert 'if (!current && !rootAssignmentId) return config;' in copy_block
+    assert 'config.url = canonicalBase(url);' in copy_block
+    assert 'CONTENT_COPY_TARGET_ASSIGNMENT_REQUIRED' in copy_block
+
+    assert '@router.post("/learning-objects/{object_id}/copy-to-class")' in legacy
+    assert 'db.teacher_assignments.find_one' in legacy
+    assert '"staff_id": staff[\'id\']' in legacy
+    assert '"class_id": target_class_id' in legacy
+    assert '"course_id": target_course_id' in legacy
+    assert '"status": {"$in": ["ativo", "active"]}' in legacy
+    assert 'Cópia entre mantenedoras não é permitida' in legacy
 
 
 def test_copy_errors_are_render_safe_and_keep_technical_diagnostics():
