@@ -8,6 +8,7 @@ from assessment_policy.canonical import calculate_rule_hash
 from assessment_policy.exceptions import (
     AssessmentPolicyError,
     POLICY_AMBIGUOUS,
+    POLICY_CONTEXT_MISMATCH,
     POLICY_INTEGRITY_ERROR,
     POLICY_REQUIRED,
 )
@@ -22,6 +23,7 @@ from assessment_policy.models import (
     PolicyScope,
     PolicyStatus,
 )
+from assessment_policy.repository import AssessmentPolicyRepository
 from assessment_policy.resolver import (
     AssessmentPolicyContext,
     AssessmentPolicyResolver,
@@ -188,6 +190,28 @@ def test_published_policy_hash_is_verified_before_resolution():
     assert exc.value.code == POLICY_INTEGRITY_ERROR
 
 
+def test_context_requires_reference_date_inside_same_academic_year():
+    with pytest.raises(AssessmentPolicyError) as exc:
+        resolve_policy_from_candidates(
+            _context(reference_date=date(2025, 12, 31)),
+            [_policy("general")],
+        )
+
+    assert exc.value.code == POLICY_CONTEXT_MISMATCH
+    assert exc.value.details == {
+        "academic_year": 2026,
+        "reference_date": "2025-12-31",
+    }
+
+
+def test_context_rejects_missing_required_identity_before_resolution():
+    with pytest.raises(AssessmentPolicyError) as exc:
+        resolve_policy_from_candidates(_context(student_series=""), [_policy("general")])
+
+    assert exc.value.code == POLICY_CONTEXT_MISMATCH
+    assert "student_series" in exc.value.details["missing_fields"]
+
+
 class FakeRepository:
     def __init__(self, policies):
         self.policies = policies
@@ -208,3 +232,70 @@ async def test_service_queries_repository_with_tenant_year_and_date_only():
 
     assert resolved.policy.id == "general"
     assert repo.call == ("tenant-a", 2026, date(2026, 8, 19))
+
+
+@pytest.mark.asyncio
+async def test_service_rejects_invalid_context_before_repository_query():
+    repo = FakeRepository([_policy("general")])
+
+    with pytest.raises(AssessmentPolicyError) as exc:
+        await AssessmentPolicyResolver(repo).resolve(
+            _context(reference_date=date(2027, 1, 1))
+        )
+
+    assert exc.value.code == POLICY_CONTEXT_MISMATCH
+    assert repo.call is None
+
+
+class _CaptureCursor:
+    def __init__(self):
+        self.sort_spec = None
+
+    def sort(self, spec):
+        self.sort_spec = spec
+        return self
+
+    async def to_list(self, length=None):
+        return []
+
+
+class _CaptureCollection:
+    def __init__(self):
+        self.query = None
+        self.projection = None
+        self.cursor = _CaptureCursor()
+
+    def find(self, query, projection):
+        self.query = query
+        self.projection = projection
+        return self.cursor
+
+
+class _CaptureDB:
+    def __init__(self):
+        self.collection = _CaptureCollection()
+
+    def __getitem__(self, name):
+        assert name == "assessment_policies"
+        return self.collection
+
+
+@pytest.mark.asyncio
+async def test_mongo_candidate_query_is_tenant_year_status_and_date_scoped():
+    db = _CaptureDB()
+    repository = AssessmentPolicyRepository(db)
+
+    result = await repository.list_published_candidates(
+        "tenant-a",
+        academic_year=2026,
+        reference_date=date(2026, 8, 19),
+    )
+
+    assert result == []
+    assert db.collection.query == {
+        "mantenedora_id": "tenant-a",
+        "academic_year": 2026,
+        "status": "published",
+        "effective_from": {"$lte": "2026-08-19"},
+        "effective_until": {"$gte": "2026-08-19"},
+    }
