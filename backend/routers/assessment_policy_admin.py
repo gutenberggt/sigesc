@@ -103,22 +103,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "source_of_truth": "assessment_policies",
             "publish_available": False,
             "cutover_available": False,
-            "policies": [
-                {
-                    "id": item.id,
-                    "policy_key": item.policy_key,
-                    "version": item.version,
-                    "name": item.name,
-                    "status": item.status.value,
-                    "academic_year": item.academic_year,
-                    "effective_from": item.effective_from,
-                    "effective_until": item.effective_until,
-                    "scope": item.scope.model_dump(mode="json"),
-                    "rule_hash": item.rule_hash,
-                    "revision": item.revision,
-                }
-                for item in policies
-            ],
+            # A policy completa permite retomar um DRAFT após reload sem criar
+            # outro schema de edição. O mapping legado continua fora da norma e
+            # precisa ser fornecido explicitamente no preview/piloto.
+            "policies": [item.model_dump(mode="json") for item in policies],
         }
 
     @router.post("/preview")
