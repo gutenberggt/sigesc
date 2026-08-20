@@ -95,6 +95,21 @@ def test_complete_conceptual_configuration_is_ready_for_pilot():
     assert not [item for item in preview.issues if item.severity == "error"]
 
 
+def test_valid_policy_can_validate_without_legacy_mapping_but_cannot_run_pilot():
+    preview = preview_assisted_configuration(
+        AssistedPolicyConfiguration(
+            policy=_conceptual_policy(),
+            legacy_mapping=LegacyFieldMappingConfig(),
+        )
+    )
+
+    assert preview.can_save_draft is True
+    assert preview.can_validate is True
+    assert preview.can_dry_run is False
+    assert preview.mapping_hash is None
+    assert any(item.code == ASSISTED_MAPPING_INVALID for item in preview.issues)
+
+
 def test_missing_normative_source_blocks_validation_and_pilot_but_not_draft_save():
     preview = preview_assisted_configuration(
         AssistedPolicyConfiguration(
@@ -125,6 +140,7 @@ def test_attendance_threshold_without_basis_blocks_pilot():
         AssistedPolicyConfiguration(policy=policy, legacy_mapping=_mapping())
     )
 
+    assert preview.can_validate is False
     assert preview.can_dry_run is False
     assert any(
         item.code == "ASSESSMENT_POLICY_ATTENDANCE_CONTRACT_INCOMPLETE"
@@ -154,6 +170,7 @@ def test_recovery_requires_explicit_improvement_decision_and_mapping():
         AssistedPolicyConfiguration(policy=policy, legacy_mapping=_mapping())
     )
 
+    assert preview.can_validate is False
     assert preview.can_dry_run is False
     assert any(
         item.code == "ASSESSMENT_POLICY_RECOVERY_IMPROVEMENT_RULE_REQUIRED"
