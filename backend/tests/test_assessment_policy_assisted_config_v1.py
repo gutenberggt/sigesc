@@ -1,6 +1,7 @@
 """Testes da Sprint 007 — configuração assistida."""
 
 from datetime import date
+from pathlib import Path
 
 from assessment_policy.assisted_config import (
     ASSISTED_MAPPING_INVALID,
@@ -26,6 +27,9 @@ from assessment_policy.models import (
     RecoveryRule,
     RecoveryTieBreak,
 )
+
+
+FRONTEND_PANEL = Path("frontend/src/components/assessment-policy/AssessmentPolicyPanel.jsx")
 
 
 def _conceptual_policy(*, status=PolicyStatus.DRAFT, normative=True):
@@ -190,3 +194,32 @@ def test_published_policy_is_never_editable_in_assisted_config():
     assert preview.can_validate is False
     assert preview.can_dry_run is False
     assert any(item.code == ASSISTED_STATUS_NOT_EDITABLE for item in preview.issues)
+
+
+def test_frontend_resume_draft_contract_is_fail_closed_and_revision_safe():
+    source = FRONTEND_PANEL.read_text(encoding="utf-8")
+
+    # Retomada existe apenas para DRAFT e reutiliza a policy persistida.
+    assert "const hydrateDraftFromPolicy = (policy) =>" in source
+    assert "const resumeDraft = (policy) =>" in source
+    assert "if (policy?.status !== 'draft')" in source
+    assert "Retomar rascunho" in source
+    assert "setPersistedPolicy(policy)" in source
+    assert "revision: persistedPolicy?.revision || 1" in source
+    assert "id: persistedPolicy?.id || draft.id" in source
+
+    # Identidade da versão fica bloqueada durante a edição retomada.
+    assert source.count("disabled={Boolean(persistedPolicy)}") >= 2
+
+    # Os três pontos municipais não podem nascer de defaults de retomada.
+    assert "periodMapping: ''" in source
+    assert "recoveryMapping: ''" in source
+    assert "item.only_if_improves == null ? ''" in source
+    assert "attendanceBasis: outcome.attendance_basis || ''" in source
+    assert "attendancePercentage: '75'" not in source
+    assert "attendanceBasis: 'global'" not in source
+    assert "recoveryMapping: 'rec_s1'" not in source
+
+    # VALIDATED fica fora do fluxo de edição normativa, preservando apenas piloto/mapping.
+    assert "const policyEditable = !persistedPolicy || persistedPolicy.status === 'draft'" in source
+    assert "<fieldset disabled={!policyEditable}" in source
