@@ -281,15 +281,22 @@ axios.interceptors.request.use(async (config) => {
   if (isCopyUrl(url) && method === 'post') {
     const id = url.split('/').filter(Boolean).slice(-2, -1)[0];
     const current = recordCache.get(id);
-    if (!current) {
-      throw bridgeError('CONTENT_COPY_SOURCE_NOT_LOADED', 'Recarregue o conteúdo antes de copiar.');
-    }
+    // Sem contexto DVD explícito/canonizado, a cópia permanece no endpoint legado.
+    // O backend revalida teacher_assignments, tenant, conflito e ano letivo.
+    if (!current && !rootAssignmentId) return config;
+
     const body = { ...(config.data || {}) };
+    const targetDate = body.target_date || current?.date || '';
+    const targetAcademicYear =
+      current?.academic_year || Number(String(targetDate).slice(0, 4)) || new Date().getFullYear();
+    const sourceAssignmentId =
+      current?.assignment_id || current?.history_assignment_id || rootAssignmentId || null;
+
     const targetAssignmentId = await resolveAssignment(config, {
       classId: body.target_class_id,
       componentId: body.target_course_id,
-      date: body.target_date || current.date,
-      academicYear: current.academic_year,
+      date: targetDate,
+      academicYear: targetAcademicYear,
       preferredAssignmentId: '',
     });
     if (!targetAssignmentId) {
@@ -302,7 +309,7 @@ axios.interceptors.request.use(async (config) => {
     config.url = canonicalBase(url);
     config.data = {
       ...body,
-      source_assignment_id: current.assignment_id || current.history_assignment_id || rootAssignmentId || null,
+      source_assignment_id: sourceAssignmentId,
       target_assignment_id: targetAssignmentId,
     };
     config.__contentDvdRecord = true;
