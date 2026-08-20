@@ -268,8 +268,8 @@ class ParentPolicyRef(BaseModel):
 class AssessmentPolicy(BaseModel):
     """Versão persistível da política avaliativa.
 
-    Uma versão `published` deve ser tratada como imutável pelo futuro Registry.
-    Essa regra de persistência não é executada neste módulo de contratos.
+    Uma versão `published` deve ser tratada como imutável pelo Registry.
+    `revision` é controle de concorrência otimista e não integra o hash da regra.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -280,6 +280,7 @@ class AssessmentPolicy(BaseModel):
     mantenedora_id: str = Field(min_length=1)
     name: str = Field(min_length=1, max_length=255)
     status: PolicyStatus = PolicyStatus.DRAFT
+    revision: int = Field(default=1, ge=1)
 
     academic_year: int = Field(ge=1900, le=2200)
     effective_from: date
