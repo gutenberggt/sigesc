@@ -281,6 +281,10 @@ axios.interceptors.request.use(async (config) => {
   if (isCopyUrl(url) && method === 'post') {
     const id = url.split('/').filter(Boolean).slice(-2, -1)[0];
     const current = recordCache.get(id);
+    // Sem contexto DVD explícito/canonizado, a cópia permanece no endpoint legado.
+    // O backend revalida teacher_assignments, tenant, conflito e ano letivo.
+    if (!current && !rootAssignmentId) return config;
+
     const body = { ...(config.data || {}) };
     const targetDate = body.target_date || current?.date || '';
     const targetAcademicYear =
