@@ -36,14 +36,24 @@ RESOLVER_EXACT = COMMON_EXACT | {
 
 CALCULATOR_EXACT = COMMON_EXACT | {
     ".github/workflows/assessment-policy-calculator.yml",
+    "backend/assessment_policy/__init__.py",
+    "backend/assessment_policy/calculator.py",
+    "backend/assessment_policy/exceptions.py",
+    "backend/assessment_policy/recovery.py",
+    "backend/assessment_policy/validator.py",
     "backend/tests/test_assessment_policy_calculator_v1.py",
     "backend/tests/test_assessment_policy_recovery_v1.py",
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_003_CALCULATOR.md",
 }
 
-PREFIX_ALLOWED = (
-    "backend/assessment_policy/",
-)
+PREFIX_BY_PHASE = {
+    # Sprints históricas nasceram com criação ampla do pacote. Preservamos seus
+    # manifestos para eventual manutenção da branch, sem ampliar a Sprint 003.
+    "foundation": ("backend/assessment_policy/",),
+    "resolver": ("backend/assessment_policy/",),
+    "calculator": (),
+    "unknown": (),
+}
 
 
 def _run(*args: str) -> str:
@@ -72,28 +82,33 @@ def _changed_files() -> list[str]:
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
-def _manifest() -> tuple[str, set[str]]:
+def _manifest() -> tuple[str, set[str], tuple[str, ...]]:
     head_ref = (
         os.environ.get("GITHUB_HEAD_REF", "")
         or os.environ.get("GITHUB_REF_NAME", "")
     ).strip()
 
     if "assessment-policy-calculator" in head_ref:
-        return "calculator", CALCULATOR_EXACT
+        phase = "calculator"
+        return phase, CALCULATOR_EXACT, PREFIX_BY_PHASE[phase]
     if "assessment-policy-resolver" in head_ref:
-        return "resolver", RESOLVER_EXACT
+        phase = "resolver"
+        return phase, RESOLVER_EXACT, PREFIX_BY_PHASE[phase]
     if "assessment-policy-foundation" in head_ref:
-        return "foundation", FOUNDATION_EXACT
+        phase = "foundation"
+        return phase, FOUNDATION_EXACT, PREFIX_BY_PHASE[phase]
 
-    # Fail-closed: uma branch não reconhecida não herda automaticamente o
-    # manifesto mais permissivo de outra sprint.
-    return "unknown", COMMON_EXACT
+    return "unknown", COMMON_EXACT, PREFIX_BY_PHASE["unknown"]
 
 
-def _is_allowed(path: str, exact_allowed: set[str]) -> bool:
+def _is_allowed(
+    path: str,
+    exact_allowed: set[str],
+    prefix_allowed: tuple[str, ...],
+) -> bool:
     if path in exact_allowed:
         return True
-    return any(path.startswith(prefix) for prefix in PREFIX_ALLOWED)
+    return any(path.startswith(prefix) for prefix in prefix_allowed)
 
 
 def main() -> int:
@@ -101,16 +116,22 @@ def main() -> int:
         print("ASSESSMENT_POLICY_SCOPE_GUARD=SKIP_NO_GIT")
         return 0
 
-    phase, exact_allowed = _manifest()
+    phase, exact_allowed, prefix_allowed = _manifest()
     changed = _changed_files()
     unexpected = sorted(
-        path for path in changed if not _is_allowed(path, exact_allowed)
+        path
+        for path in changed
+        if not _is_allowed(path, exact_allowed, prefix_allowed)
     )
 
     print(f"ASSESSMENT_POLICY_SCOPE_GUARD_PHASE={phase}")
     print("ASSESSMENT_POLICY_SCOPE_GUARD_FILES=")
     for path in changed:
-        marker = "ALLOW" if _is_allowed(path, exact_allowed) else "DENY"
+        marker = (
+            "ALLOW"
+            if _is_allowed(path, exact_allowed, prefix_allowed)
+            else "DENY"
+        )
         print(f"  [{marker}] {path}")
 
     if phase == "unknown":
