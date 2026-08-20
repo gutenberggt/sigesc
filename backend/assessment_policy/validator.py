@@ -44,6 +44,15 @@ def _issue(
     )
 
 
+def _ranges_overlap(left, right) -> bool:
+    left_max = left.max_failed_components
+    right_max = right.max_failed_components
+    return (
+        (left_max is None or right.min_failed_components <= left_max)
+        and (right_max is None or left.min_failed_components <= right_max)
+    )
+
+
 def validate_policy(policy: AssessmentPolicy, *, for_publish: bool = False) -> PolicyValidationReport:
     """Valida coerência sem acessar banco, tenant ou outras entidades.
 
@@ -186,6 +195,64 @@ def validate_policy(policy: AssessmentPolicy, *, for_publish: bool = False) -> P
                     "ASSESSMENT_POLICY_MINIMUM_AVERAGE_OUT_OF_SCALE",
                     "academic_outcome.minimum_component_average",
                     "Média mínima deve estar dentro dos valores numéricos da escala conceitual.",
+                )
+
+    # `require_all_components=False` não recebe interpretação mágica. A v1
+    # possui uma única estratégia explícita, all_required_components.
+    if not policy.academic_outcome.require_all_components:
+        _issue(
+            issues,
+            "ASSESSMENT_POLICY_COMPONENT_STRATEGY_UNSUPPORTED",
+            "academic_outcome.require_all_components",
+            "Outcome v1 não atribui semântica a require_all_components=false; configure uma estratégia explícita suportada.",
+        )
+
+    dependency = policy.academic_outcome.dependency
+    if dependency.enabled and not dependency.outcomes:
+        _issue(
+            issues,
+            "ASSESSMENT_POLICY_DEPENDENCY_OUTCOME_REQUIRED",
+            "academic_outcome.dependency.outcomes",
+            "Dependência habilitada exige ao menos uma faixa de resultado.",
+        )
+    if not dependency.enabled and dependency.outcomes:
+        _issue(
+            issues,
+            "ASSESSMENT_POLICY_DEPENDENCY_OUTCOME_IGNORED",
+            "academic_outcome.dependency.outcomes",
+            "Existem faixas de dependência, mas dependency.enabled=false.",
+            severity="warning",
+        )
+    if dependency.enabled and minimum_average is None:
+        _issue(
+            issues,
+            "ASSESSMENT_POLICY_DEPENDENCY_REQUIRES_COMPONENT_THRESHOLD",
+            "academic_outcome.minimum_component_average",
+            "Dependência por componentes exige média mínima por componente.",
+        )
+
+    seen_dependency_modes = set()
+    for index, item in enumerate(dependency.outcomes):
+        field = f"academic_outcome.dependency.outcomes.{index}"
+        if item.mode in seen_dependency_modes:
+            _issue(
+                issues,
+                "ASSESSMENT_POLICY_DUPLICATE_DEPENDENCY_MODE",
+                field,
+                f"Modo de dependência duplicado na v1: {item.mode.value}.",
+            )
+        seen_dependency_modes.add(item.mode)
+
+    for left_index, left in enumerate(dependency.outcomes):
+        for right_index in range(left_index + 1, len(dependency.outcomes)):
+            right = dependency.outcomes[right_index]
+            if _ranges_overlap(left, right):
+                _issue(
+                    issues,
+                    "ASSESSMENT_POLICY_DEPENDENCY_RANGE_OVERLAP",
+                    "academic_outcome.dependency.outcomes",
+                    "Faixas de quantidade de componentes não atingidos não podem se sobrepor: "
+                    f"{left.mode.value} e {right.mode.value}.",
                 )
 
     minimum_attendance = policy.academic_outcome.minimum_attendance_percentage

@@ -1,7 +1,7 @@
 """Assessment Policy Multi-Mantenedora v1.
 
-Foundation + Resolver + Calculator/Recovery puros. Nenhum módulo deste pacote
-substitui o motor oficial de Notas enquanto o shadow/cutover não for aprovado.
+Foundation + Resolver + Calculator/Recovery + Academic Outcome puros. Nenhum
+módulo deste pacote substitui o runtime oficial antes de shadow/cutover.
 """
 
 from .calculator import AssessmentCalculationResult, calculate_assessment
@@ -22,8 +22,12 @@ from .models import (
     AttendanceBasis,
     CalculationRule,
     CalculationStrategy,
+    ComponentOutcomeStrategy,
     ConceptScaleEntry,
     CouncilRule,
+    DependencyMode,
+    DependencyOutcomeRange,
+    DependencyRule,
     NormativeSource,
     NumericScale,
     ParentPolicyRef,
@@ -34,6 +38,13 @@ from .models import (
     RecoveryRule,
     RecoveryStrategy,
     RecoveryTieBreak,
+)
+from .outcome import (
+    AcademicOutcomeResult,
+    AcademicOutcomeStatus,
+    AttendanceEvidence,
+    ComponentOutcomeInput,
+    calculate_academic_outcome,
 )
 from .recovery import (
     RecoveryApplication,
@@ -60,7 +71,9 @@ from .validator import PolicyValidationIssue, PolicyValidationReport, validate_p
 
 __all__ = [
     "ASSESSMENT_POLICY_INDEXES",
+    "AcademicOutcomeResult",
     "AcademicOutcomeRule",
+    "AcademicOutcomeStatus",
     "AssessmentCalculationResult",
     "AssessmentMode",
     "AssessmentPolicy",
@@ -72,10 +85,16 @@ __all__ = [
     "AssessmentPolicyResolver",
     "AssessmentRule",
     "AttendanceBasis",
+    "AttendanceEvidence",
     "CalculationRule",
     "CalculationStrategy",
+    "ComponentOutcomeInput",
+    "ComponentOutcomeStrategy",
     "ConceptScaleEntry",
     "CouncilRule",
+    "DependencyMode",
+    "DependencyOutcomeRange",
+    "DependencyRule",
     "EffectiveStudentSeries",
     "IndexSpec",
     "NormativeSource",
@@ -97,6 +116,7 @@ __all__ = [
     "ResolvedAssessmentPolicy",
     "apply_recoveries",
     "build_assessment_policy_context",
+    "calculate_academic_outcome",
     "calculate_assessment",
     "calculate_rule_hash",
     "canonical_rule_json",
