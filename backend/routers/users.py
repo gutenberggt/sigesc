@@ -3,12 +3,23 @@ Router de Usuários - SIGESC
 Endpoints para gestão de usuários do sistema (Admin only).
 """
 
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, status, Request, Response
 from typing import List
 from passlib.context import CryptContext
 
 from models import UserResponse, UserUpdate
 from auth_middleware import AuthMiddleware
+from auth_utils import (
+    create_access_token,
+    create_refresh_token,
+    generate_csrf_token,
+    set_auth_cookies,
+)
+from role_context import (
+    SCHOOL_SCOPED_ROLES,
+    get_authorized_roles,
+    resolve_role_context,
+)
 from tenant_scope import apply_tenant_filter, assert_same_tenant
 
 router = APIRouter(prefix="/users", tags=["Usuários"])
@@ -222,53 +233,112 @@ def setup_router(db, audit_service, sandbox_db=None):
         return None
 
     @router.post("/switch-role")
-    async def switch_active_role(request: Request):
-        """
-        Alterna o papel ativo do usuário logado.
-        O novo papel deve estar na lista de papéis (roles) do usuário.
-        """
+    async def switch_active_role(request: Request, response: Response):
+        """Troca somente o papel ativo da sessão; não altera `users.role`."""
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
-        
+
         body = await request.json()
         new_role = body.get('role')
-        
         if not new_role:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="O campo 'role' é obrigatório"
             )
-        
-        # Busca o usuário no banco
-        user_doc = await current_db.users.find_one({"id": current_user['id']}, {"_id": 0})
+
+        user_doc = await current_db.users.find_one(
+            {"id": current_user['id']},
+            {"_id": 0}
+        )
         if not user_doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Usuário não encontrado"
             )
-        
-        # Verifica se o papel está na lista de papéis do usuário
-        user_roles = user_doc.get('roles', [])
-        # Se roles estiver vazio, usa o role principal como único papel disponível
-        if not user_roles:
-            user_roles = [user_doc.get('role')]
-        
-        if new_role not in user_roles:
+        if user_doc.get('status') != 'active':
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Você não possui o papel '{new_role}'. Papéis disponíveis: {user_roles}"
+                detail="Usuário inativo"
             )
-        
-        # Atualiza o papel ativo
-        await current_db.users.update_one(
-            {"id": current_user['id']},
-            {"$set": {"role": new_role}}
+
+        available_roles = get_authorized_roles(user_doc)
+        if new_role not in available_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Você não possui o papel '{new_role}'. "
+                    f"Papéis disponíveis: {available_roles}"
+                )
+            )
+
+        role_context = await resolve_role_context(
+            current_db,
+            user_doc,
+            new_role,
         )
-        
+        if (
+            new_role in SCHOOL_SCOPED_ROLES
+            and role_context['source'] == 'lotacoes'
+            and not role_context['has_role_assignment']
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Não há lotação ativa em {new_role} para o ano letivo atual"
+                )
+            )
+
+        token_data = {
+            "sub": user_doc['id'],
+            "email": user_doc.get('email'),
+            "role": new_role,
+            "school_ids": role_context['school_ids'],
+            "mantenedora_id": user_doc.get('mantenedora_id'),
+        }
+        csrf_token = generate_csrf_token()
+        access_token = create_access_token(token_data, csrf=csrf_token)
+        refresh_token = create_refresh_token({
+            "sub": user_doc['id'],
+            "active_role": new_role,
+        })
+        set_auth_cookies(
+            response,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            csrf_token=csrf_token,
+        )
+
+        user_response = dict(user_doc)
+        user_response.pop('password_hash', None)
+        user_response['role'] = new_role
+        user_response['school_links'] = role_context['school_links']
+
+        try:
+            await audit_service.log(
+                action='switch_role',
+                collection='users',
+                user={**current_user, 'full_name': user_doc.get('full_name')},
+                request=request,
+                document_id=user_doc['id'],
+                description=(
+                    f"Papel ativo da sessão alterado de "
+                    f"{current_user.get('role')} para {new_role}"
+                ),
+                old_value={'active_role': current_user.get('role')},
+                new_value={'active_role': new_role},
+            )
+        except Exception:
+            pass
+
         return {
-            "message": f"Papel alterado para '{new_role}' com sucesso",
+            "message": f"Papel ativo alterado para '{new_role}' com sucesso",
             "new_role": new_role,
-            "available_roles": user_roles
+            "available_roles": available_roles,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "csrf_token": csrf_token,
+            "token_type": "bearer",
+            "user": UserResponse(**user_response).model_dump(),
         }
 
     return router
