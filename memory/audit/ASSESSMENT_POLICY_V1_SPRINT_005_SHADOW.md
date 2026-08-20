@@ -97,6 +97,7 @@ Para média por componente:
 ```text
 MATCH
 DIFFERENT
+BOTH_INCOMPLETE
 NEW_INCOMPLETE
 LEGACY_MISSING
 ERROR
@@ -110,6 +111,10 @@ Novo `final_average` existe e é igual ao legado segundo uma tolerância decimal
 
 Ambos existem, mas diferem além da tolerância.
 
+### BOTH_INCOMPLETE
+
+Nem o legado possui `final_average` persistido nem a política nova considera o conjunto de períodos suficiente para produzir `final_average`. Não entra no denominador de `match_rate`.
+
 ### NEW_INCOMPLETE
 
 Legado possui `final_average`, mas a política nova ainda não considera o conjunto de períodos suficiente para fechamento.
@@ -120,7 +125,7 @@ Novo motor produz resultado final, mas o legado não possui `final_average` pers
 
 ### ERROR
 
-O snapshot não pode ser avaliado de forma segura — política inválida, campo mapeado inexistente, conceito incompatível, recovery ambígua etc.
+O snapshot não pode ser avaliado de forma segura — política inválida, contexto anual incompatível, conceito incompatível, recuperação ambígua etc.
 
 ---
 
@@ -149,8 +154,11 @@ class_id
 course_id
 academic_year
 legacy_final_average
+new_current_average
 new_final_average
+new_is_final
 delta
+absolute_delta
 classification
 policy_id
 policy_version
@@ -159,7 +167,7 @@ mapping_hash
 error_code (quando houver)
 ```
 
-O `mapping_hash` prova qual mapeamento legado→política foi utilizado.
+O `mapping_hash` prova qual mapeamento legado→política foi utilizado. O `rule_hash` deve continuar disponível inclusive nos registros classificados como `ERROR`, para que o relatório preserve qual regra foi tentada.
 
 ---
 
@@ -171,14 +179,24 @@ O agregador puro deverá produzir:
 total
 matches
 differences
+both_incomplete
 new_incomplete
 legacy_missing
 errors
+comparable
 match_rate
 max_absolute_delta
 policy_ids/rule_hashes usados
 mapping_hash
 ```
+
+`match_rate` é calculado somente sobre registros comparáveis:
+
+```text
+matches / (matches + differences)
+```
+
+Casos incompletos ou com erro não são convertidos artificialmente em divergência nem em equivalência.
 
 Sem gravar o relatório no Mongo.
 
@@ -190,7 +208,9 @@ Sem gravar o relatório no Mongo.
 - nenhum código legado mutador será chamado;
 - nenhum `final_average` será atualizado;
 - nenhum `status` será atualizado;
+- snapshot de ano diferente de `policy.academic_year` deve resultar em `ERROR`, nunca comparação cruzada silenciosa;
 - erro por snapshot é registrado como `ERROR`, não corrigido automaticamente;
+- erro de configuração do mapeamento/tolerância invalida o lote inteiro, porque um relatório produzido com configuração errada seria enganoso;
 - política deve ser fornecida explicitamente ou resolvida por adapter read-only futuro;
 - política real de Floresta não será criada enquanto parâmetros institucionais pendentes não forem confirmados.
 
@@ -217,6 +237,7 @@ Somente avançar para adapter read-only de produção quando:
 - comparador puro estiver testado;
 - mapping explícito estiver testado;
 - mapping hash for reproduzível;
+- incompatibilidade de ano política/snapshot falhar fechado;
 - agregação não perder erros/divergências;
 - Scope Creep Guard estiver verde;
 - CI/regressões anteriores estiverem verdes;
