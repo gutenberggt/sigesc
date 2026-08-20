@@ -43,6 +43,12 @@ from . import learning_objects as _learning_objects_mod
 from .content_dvd_history import install_content_history_setups
 from .content_copy_dvd import install_content_copy_setup
 
+# Sprint 007 — a gestão da política avaliativa é exposta dentro do cadastro da
+# mantenedora, mas sua SSoT permanece em assessment_policies. Envolver o setup
+# evita tocar no server.py e não instala qualquer runtime de Notas/cutover.
+from . import mantenedora as _mantenedora_mod
+from .assessment_policy_admin import install_assessment_policy_admin_setup
+
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
 # setup aqui garante que o endpoint legado de PDF/alertas seja protegido antes
@@ -50,6 +56,7 @@ from .content_copy_dvd import install_content_copy_setup
 install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 install_content_copy_setup(_content_entries_mod)
+install_assessment_policy_admin_setup(_mantenedora_mod)
 
 
 def setup_grades_router(
