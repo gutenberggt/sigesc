@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Menu, X, HelpCircle, Shield, ChevronDown } from 'lucide-react';
+import { LogOut, Menu, X, HelpCircle } from 'lucide-react';
 import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
@@ -15,14 +15,12 @@ import { SilentModeToggle } from '@/components/SilentModeToggle';
 import { TenantSyncBoundary } from '@/components/TenantSyncBoundary';
 
 export const Layout = ({ children }) => {
-  const { user, logout, switchRole, getAvailableRoles } = useAuth();
+  const { user, logout } = useAuth();
   const { mantenedora } = useMantenedora();
   const { branding } = useBranding();
   const { activeChat, closeChat } = useMessaging();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showRoleSelector, setShowRoleSelector] = useState(false);
-  const [switchingRole, setSwitchingRole] = useState(false);
   const { getUnsavedState } = useUnsavedChangesContext();
 
   const handleLogout = () => {
@@ -55,50 +53,6 @@ export const Layout = ({ children }) => {
     semed1: 'Tutor',
     semed2: 'Analista',
     semed3: 'Administração'
-  };
-
-  // P0 multipapel (Ago/2026): o seletor precisa viver no Layout, não apenas no
-  // Dashboard administrativo. Professores são redirecionados para /professor antes
-  // de o Dashboard renderizar seu seletor local, portanto ficavam sem caminho para
-  // ativar um papel adicional mesmo tendo uma sessão multipapel válida.
-  const availableRoles = Array.from(new Set(
-    getAvailableRoles ? getAvailableRoles().filter(Boolean) : [user?.role].filter(Boolean)
-  ));
-  const hasMultipleRoles = availableRoles.length > 1;
-
-  const handleSwitchRole = async (newRole) => {
-    if (!newRole || newRole === user?.role) {
-      setShowRoleSelector(false);
-      return;
-    }
-
-    const { hasChanges, message } = getUnsavedState();
-    if (hasChanges) {
-      const leave = window.confirm(
-        message || 'Você tem alterações não salvas. Deseja trocar de papel sem salvar?'
-      );
-      if (!leave) return;
-    }
-
-    setSwitchingRole(true);
-    try {
-      const result = await switchRole(newRole);
-      if (!result?.success) {
-        window.alert(result?.error || 'Erro ao trocar papel');
-        return;
-      }
-
-      setShowRoleSelector(false);
-      // A sessão já foi integralmente rotacionada pelo AuthContext. Recarregar pelo
-      // /dashboard força todos os contexts/permissões a nascerem do novo JWT; o
-      // Dashboard redireciona automaticamente papéis com home própria (ex.: professor).
-      window.location.assign('/dashboard');
-    } catch (error) {
-      console.error('Erro ao trocar papel:', error);
-      window.alert('Erro ao trocar papel');
-    } finally {
-      setSwitchingRole(false);
-    }
   };
 
   return (
@@ -187,55 +141,6 @@ export const Layout = ({ children }) => {
               
               {/* Separador */}
               <div className="hidden sm:block h-8 w-px bg-gray-200 mx-2" />
-
-              {/* Seletor global de papel — visível em qualquer dashboard/página */}
-              {hasMultipleRoles && (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowRoleSelector((current) => !current)}
-                    disabled={switchingRole}
-                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-md text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition-colors disabled:opacity-50"
-                    title="Trocar papel ativo"
-                    data-testid="global-role-switcher-button"
-                  >
-                    <Shield size={18} />
-                    <span className="hidden xl:inline text-xs font-medium">Trocar Papel</span>
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform ${showRoleSelector ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-
-                  {showRoleSelector && (
-                    <div
-                      className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
-                      data-testid="global-role-switcher-menu"
-                    >
-                      <div className="px-3 py-2 border-b border-gray-100">
-                        <p className="text-xs text-gray-500 font-medium">Papel ativo da sessão</p>
-                      </div>
-                      {availableRoles.map((role) => (
-                        <button
-                          type="button"
-                          key={role}
-                          onClick={() => handleSwitchRole(role)}
-                          disabled={switchingRole}
-                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between disabled:opacity-50 ${
-                            role === user?.role ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                          }`}
-                          data-testid={`global-role-option-${role}`}
-                        >
-                          <span>{roleLabels[role] || role}</span>
-                          {role === user?.role && (
-                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">Atual</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
               
               {/* User Info */}
               <div className="hidden sm:block text-right">
@@ -277,7 +182,7 @@ export const Layout = ({ children }) => {
           © 2026 Desenvolvido por{' '}
           <a 
             href="https://www.facebook.com/prof.gutenbergbarroso" 
-            target="_blank"
+            target="_blank" 
             rel="noopener noreferrer"
             className="text-blue-500 hover:text-blue-700 hover:underline"
           >

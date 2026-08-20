@@ -175,22 +175,40 @@ def test_frontend_rotates_entire_session_after_role_switch():
     assert "saveUserDataLocally(sessionUser)" in source
 
 
-def test_multi_role_switcher_is_available_from_global_layout():
+def test_multi_role_switcher_exists_only_in_blue_dashboard_headers():
     layout = (
         REPO_ROOT / "frontend" / "src" / "components" / "Layout.js"
     ).read_text(encoding="utf-8")
     dashboard = (
         REPO_ROOT / "frontend" / "src" / "pages" / "Dashboard.js"
     ).read_text(encoding="utf-8")
+    professor_dashboard = (
+        REPO_ROOT / "frontend" / "src" / "pages" / "ProfessorDashboard.js"
+    ).read_text(encoding="utf-8")
 
-    assert "const { user, logout, switchRole, getAvailableRoles } = useAuth();" in layout
-    assert 'data-testid="global-role-switcher-button"' in layout
-    assert 'data-testid="global-role-switcher-menu"' in layout
-    assert "availableRoles.map((role)" in layout
-    assert "const result = await switchRole(newRole);" in layout
-    assert "window.location.assign('/dashboard');" in layout
+    # A barra branca superior é somente global/navigation; nunca deve duplicar
+    # a troca de papel que pertence ao bloco azul de identificação do dashboard.
+    assert "global-role-switcher-button" not in layout
+    assert "global-role-switcher-menu" not in layout
+    assert "switchRole" not in layout
+    assert "getAvailableRoles" not in layout
 
-    # O /dashboard continua sendo o roteador canônico pós-troca: professor é
+    # Dashboard comum: mantém o seletor já existente no bloco azul.
+    assert "const { user, switchRole, getAvailableRoles } = useAuth();" in dashboard
+    assert "Trocar Papel" in dashboard
+    assert "availableRoles.map((role)" in dashboard
+    assert "const result = await switchRole(newRole);" in dashboard
+
+    # Professor possui home própria e, por isso, precisa do mesmo seletor dentro
+    # do seu próprio cabeçalho azul, nunca no Layout global.
+    assert "const { user, switchRole, getAvailableRoles } = useAuth();" in professor_dashboard
+    assert 'data-testid="professor-role-switcher-button"' in professor_dashboard
+    assert 'data-testid="professor-role-switcher-menu"' in professor_dashboard
+    assert "availableRoles.map((role)" in professor_dashboard
+    assert "const result = await switchRole(newRole);" in professor_dashboard
+    assert "window.location.assign('/dashboard');" in professor_dashboard
+
+    # /dashboard continua sendo o roteador canônico pós-troca: professor é
     # encaminhado à sua home própria; os demais papéis permanecem no dashboard.
     assert "if (isProfessor)" in dashboard
     assert '<Navigate to="/professor" replace />' in dashboard
