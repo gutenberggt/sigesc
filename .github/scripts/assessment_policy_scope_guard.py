@@ -3,7 +3,7 @@
 Cada sprint possui manifesto explícito. O guard falha se a PR alterar arquivos
 fora do domínio/entregáveis aprovados para aquela fase. Isso evita ampliar
 silenciosamente o escopo entre Foundation, Resolver, Calculator, Outcome,
-Shadow, Shadow Runner e fases futuras.
+Shadow, Shadow Runner, Assisted Config e fases futuras.
 """
 
 from __future__ import annotations
@@ -73,6 +73,21 @@ SHADOW_RUNNER_EXACT = COMMON_EXACT | {
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_006_SHADOW_RUNNER.md",
 }
 
+ASSISTED_CONFIG_EXACT = COMMON_EXACT | {
+    ".github/workflows/assessment-policy-assisted-config.yml",
+    "backend/assessment_policy/assisted_config.py",
+    "backend/assessment_policy/pilot_runner.py",
+    "backend/routers/assessment_policy_admin.py",
+    "backend/routers/__init__.py",
+    "backend/server.py",
+    "backend/tests/test_assessment_policy_assisted_config_v1.py",
+    "backend/tests/test_assessment_policy_pilot_runner_v1.py",
+    "frontend/src/components/assessment-policy/AssessmentPolicyPanel.jsx",
+    "frontend/src/pages/Mantenedora.js",
+    "frontend/src/services/api.js",
+    "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_007_ASSISTED_CONFIG.md",
+}
+
 PREFIX_BY_PHASE = {
     # Sprints históricas nasceram com criação ampla do pacote. Preservamos seus
     # manifestos para eventual manutenção da branch, sem ampliar as fases novas.
@@ -82,6 +97,7 @@ PREFIX_BY_PHASE = {
     "outcome": (),
     "shadow": (),
     "shadow-runner": (),
+    "assisted-config": (),
     "unknown": (),
 }
 
@@ -118,6 +134,9 @@ def _manifest() -> tuple[str, set[str], tuple[str, ...]]:
         or os.environ.get("GITHUB_REF_NAME", "")
     ).strip()
 
+    if "assessment-policy-assisted-config" in head_ref:
+        phase = "assisted-config"
+        return phase, ASSISTED_CONFIG_EXACT, PREFIX_BY_PHASE[phase]
     # A fase mais específica precisa vir primeiro, pois
     # "assessment-policy-shadow-runner" contém "assessment-policy-shadow".
     if "assessment-policy-shadow-runner" in head_ref:
