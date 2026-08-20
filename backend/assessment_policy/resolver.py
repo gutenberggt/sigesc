@@ -14,6 +14,7 @@ from .canonical import calculate_rule_hash
 from .exceptions import (
     AssessmentPolicyError,
     POLICY_AMBIGUOUS,
+    POLICY_CONTEXT_MISMATCH,
     POLICY_INTEGRITY_ERROR,
     POLICY_REQUIRED,
 )
@@ -50,6 +51,40 @@ class ResolverPolicyRepository(Protocol):
         academic_year: int,
         reference_date: date,
     ) -> Sequence[AssessmentPolicy]: ...
+
+
+def _validate_context(context: AssessmentPolicyContext) -> None:
+    required = {
+        "mantenedora_id": context.mantenedora_id,
+        "school_id": context.school_id,
+        "class_id": context.class_id,
+        "student_id": context.student_id,
+        "student_series": context.student_series,
+    }
+    missing = [name for name, value in required.items() if not str(value or "").strip()]
+    if missing:
+        raise AssessmentPolicyError(
+            POLICY_CONTEXT_MISMATCH,
+            "Contexto avaliativo incompleto para resolução da política.",
+            details={"missing_fields": missing},
+        )
+
+    if context.component_id is not None and not str(context.component_id).strip():
+        raise AssessmentPolicyError(
+            POLICY_CONTEXT_MISMATCH,
+            "component_id informado não pode ser vazio.",
+            details={"component_id": context.component_id},
+        )
+
+    if int(context.academic_year) != int(context.reference_date.year):
+        raise AssessmentPolicyError(
+            POLICY_CONTEXT_MISMATCH,
+            "Data de referência deve pertencer ao ano letivo informado.",
+            details={
+                "academic_year": int(context.academic_year),
+                "reference_date": context.reference_date.isoformat(),
+            },
+        )
 
 
 def _exact_member(value: Optional[str], allowed: Optional[Sequence[str]]) -> bool:
@@ -170,6 +205,8 @@ def resolve_policy_from_candidates(
 ) -> ResolvedAssessmentPolicy:
     """Seleciona exatamente uma política efetiva ou falha fechado."""
 
+    _validate_context(context)
+
     applicable: list[tuple[tuple[int, int], AssessmentPolicy]] = []
     for policy in candidates:
         if not _published_candidate_is_effective(policy, context):
@@ -220,6 +257,7 @@ class AssessmentPolicyResolver:
         self.repository = repository
 
     async def resolve(self, context: AssessmentPolicyContext) -> ResolvedAssessmentPolicy:
+        _validate_context(context)
         candidates = await self.repository.list_published_candidates(
             context.mantenedora_id,
             academic_year=context.academic_year,
