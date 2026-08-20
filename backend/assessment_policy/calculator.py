@@ -144,19 +144,31 @@ def _validate_calculation_policy(policy: AssessmentPolicy) -> str:
         )
 
     calculated_hash = calculate_rule_hash(policy)
-    if policy.status == PolicyStatus.PUBLISHED:
+    immutable_historical_states = {
+        PolicyStatus.PUBLISHED,
+        PolicyStatus.SUPERSEDED,
+        PolicyStatus.RETIRED,
+    }
+    if policy.status in immutable_historical_states:
         if not policy.rule_hash or policy.rule_hash != calculated_hash:
             raise AssessmentPolicyError(
                 POLICY_INTEGRITY_ERROR,
-                "Política publicada possui hash ausente ou divergente.",
+                "Política publicada/histórica possui hash ausente ou divergente.",
                 details={
                     "policy_id": policy.id,
+                    "policy_status": policy.status.value,
                     "stored_rule_hash": policy.rule_hash,
                     "calculated_rule_hash": calculated_hash,
                 },
             )
 
-    report = validate_policy(policy, for_publish=False)
+    requires_publish_contract = policy.status in {
+        PolicyStatus.VALIDATED,
+        PolicyStatus.PUBLISHED,
+        PolicyStatus.SUPERSEDED,
+        PolicyStatus.RETIRED,
+    }
+    report = validate_policy(policy, for_publish=requires_publish_contract)
     errors = [
         issue.model_dump(mode="json")
         for issue in report.issues
@@ -169,7 +181,7 @@ def _validate_calculation_policy(policy: AssessmentPolicy) -> str:
             details={"issues": errors},
         )
 
-    if policy.status != PolicyStatus.PUBLISHED:
+    if policy.status not in immutable_historical_states:
         if policy.rule_hash is not None and policy.rule_hash != calculated_hash:
             raise AssessmentPolicyError(
                 CALCULATION_POLICY_INVALID,
