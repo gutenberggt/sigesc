@@ -44,7 +44,7 @@ def test_legacy_sibling_records_keep_history_assignment_for_copy_authorization()
     assert 'history_assignment_id:' in source
     assert 'withHistoryAssignment(item, sibling.assignment_id)' in source
     assert 'primaryHistoryAssignmentId' in source
-    assert 'current.history_assignment_id' in source
+    assert 'current?.history_assignment_id' in source
 
 
 def test_dvd_copy_is_enabled_only_with_target_assignment():
