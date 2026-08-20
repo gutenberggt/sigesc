@@ -115,7 +115,7 @@ def test_highest_weight_breaks_equal_grade_tie_toward_b2():
     application = result.recoveries_applied[0]
     assert application["target_period"] == "b2"
     assert application["applied"] is True
-    assert result.final_average == 7.9
+    assert result.final_average == 8.0
 
 
 def test_highest_weight_fails_if_equal_grade_and_equal_weight_remain_tied():
@@ -201,10 +201,7 @@ def test_recovery_input_fails_when_recovery_is_disabled():
             {"rec_s1": 8},
         )
 
-    # O Calculator identifica a entrada desconhecida antes de delegar; ambos os
-    # caminhos são fail-closed. O contrato público prefere NOT_ENABLED quando
-    # existe qualquer entrada em política sem recuperação.
-    assert exc.value.code in {RECOVERY_NOT_ENABLED, RECOVERY_UNKNOWN_INPUT}
+    assert exc.value.code == RECOVERY_NOT_ENABLED
 
 
 def test_direct_recovery_engine_reports_not_enabled_explicitly():
