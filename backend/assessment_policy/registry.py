@@ -8,7 +8,7 @@ contrato para permitir testes puros.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Awaitable, Callable, Iterable, Optional, Protocol, Sequence
+from typing import Callable, Iterable, Optional, Protocol, Sequence
 
 from .exceptions import (
     AssessmentPolicyError,
@@ -36,6 +36,8 @@ class PolicyRepository(Protocol):
         self,
         policy: AssessmentPolicy,
         expected_statuses: Iterable[PolicyStatus],
+        *,
+        expected_revision: int,
     ) -> bool: ...
 
     async def exists_policy_version(
@@ -123,6 +125,21 @@ class AssessmentPolicyRegistry:
                 details={"changed_fields": changed},
             )
 
+    @staticmethod
+    def _require_revision_current(
+        current: AssessmentPolicy,
+        candidate: AssessmentPolicy,
+    ) -> None:
+        if candidate.revision != current.revision:
+            raise AssessmentPolicyError(
+                POLICY_CONCURRENT_MODIFICATION,
+                "O draft enviado está desatualizado; recarregue a política antes de salvar.",
+                details={
+                    "expected_revision": current.revision,
+                    "received_revision": candidate.revision,
+                },
+            )
+
     async def _get_required(
         self,
         policy_id: str,
@@ -141,8 +158,14 @@ class AssessmentPolicyRegistry:
         self,
         policy: AssessmentPolicy,
         expected_statuses: Iterable[PolicyStatus],
+        *,
+        expected_revision: int,
     ) -> AssessmentPolicy:
-        replaced = await self.repository.replace_if_status(policy, expected_statuses)
+        replaced = await self.repository.replace_if_status(
+            policy,
+            expected_statuses,
+            expected_revision=expected_revision,
+        )
         if not replaced:
             raise AssessmentPolicyError(
                 POLICY_CONCURRENT_MODIFICATION,
@@ -183,6 +206,7 @@ class AssessmentPolicyRegistry:
         created = policy.model_copy(
             update={
                 "status": PolicyStatus.DRAFT,
+                "revision": 1,
                 "rule_hash": None,
                 "created_by": actor_id,
                 "created_at": now,
@@ -207,10 +231,12 @@ class AssessmentPolicyRegistry:
         current = await self._get_required(policy.id, mantenedora_id)
         self._require_mutable_draft(current)
         self._require_identity_unchanged(current, policy)
+        self._require_revision_current(current, policy)
 
         candidate = policy.model_copy(
             update={
                 "status": PolicyStatus.DRAFT,
+                "revision": current.revision + 1,
                 "rule_hash": None,
                 "created_by": current.created_by,
                 "created_at": current.created_at,
@@ -220,7 +246,11 @@ class AssessmentPolicyRegistry:
                 "published_at": None,
             }
         )
-        return await self._replace_or_conflict(candidate, [PolicyStatus.DRAFT])
+        return await self._replace_or_conflict(
+            candidate,
+            [PolicyStatus.DRAFT],
+            expected_revision=current.revision,
+        )
 
     async def validate_draft(
         self,
@@ -243,12 +273,17 @@ class AssessmentPolicyRegistry:
         validated = current.model_copy(
             update={
                 "status": PolicyStatus.VALIDATED,
+                "revision": current.revision + 1,
                 "rule_hash": report.calculated_rule_hash,
                 "validated_by": actor_id,
                 "validated_at": self.now_factory(),
             }
         )
-        validated = await self._replace_or_conflict(validated, [PolicyStatus.DRAFT])
+        validated = await self._replace_or_conflict(
+            validated,
+            [PolicyStatus.DRAFT],
+            expected_revision=current.revision,
+        )
         return validated, report
 
     async def reopen_validated(
@@ -279,6 +314,7 @@ class AssessmentPolicyRegistry:
         reopened = current.model_copy(
             update={
                 "status": PolicyStatus.DRAFT,
+                "revision": current.revision + 1,
                 "rule_hash": None,
                 "validated_by": None,
                 "validated_at": None,
@@ -286,7 +322,11 @@ class AssessmentPolicyRegistry:
                 "published_at": None,
             }
         )
-        return await self._replace_or_conflict(reopened, [PolicyStatus.VALIDATED])
+        return await self._replace_or_conflict(
+            reopened,
+            [PolicyStatus.VALIDATED],
+            expected_revision=current.revision,
+        )
 
     async def publish(
         self,
@@ -340,9 +380,14 @@ class AssessmentPolicyRegistry:
         published = current.model_copy(
             update={
                 "status": PolicyStatus.PUBLISHED,
+                "revision": current.revision + 1,
                 "rule_hash": report.calculated_rule_hash,
                 "published_by": actor_id,
                 "published_at": self.now_factory(),
             }
         )
-        return await self._replace_or_conflict(published, [PolicyStatus.VALIDATED])
+        return await self._replace_or_conflict(
+            published,
+            [PolicyStatus.VALIDATED],
+            expected_revision=current.revision,
+        )
