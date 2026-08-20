@@ -17,13 +17,15 @@ import {
   Clock,
   FileText,
   Sparkles,
-  Award
+  Award,
+  Shield,
+  ChevronDown
 } from 'lucide-react';
 import { professorAPI } from '../services/api';
 import { mantenedoraAPI } from '../services/api';
 
 export default function ProfessorDashboard() {
-  const { user } = useAuth();
+  const { user, switchRole, getAvailableRoles } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -31,6 +33,8 @@ export default function ProfessorDashboard() {
   const [error, setError] = useState(null);
   const [mensagemDestaque, setMensagemDestaque] = useState('');
   const [mensagemDestaqueCor, setMensagemDestaqueCor] = useState('azul_marinho');
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -73,6 +77,59 @@ export default function ProfessorDashboard() {
     navigate('/professor');
   };
 
+  const roleLabels = {
+    super_admin: 'Super Administrador',
+    gerente: 'Gerente da Mantenedora',
+    admin: 'Administrador',
+    admin_teste: 'Administrador',
+    secretario: 'Secretário(a)',
+    diretor: 'Diretor(a)',
+    coordenador: 'Coordenador(a)',
+    apoio_pedagogico: 'Apoio Pedagógico',
+    auxiliar_secretaria: 'Auxiliar de Secretaria',
+    professor: 'Professor(a)',
+    aluno: 'Estudante',
+    responsavel: 'Responsável(is)',
+    ass_social: 'Ass. Social',
+    ass_social_2: 'Ass. Social',
+    agente_vacinas: 'Agente de Vacinas',
+    semed: 'SEMED',
+    semed1: 'Tutor',
+    semed2: 'Analista',
+    semed3: 'Administração'
+  };
+
+  const availableRoles = Array.from(new Set(
+    getAvailableRoles ? getAvailableRoles().filter(Boolean) : [user?.role].filter(Boolean)
+  ));
+  const hasMultipleRoles = availableRoles.length > 1;
+
+  const handleSwitchRole = async (newRole) => {
+    if (!newRole || newRole === user?.role) {
+      setShowRoleSelector(false);
+      return;
+    }
+
+    setSwitchingRole(true);
+    try {
+      const result = await switchRole(newRole);
+      if (!result?.success) {
+        window.alert(result?.error || 'Erro ao trocar papel');
+        return;
+      }
+
+      setShowRoleSelector(false);
+      // A sessão já foi rotacionada pelo AuthContext. /dashboard resolve a home
+      // correta para o novo papel ativo e recria os contexts com o novo JWT.
+      window.location.assign('/dashboard');
+    } catch (switchError) {
+      console.error('Erro ao trocar papel:', switchError);
+      window.alert('Erro ao trocar papel');
+    } finally {
+      setSwitchingRole(false);
+    }
+  };
+
   // Separar turmas regulares e AEE
   const turmasAEE = turmas.filter(t => t.atendimento_programa === 'aee');
   const turmasRegulares = turmas.filter(t => !t.atendimento_programa || (t.atendimento_programa !== 'aee' && t.atendimento_programa !== 'reforco' && t.atendimento_programa !== 'recomposicao'));
@@ -110,18 +167,65 @@ export default function ProfessorDashboard() {
       <div className="space-y-6">
         {/* Header com boas-vindas */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
-          <div className="flex items-center gap-4">
-            <div className="bg-white/20 rounded-full p-3">
-              <User size={32} />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 rounded-full p-3">
+                <User size={32} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">
+                  Olá, {profile?.nome?.split(' ')[0] || user?.full_name?.split(' ')[0]}!
+                </h1>
+                <p className="text-blue-100">
+                  {profile?.cargo_especifico || 'Professor(a)'} • Matrícula: {profile?.matricula || 'N/A'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">
-                Olá, {profile?.nome?.split(' ')[0] || user?.full_name?.split(' ')[0]}!
-              </h1>
-              <p className="text-blue-100">
-                {profile?.cargo_especifico || 'Professor(a)'} • Matrícula: {profile?.matricula || 'N/A'}
-              </p>
-            </div>
+
+            {/* Troca de papel existe somente na barra azul do dashboard */}
+            {hasMultipleRoles && (
+              <div className="relative flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowRoleSelector((current) => !current)}
+                  disabled={switchingRole}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/20 disabled:opacity-50"
+                  data-testid="professor-role-switcher-button"
+                >
+                  <Shield size={18} />
+                  <span>Trocar Papel</span>
+                  <ChevronDown size={16} className={`transition-transform ${showRoleSelector ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showRoleSelector && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                    data-testid="professor-role-switcher-menu"
+                  >
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <p className="text-xs text-gray-500 font-medium">Selecione o papel:</p>
+                    </div>
+                    {availableRoles.map((role) => (
+                      <button
+                        type="button"
+                        key={role}
+                        onClick={() => handleSwitchRole(role)}
+                        disabled={switchingRole}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between disabled:opacity-50 ${
+                          role === user?.role ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                        }`}
+                        data-testid={`professor-role-option-${role}`}
+                      >
+                        <span>{roleLabels[role] || role}</span>
+                        {role === user?.role && (
+                          <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">Atual</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
