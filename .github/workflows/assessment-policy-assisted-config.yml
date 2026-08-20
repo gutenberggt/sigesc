@@ -1,0 +1,93 @@
+name: Assessment Policy v1 - Assisted Config Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/assessment_policy/**'
+      - 'backend/routers/assessment_policy_admin.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_assessment_policy_*_v1.py'
+      - 'frontend/src/components/assessment-policy/**'
+      - 'frontend/src/pages/Mantenedora.js'
+      - 'frontend/src/services/api.js'
+      - 'memory/audit/ASSESSMENT_POLICY_V1_SPRINT_007_ASSISTED_CONFIG.md'
+      - '.github/scripts/assessment_policy_scope_guard.py'
+      - '.github/workflows/assessment-policy-assisted-config.yml'
+
+jobs:
+  scope-creep-guard:
+    name: Assessment Policy - Assisted Config Scope Guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Guard Assisted Config scope
+        run: python .github/scripts/assessment_policy_scope_guard.py
+
+  assisted-config-tests:
+    name: Assessment Policy - Assisted Config Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install isolated test dependencies
+        run: pip install 'pydantic>=2,<3' pytest pytest-asyncio fastapi
+
+      - name: Compile Assessment Policy and admin router
+        run: |
+          python -m compileall -q backend/assessment_policy
+          python -m compileall -q backend/routers/assessment_policy_admin.py
+
+      - name: Run complete Assessment Policy regression through Assisted Config
+        run: |
+          PYTHONPATH=backend pytest -q --noconftest \
+            backend/tests/test_assessment_policy_foundation_v1.py \
+            backend/tests/test_assessment_policy_registry_v1.py \
+            backend/tests/test_assessment_policy_series_resolver_v1.py \
+            backend/tests/test_assessment_policy_resolver_v1.py \
+            backend/tests/test_assessment_policy_conflict_checker_v1.py \
+            backend/tests/test_assessment_policy_calculator_v1.py \
+            backend/tests/test_assessment_policy_recovery_v1.py \
+            backend/tests/test_assessment_policy_outcome_v1.py \
+            backend/tests/test_assessment_policy_shadow_v1.py \
+            backend/tests/test_assessment_policy_shadow_runner_v1.py \
+            backend/tests/test_assessment_policy_assisted_config_v1.py \
+            backend/tests/test_assessment_policy_pilot_runner_v1.py
+
+      - name: Guard absence of publish/cutover endpoints in Sprint 007
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('backend/routers/assessment_policy_admin.py').read_text(encoding='utf-8')
+          forbidden = [
+              '@router.post("/publish',
+              '@router.put("/publish',
+              '@router.post("/cutover',
+              '@router.put("/cutover',
+              '.publish(',
+              'calculate_and_update_grade',
+              'grade_calculator',
+          ]
+          found = [item for item in forbidden if item in source]
+          if found:
+              raise SystemExit(f'Forbidden Sprint 007 runtime/publish markers: {found}')
+          print('ASSESSMENT_POLICY_ASSISTED_NO_PUBLISH_CUTOVER=PASS')
+          PY
