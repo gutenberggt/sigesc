@@ -1,11 +1,13 @@
 """Persistência tenant-scoped da Assessment Policy v1.
 
-O repository não é instalado no startup nesta sprint. Todos os métodos exigem
-`mantenedora_id` explícito nas leituras/mutações para preservar fail-closed.
+O repository ainda não é instalado no startup do SIGESC. Todos os métodos
+exigem `mantenedora_id` explícito nas leituras/mutações para preservar
+fail-closed.
 """
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Iterable, List, Optional
 
 from .models import AssessmentPolicy, PolicyStatus
@@ -15,7 +17,7 @@ COLLECTION_NAME = "assessment_policies"
 
 
 class AssessmentPolicyRepository:
-    """Adapter Mongo mínimo para o futuro Registry."""
+    """Adapter Mongo mínimo para Registry e Resolver."""
 
     def __init__(self, db):
         self.collection = db[COLLECTION_NAME]
@@ -68,6 +70,34 @@ class AssessmentPolicyRepository:
         cursor = self.collection.find(query, {"_id": 0}).sort(
             [("academic_year", -1), ("policy_key", 1), ("version", -1)]
         )
+        docs = await cursor.to_list(length=None)
+        return [AssessmentPolicy.model_validate(doc) for doc in docs]
+
+    async def list_published_candidates(
+        self,
+        mantenedora_id: str,
+        *,
+        academic_year: int,
+        reference_date: date,
+    ) -> List[AssessmentPolicy]:
+        """Lista somente versões publicadas vigentes no tenant/ano/data.
+
+        Datas de política são persistidas por `model_dump(mode="json")` como
+        ISO `YYYY-MM-DD`, portanto a comparação lexicográfica do Mongo preserva
+        a ordem cronológica deste campo.
+        """
+
+        ref = reference_date.isoformat()
+        cursor = self.collection.find(
+            {
+                "mantenedora_id": mantenedora_id,
+                "academic_year": int(academic_year),
+                "status": PolicyStatus.PUBLISHED.value,
+                "effective_from": {"$lte": ref},
+                "effective_until": {"$gte": ref},
+            },
+            {"_id": 0},
+        ).sort([("policy_key", 1), ("version", -1)])
         docs = await cursor.to_list(length=None)
         return [AssessmentPolicy.model_validate(doc) for doc in docs]
 
