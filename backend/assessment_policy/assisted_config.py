@@ -9,6 +9,7 @@ Invariantes da Sprint 007:
 - nenhuma regra municipal inferida;
 - nenhum mapping legado inferido;
 - policies published/superseded/retired são somente leitura;
+- validação normativa não depende do schema legado;
 - dry-run só fica liberado quando policy + mapping satisfazem o contrato completo.
 """
 
@@ -88,58 +89,61 @@ def preview_assisted_configuration(
 ) -> AssistedConfigurationPreview:
     """Avalia completude sem persistir ou alterar lifecycle.
 
-    Para `can_validate` e `can_dry_run`, usamos o mesmo contrato exigido para
-    publicação (`for_publish=True`) porque um dry-run pedagógico só é útil se a
-    regra candidata estiver completa, inclusive fonte normativa, frequência e
-    decisão explícita sobre recuperação.
+    `can_validate` representa apenas o contrato normativo da AssessmentPolicy.
+    O mapping legado é infraestrutura de compatibilidade e não integra a norma.
+    Já `can_dry_run` exige simultaneamente policy completa e mapping explícito.
     """
 
     policy = configuration.policy
     issues: list[AssistedConfigurationIssue] = []
+    policy_error_codes: set[str] = set()
 
     editable_statuses = {PolicyStatus.DRAFT, PolicyStatus.VALIDATED}
     if policy.status not in editable_statuses:
-        issues.append(
-            AssistedConfigurationIssue(
-                severity="error",
-                code=ASSISTED_STATUS_NOT_EDITABLE,
-                field="policy.status",
-                message=(
-                    "Configuração assistida não edita policy publicada/histórica; "
-                    "crie uma nova versão em draft."
-                ),
-                details={"status": policy.status.value},
-            )
+        issue = AssistedConfigurationIssue(
+            severity="error",
+            code=ASSISTED_STATUS_NOT_EDITABLE,
+            field="policy.status",
+            message=(
+                "Configuração assistida não edita policy publicada/histórica; "
+                "crie uma nova versão em draft."
+            ),
+            details={"status": policy.status.value},
         )
+        issues.append(issue)
+        policy_error_codes.add(issue.code)
 
     if policy.status == PolicyStatus.DRAFT and policy.rule_hash is not None:
-        issues.append(
-            AssistedConfigurationIssue(
-                severity="error",
-                code=ASSISTED_DRAFT_HASH_FORBIDDEN,
-                field="policy.rule_hash",
-                message="Draft não deve carregar rule_hash persistido.",
-            )
+        issue = AssistedConfigurationIssue(
+            severity="error",
+            code=ASSISTED_DRAFT_HASH_FORBIDDEN,
+            field="policy.rule_hash",
+            message="Draft não deve carregar rule_hash persistido.",
         )
+        issues.append(issue)
+        policy_error_codes.add(issue.code)
 
     policy_report = validate_policy(policy, for_publish=True)
     for item in policy_report.issues:
-        issues.append(
-            AssistedConfigurationIssue(
-                severity=item.severity,
-                code=item.code,
-                field=item.field,
-                message=item.message,
-            )
+        issue = AssistedConfigurationIssue(
+            severity=item.severity,
+            code=item.code,
+            field=item.field,
+            message=item.message,
         )
+        issues.append(issue)
+        if item.severity == "error":
+            policy_error_codes.add(item.code)
 
     mapping_hash: Optional[str] = None
+    mapping_valid = False
     try:
         runtime_mapping = validate_shadow_mapping(
             policy,
             configuration.legacy_mapping.to_runtime(),
         )
         mapping_hash = calculate_mapping_hash(runtime_mapping)
+        mapping_valid = True
     except AssessmentPolicyError as exc:
         issues.append(
             AssistedConfigurationIssue(
@@ -151,10 +155,15 @@ def preview_assisted_configuration(
             )
         )
 
-    has_errors = any(item.severity == "error" for item in issues)
+    has_policy_errors = bool(policy_error_codes)
     can_save_draft = policy.status == PolicyStatus.DRAFT and policy.rule_hash is None
-    can_validate = can_save_draft and not has_errors
-    can_dry_run = policy.status in editable_statuses and not has_errors and mapping_hash is not None
+    can_validate = can_save_draft and not has_policy_errors
+    can_dry_run = (
+        policy.status in editable_statuses
+        and not has_policy_errors
+        and mapping_valid
+        and mapping_hash is not None
+    )
 
     return AssistedConfigurationPreview(
         policy_id=policy.id,
