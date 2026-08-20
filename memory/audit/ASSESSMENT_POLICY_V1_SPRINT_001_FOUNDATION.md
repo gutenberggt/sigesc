@@ -1,9 +1,9 @@
 # Assessment Policy Multi-Mantenedora v1 — Sprint 001 Foundation
 
-**Status:** EM EXECUÇÃO  
+**Status:** CONCLUÍDA TECNICAMENTE — PR #55 em validação final  
 **Branch:** `feat/assessment-policy-foundation-v1`  
 **Base:** `6024474873ffed4ada9d0b0d5bd0bd4601d56ff8` (merge PR #54)  
-**Natureza desta etapa:** arquitetura + inventário + contratos; **sem alteração de regra de negócio em produção**.
+**Natureza:** arquitetura + inventário + contratos + Registry isolado; **sem alteração do comportamento de Notas em produção**.
 
 ---
 
@@ -13,26 +13,39 @@ Criar a fundação para substituir regras de avaliação/aprovação dispersas e
 
 Invariante central:
 
-> O SIGESC não possui regra avaliativa global. Toda regra de avaliação, recuperação, cálculo e resultado escolar pertence a uma política versionada de uma mantenedora e é resolvida pelo contexto acadêmico efetivo do estudante.
+> O SIGESC não possui regra avaliativa global. Toda regra de avaliação, recuperação, cálculo e resultado escolar pertence a uma política versionada de uma mantenedora e será resolvida pelo contexto acadêmico efetivo do estudante.
 
-Nenhum dado de `grades` será migrado, recalculado ou reescrito nesta sprint.
-
----
-
-## 2. Escopo da Sprint 001
-
-1. Commit Archaeologist — reconstruir os motores/regras existentes.
-2. Dependency Doctor — mapear produtores e consumidores de resultados avaliativos.
-3. Definir contrato de `AssessmentPolicy` v1.
-4. Criar Registry/Schema isolado, sem integrar ainda com as rotas de notas.
-5. Criar validações puras e testes de contrato.
-6. Não substituir `calculate_and_update_grade()` nesta sprint.
-7. Não alterar Boletim, PDFs, BI, Histórico ou Promoção nesta sprint.
-8. Não executar backfill.
+Nenhum dado de `grades` foi migrado, recalculado ou reescrito nesta sprint.
 
 ---
 
-## 3. Baseline encontrado — Commit Archaeologist
+## 2. Escopo executado
+
+1. Commit Archaeologist dos motores/regras existentes.
+2. Dependency Doctor dos produtores e consumidores de resultado avaliativo.
+3. Contrato `AssessmentPolicy` v1.
+4. Canonicalização e SHA-256 determinístico das regras.
+5. Validator puro.
+6. Registry tenant-scoped e lifecycle isolado.
+7. Optimistic locking por `revision`.
+8. Especificação de índices Mongo — sem startup hook.
+9. Scope Creep Guard específico da Foundation.
+10. Testes puros de contrato, tenant isolation e lifecycle.
+
+Não foram alterados:
+
+- `calculate_and_update_grade()`;
+- cálculo vigente de `grades`;
+- `final_average`;
+- `status`;
+- frequência;
+- AEE;
+- matrícula/transferência;
+- Boletim/PDF/Histórico/BI/Promoção.
+
+---
+
+## 3. Baseline — Commit Archaeologist
 
 ### 3.1 `backend/routers/grades.py`
 
@@ -40,129 +53,88 @@ Existe um motor legado que calcula `final_average` e `status` após gravações 
 
 A auditoria de produção de 2026 comprovou que os `final_average` persistidos do 1º/2º Ano auditados coincidem com este motor legado.
 
-**Classificação:** motor ativo/legado; deverá ser encapsulado e posteriormente retirado do papel de SSoT, nunca removido antes do shadow mode.
+**Decisão:** permanecer intacto até shadow mode/cutover por mantenedora.
 
 ### 3.2 `backend/grade_calculator.py`
 
-Contém outro conjunto independente de regras:
+Contém outro conjunto independente de regras, incluindo:
 
-- `WEIGHTS = {b1: 2, b2: 3, b3: 2, b4: 3}`;
-- `MIN_AVERAGE = 5.0`;
-- `MIN_ATTENDANCE = 75.0`;
-- recuperação de B1/B2 e B3/B4;
-- regra especial de Educação Infantil;
+- pesos B1/B2/B3/B4 codificados;
+- média mínima/frequência mínima codificadas;
+- recuperação;
+- regras conceituais por etapa/série;
 - `calculate_maior_conceito()`;
-- status/documentos com regras por série/nível;
-- função de resultado final que já recebe `regras_aprovacao` da mantenedora.
+- regras de resultado documental.
 
-Há, portanto, uma combinação de parâmetros configuráveis com regras ainda codificadas no módulo.
+Achados adicionais:
 
-**Classificação:** fonte parcial/reutilizável para descoberta, mas não pode permanecer como SSoT multi-mantenedora no formato atual.
+- o motor ponderado trata períodos ausentes como zero e divide pela soma total dos pesos;
+- o desempate de recuperação tem divergência entre intenção/comentário e implementação: `<=` seleciona B1/B3 em empate, embora a regra esperada de maior peso aponte B2/B4 no conjunto 2/3/2/3.
 
-### 3.3 `backend/models.py` — Mantenedora
+**Decisão:** não corrigir esse legado na Foundation. Alterá-lo mudaria comportamento de produção antes do shadow mode.
 
-O cadastro atual da mantenedora já possui parâmetros administrativos de aprovação, entre eles:
+### 3.3 Parametrização existente na mantenedora
+
+`backend/models.py` já possui campos como:
 
 - `media_aprovacao`;
 - `frequencia_minima`;
-- `aprovacao_com_dependencia`;
-- `max_componentes_dependencia`;
-- `cursar_apenas_dependencia`;
-- `qtd_componentes_apenas_dependencia`.
+- regras de dependência.
 
-Esses campos não possuem versionamento temporal e não expressam toda a política avaliativa. Alterá-los sobrescreve a configuração corrente e não cria, por si só, uma política reproduzível por ano/vigência.
+Eles não possuem versionamento temporal, vigência ou hash e não expressam uma política avaliativa completa.
 
-**Decisão:** preservar compatibilidade durante a transição; não ampliar esse bloco. O novo domínio será uma coleção versionada própria (`assessment_policies`).
+**Decisão:** preservar por compatibilidade; não ampliar esse bloco como nova SSoT. O novo domínio utilizará coleção própria `assessment_policies`.
 
-### 3.4 Frontend conceitual
+### 3.4 Frontend
 
-`frontend/src/components/grades/gradeHelpers.jsx`, `Grades.js` e `AlunoTab.jsx` possuem lógica própria para conceitos, incluindo `calcularMaiorConceito()`.
+`gradeHelpers.jsx`, `Grades.js` e `AlunoTab.jsx` possuem cálculo/síntese próprios.
 
-**Classificação:** cálculo duplicado no cliente. No estado-alvo, frontend apresenta/simula; o resultado canônico deve vir do motor backend.
+**Estado-alvo:** frontend apresenta e coleta dados; resultado canônico virá do backend.
 
-### 3.5 Status conceitual
+### 3.5 Status conceitual legado
 
-`backend/tests/test_status_conceitual.py` documenta como regra atual:
+`backend/tests/test_status_conceitual.py` registra comportamento atual por série/etapa, inclusive promoção do 1º/2º Ano quando completo.
 
-- Educação Infantil + 1º/2º Ano tratados como conceituais;
-- 1º/2º Ano promovidos quando os bimestres estão completos;
-- 3º+ tratados como avaliados numericamente.
-
-A política multi-mantenedora não poderá codificar esses anos como regra universal.
-
-**Decisão:** preservar os testes atuais enquanto o motor legado continuar oficial; novos testes da política v1 serão isolados e não alterarão esses contratos na Sprint 001.
+**Decisão:** preservar enquanto o legado for oficial. A nova arquitetura não transforma isso em regra global.
 
 ---
 
-## 4. Baseline encontrado — Dependency Doctor
+## 4. Dependency Doctor
 
-### 4.1 Produtores / mutadores principais
+A matriz detalhada está em:
 
-- `backend/routers/grades.py`
-- `backend/routers/grades_dvd.py`
-- `backend/grade_calculator.py`
+`memory/audit/ASSESSMENT_POLICY_V1_DEPENDENCY_MATRIX.md`
 
-### 4.2 Consumidores identificados de `final_average` / regras de aprovação
+Produtores/calculadores críticos incluem:
 
-A busca de dependências identificou, entre outros:
+- `backend/routers/grades.py`;
+- `backend/routers/grades_dvd.py`;
+- `backend/grade_calculator.py`.
 
-- `backend/pdf/boletim.py`
-- `backend/pdf/ficha_individual.py`
-- `backend/pdf/notas.py`
-- `backend/pdf/historico_escolar.py`
-- `backend/utils/bulletin_builder.py`
-- `backend/routers/analytics.py`
-- `backend/services/academic_risk_engine.py`
-- `backend/routers/student_history.py`
-- `backend/services/history_consolidator.py`
-- `backend/routers/student_portal.py`
-- `backend/routers/documents.py`
-- `backend/routers/dependency_completions.py`
-- `frontend/src/pages/Grades.js`
-- `frontend/src/components/grades/GradesTable.jsx`
-- `frontend/src/components/grades/AlunoTab.jsx`
-- `frontend/src/pages/BulletinViewer.jsx`
-- `frontend/src/pages/BoletimAluno.jsx`
-- `frontend/src/pages/Promotion.jsx`
+Consumidores relevantes incluem:
 
-Esta lista é baseline inicial; a Sprint 001 deverá transformá-la em matriz classificada por tipo de uso: **calcula / grava / exibe / decide / agrega / testa**.
+- Boletim;
+- Ficha Individual;
+- Relatório de Notas;
+- Histórico Escolar;
+- portal do estudante;
+- reconstrução/consolidação histórica;
+- Promoção/Dependência;
+- Analytics;
+- risco acadêmico;
+- consolidação pedagógica;
+- telas de Notas no frontend.
+
+Nenhum consumidor será migrado antes de Registry + Resolver + Calculator + shadow/dry-run.
 
 ---
 
-## 5. Riscos já confirmados
-
-### R1 — múltiplas SSoT
-
-Há mais de um algoritmo para média e situação.
-
-### R2 — regra municipal hardcoded
-
-Pesos, média mínima, frequência e tratamento conceitual aparecem em código. Uma política de uma mantenedora não pode ser regra global do produto.
-
-### R3 — política histórica não reproduzível
-
-Campos diretamente em `mantenedoras` não carregam versão, vigência ou hash da regra.
-
-### R4 — multisseriação
-
-A política não pode ser resolvida apenas por `class.grade_level`. Deve priorizar a série individual da matrícula/vínculo histórico.
-
-### R5 — consumidores recalculando
-
-Boletim, PDF, frontend, BI e documentos não podem manter fórmulas paralelas depois do cutover.
-
-### R6 — migração prematura
-
-Os dados bimestrais existentes devem ser preservados. Campos derivados só poderão ser remediados após Registry + Resolver + Calculator + shadow/dry-run.
-
----
-
-## 6. Arquitetura-alvo
+## 5. Arquitetura-alvo
 
 ```text
 Mantenedora
     |
-    +-- AssessmentPolicy Registry (versionado / imutável quando publicado)
+    +-- AssessmentPolicy Registry
             |
             +-- Policy Resolver
                     |
@@ -190,136 +162,252 @@ Mantenedora
              Boletim / PDF / Histórico / BI
 ```
 
-IA/RAG poderá explicar ou auditar a política, nunca participar do cálculo oficial.
+IA/RAG poderá explicar ou auditar políticas, nunca participar do cálculo oficial.
 
 ---
 
-## 7. Precedência de resolução
+## 6. Contrato `AssessmentPolicy` v1
 
-A política candidata deve sempre pertencer à mantenedora ativa e estar vigente no contexto solicitado.
+A Foundation implementa:
 
-Precedência de especificidade planejada:
-
-1. turma + componente;
-2. turma;
-3. escola + componente;
-4. escola;
-5. mantenedora + série/modalidade/etapa/componente;
-6. mantenedora + série/modalidade/etapa;
-7. mantenedora geral compatível com o contexto.
-
-Duas políticas publicadas igualmente específicas e simultaneamente aplicáveis devem falhar fechado:
-
-`ASSESSMENT_POLICY_AMBIGUOUS`
-
-Ausência de política aplicável:
-
-`ASSESSMENT_POLICY_REQUIRED`
-
----
-
-## 8. Série efetiva
-
-Ordem planejada:
-
-1. série persistida na matrícula do ano (`enrollment.student_series`);
-2. série preservada no vínculo/histórico anual;
-3. `student.student_series` quando coerente com o ano corrente;
-4. `class.grade_level` somente como fallback seguro.
-
-Se a turma for multisseriada e não houver série individual confiável:
-
-`ASSESSMENT_STUDENT_SERIES_REQUIRED`
-
-Nunca inferir silenciosamente uma série coletiva em turma multisseriada.
-
----
-
-## 9. Contrato de política v1
-
-A política deverá conter, no mínimo:
-
-- identidade (`id`, `policy_key`, `version`);
-- `mantenedora_id`;
-- `name`;
-- `status` (`draft`, `validated`, `published`, `superseded`, `retired`);
-- `academic_year`;
-- `effective_from` / `effective_until`;
-- `scope`;
-- modo de avaliação;
-- escala conceitual ou numérica;
-- períodos e pesos;
+- `PolicyStatus`: `draft`, `validated`, `published`, `superseded`, `retired`;
+- `AssessmentMode`: `numeric`, `conceptual`, `descriptive`, `skill_based`;
+- escopo por escola/turma/série/componente/etapa/modalidade;
+- escala conceitual configurável;
+- escala numérica configurável;
+- períodos e pesos configuráveis;
 - estratégia de cálculo;
-- estratégia/grupos de recuperação;
-- regras de resultado acadêmico;
+- grupos/estratégia de recuperação;
+- regra de resultado acadêmico;
+- base de frequência;
+- conselho/override auditável;
 - fontes normativas;
-- `rule_hash` após publicação;
-- autoria e timestamps.
+- parent policy reference;
+- `rule_hash`;
+- metadados de criação/validação/publicação;
+- `revision` para concorrência otimista.
 
-Política `published` será imutável. Alteração cria nova versão.
+`DESCRIPTIVE` e `SKILL_BASED` não são obrigados a carregar fórmula numérica artificial.
 
 ---
 
-## 10. Política de Floresta do Araguaia — exemplo de configuração, não regra global
+## 7. Canonicalização e hash
 
-Configuração informada para a mantenedora:
+`canonical.py` calcula:
+
+`sha256:<hex>`
+
+sobre os campos que alteram resolução/cálculo, incluindo tenant, ano, vigência, escopo e regras.
+
+Metadados administrativos como nome, autoria e timestamps não alteram o hash.
+
+Assim, mesmas regras efetivas produzem o mesmo hash.
+
+---
+
+## 8. Validator puro
+
+Valida, entre outros:
+
+- períodos duplicados;
+- escala conceitual incompleta/ambígua;
+- recuperação sem grupos;
+- períodos inexistentes em recuperação;
+- necessidade de explicitar `only_if_improves` antes de publicar;
+- média mínima fora da escala;
+- frequência mínima sem `attendance_basis` e vice-versa;
+- override por conselho sem auditoria;
+- ausência de fonte normativa na publicação;
+- divergência de `rule_hash`.
+
+Não acessa Mongo, HTTP, autenticação ou motores legados.
+
+---
+
+## 9. Registry/lifecycle
+
+O Registry implementado na Foundation permanece **desconectado das rotas atuais**.
+
+Lifecycle:
+
+```text
+DRAFT
+  |
+  +-- validar --> VALIDATED
+  |                 |
+  |                 +-- reabrir --> DRAFT
+  |                 |
+  |                 +-- publicar --> PUBLISHED
+  |
+  +-- editar somente como DRAFT
+```
+
+`PUBLISHED`, `SUPERSEDED` e `RETIRED` são imutáveis para edição normal.
+
+Mudança normativa futura deverá criar nova versão.
+
+### Publicação fail-closed
+
+A publicação exige um `PolicyConflictChecker` explícito.
+
+Sem checker:
+
+`ASSESSMENT_POLICY_CONFLICT_CHECK_REQUIRED`
+
+Com conflito:
+
+`ASSESSMENT_POLICY_CONFLICT`
+
+O checker real será fornecido pelo Resolver na Sprint 002. Logo, a Foundation não permite publicação real por suposição de ausência de conflito.
+
+---
+
+## 10. Multi-tenancy
+
+Toda leitura/mutação do repository exige `mantenedora_id` explicitamente.
+
+Exemplo de chave lógica:
+
+```text
+(mantenedora_id, policy_key, version)
+```
+
+A mesma `policy_key/version` pode existir em duas mantenedoras sem colisão.
+
+Cross-tenant deve falhar fechado.
+
+---
+
+## 11. Optimistic locking
+
+Cada política possui:
+
+`revision >= 1`
+
+Toda transição/edição substitui o documento somente se a revisão persistida ainda for a esperada.
+
+Exemplo:
+
+```text
+Admin A carrega revision=1
+Admin B carrega revision=1
+Admin A salva -> revision=2
+Admin B tenta salvar revision=1
+        -> ASSESSMENT_POLICY_CONCURRENT_MODIFICATION
+```
+
+Isso evita perda silenciosa de configuração administrativa.
+
+`revision` não participa do hash da regra.
+
+---
+
+## 12. Índices planejados
+
+Foram especificados, mas **não instalados** nesta sprint:
+
+- unique `(mantenedora_id, id)`;
+- unique `(mantenedora_id, policy_key, version)`;
+- janela de resolução por tenant/status/ano/vigência;
+- índices separados por dimensões array de escopo.
+
+Os arrays não são combinados no mesmo índice composto, evitando desenho multikey inválido/limitante no MongoDB.
+
+Nenhum startup hook foi criado.
+
+---
+
+## 13. Scope Creep Guard
+
+A PR possui guard dedicado que autoriza apenas:
+
+- `backend/assessment_policy/**`;
+- testes próprios da Foundation;
+- documentação de auditoria;
+- workflow/guard da própria Foundation.
+
+Mudanças em Notas, Frequência, AEE, Matrícula, Transferência, PDFs etc. fazem o gate falhar.
+
+---
+
+## 14. Política de Floresta do Araguaia
+
+As regras informadas para a mantenedora servem como **fixture/exemplo de validação**, não como regra global do produto:
 
 - 1º/2º Ano: C/ED/ND;
 - C=10,0; ED=7,5; ND=5,0;
 - 3º Ano: numérico;
 - pesos B1=2, B2=3, B3=2, B4=3;
-- recuperação substitui a menor nota; em empate, período de maior peso;
-- média por componente >= 5,0;
+- recuperação substitui menor resultado; empate -> maior peso;
+- média mínima por componente = 5,0;
 - frequência mínima = 75%.
 
-Pendências operacionais antes de publicar a política municipal como definitiva:
+Pendências antes de publicar a configuração municipal real:
 
-1. associação exata entre cada recuperação existente e os períodos alcançados;
-2. confirmar se recuperação inferior nunca reduz o resultado original (`only_if_improves`);
-3. confirmar base dos 75% (`global`, `component` ou outra).
+1. associação exata entre cada recuperação e os períodos alcançados;
+2. confirmar `only_if_improves`;
+3. confirmar `attendance_basis` dos 75%.
 
-Essas pendências não impedem a fundação do motor genérico.
+Essas pendências não bloqueiam o motor genérico.
 
 ---
 
-## 11. Entregáveis da Sprint 001
+## 15. Entregáveis da Sprint 001
 
 - [x] branch isolada criada a partir do PR #54;
-- [x] baseline dos motores identificado;
-- [x] baseline de dependências identificado;
+- [x] Commit Archaeologist;
+- [x] Dependency Doctor / matriz de consumidores;
 - [x] decisão de não ampliar `mantenedoras.media_aprovacao` como SSoT;
-- [ ] schema puro da política v1;
-- [ ] canonicalização/hash determinístico;
-- [ ] validator puro;
-- [ ] testes unitários do contrato;
-- [ ] matriz completa de consumidores;
-- [ ] Scope Creep guard inicial;
-- [ ] CI verde;
+- [x] schema puro da política v1;
+- [x] canonicalização/hash determinístico;
+- [x] validator puro;
+- [x] Registry tenant-scoped;
+- [x] lifecycle DRAFT -> VALIDATED -> PUBLISHED;
+- [x] publicação fail-closed sem conflict checker;
+- [x] imutabilidade após publicação;
+- [x] optimistic locking por `revision`;
+- [x] índices planejados sem startup hook;
+- [x] testes unitários do contrato;
+- [x] testes de tenant isolation/lifecycle/concurrency;
+- [x] Scope Creep Guard;
+- [x] Foundation Gate dedicado.
 
 ---
 
-## 12. Proibições nesta Sprint
+## 16. Proibições preservadas
 
-- Não alterar cálculo atual de `grades`.
-- Não atualizar `final_average`.
-- Não alterar `status` de alunos/notas.
-- Não fazer backfill.
-- Não alterar frequência.
-- Não alterar AEE.
-- Não alterar matrícula/transferência.
-- Não alterar PDFs para usar o novo motor ainda.
-- Não cadastrar automaticamente política em produção.
-- Não habilitar feature flag de cutover.
+Nesta sprint:
+
+- não foi alterado o cálculo de `grades`;
+- não foi atualizado `final_average`;
+- não foi alterado `status`;
+- não houve backfill;
+- não houve escrita em produção;
+- não foi alterada frequência;
+- não foi alterado AEE;
+- não foi alterada matrícula/transferência;
+- PDFs/Boletim/BI continuam no legado;
+- nenhuma política foi cadastrada automaticamente;
+- nenhuma feature flag de cutover foi ativada.
 
 ---
 
-## 13. Gate para Sprint 002
+## 17. Gate para Sprint 002 — Resolver
 
-A Sprint 002 (Resolver) somente pode iniciar quando:
+A Sprint 002 só pode iniciar após o PR #55 concluir seus gates e ser integrado ao `main`.
 
-1. schema e validator v1 estiverem estabilizados;
-2. o hash canônico for reproduzível;
-3. tenant isolation estiver coberto por testes;
-4. a matriz de dependências estiver revisada;
-5. nenhum comportamento de notas tiver mudado;
-6. CI/regressão estiver verde.
+Condições arquiteturais da Foundation:
+
+1. schema/validator estabilizados — **PASS**;
+2. hash reproduzível — **PASS**;
+3. tenant isolation coberto por testes — **PASS**;
+4. lifecycle e imutabilidade cobertos — **PASS**;
+5. concorrência otimista coberta — **PASS**;
+6. matriz de dependências revisada — **PASS**;
+7. runtime atual de Notas não modificado — **PASS por diff**;
+8. Scope Creep Guard — **PASS**;
+9. CI/regressão — **aguardando o último ciclo da head final do PR**.
+
+Próxima sprint:
+
+> **Sprint 002 — Policy Resolver Multi-Mantenedora:** resolução por tenant, vigência, ano, escola, turma, componente, modalidade/etapa e série efetiva do estudante, com detecção determinística de ambiguidade e sem conectar ainda o novo Calculator ao write-path oficial.
