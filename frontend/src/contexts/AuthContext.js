@@ -551,26 +551,50 @@ export const AuthProvider = ({ children }) => {
     }
     
     try {
-      const response = await axios.post(`${API}/users/switch-role`, 
+      const response = await axios.post(
+        `${API}/users/switch-role`,
         { role: newRole },
         { headers: { Authorization: `Bearer ${currentToken}` } }
       );
-      
-      // Atualiza o usuário com o novo papel
-      const updatedUser = { ...user, role: newRole };
-      setUser(updatedUser);
-      saveUserDataLocally(updatedUser);
-      
+
+      const {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+        csrf_token: newCsrfToken,
+        user: sessionUser,
+      } = response.data;
+
+      if (!newAccessToken || !newRefreshToken || !sessionUser) {
+        throw new Error('Resposta incompleta ao trocar papel');
+      }
+
+      // P0 multi-role (Ago/2026): a troca de papel é uma rotação completa da
+      // sessão. Nunca alteramos apenas user.role localmente, pois isso diverge
+      // do JWT e produz 403 falsos no backend.
+      setAccessToken(newAccessToken);
+      setRefreshToken(newRefreshToken);
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
+      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+
+      if (newCsrfToken) {
+        setCsrfToken(newCsrfToken);
+      }
+
+      setUser(sessionUser);
+      saveUserDataLocally(sessionUser);
+      setIsOfflineSession(false);
+
       return { 
         success: true, 
         message: response.data.message,
-        newRole: newRole 
+        newRole: response.data.new_role || newRole,
+        user: sessionUser,
       };
     } catch (error) {
       console.error('Erro ao trocar papel:', error);
       return {
         success: false,
-        error: error.response?.data?.detail || 'Erro ao trocar papel'
+        error: error.response?.data?.detail || error.message || 'Erro ao trocar papel'
       };
     }
   };
