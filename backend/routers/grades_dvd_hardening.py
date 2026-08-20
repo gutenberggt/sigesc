@@ -1,13 +1,8 @@
 """Hardening residual da Fase 5 — Notas/Conceitos por Vínculo Docente.
 
-Complementa ``grades_dvd`` em dois cenários que não podem cair no legado:
-
-1. um documento já possui ``grade_ownership`` histórico, mas o assignment vivo
-   foi alterado (ex.: component_id mudou) e deixa de ser candidato atual;
-2. o sync pull do professor precisa paginar **depois** de filtrar por autoria,
-   e não filtrar uma página consolidada já montada.
-
-A camada é propositalmente pequena e instalada sobre o mesmo APIRouter.
+Além dos bloqueios de autoria histórica, esta camada garante que leituras
+agregadas do Professor respeitem o escopo híbrido: DVD quando aplicável e
+``teacher_assignments`` quando o componente permanece legado.
 """
 
 from __future__ import annotations
@@ -23,6 +18,10 @@ from services.grade_assignment_scope import (
     GRADE_OWNERSHIP_FIELDS,
     GradeAssignmentScopeError,
     resolve_own_grade_assignment,
+)
+from services.teacher_grade_access import (
+    list_teacher_grade_scopes,
+    resolve_teacher_grade_scope,
 )
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope
 
@@ -187,11 +186,32 @@ def install_grades_dvd_hardening(base_router, db, *, sandbox_db=None):
         )
         if user.get("role") != "professor" or (class_id and course_id):
             return result
+
+        current_db = _db_for_user(user)
+        year = int(academic_year or datetime.now().year)
+        scopes = await list_teacher_grade_scopes(
+            current_db,
+            user,
+            academic_year=year,
+            active_mantenedora_id=get_mantenedora_scope(user, request),
+        )
+
         visible = []
         for grade in result:
-            own = _mask_grade_for_teacher(grade, user.get("id"))
-            if own is not None:
-                visible.append(own)
+            scope = resolve_teacher_grade_scope(
+                scopes,
+                class_id=grade.get("class_id"),
+                course_id=grade.get("course_id"),
+            )
+            if scope is None:
+                continue
+            if scope.source == "legacy":
+                visible.append(grade)
+                continue
+            if scope.source == "dvd":
+                own = _mask_grade_for_teacher(grade, user.get("id"))
+                if own is not None:
+                    visible.append(own)
         return visible
 
     @base_router.get("/by-class/{class_id}/{course_id}")
@@ -223,9 +243,6 @@ def install_grades_dvd_hardening(base_router, db, *, sandbox_db=None):
                 )
             )
             if historical_only:
-                # O endpoint DVD interno cairia no legado porque o assignment vivo
-                # deixou de ser compatível. Nesse caso, usa a rota legada capturada
-                # por ele e mascara imediatamente o resultado pela autoria histórica.
                 try:
                     result = await current_by_class(
                         class_id,
@@ -235,8 +252,6 @@ def install_grades_dvd_hardening(base_router, db, *, sandbox_db=None):
                         assignment_id,
                     )
                 except HTTPException as exc:
-                    # Se o adaptador interno bloquear antes da leitura, não
-                    # reabrimos um caminho paralelo: fail-closed.
                     raise exc
                 for item in result:
                     grade = item.get("grade")
@@ -355,9 +370,7 @@ def install_grades_dvd_hardening(base_router, db, *, sandbox_db=None):
                     return sync_mod.SyncPushResult(
                         recordId=op.recordId,
                         success=False,
-                        error=(
-                            "409: DVD_HISTORICAL_OWNERSHIP_REQUIRES_ACTIVE_ASSIGNMENT"
-                        ),
+                        error="409: DVD_HISTORICAL_OWNERSHIP_REQUIRES_ACTIVE_ASSIGNMENT",
                     )
         return await current_process(db_arg, user, op, request)
 
@@ -385,22 +398,46 @@ def install_grades_dvd_hardening(base_router, db, *, sandbox_db=None):
                 request,
             )
 
-        query: dict[str, Any] = {}
+        year = int(academic_year or datetime.now().year)
+        scopes = await list_teacher_grade_scopes(
+            db_arg,
+            user,
+            academic_year=year,
+            active_mantenedora_id=get_mantenedora_scope(user, request),
+        )
         if class_id:
-            query["class_id"] = class_id
-        if academic_year:
-            try:
-                query["academic_year"] = int(academic_year)
-            except (TypeError, ValueError):
-                query["academic_year"] = academic_year
+            scopes = [scope for scope in scopes if str(scope.class_id) == str(class_id)]
+        if not scopes:
+            return [], 0
 
         ownership_or = [
             {f"grade_ownership.{field}.teacher_id": user.get("id")}
             for field in GRADE_OWNERSHIP_FIELDS
         ]
-        and_clauses: list[dict] = [{"$or": ownership_or}]
+        legacy_scope_clauses = [
+            {"class_id": scope.class_id, "course_id": scope.component_id}
+            for scope in scopes
+            if scope.source == "legacy" and scope.component_id
+        ]
+        dvd_scope_clauses = []
+        for scope in scopes:
+            if scope.source != "dvd":
+                continue
+            clause: dict[str, Any] = {"class_id": scope.class_id, "$or": ownership_or}
+            if scope.component_id is not None:
+                clause["course_id"] = scope.component_id
+            dvd_scope_clauses.append(clause)
+
+        scope_clauses = legacy_scope_clauses + dvd_scope_clauses
+        if not scope_clauses:
+            return [], 0
+
+        query: dict[str, Any] = {
+            "academic_year": {"$in": [year, str(year)]},
+            "$and": [{"$or": scope_clauses}],
+        }
         if last_sync:
-            and_clauses.append(
+            query["$and"].append(
                 {
                     "$or": [
                         {"created_at": {"$gte": last_sync}},
@@ -408,7 +445,6 @@ def install_grades_dvd_hardening(base_router, db, *, sandbox_db=None):
                     ]
                 }
             )
-        query["$and"] = and_clauses
         query = apply_tenant_filter(query, user, request)
 
         safe_page = max(1, int(page or 1))
@@ -416,12 +452,24 @@ def install_grades_dvd_hardening(base_router, db, *, sandbox_db=None):
         skip = (safe_page - 1) * safe_size
         total = await db_arg.grades.count_documents(query)
         docs = await db_arg.grades.find(query, {"_id": 0}).skip(skip).limit(safe_size).to_list(safe_size)
-        masked = []
+
+        visible = []
         for grade in docs:
-            own = _mask_grade_for_teacher(grade, user.get("id"))
-            if own is not None:
-                masked.append(own)
-        return masked, total
+            scope = resolve_teacher_grade_scope(
+                scopes,
+                class_id=grade.get("class_id"),
+                course_id=grade.get("course_id"),
+            )
+            if scope is None:
+                continue
+            if scope.source == "legacy":
+                visible.append(grade)
+                continue
+            if scope.source == "dvd":
+                own = _mask_grade_for_teacher(grade, user.get("id"))
+                if own is not None:
+                    visible.append(own)
+        return visible, total
 
     sync_mod.process_sync_operation = hardened_process
     sync_mod.fetch_collection_data_paginated = hardened_fetch
