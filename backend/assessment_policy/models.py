@@ -163,17 +163,25 @@ class AssessmentRule(BaseModel):
     mode: AssessmentMode
     conceptual_scale: Optional[List[ConceptScaleEntry]] = None
     numeric_scale: Optional[NumericScale] = None
-    periods: List[PeriodRule] = Field(min_length=1)
-    calculation: CalculationRule
+    periods: List[PeriodRule] = Field(default_factory=list)
+    calculation: Optional[CalculationRule] = None
 
     @model_validator(mode="after")
     def validate_mode_contract(self):
         if self.mode == AssessmentMode.CONCEPTUAL:
             if not self.conceptual_scale:
                 raise ValueError("modo conceptual exige conceptual_scale")
+            if not self.periods:
+                raise ValueError("modo conceptual exige periods")
+            if self.calculation is None:
+                raise ValueError("modo conceptual exige calculation")
         elif self.mode == AssessmentMode.NUMERIC:
             if self.numeric_scale is None:
                 raise ValueError("modo numeric exige numeric_scale")
+            if not self.periods:
+                raise ValueError("modo numeric exige periods")
+            if self.calculation is None:
+                raise ValueError("modo numeric exige calculation")
         return self
 
 
