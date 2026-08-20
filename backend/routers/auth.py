@@ -20,78 +20,13 @@ from auth_utils import (
     REFRESH_COOKIE_NAME, REFRESH_TOKEN_EXPIRE_DAYS,
 )
 from auth_middleware import AuthMiddleware
+from role_context import get_authorized_roles, resolve_role_context
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 
 def setup_router(db, audit_service):
     """Configura o router com as dependências necessárias"""
-    
-    async def get_effective_role_from_lotacoes(user_id: str, email: str, base_role: str):
-        """Determina role e escolas efetivas a partir das lotações ativas.
-
-        A identidade funcional é resolvida prioritariamente pelo vínculo estável
-        ``users.id -> staff.user_id``. O e-mail é apenas fallback de
-        compatibilidade para registros legados que ainda não possuem ``user_id``
-        em ``staff``.
-
-        Essa ordem evita perda de escopo quando o usuário altera seu e-mail de
-        acesso, sem romper cadastros antigos que ainda dependem da associação por
-        e-mail.
-        """
-        staff = await db.staff.find_one(
-            {"user_id": user_id},
-            {"_id": 0, "id": 1}
-        )
-
-        # Compatibilidade legada: preserva o comportamento anterior apenas
-        # quando não existe vínculo canônico staff.user_id -> users.id.
-        if not staff and email:
-            staff = await db.staff.find_one(
-                {"email": email},
-                {"_id": 0, "id": 1}
-            )
-
-        if not staff:
-            return base_role, []
-        
-        lotacoes = await db.school_assignments.find({
-            "staff_id": staff['id'],
-            "status": "ativo",
-            "academic_year": datetime.now().year
-        }, {"_id": 0}).to_list(100)
-        
-        if not lotacoes:
-            return base_role, []
-        
-        # Prioridade de funções (maior valor = maior prioridade)
-        funcao_priority = {
-            'diretor': 5,
-            'coordenador': 4,
-            'auxiliar_secretaria': 4,
-            'secretario': 3,
-            'professor': 2,
-            'auxiliar': 1
-        }
-        
-        highest_role = base_role
-        highest_priority = funcao_priority.get(base_role, 0)
-        school_links = []
-        
-        for lot in lotacoes:
-            funcao = lot.get('funcao', '').lower()
-            priority = funcao_priority.get(funcao, 0)
-            
-            if priority > highest_priority:
-                highest_priority = priority
-                highest_role = funcao
-            
-            school_links.append({
-                'school_id': lot.get('school_id'),
-                'role': funcao
-            })
-        
-        return highest_role, school_links
 
     @router.post("/login", response_model=TokenResponse)
     async def login(credentials: LoginRequest, request: Request, response: Response):
@@ -131,20 +66,15 @@ def setup_router(db, audit_service):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Usuário inativo"
             )
-        
+
+        # P0 multi-role (Ago/2026): users.role é o PAPEL PRINCIPAL cadastral.
+        # O login sempre inicia por ele; lotações definem apenas o escopo escolar,
+        # nunca promovem automaticamente a sessão para outro papel.
         effective_role = user.role
-        effective_school_links = user.school_links or []
-        
-        if user.role in ['professor', 'secretario', 'coordenador', 'auxiliar_secretaria', 'diretor']:
-            effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.id, user.email, user.role)
-            if lotacao_school_links:
-                effective_school_links = lotacao_school_links
-        
-        school_ids = [
-            (link['school_id'] if isinstance(link, dict) else link.school_id)
-            for link in effective_school_links
-            if (link.get('school_id') if isinstance(link, dict) else getattr(link, 'school_id', None))
-        ]
+        role_context = await resolve_role_context(db, user_doc, effective_role)
+        effective_school_links = role_context['school_links']
+        school_ids = role_context['school_ids']
+
         token_data = {
             "sub": user.id,
             "email": user.email,
@@ -155,7 +85,10 @@ def setup_router(db, audit_service):
         
         csrf_token = generate_csrf_token()
         access_token = create_access_token(token_data, csrf=csrf_token)
-        refresh_token = create_refresh_token({"sub": user.id})
+        refresh_token = create_refresh_token({
+            "sub": user.id,
+            "active_role": effective_role,
+        })
         set_auth_cookies(
             response,
             access_token=access_token,
@@ -185,12 +118,7 @@ def setup_router(db, audit_service):
 
     @router.post("/refresh")
     async def refresh_token(request: Request, response: Response, request_data: Optional[RefreshTokenRequest] = None):
-        """Renova access + refresh tokens (rotation).
-
-        Lê refresh de (1) cookie HttpOnly `sigesc_refresh`, (2) body legado.
-        Ao sucesso: revoga o jti antigo (rotação) e emite novos tokens com novo jti.
-        Seta cookies atualizados na resposta.
-        """
+        """Renova access + refresh tokens (rotation), preservando o papel ativo."""
         try:
             incoming_refresh = request.cookies.get(REFRESH_COOKIE_NAME)
             if not incoming_refresh and request_data is not None:
@@ -230,20 +158,23 @@ def setup_router(db, audit_service):
                 )
             
             user = UserInDB(**user_doc)
-            
-            effective_role = user.role
-            effective_school_links = user.school_links or []
-            
-            if user.role in ['professor', 'secretario', 'coordenador', 'auxiliar_secretaria', 'diretor']:
-                effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.id, user.email, user.role)
-                if lotacao_school_links:
-                    effective_school_links = lotacao_school_links
-            
-            school_ids = [
-                (link['school_id'] if isinstance(link, dict) else link.school_id)
-                for link in effective_school_links
-                if (link.get('school_id') if isinstance(link, dict) else getattr(link, 'school_id', None))
-            ]
+            if user.status != 'active':
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Usuário inativo"
+                )
+
+            # Refresh tokens novos carregam active_role. Tokens antigos, emitidos
+            # antes deste hotfix, caem de forma retrocompatível no papel principal.
+            available_roles = get_authorized_roles(user_doc)
+            effective_role = payload.get('active_role') or user.role
+            if effective_role not in available_roles:
+                effective_role = user.role
+
+            role_context = await resolve_role_context(db, user_doc, effective_role)
+            effective_school_links = role_context['school_links']
+            school_ids = role_context['school_ids']
+
             token_data = {
                 "sub": user.id,
                 "email": user.email,
@@ -257,7 +188,10 @@ def setup_router(db, audit_service):
             
             csrf_token = generate_csrf_token()
             new_access_token = create_access_token(token_data, csrf=csrf_token)
-            new_refresh_token = create_refresh_token({"sub": user.id})
+            new_refresh_token = create_refresh_token({
+                "sub": user.id,
+                "active_role": effective_role,
+            })
             
             # Rotação: revoga o jti antigo para impedir reuso.
             if refresh_jti:
@@ -277,7 +211,6 @@ def setup_router(db, audit_service):
                 except Exception:
                     pass
             
-            csrf_token = csrf_token  # já gerado acima e embutido no JWT
             set_auth_cookies(
                 response,
                 access_token=new_access_token,
@@ -305,7 +238,7 @@ def setup_router(db, audit_service):
 
     @router.get("/me", response_model=UserResponse)
     async def get_current_user_profile(request: Request):
-        """Retorna o perfil do usuário autenticado"""
+        """Retorna o perfil cadastral projetado no papel ativo do JWT."""
         current_user = await AuthMiddleware.get_current_user(request)
         
         user_doc = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
@@ -314,7 +247,18 @@ def setup_router(db, audit_service):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Usuário não encontrado"
             )
-        
+
+        # O banco mantém users.role como papel principal. A resposta da sessão usa
+        # o papel efetivamente autenticado no JWT para não divergir da autorização.
+        user_doc['role'] = current_user.get('role') or user_doc.get('role')
+        user_doc['school_links'] = [
+            {
+                'school_id': school_id,
+                'roles': [user_doc['role']],
+                'class_ids': [],
+            }
+            for school_id in current_user.get('school_ids', [])
+        ]
         return UserResponse(**user_doc)
 
     @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
