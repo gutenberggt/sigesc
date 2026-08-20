@@ -359,6 +359,8 @@ async def _student_membership(
         str(item.get("class_id")) for item in enrollments if item.get("class_id")
     )
 
+    # Documento avaliativo no próprio ano é evidência histórica forte da turma,
+    # inclusive após transferência/remanejamento, sem depender do status atual.
     grade_rows = await db.grades.find(
         {
             "student_id": student_id,
