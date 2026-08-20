@@ -9,10 +9,15 @@ Esses guards evitam que telas agregadas (Livro de Promoção, Por Estudante,
 Boletim e sync offline) decidam o modelo apenas por ``role == professor``.
 """
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from services.teacher_grade_access import (
     TeacherGradeScope,
     _is_dvd_protected_scope,
+    list_teacher_grade_scopes,
     resolve_teacher_grade_scope,
 )
 
@@ -39,6 +44,12 @@ def _scope(*, source, assignment_id, class_id="c1", component_id="co1"):
         source=source,
         legacy_assignment_id=(assignment_id if source == "legacy" else None),
     )
+
+
+def _cursor(rows):
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=rows)
+    return cursor
 
 
 def test_escopo_docente_declara_origem_dvd_ou_legacy():
@@ -78,6 +89,91 @@ def test_protecao_dvd_cobre_componente_exato_e_regencia():
     regencia = [{"class_id": "c1", "component_id": None}]
     assert _is_dvd_protected_scope(regencia, "c1", "co1") is True
     assert _is_dvd_protected_scope(regencia, "c1", "co2") is True
+
+
+@pytest.mark.asyncio
+async def test_lista_hibrida_mantem_dvd_e_adiciona_somente_legacy_nao_protegido(monkeypatch):
+    db = MagicMock()
+
+    dvd_assignment = {
+        "id": "dvd-1",
+        "class_id": "class-dvd",
+        "component_id": "course-dvd",
+        "school_id": "school-1",
+        "mantenedora_id": "mant-1",
+        "valid_from": "2026-01-01",
+        "valid_until": None,
+        "grades_official_owner": False,
+        "diary_settings": {"enabled": True, "profile": "regular"},
+    }
+    protected_rows = [
+        {"class_id": "class-dvd", "component_id": "course-dvd"},
+    ]
+    db.teacher_class_assignments = MagicMock()
+    db.teacher_class_assignments.find = MagicMock(
+        side_effect=[_cursor([dvd_assignment]), _cursor(protected_rows)]
+    )
+
+    db.staff = MagicMock()
+    db.staff.find_one = AsyncMock(
+        return_value={"id": "staff-1", "user_id": "user-1", "email": "p@x.com"}
+    )
+
+    db.teacher_assignments = MagicMock()
+    db.teacher_assignments.find = MagicMock(
+        return_value=_cursor(
+            [
+                {
+                    "id": "legacy-shadowed",
+                    "class_id": "class-dvd",
+                    "course_id": "course-dvd",
+                    "academic_year": 2026,
+                },
+                {
+                    "id": "legacy-final-years",
+                    "class_id": "class-legacy",
+                    "course_id": "course-legacy",
+                    "academic_year": 2026,
+                },
+            ]
+        )
+    )
+
+    db.classes = MagicMock()
+    db.classes.find = MagicMock(
+        return_value=_cursor(
+            [
+                {"id": "class-dvd", "school_id": "school-1", "mantenedora_id": "mant-1"},
+                {"id": "class-legacy", "school_id": "school-1", "mantenedora_id": "mant-1"},
+            ]
+        )
+    )
+
+    async def fake_authorize(*args, **kwargs):
+        return SimpleNamespace(
+            settings=SimpleNamespace(
+                profile=SimpleNamespace(value="regular"),
+                student_scope=SimpleNamespace(value="all"),
+            ),
+            class_info={"school_id": "school-1", "mantenedora_id": "mant-1"},
+        )
+
+    monkeypatch.setattr(
+        "services.teacher_grade_access.authorize_assignment_access",
+        fake_authorize,
+    )
+
+    scopes = await list_teacher_grade_scopes(
+        db,
+        {"id": "user-1", "email": "p@x.com", "role": "professor"},
+        academic_year=2026,
+        active_mantenedora_id="mant-1",
+    )
+
+    pairs = {(scope.source, scope.class_id, scope.component_id) for scope in scopes}
+    assert ("dvd", "class-dvd", "course-dvd") in pairs
+    assert ("legacy", "class-legacy", "course-legacy") in pairs
+    assert ("legacy", "class-dvd", "course-dvd") not in pairs
 
 
 def test_leitura_agregada_de_grades_filtra_por_escopo_hibrido():
