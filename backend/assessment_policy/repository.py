@@ -35,6 +35,8 @@ class AssessmentPolicyRepository:
         self,
         policy: AssessmentPolicy,
         expected_statuses: Iterable[PolicyStatus],
+        *,
+        expected_revision: int,
     ) -> bool:
         statuses = [status.value for status in expected_statuses]
         result = await self.collection.replace_one(
@@ -42,6 +44,7 @@ class AssessmentPolicyRepository:
                 "id": policy.id,
                 "mantenedora_id": policy.mantenedora_id,
                 "status": {"$in": statuses},
+                "revision": expected_revision,
             },
             policy.model_dump(mode="json"),
             upsert=False,
