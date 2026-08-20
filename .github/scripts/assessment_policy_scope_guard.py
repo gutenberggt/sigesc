@@ -30,7 +30,6 @@ RESOLVER_EXACT = COMMON_EXACT | {
     ".github/workflows/assessment-policy-resolver.yml",
     "backend/tests/test_assessment_policy_resolver_v1.py",
     "backend/tests/test_assessment_policy_series_resolver_v1.py",
-    "backend/tests/test_assessment_policy_context_builder_v1.py",
     "backend/tests/test_assessment_policy_conflict_checker_v1.py",
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_002_RESOLVER.md",
 }
