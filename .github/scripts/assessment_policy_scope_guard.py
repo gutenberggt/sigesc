@@ -3,7 +3,7 @@
 Cada sprint possui manifesto explícito. O guard falha se a PR alterar arquivos
 fora do domínio/entregáveis aprovados para aquela fase. Isso evita ampliar
 silenciosamente o escopo entre Foundation, Resolver, Calculator, Outcome,
-Shadow e fases futuras.
+Shadow, Shadow Runner e fases futuras.
 """
 
 from __future__ import annotations
@@ -66,6 +66,13 @@ SHADOW_EXACT = COMMON_EXACT | {
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_005_SHADOW.md",
 }
 
+SHADOW_RUNNER_EXACT = COMMON_EXACT | {
+    ".github/workflows/assessment-policy-shadow-runner.yml",
+    "backend/assessment_policy/shadow_runner.py",
+    "backend/tests/test_assessment_policy_shadow_runner_v1.py",
+    "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_006_SHADOW_RUNNER.md",
+}
+
 PREFIX_BY_PHASE = {
     # Sprints históricas nasceram com criação ampla do pacote. Preservamos seus
     # manifestos para eventual manutenção da branch, sem ampliar as fases novas.
@@ -74,6 +81,7 @@ PREFIX_BY_PHASE = {
     "calculator": (),
     "outcome": (),
     "shadow": (),
+    "shadow-runner": (),
     "unknown": (),
 }
 
@@ -110,6 +118,11 @@ def _manifest() -> tuple[str, set[str], tuple[str, ...]]:
         or os.environ.get("GITHUB_REF_NAME", "")
     ).strip()
 
+    # A fase mais específica precisa vir primeiro, pois
+    # "assessment-policy-shadow-runner" contém "assessment-policy-shadow".
+    if "assessment-policy-shadow-runner" in head_ref:
+        phase = "shadow-runner"
+        return phase, SHADOW_RUNNER_EXACT, PREFIX_BY_PHASE[phase]
     if "assessment-policy-shadow" in head_ref:
         phase = "shadow"
         return phase, SHADOW_EXACT, PREFIX_BY_PHASE[phase]
