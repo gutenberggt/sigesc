@@ -331,7 +331,6 @@ def compare_legacy_grade_snapshot(
         "legacy_status": snapshot.legacy_status,
         "policy_id": policy.id,
         "policy_version": policy.version,
-        "rule_hash": policy.rule_hash or "",
         "mapping_hash": mapping_hash,
     }
 
@@ -405,6 +404,7 @@ def compare_legacy_grade_snapshot(
             new_is_final=None,
             delta=None,
             absolute_delta=None,
+            rule_hash=policy.rule_hash or "",
             error_code=exc.code,
             error_message=exc.message,
             error_details=exc.details,
