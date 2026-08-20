@@ -235,3 +235,28 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return asdict(report)
 
     return router
+
+
+def install_assessment_policy_admin_setup(mantenedora_module) -> None:
+    """Acopla este router ao módulo de Mantenedora sem tocar em server.py.
+
+    O `server.py` já configura e inclui `mantenedora_mod.router`. Envolver o
+    setup existente mantém esse bootstrap intacto e adiciona as rotas da Sprint
+    007 somente quando a Mantenedora é configurada.
+    """
+
+    if getattr(mantenedora_module, "_assessment_policy_admin_setup_installed", False):
+        return
+
+    original_setup = mantenedora_module.setup_router
+
+    def wrapped_setup(db, audit_service=None, sandbox_db=None, **kwargs):
+        result = original_setup(db, audit_service, sandbox_db, **kwargs)
+        setup_router(db, audit_service, sandbox_db, **kwargs)
+        if not getattr(mantenedora_module, "_assessment_policy_admin_routes_included", False):
+            mantenedora_module.router.include_router(router)
+            mantenedora_module._assessment_policy_admin_routes_included = True
+        return result
+
+    mantenedora_module.setup_router = wrapped_setup
+    mantenedora_module._assessment_policy_admin_setup_installed = True
