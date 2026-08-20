@@ -12,6 +12,7 @@ import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatter
 import { ibgeCodesFromViaCep } from '@/utils/ibgeAddress';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
+import AssessmentPolicyPanel from '@/components/assessment-policy/AssessmentPolicyPanel';
 
 export default function Mantenedora() {
   const navigate = useNavigate();
@@ -1004,6 +1005,8 @@ export default function Mantenedora() {
           </Button>
         </div>
       </form>
+
+      <AssessmentPolicyPanel />
     </div>
   );
 }
