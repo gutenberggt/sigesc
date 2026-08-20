@@ -108,12 +108,16 @@ class FakeRepository:
         self.docs[(policy.mantenedora_id, policy.id)] = policy
         return policy
 
-    async def replace_if_status(self, policy, expected_statuses):
+    async def replace_if_status(self, policy, expected_statuses, *, expected_revision):
         if self.force_replace_failure:
             return False
         key = (policy.mantenedora_id, policy.id)
         current = self.docs.get(key)
-        if current is None or current.status not in set(expected_statuses):
+        if current is None:
+            return False
+        if current.status not in set(expected_statuses):
+            return False
+        if current.revision != expected_revision:
             return False
         self.docs[key] = policy
         return True
@@ -151,6 +155,7 @@ async def test_create_draft_is_tenant_scoped_and_sets_audit_metadata():
     created = await _registry(repo).create_draft("tenant-a", _policy(), actor_id="admin-1")
 
     assert created.status == PolicyStatus.DRAFT
+    assert created.revision == 1
     assert created.mantenedora_id == "tenant-a"
     assert created.created_by == "admin-1"
     assert created.created_at == FIXED_NOW
@@ -207,6 +212,41 @@ async def test_draft_identity_cannot_be_changed_on_save():
 
 
 @pytest.mark.asyncio
+async def test_save_draft_increments_revision():
+    repo = FakeRepository()
+    registry = _registry(repo)
+    current = await registry.create_draft("tenant-a", _policy(), actor_id="admin")
+    edited = current.model_copy(update={"name": "Nome administrativo revisado"})
+
+    saved = await registry.save_draft("tenant-a", edited, actor_id="admin")
+
+    assert saved.revision == 2
+    assert saved.name == "Nome administrativo revisado"
+
+
+@pytest.mark.asyncio
+async def test_stale_draft_revision_fails_before_overwrite():
+    repo = FakeRepository()
+    registry = _registry(repo)
+    original = await registry.create_draft("tenant-a", _policy(), actor_id="admin")
+
+    first_edit = original.model_copy(update={"name": "Primeira edição"})
+    saved = await registry.save_draft("tenant-a", first_edit, actor_id="admin")
+    assert saved.revision == 2
+
+    stale_edit = original.model_copy(update={"name": "Edição concorrente antiga"})
+    with pytest.raises(AssessmentPolicyError) as exc:
+        await registry.save_draft("tenant-a", stale_edit, actor_id="admin-2")
+
+    assert exc.value.code == POLICY_CONCURRENT_MODIFICATION
+    assert exc.value.details == {
+        "expected_revision": 2,
+        "received_revision": 1,
+    }
+    assert (await repo.get("p1", "tenant-a")).name == "Primeira edição"
+
+
+@pytest.mark.asyncio
 async def test_validate_draft_sets_hash_and_validated_state():
     repo = FakeRepository()
     registry = _registry(repo)
@@ -216,6 +256,7 @@ async def test_validate_draft_sets_hash_and_validated_state():
 
     assert report.valid is True
     assert validated.status == PolicyStatus.VALIDATED
+    assert validated.revision == 2
     assert validated.rule_hash == calculate_rule_hash(validated)
     assert validated.validated_by == "reviewer"
     assert validated.validated_at == FIXED_NOW
@@ -231,6 +272,7 @@ async def test_reopen_validated_clears_hash_and_validation_metadata():
     reopened = await registry.reopen_validated("tenant-a", "p1", actor_id="admin")
 
     assert reopened.status == PolicyStatus.DRAFT
+    assert reopened.revision == 3
     assert reopened.rule_hash is None
     assert reopened.validated_by is None
     assert reopened.validated_at is None
@@ -273,6 +315,7 @@ async def test_publish_freezes_policy_and_blocks_future_edit():
     published = await registry.publish("tenant-a", "p1", actor_id="publisher")
 
     assert published.status == PolicyStatus.PUBLISHED
+    assert published.revision == 3
     assert published.published_by == "publisher"
     assert published.published_at == FIXED_NOW
     assert published.rule_hash == calculate_rule_hash(published)
