@@ -6,6 +6,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BRIDGE = ROOT / "frontend/src/services/contentDvdBridge.js"
 DASHBOARD = ROOT / "frontend/src/pages/ProfessorDashboard.js"
+COPY_ERROR_NORMALIZER = ROOT / "frontend/src/utils/contentCopyErrorNormalizer.js"
+FRONTEND_INDEX = ROOT / "frontend/src/index.js"
 COPY_ADAPTER = ROOT / "backend/routers/content_copy_dvd.py"
 HISTORY_ADAPTER = ROOT / "backend/routers/content_dvd_history.py"
 ROUTERS_INIT = ROOT / "backend/routers/__init__.py"
@@ -51,6 +53,21 @@ def test_dvd_copy_is_enabled_only_with_target_assignment():
     assert 'CONTENT_COPY_TARGET_ASSIGNMENT_REQUIRED' in source
     assert 'target_assignment_id: targetAssignmentId' in source
     assert 'source_assignment_id:' in source
+
+
+def test_copy_errors_are_render_safe_and_keep_technical_diagnostics():
+    normalizer = COPY_ERROR_NORMALIZER.read_text(encoding="utf-8")
+    index = FRONTEND_INDEX.read_text(encoding="utf-8")
+
+    assert 'contentCopyErrorNormalizer' in index
+    assert 'normalizeContentCopyError' in normalizer
+    assert "url.includes('/copy-to-class')" in normalizer
+    assert "code.startsWith(COPY_ERROR_PREFIX)" in normalizer
+    assert "code === COPY_AMBIGUOUS_CODE" in normalizer
+    assert 'detail: message' in normalizer
+    assert 'error_code: code || null' in normalizer
+    assert 'technical_detail: detail' in normalizer
+    assert 'Promise.reject(normalizeContentCopyError(error))' in normalizer
 
 
 def test_copy_backend_reuses_canonical_content_engine_and_preserves_traceability():
