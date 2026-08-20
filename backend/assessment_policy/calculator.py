@@ -17,6 +17,7 @@ from .exceptions import (
     CALCULATION_VALUE_INVALID,
     CALCULATION_VALUE_OUT_OF_SCALE,
     POLICY_INTEGRITY_ERROR,
+    RECOVERY_NOT_ENABLED,
     RECOVERY_UNKNOWN_INPUT,
 )
 from .models import (
@@ -135,17 +136,11 @@ def _decode_value(policy: AssessmentPolicy, raw: Any, *, field: str) -> Decimal:
 
 
 def _validate_calculation_policy(policy: AssessmentPolicy) -> str:
-    report = validate_policy(policy, for_publish=False)
-    errors = [
-        issue.model_dump(mode="json")
-        for issue in report.issues
-        if issue.severity == "error"
-    ]
-    if errors:
+    if policy.assessment.mode not in {AssessmentMode.NUMERIC, AssessmentMode.CONCEPTUAL}:
         raise AssessmentPolicyError(
-            CALCULATION_POLICY_INVALID,
-            "A política possui inconsistências e não pode ser executada pelo Calculator.",
-            details={"issues": errors},
+            CALCULATION_MODE_UNSUPPORTED,
+            "O Calculator v1 executa somente políticas numeric ou conceptual.",
+            details={"assessment_mode": policy.assessment.mode.value},
         )
 
     calculated_hash = calculate_rule_hash(policy)
@@ -160,15 +155,30 @@ def _validate_calculation_policy(policy: AssessmentPolicy) -> str:
                     "calculated_rule_hash": calculated_hash,
                 },
             )
-    elif policy.rule_hash is not None and policy.rule_hash != calculated_hash:
+
+    report = validate_policy(policy, for_publish=False)
+    errors = [
+        issue.model_dump(mode="json")
+        for issue in report.issues
+        if issue.severity == "error"
+    ]
+    if errors:
         raise AssessmentPolicyError(
             CALCULATION_POLICY_INVALID,
-            "rule_hash informado não corresponde à política usada na simulação.",
-            details={
-                "stored_rule_hash": policy.rule_hash,
-                "calculated_rule_hash": calculated_hash,
-            },
+            "A política possui inconsistências e não pode ser executada pelo Calculator.",
+            details={"issues": errors},
         )
+
+    if policy.status != PolicyStatus.PUBLISHED:
+        if policy.rule_hash is not None and policy.rule_hash != calculated_hash:
+            raise AssessmentPolicyError(
+                CALCULATION_POLICY_INVALID,
+                "rule_hash informado não corresponde à política usada na simulação.",
+                details={
+                    "stored_rule_hash": policy.rule_hash,
+                    "calculated_rule_hash": calculated_hash,
+                },
+            )
     return calculated_hash
 
 
@@ -206,12 +216,20 @@ def _decode_recovery_values(
     policy: AssessmentPolicy,
     recovery_results: Mapping[str, Any],
 ) -> dict[str, Decimal]:
-    allowed = {group.input_code for group in policy.recovery.groups}
-    unknown = sorted(
+    supplied_codes = {
         str(code)
         for code, raw in recovery_results.items()
-        if raw is not None and code not in allowed
-    )
+        if raw is not None
+    }
+    if supplied_codes and not policy.recovery.enabled:
+        raise AssessmentPolicyError(
+            RECOVERY_NOT_ENABLED,
+            "Foram informadas recuperações para uma política que não habilita recuperação.",
+            details={"input_codes": sorted(supplied_codes)},
+        )
+
+    allowed = {group.input_code for group in policy.recovery.groups}
+    unknown = sorted(supplied_codes - allowed)
     if unknown:
         raise AssessmentPolicyError(
             RECOVERY_UNKNOWN_INPUT,
