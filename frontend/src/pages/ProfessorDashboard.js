@@ -88,7 +88,7 @@ export default function ProfessorDashboard() {
     apoio_pedagogico: 'Apoio Pedagógico',
     auxiliar_secretaria: 'Auxiliar de Secretaria',
     professor: 'Professor(a)',
-    aluno: 'Estudante',
+    aluno: 'Estudante', // nomenclature-allow: chave técnica legada do papel
     responsavel: 'Responsável(is)',
     ass_social: 'Ass. Social',
     ass_social_2: 'Ass. Social',
