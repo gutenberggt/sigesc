@@ -2,7 +2,8 @@
 
 Cada sprint possui manifesto explícito. O guard falha se a PR alterar arquivos
 fora do domínio/entregáveis aprovados para aquela fase. Isso evita ampliar
-silenciosamente o escopo entre Foundation, Resolver, Calculator e fases futuras.
+silenciosamente o escopo entre Foundation, Resolver, Calculator, Outcome e
+fases futuras.
 """
 
 from __future__ import annotations
@@ -46,12 +47,24 @@ CALCULATOR_EXACT = COMMON_EXACT | {
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_003_CALCULATOR.md",
 }
 
+OUTCOME_EXACT = COMMON_EXACT | {
+    ".github/workflows/assessment-policy-outcome.yml",
+    "backend/assessment_policy/__init__.py",
+    "backend/assessment_policy/exceptions.py",
+    "backend/assessment_policy/models.py",
+    "backend/assessment_policy/outcome.py",
+    "backend/assessment_policy/validator.py",
+    "backend/tests/test_assessment_policy_outcome_v1.py",
+    "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_004_OUTCOME.md",
+}
+
 PREFIX_BY_PHASE = {
     # Sprints históricas nasceram com criação ampla do pacote. Preservamos seus
-    # manifestos para eventual manutenção da branch, sem ampliar a Sprint 003.
+    # manifestos para eventual manutenção da branch, sem ampliar as fases novas.
     "foundation": ("backend/assessment_policy/",),
     "resolver": ("backend/assessment_policy/",),
     "calculator": (),
+    "outcome": (),
     "unknown": (),
 }
 
@@ -88,6 +101,9 @@ def _manifest() -> tuple[str, set[str], tuple[str, ...]]:
         or os.environ.get("GITHUB_REF_NAME", "")
     ).strip()
 
+    if "assessment-policy-outcome" in head_ref:
+        phase = "outcome"
+        return phase, OUTCOME_EXACT, PREFIX_BY_PHASE[phase]
     if "assessment-policy-calculator" in head_ref:
         phase = "calculator"
         return phase, CALCULATOR_EXACT, PREFIX_BY_PHASE[phase]
