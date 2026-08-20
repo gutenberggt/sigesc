@@ -55,6 +55,15 @@ def test_dvd_copy_is_enabled_only_with_target_assignment():
     assert 'source_assignment_id:' in source
 
 
+def test_copy_does_not_fail_only_because_frontend_record_cache_is_empty():
+    source = BRIDGE.read_text(encoding="utf-8")
+    assert 'CONTENT_COPY_SOURCE_NOT_LOADED' not in source
+    assert "const targetDate = body.target_date || current?.date || ''" in source
+    assert 'current?.academic_year || Number(String(targetDate).slice(0, 4))' in source
+    assert 'current?.assignment_id || current?.history_assignment_id || rootAssignmentId || null' in source
+    assert 'source_assignment_id: sourceAssignmentId' in source
+
+
 def test_copy_errors_are_render_safe_and_keep_technical_diagnostics():
     normalizer = COPY_ERROR_NORMALIZER.read_text(encoding="utf-8")
     index = FRONTEND_INDEX.read_text(encoding="utf-8")
