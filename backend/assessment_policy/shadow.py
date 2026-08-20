@@ -11,8 +11,10 @@ from numbers import Real
 from typing import Any, Mapping, Optional, Sequence
 
 from .calculator import calculate_assessment
+from .canonical import calculate_rule_hash
 from .exceptions import (
     AssessmentPolicyError,
+    SHADOW_CONTEXT_MISMATCH,
     SHADOW_LEGACY_VALUE_INVALID,
     SHADOW_MAPPING_INVALID,
     SHADOW_TOLERANCE_INVALID,
@@ -321,6 +323,7 @@ def compare_legacy_grade_snapshot(
     )
     mapping_hash = calculate_mapping_hash(validated_mapping)
     tolerance_decimal = _tolerance_decimal(tolerance)
+    canonical_policy_hash = calculate_rule_hash(policy)
 
     base = {
         "grade_id": snapshot.grade_id,
@@ -335,6 +338,16 @@ def compare_legacy_grade_snapshot(
     }
 
     try:
+        if int(snapshot.academic_year) != int(policy.academic_year):
+            raise AssessmentPolicyError(
+                SHADOW_CONTEXT_MISMATCH,
+                "Snapshot legado e política pertencem a anos letivos diferentes.",
+                details={
+                    "snapshot_academic_year": int(snapshot.academic_year),
+                    "policy_academic_year": int(policy.academic_year),
+                },
+            )
+
         legacy = _legacy_decimal(snapshot.legacy_final_average)
         period_results, recovery_results = _inputs_from_snapshot(
             snapshot,
@@ -404,7 +417,7 @@ def compare_legacy_grade_snapshot(
             new_is_final=None,
             delta=None,
             absolute_delta=None,
-            rule_hash=policy.rule_hash or "",
+            rule_hash=canonical_policy_hash,
             error_code=exc.code,
             error_message=exc.message,
             error_details=exc.details,
