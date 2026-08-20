@@ -1,0 +1,90 @@
+# ============================================================
+# SIGESC - Homologacao isolada no Coolify
+# Uso exclusivo para a branch de homologacao/PR.
+# Nao e usado pela aplicacao de producao.
+# ============================================================
+
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - sigesc-mongo-data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - MONGO_URL=${MONGO_URL}
+      - DB_NAME=${DB_NAME:-sigesc_homolog}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SNAPSHOT_HMAC_SECRET=${SNAPSHOT_HMAC_SECRET}
+      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://homolog.sigesc.aprenderdigital.top}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
+      - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
+      - FTP_HOST=${FTP_HOST:-}
+      - FTP_USER=${FTP_USER:-}
+      - FTP_PASSWORD=${FTP_PASSWORD:-}
+      - FTP_BASE_PATH=${FTP_BASE_PATH:-}
+      - FTP_BASE_URL=${FTP_BASE_URL:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_SENDER_EMAIL=${RESEND_SENDER_EMAIL:-}
+      - RESEND_SENDER_NAME=${RESEND_SENDER_NAME:-SIGESC HOMOLOG}
+      - APP_FRONTEND_URL=${APP_FRONTEND_URL:-https://homolog.sigesc.aprenderdigital.top}
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sigesc-homolog-backend.rule=Host(`api-homolog.sigesc.aprenderdigital.top`)"
+      - "traefik.http.routers.sigesc-homolog-backend.entrypoints=https"
+      - "traefik.http.routers.sigesc-homolog-backend.tls=true"
+      - "traefik.http.routers.sigesc-homolog-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sigesc-homolog-backend.loadbalancer.server.port=8001"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sigesc-homolog-frontend.rule=Host(`homolog.sigesc.aprenderdigital.top`)"
+      - "traefik.http.routers.sigesc-homolog-frontend.entrypoints=https"
+      - "traefik.http.routers.sigesc-homolog-frontend.tls=true"
+      - "traefik.http.routers.sigesc-homolog-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sigesc-homolog-frontend.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:80 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  sigesc-mongo-data:
+
+networks:
+  default:
+    external: true
+    name: ${COOLIFY_RESOURCE_UUID}
