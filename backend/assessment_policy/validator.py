@@ -48,7 +48,7 @@ def validate_policy(policy: AssessmentPolicy, *, for_publish: bool = False) -> P
     """Valida coerência sem acessar banco, tenant ou outras entidades.
 
     Validações que dependem de existência/pertencimento de escola, turma,
-    componente e mantenedora serão responsabilidade do futuro Registry/Resolver.
+    componente e mantenedora são responsabilidade do Registry/Resolver.
     """
 
     issues: List[PolicyValidationIssue] = []
@@ -108,6 +108,7 @@ def validate_policy(policy: AssessmentPolicy, *, for_publish: bool = False) -> P
 
     recovery_codes = set()
     recovery_input_codes = set()
+    recovery_period_owner = {}
     valid_period_codes = set(period_codes)
 
     for index, group in enumerate(policy.recovery.groups):
@@ -140,6 +141,20 @@ def validate_policy(policy: AssessmentPolicy, *, for_publish: bool = False) -> P
                 "Grupo de recuperação referencia períodos inexistentes: "
                 + ", ".join(unknown_periods),
             )
+
+        if policy.recovery.enabled:
+            for period_code in group.period_codes:
+                previous_group = recovery_period_owner.get(period_code)
+                if previous_group is not None and previous_group != group.code:
+                    _issue(
+                        issues,
+                        "ASSESSMENT_POLICY_RECOVERY_PERIOD_OVERLAP",
+                        f"{field}.period_codes",
+                        "Período de recuperação não pode pertencer a mais de um grupo na v1: "
+                        f"{period_code} ({previous_group} e {group.code}).",
+                    )
+                else:
+                    recovery_period_owner[period_code] = group.code
 
         if for_publish and group.only_if_improves is None:
             _issue(

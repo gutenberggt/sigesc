@@ -1,9 +1,10 @@
 """Assessment Policy Multi-Mantenedora v1.
 
-Foundation + Resolver: contratos, lifecycle, contexto e resolução read-only.
-Nenhum módulo deste pacote substitui o motor de Notas nesta etapa.
+Foundation + Resolver + Calculator/Recovery puros. Nenhum módulo deste pacote
+substitui o motor oficial de Notas enquanto o shadow/cutover não for aprovado.
 """
 
+from .calculator import AssessmentCalculationResult, calculate_assessment
 from .canonical import calculate_rule_hash, canonical_rule_json, canonical_rule_payload
 from .conflict_checker import (
     AssessmentPolicyConflictChecker,
@@ -34,6 +35,11 @@ from .models import (
     RecoveryStrategy,
     RecoveryTieBreak,
 )
+from .recovery import (
+    RecoveryApplication,
+    RecoveryExecutionResult,
+    apply_recoveries,
+)
 from .registry import AssessmentPolicyRegistry, PolicyConflictChecker, PolicyRepository
 from .repository import AssessmentPolicyRepository
 from .resolver import (
@@ -55,6 +61,7 @@ from .validator import PolicyValidationIssue, PolicyValidationReport, validate_p
 __all__ = [
     "ASSESSMENT_POLICY_INDEXES",
     "AcademicOutcomeRule",
+    "AssessmentCalculationResult",
     "AssessmentMode",
     "AssessmentPolicy",
     "AssessmentPolicyConflictChecker",
@@ -81,12 +88,16 @@ __all__ = [
     "PolicyStatus",
     "PolicyValidationIssue",
     "PolicyValidationReport",
+    "RecoveryApplication",
+    "RecoveryExecutionResult",
     "RecoveryGroup",
     "RecoveryRule",
     "RecoveryStrategy",
     "RecoveryTieBreak",
     "ResolvedAssessmentPolicy",
+    "apply_recoveries",
     "build_assessment_policy_context",
+    "calculate_assessment",
     "calculate_rule_hash",
     "canonical_rule_json",
     "canonical_rule_payload",
