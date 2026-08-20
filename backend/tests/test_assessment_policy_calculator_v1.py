@@ -10,7 +10,6 @@ from assessment_policy.canonical import calculate_rule_hash
 from assessment_policy.exceptions import (
     AssessmentPolicyError,
     CALCULATION_MODE_UNSUPPORTED,
-    CALCULATION_POLICY_INVALID,
     CALCULATION_UNKNOWN_CONCEPT,
     CALCULATION_UNKNOWN_PERIOD,
     CALCULATION_VALUE_INVALID,
@@ -24,6 +23,7 @@ from assessment_policy.models import (
     CalculationRule,
     CalculationStrategy,
     ConceptScaleEntry,
+    NormativeSource,
     NumericScale,
     PartialDivisorStrategy,
     PeriodRule,
@@ -75,8 +75,11 @@ def _numeric_policy(
                 decimal_places=decimal_places,
             ),
         ),
+        normative_sources=[
+            NormativeSource(type="internal_policy", title="Política formal de teste")
+        ],
     )
-    if status == PolicyStatus.PUBLISHED:
+    if status != PolicyStatus.DRAFT:
         policy = policy.model_copy(update={"rule_hash": calculate_rule_hash(policy)})
     return policy
 
@@ -106,8 +109,11 @@ def _conceptual_policy(*, status=PolicyStatus.DRAFT):
                 decimal_places=2,
             ),
         ),
+        normative_sources=[
+            NormativeSource(type="internal_policy", title="Política formal de teste")
+        ],
     )
-    if status == PolicyStatus.PUBLISHED:
+    if status != PolicyStatus.DRAFT:
         policy = policy.model_copy(update={"rule_hash": calculate_rule_hash(policy)})
     return policy
 
@@ -294,9 +300,9 @@ def test_published_policy_requires_valid_rule_hash_defense_in_depth():
     result = calculate_assessment(valid, {"b1": 7})
     assert result.rule_hash == valid.rule_hash
 
-    tampered = valid.model_copy(update={"name": "Nome administrativo alterado"})
+    renamed = valid.model_copy(update={"name": "Nome administrativo alterado"})
     # name não integra o hash da regra; continua íntegro.
-    assert calculate_assessment(tampered, {"b1": 7}).rule_hash == valid.rule_hash
+    assert calculate_assessment(renamed, {"b1": 7}).rule_hash == valid.rule_hash
 
     broken = valid.model_copy(
         update={
@@ -314,7 +320,21 @@ def test_published_policy_requires_valid_rule_hash_defense_in_depth():
     )
     with pytest.raises(AssessmentPolicyError) as exc:
         calculate_assessment(broken, {"b1": 7})
-    assert exc.value.code in {POLICY_INTEGRITY_ERROR, CALCULATION_POLICY_INVALID}
+    assert exc.value.code == POLICY_INTEGRITY_ERROR
+
+
+def test_historical_superseded_and_retired_policies_remain_reproducible_with_hash():
+    for status in (PolicyStatus.SUPERSEDED, PolicyStatus.RETIRED):
+        historical = _numeric_policy(status=status)
+        result = calculate_assessment(historical, {"b1": 6, "b2": 8})
+        assert result.current_average == 7.2
+        assert result.policy_status == status.value
+        assert result.rule_hash == historical.rule_hash
+
+        broken = historical.model_copy(update={"rule_hash": "sha256:deadbeef"})
+        with pytest.raises(AssessmentPolicyError) as exc:
+            calculate_assessment(broken, {"b1": 6})
+        assert exc.value.code == POLICY_INTEGRITY_ERROR
 
 
 def test_result_contains_policy_provenance_and_raw_inputs():
