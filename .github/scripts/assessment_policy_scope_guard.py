@@ -17,6 +17,7 @@ EXACT_ALLOWED = {
     ".github/scripts/assessment_policy_scope_guard.py",
     ".github/workflows/assessment-policy-foundation.yml",
     "backend/tests/test_assessment_policy_foundation_v1.py",
+    "backend/tests/test_assessment_policy_registry_v1.py",
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_001_FOUNDATION.md",
     "memory/audit/ASSESSMENT_POLICY_V1_DEPENDENCY_MATRIX.md",
 }
