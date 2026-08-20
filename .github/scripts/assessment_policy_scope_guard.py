@@ -2,7 +2,7 @@
 
 Cada sprint possui manifesto explícito. O guard falha se a PR alterar arquivos
 fora do domínio/entregáveis aprovados para aquela fase. Isso evita ampliar
-silenciosamente o escopo entre Foundation, Resolver e fases futuras.
+silenciosamente o escopo entre Foundation, Resolver, Calculator e fases futuras.
 """
 
 from __future__ import annotations
@@ -32,6 +32,13 @@ RESOLVER_EXACT = COMMON_EXACT | {
     "backend/tests/test_assessment_policy_series_resolver_v1.py",
     "backend/tests/test_assessment_policy_conflict_checker_v1.py",
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_002_RESOLVER.md",
+}
+
+CALCULATOR_EXACT = COMMON_EXACT | {
+    ".github/workflows/assessment-policy-calculator.yml",
+    "backend/tests/test_assessment_policy_calculator_v1.py",
+    "backend/tests/test_assessment_policy_recovery_v1.py",
+    "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_003_CALCULATOR.md",
 }
 
 PREFIX_ALLOWED = (
@@ -71,6 +78,8 @@ def _manifest() -> tuple[str, set[str]]:
         or os.environ.get("GITHUB_REF_NAME", "")
     ).strip()
 
+    if "assessment-policy-calculator" in head_ref:
+        return "calculator", CALCULATOR_EXACT
     if "assessment-policy-resolver" in head_ref:
         return "resolver", RESOLVER_EXACT
     if "assessment-policy-foundation" in head_ref:
