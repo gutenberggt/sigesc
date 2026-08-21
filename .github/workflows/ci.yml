@@ -144,7 +144,7 @@ jobs:
       - name: Install test runner
         run: pip install pytest pytest-asyncio python-dotenv motor
 
-      - name: Run Fase 0 + Fase 1 + Fase 2 + Fase 3 + Fase 4 + Fase 5 + cutover 38A-38F + P0 + startup + professor diary + multi-role guards
+      - name: Run Fase 0 + Fase 1 + Fase 2 + Fase 3 + Fase 4 + Fase 5 + cutover 38A-38F + P0 + startup + professor diary + multi-role + AEE v2 guards
         # Estes testes são unitários/puros e não usam o conftest de integração,
         # que exige Mongo real e variáveis MONGO_URL/DB_NAME.
         run: |
@@ -177,4 +177,5 @@ jobs:
             tests/test_professor_grades_history_parity_p0.py \
             tests/test_professor_grades_full_parity_p0.py \
             tests/test_professor_hybrid_grade_read_scope_p0.py \
-            tests/test_multi_role_active_session_p0.py
+            tests/test_multi_role_active_session_p0.py \
+            tests/test_aee_v2_p0.py
