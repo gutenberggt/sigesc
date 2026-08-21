@@ -22,6 +22,7 @@ from aee_v2.repository import (
 )
 from aee_v2.versioning import (
     AEEV2ActivationRequest,
+    AEEV2LifecycleUpdate,
     AEEV2PAEEUpdate,
     AEEV2PEIUpdate,
     AEEV2ScheduleUpdate,
@@ -241,14 +242,23 @@ def install_aee_v2_persistence(
             access_roles=access_roles,
         )
         try:
-            state = await repo.save_section(
-                plano_id,
-                section_name=section_name,
-                section=payload.section,
-                expected_head_revision=payload.expected_head_revision,
-                expected_working_snapshot_id=payload.expected_working_snapshot_id,
-                actor=current_user,
-            )
+            if section_name == "lifecycle":
+                state = await repo.save_lifecycle(
+                    plano_id,
+                    section=payload.section,
+                    expected_head_revision=payload.expected_head_revision,
+                    expected_working_snapshot_id=payload.expected_working_snapshot_id,
+                    actor=current_user,
+                )
+            else:
+                state = await repo.save_section(
+                    plano_id,
+                    section_name=section_name,
+                    section=payload.section,
+                    expected_head_revision=payload.expected_head_revision,
+                    expected_working_snapshot_id=payload.expected_working_snapshot_id,
+                    actor=current_user,
+                )
         except Exception as exc:
             _translate_repository_error(exc)
         await _audit_sidecar(
@@ -324,6 +334,22 @@ def install_aee_v2_persistence(
             request=request,
             payload=payload,
             section_name="schedule",
+        )
+
+    @base_router.patch(
+        "/planos/{plano_id}/dossie-v2/sections/lifecycle",
+        response_model=AEEV2State,
+    )
+    async def update_aee_v2_lifecycle(
+        plano_id: str,
+        payload: AEEV2LifecycleUpdate,
+        request: Request,
+    ):
+        return await _save_section(
+            plano_id=plano_id,
+            request=request,
+            payload=payload,
+            section_name="lifecycle",
         )
 
     @base_router.post(

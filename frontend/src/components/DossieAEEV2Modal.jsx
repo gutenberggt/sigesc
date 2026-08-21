@@ -13,6 +13,7 @@ const TAB_ITEMS = [
   { id: 'paee', label: 'PAEE', icon: Target },
   { id: 'pei', label: 'PEI', icon: ClipboardList },
   { id: 'schedule', label: 'Agenda', icon: CalendarDays },
+  { id: 'lifecycle', label: 'Vigência e Revisão', icon: FileClock },
   { id: 'attendances', label: 'Atendimentos', icon: Users },
   { id: 'articulations', label: 'Articulação', icon: MessageSquare },
   { id: 'evolutions', label: 'Evolução', icon: Activity },
@@ -24,6 +25,7 @@ const SECTION_LABELS = {
   paee: 'PAEE',
   pei: 'PEI',
   schedule: 'Agenda / Cronograma',
+  lifecycle: 'Vigência e Revisão',
 };
 
 const SECTION_PATHS = {
@@ -31,6 +33,7 @@ const SECTION_PATHS = {
   paee: 'paee',
   pei: 'pei',
   schedule: 'schedule',
+  lifecycle: 'lifecycle',
 };
 
 const SUPPORT_STATUS = {
@@ -42,7 +45,7 @@ const SUPPORT_STATUS = {
 };
 
 const STATE_LABELS = {
-  legacy_projected: 'Projetado do legado',
+  legacy_projected: 'Projetado do Plano anterior — revisar',
   in_progress: 'Em elaboração',
   complete: 'Concluído',
   not_applicable: 'Não aplicável',
@@ -100,6 +103,23 @@ function Field({ label, value, onChange, rows = 3, disabled = false, help = null
   );
 }
 
+function InputField({ label, value, onChange, type = 'text', disabled = false, help = null }) {
+  const displayValue = type === 'date' && value ? String(value).slice(0, 10) : (value || '');
+  return (
+    <label className="block">
+      <span className="block text-xs font-semibold text-gray-700 mb-1">{label}</span>
+      <input
+        type={type}
+        value={displayValue}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        className="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
+      />
+      {help && <span className="block text-[11px] text-gray-500 mt-1">{help}</span>}
+    </label>
+  );
+}
+
 function SelectField({ label, value, onChange, options, disabled = false, help = null }) {
   return (
     <label className="block">
@@ -138,14 +158,14 @@ function SectionState({ section, onChange, disabled }) {
   );
 }
 
-function SupportAssessment({ title, value, onChange, disabled }) {
+function SupportAssessment({ title, value, onChange, disabled, showCapacity = false }) {
   const current = value || { status: 'not_assessed' };
   return (
     <div className="border rounded-lg p-3 bg-gray-50">
       <p className="text-sm font-semibold text-gray-800 mb-2">{title}</p>
-      <div className="grid md:grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${showCapacity ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         <SelectField
-          label="Avaliação"
+          label="Avaliação da necessidade"
           value={current.status || 'not_assessed'}
           onChange={(status) => onChange({ ...current, status })}
           disabled={disabled}
@@ -159,9 +179,33 @@ function SupportAssessment({ title, value, onChange, disabled }) {
           rows={2}
           disabled={disabled}
         />
+        {showCapacity && (
+          <Field
+            label="Capacidade de disponibilização"
+            value={current.capacidade_disponibilizacao}
+            onChange={(capacidade_disponibilizacao) => onChange({ ...current, capacidade_disponibilizacao })}
+            rows={2}
+            disabled={disabled}
+            help="Quando houver necessidade, registre como o recurso poderá ser disponibilizado ou a limitação existente."
+          />
+        )}
       </div>
     </div>
   );
+}
+
+function blockerText(item) {
+  if (!item) return 'Pendência de adequação.';
+  if (item.code === 'AEE_V2_SECTION_NOT_COMPLETE') {
+    return `${SECTION_LABELS[item.section] || 'Seção'}: marque a situação da seção como “Concluído” após revisar os dados.`;
+  }
+  return item.description || item.message || 'Há uma pendência que precisa ser revisada.';
+}
+
+function blockerTab(item) {
+  return ['study_case', 'paee', 'pei', 'schedule', 'lifecycle'].includes(item?.section)
+    ? item.section
+    : null;
 }
 
 function SnapshotBadge({ snapshot, kind }) {
@@ -363,12 +407,25 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
       setMessage({
         type: 'error',
         text: blockers?.length
-          ? `Ativação bloqueada: ${blockers.map(item => item.description || item.code).join(' · ')}`
+          ? `Ativação bloqueada: ${blockers.map(blockerText).join(' · ')}`
           : error.message,
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const renderSectionBlockers = (sectionName) => {
+    const items = (activation?.blockers || []).filter(item => item.section === sectionName);
+    if (!items.length) return null;
+    return (
+      <div className="mb-4 border border-amber-200 bg-amber-50 rounded-lg p-3">
+        <p className="text-sm font-semibold text-amber-900">Pendências desta seção</p>
+        <ul className="mt-2 space-y-1 text-sm text-amber-900 list-disc list-inside">
+          {items.map((item, index) => <li key={`${item.code}-${index}`}>{blockerText(item)}</li>)}
+        </ul>
+      </div>
+    );
   };
 
   const saveButton = (sectionName) => (
@@ -388,6 +445,7 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
   const paee = draft?.paee || {};
   const pei = draft?.pei || {};
   const schedule = draft?.schedule || {};
+  const lifecycle = draft?.lifecycle || {};
 
   const renderOverview = () => (
     <div className="space-y-5">
@@ -443,9 +501,25 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
             <div className="flex-1">
               <p className="font-semibold">{activation?.ready ? 'Versão pronta para vigência' : 'Versão ainda possui pendências'}</p>
               {!activation?.ready && activation?.blockers?.length > 0 && (
-                <ul className="text-sm mt-2 list-disc list-inside space-y-1">
-                  {activation.blockers.map((item, index) => <li key={`${item.code}-${index}`}>{item.description || item.code}</li>)}
-                </ul>
+                <div className="mt-3 space-y-2">
+                  {activation.blockers.map((item, index) => {
+                    const targetTab = blockerTab(item);
+                    return (
+                      <div key={`${item.code}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white/70 border border-amber-200 px-3 py-2">
+                        <span className="text-sm text-amber-950">{blockerText(item)}</span>
+                        {targetTab && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab(targetTab)}
+                            className="shrink-0 text-xs font-semibold text-blue-700 hover:underline"
+                          >
+                            Corrigir →
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
               {canEdit && activation?.ready && (
                 <button onClick={activate} disabled={saving} className="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50">
@@ -470,6 +544,7 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
       {!draft ? <p className="text-sm text-gray-500">Inicialize o Dossiê V2 para acessar esta seção.</p> : (
         <>
           <SectionState section={study} onChange={(next) => mutateSection('study_case', next)} disabled={!editable} />
+          {renderSectionBlockers('study_case')}
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Fundamentação pedagógica da identificação para o AEE" value={study.fundamentacao_pedagogica_identificacao} onChange={(value) => mutateSection('study_case', s => ({ ...s, fundamentacao_pedagogica_identificacao: value }))} disabled={!editable} />
             <Field label="Demanda inicial e contexto escolar" value={study.demanda_inicial_contexto} onChange={(value) => mutateSection('study_case', s => ({ ...s, demanda_inicial_contexto: value }))} disabled={!editable} />
@@ -499,6 +574,7 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
       {!draft ? <p className="text-sm text-gray-500">Inicialize o Dossiê V2 para acessar esta seção.</p> : (
         <>
           <SectionState section={paee} onChange={(next) => mutateSection('paee', next)} disabled={!editable} />
+          {renderSectionBlockers('paee')}
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Barreiras prioritárias" value={asLines(paee.barreiras_prioritarias)} onChange={(value) => mutateSection('paee', s => ({ ...s, barreiras_prioritarias: lines(value) }))} disabled={!editable} />
             <Field label="Objetivos do PAEE" value={asLines((paee.objetivos || []).map(item => item.descricao))} onChange={(value) => mutateSection('paee', s => ({ ...s, objetivos: updateDescriptions(s.objetivos, value) }))} disabled={!editable} help="Um objetivo por linha; metadados existentes são preservados por posição." />
@@ -506,12 +582,12 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
             <Field label="Indicadores de progresso" value={paee.indicadores_progresso} onChange={(value) => mutateSection('paee', s => ({ ...s, indicadores_progresso: value }))} disabled={!editable} />
             <Field label="Frequência de revisão" value={paee.frequencia_revisao} onChange={(value) => mutateSection('paee', s => ({ ...s, frequencia_revisao: value }))} disabled={!editable} />
             <Field label="Critérios de ajuste" value={paee.criterios_ajuste} onChange={(value) => mutateSection('paee', s => ({ ...s, criterios_ajuste: value }))} disabled={!editable} />
-            <Field label="Demandas de formação em Educação Especial Inclusiva" value={asLines(paee.demandas_formacao_educacao_especial_inclusiva)} onChange={(value) => mutateSection('paee', s => ({ ...s, demandas_formacao_educacao_especial_inclusiva: lines(value) }))} disabled={!editable} />
-            <Field label="Acionamentos da rede de proteção" value={asLines(paee.acionamentos_rede_protecao)} onChange={(value) => mutateSection('paee', s => ({ ...s, acionamentos_rede_protecao: lines(value) }))} disabled={!editable} />
+            <Field label="Avaliação de demandas de formação em Educação Especial Inclusiva" value={asLines(paee.demandas_formacao_educacao_especial_inclusiva)} onChange={(value) => mutateSection('paee', s => ({ ...s, demandas_formacao_educacao_especial_inclusiva: lines(value) }))} disabled={!editable} help="Registre a demanda identificada ou declare explicitamente que nenhuma demanda adicional foi identificada neste momento." />
+            <Field label="Avaliação sobre acionamento da rede de proteção" value={asLines(paee.acionamentos_rede_protecao)} onChange={(value) => mutateSection('paee', s => ({ ...s, acionamentos_rede_protecao: lines(value) }))} disabled={!editable} help="Registre o acionamento necessário ou declare explicitamente que não há acionamento indicado neste momento." />
           </div>
           <div className="grid md:grid-cols-2 gap-4 mt-4">
-            <SupportAssessment title="Tecnologia Assistiva" value={paee.tecnologia_assistiva} onChange={(value) => mutateSection('paee', s => ({ ...s, tecnologia_assistiva: value }))} disabled={!editable} />
-            <SupportAssessment title="Comunicação Aumentativa e Alternativa (CAA)" value={paee.comunicacao_aumentativa_alternativa} onChange={(value) => mutateSection('paee', s => ({ ...s, comunicacao_aumentativa_alternativa: value }))} disabled={!editable} />
+            <SupportAssessment title="Tecnologia Assistiva" value={paee.tecnologia_assistiva} onChange={(value) => mutateSection('paee', s => ({ ...s, tecnologia_assistiva: value }))} disabled={!editable} showCapacity />
+            <SupportAssessment title="Comunicação Aumentativa e Alternativa (CAA)" value={paee.comunicacao_aumentativa_alternativa} onChange={(value) => mutateSection('paee', s => ({ ...s, comunicacao_aumentativa_alternativa: value }))} disabled={!editable} showCapacity />
             <SupportAssessment title="Profissional de Apoio Escolar" value={paee.profissional_apoio_escolar} onChange={(value) => mutateSection('paee', s => ({ ...s, profissional_apoio_escolar: value }))} disabled={!editable} />
             <SupportAssessment title="Tradutor/Intérprete de Libras" value={paee.tradutor_interprete_libras} onChange={(value) => mutateSection('paee', s => ({ ...s, tradutor_interprete_libras: value }))} disabled={!editable} />
             <SupportAssessment title="Guia-intérprete" value={paee.guia_interprete} onChange={(value) => mutateSection('paee', s => ({ ...s, guia_interprete: value }))} disabled={!editable} />
@@ -527,9 +603,10 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
       {!draft ? <p className="text-sm text-gray-500">Inicialize o Dossiê V2 para acessar esta seção.</p> : (
         <>
           <SectionState section={pei} onChange={(next) => mutateSection('pei', next)} disabled={!editable} />
+          {renderSectionBlockers('pei')}
           <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Atividades do AEE" value={asLines(pei.atividades_aee)} onChange={(value) => mutateSection('pei', s => ({ ...s, atividades_aee: lines(value) }))} disabled={!editable} />
-            <Field label="Articulação com a Sala Comum" value={pei.articulacao_sala_comum} onChange={(value) => mutateSection('pei', s => ({ ...s, articulacao_sala_comum: value }))} disabled={!editable} />
+            <Field label="Atividades do AEE" value={asLines(pei.atividades_aee)} onChange={(value) => mutateSection('pei', s => ({ ...s, atividades_aee: lines(value) }))} disabled={!editable} help="Registre as atividades previstas no AEE para este estudante." />
+            <Field label="Articulação com a Sala Comum" value={pei.articulacao_sala_comum} onChange={(value) => mutateSection('pei', s => ({ ...s, articulacao_sala_comum: value }))} disabled={!editable} help="Descreva a articulação com o professor regente e, quando pertinente, com outros profissionais da escola." />
             <Field label="Combinados com o Professor Regente" value={pei.combinados_professor_regente} onChange={(value) => mutateSection('pei', s => ({ ...s, combinados_professor_regente: value }))} disabled={!editable} />
             <Field label="Acessibilidade Curricular" value={pei.acessibilidade_curricular} onChange={(value) => mutateSection('pei', s => ({ ...s, acessibilidade_curricular: value }))} disabled={!editable} />
             <Field label="Acessibilidade Didático-Pedagógica" value={pei.acessibilidade_didatico_pedagogica} onChange={(value) => mutateSection('pei', s => ({ ...s, acessibilidade_didatico_pedagogica: value }))} disabled={!editable} />
@@ -539,6 +616,23 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
             <Field label="Devolutivas à família" value={asLines(pei.devolutivas_familia)} onChange={(value) => mutateSection('pei', s => ({ ...s, devolutivas_familia: lines(value) }))} disabled={!editable} />
           </div>
           {saveButton('pei')}
+        </>
+      )}
+    </div>
+  );
+
+  const renderLifecycle = () => (
+    <div>
+      {!draft ? <p className="text-sm text-gray-500">Inicialize o Dossiê V2 para acessar esta seção.</p> : (
+        <>
+          {renderSectionBlockers('lifecycle')}
+          <div className="grid md:grid-cols-2 gap-4">
+            <InputField label="Início da vigência" type="date" value={lifecycle.effective_from} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, effective_from: value }))} disabled={!editable} />
+            <InputField label="Fim da vigência (quando aplicável)" type="date" value={lifecycle.effective_to} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, effective_to: value }))} disabled={!editable} />
+            <InputField label="Data programada para revisão anual" type="date" value={lifecycle.review_at} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, review_at: value }))} disabled={!editable} help="A revisão anual não impede atualizações anteriores sempre que necessárias." />
+            <Field label="Período de vigência / observação legada" value={lifecycle.periodo_vigencia_legacy} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, periodo_vigencia_legacy: value }))} disabled={!editable} rows={2} />
+          </div>
+          {saveButton('lifecycle')}
         </>
       )}
     </div>
@@ -636,6 +730,7 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
     paee: renderPaee,
     pei: renderPei,
     schedule: renderSchedule,
+    lifecycle: renderLifecycle,
     attendances: renderAttendances,
     articulations: renderArticulations,
     evolutions: renderEvolutions,

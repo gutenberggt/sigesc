@@ -277,6 +277,85 @@ class AEEV2Repository:
             )
         return await self.get_state(legacy_plano_id)
 
+    async def save_lifecycle(
+        self,
+        legacy_plano_id: str,
+        *,
+        section,
+        expected_head_revision: int,
+        expected_working_snapshot_id: str,
+        actor: Optional[dict],
+    ) -> AEEV2State:
+        """Atualiza somente datas/metadados de vigência, preservando status e versão."""
+        await self.ensure_indexes()
+        head = await self.get_head(legacy_plano_id)
+        if not head:
+            raise AEEV2NotFound("Dossiê AEE v2 ainda não foi inicializado.")
+        if (
+            head.get("head_revision") != expected_head_revision
+            or head.get("working_snapshot_id") != expected_working_snapshot_id
+        ):
+            raise AEEV2Conflict("O Dossiê foi alterado por outra sessão. Recarregue antes de salvar.")
+
+        parent = await self.get_snapshot(expected_working_snapshot_id)
+        if not parent:
+            raise AEEV2NotFound("Snapshot de trabalho não encontrado.")
+
+        dossier = AEEDossierV2.model_validate(deepcopy(parent["dossier"]))
+        lifecycle_values = section.model_dump(exclude_unset=True)
+        for field in (
+            "effective_from",
+            "effective_to",
+            "review_at",
+            "periodo_vigencia_legacy",
+        ):
+            if field in lifecycle_values:
+                setattr(dossier.lifecycle, field, lifecycle_values[field])
+        dossier.provenance.projection_mode = "native_v2"
+        dossier.provenance.updated_by = (actor or {}).get("id")
+        dossier.provenance.updated_at = utc_now_iso()
+
+        new_snapshot = make_snapshot(
+            legacy_plano_id=legacy_plano_id,
+            dossier=dossier,
+            document_version=int(parent["document_version"]),
+            revision=int(parent["revision"]) + 1,
+            operation="update_lifecycle",
+            actor=actor,
+            parent_snapshot=parent,
+            base_active_snapshot_id=head.get("active_snapshot_id"),
+            changed_section="lifecycle",
+        )
+        try:
+            await self.snapshots.insert_one(deepcopy(new_snapshot))
+        except DuplicateKeyError as exc:
+            raise AEEV2Conflict(
+                "Já existe uma revisão concorrente para esta versão do Dossiê."
+            ) from exc
+
+        updated = await self.heads.find_one_and_update(
+            {
+                "legacy_plano_id": legacy_plano_id,
+                "head_revision": expected_head_revision,
+                "working_snapshot_id": expected_working_snapshot_id,
+            },
+            {
+                "$set": {
+                    "working_snapshot_id": new_snapshot["id"],
+                    "updated_at": utc_now_iso(),
+                    "updated_by": (actor or {}).get("id"),
+                },
+                "$inc": {"head_revision": 1},
+            },
+            projection={"_id": 0},
+            return_document=ReturnDocument.AFTER,
+        )
+        if not updated:
+            raise AEEV2Conflict(
+                "O ponteiro do Dossiê mudou durante o salvamento. Recarregue antes de continuar."
+            )
+        return await self.get_state(legacy_plano_id)
+
     async def start_revision(
         self,
         legacy_plano_id: str,
