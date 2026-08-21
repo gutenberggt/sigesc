@@ -80,6 +80,7 @@ def test_dossier_keeps_legacy_records_read_only_in_fase3():
     assert write_calls
     assert all("'POST'" in line or "'PATCH'" in line for line in write_calls)
 
+
 def test_fase4_ui_translates_blockers_and_exposes_normative_completion_fields():
     source = _read(DOSSIE)
 
@@ -93,3 +94,17 @@ def test_fase4_ui_translates_blockers_and_exposes_normative_completion_fields():
     assert "Avaliação sobre acionamento da rede de proteção" in source
     assert "sections/${SECTION_PATHS[sectionName]}" in source
     assert "lifecycle: 'lifecycle'" in source
+
+
+def test_dossier_does_not_auto_refresh_or_reset_tab_while_open():
+    source = _read(DOSSIE)
+    effect_block = source[source.index("useEffect(() =>"):source.index("if (!show || !plano) return null;")]
+
+    assert "useRef" in source
+    assert "initialLoadKeyRef.current = null" in effect_block
+    guard = "if (initialLoadKeyRef.current === openKey) return;"
+    assert guard in effect_block
+    assert effect_block.index(guard) < effect_block.index("setActiveTab('overview')")
+    assert source.count("setActiveTab('overview')") == 1
+    assert "onClick={loadState}" in source
+    assert 'title="Recarregar"' in source
