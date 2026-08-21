@@ -1,0 +1,30 @@
+name: Content Class-wide Assignment P0 Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  classwide-assignment-guard:
+    name: Content class-wide assignment guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run class-wide assignment regression
+        working-directory: backend
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_content_classwide_assignment_p0.py
