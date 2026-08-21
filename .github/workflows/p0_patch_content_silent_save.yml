@@ -3,7 +3,7 @@ name: P0 patch content multicomponent silent save
 on:
   pull_request:
     branches:
-      - main
+      - fix/content-multicomponent-silent-save-p0
     types:
       - opened
       - reopened
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   patch:
+    if: github.head_ref == 'chore/trigger-content-multicomponent-p0'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,128 +29,115 @@ jobs:
           page = Path('frontend/src/pages/LearningObjects.js')
           text = page.read_text(encoding='utf-8')
 
-          start_marker = """      if (isMultiSelectMode) {
-                // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos
-          """
-          end_marker = """        showAlert('success', `Registros: ${actions.join(', ')}`);
-          """
-
-          start = text.find(start_marker)
-          if start < 0:
-              raise SystemExit('P0 patch: start marker not found')
-          end = text.find(end_marker, start)
-          if end < 0:
-              raise SystemExit('P0 patch: end marker not found')
-          end += len(end_marker)
+          handle_start = text.index('const handleSave = async () =>')
+          start_marker = "      if (isMultiSelectMode) {\n        // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos"
+          start = text.index(start_marker, handle_start)
+          end_marker = "        showAlert('success', `Registros: ${actions.join(', ')}`);"
+          end = text.index(end_marker, start) + len(end_marker)
 
           replacement = r"""      if (isMultiSelectMode) {
-                // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos.
-                // P0 21/08/2026: nenhuma falha de persistência pode ser descartada silenciosamente.
-                const dayRecords = records.filter(r => r.date === selectedDate);
-                const existingCourseIds = dayRecords.map(r => r.course_id);
+        // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos.
+        // P0 21/08/2026: nenhuma falha de persistência pode ser descartada silenciosamente.
+        const dayRecords = records.filter(r => r.date === selectedDate);
+        const existingCourseIds = dayRecords.map(r => r.course_id);
 
-                // Cursos a CRIAR (selecionados mas sem registro)
-                const toCreate = selectedCourses.filter(id => !existingCourseIds.includes(id));
-                // Cursos a EXCLUIR (tinham registro mas foram desmarcados)
-                const toDelete = dayRecords.filter(r => !selectedCourses.includes(r.course_id));
-                // Cursos a ATUALIZAR (já existem e continuam selecionados)
-                const toUpdate = dayRecords.filter(r => selectedCourses.includes(r.course_id));
+        // Cursos a CRIAR (selecionados mas sem registro)
+        const toCreate = selectedCourses.filter(id => !existingCourseIds.includes(id));
+        // Cursos a EXCLUIR (tinham registro mas foram desmarcados)
+        const toDelete = dayRecords.filter(r => !selectedCourses.includes(r.course_id));
+        // Cursos a ATUALIZAR (já existem e continuam selecionados)
+        const toUpdate = dayRecords.filter(r => selectedCourses.includes(r.course_id));
 
-                const operations = [
-                  ...toCreate.map(courseId => ({
-                    action: 'created',
-                    label: 'criar',
-                    courseId,
-                    run: () => learningObjectsAPI.create({
-                      class_id: selectedClass,
-                      course_id: courseId,
-                      date: selectedDate,
-                      academic_year: academicYear,
-                      ...formData
-                    })
-                  })),
-                  ...toUpdate.map(rec => ({
-                    action: 'updated',
-                    label: 'atualizar',
-                    courseId: rec.course_id || rec.component_id,
-                    run: () => learningObjectsAPI.update(rec.id, formData)
-                  })),
-                  ...toDelete.map(rec => ({
-                    action: 'deleted',
-                    label: 'excluir',
-                    courseId: rec.course_id || rec.component_id,
-                    run: () => learningObjectsAPI.delete(rec.id)
-                  }))
-                ];
+        const operations = [
+          ...toCreate.map(courseId => ({
+            action: 'created',
+            label: 'criar',
+            courseId,
+            run: () => learningObjectsAPI.create({
+              class_id: selectedClass,
+              course_id: courseId,
+              date: selectedDate,
+              academic_year: academicYear,
+              ...formData
+            })
+          })),
+          ...toUpdate.map(rec => ({
+            action: 'updated',
+            label: 'atualizar',
+            courseId: rec.course_id || rec.component_id,
+            run: () => learningObjectsAPI.update(rec.id, formData)
+          })),
+          ...toDelete.map(rec => ({
+            action: 'deleted',
+            label: 'excluir',
+            courseId: rec.course_id || rec.component_id,
+            run: () => learningObjectsAPI.delete(rec.id)
+          }))
+        ];
 
-                const results = await Promise.allSettled(operations.map(operation => operation.run()));
-                const completed = { created: 0, updated: 0, deleted: 0 };
-                const failures = [];
+        const results = await Promise.allSettled(operations.map(operation => operation.run()));
+        const completed = { created: 0, updated: 0, deleted: 0 };
+        const failures = [];
 
-                results.forEach((result, index) => {
-                  const operation = operations[index];
-                  if (result.status === 'fulfilled') {
-                    completed[operation.action] += 1;
-                  } else {
-                    failures.push({ ...operation, error: result.reason });
-                  }
-                });
+        results.forEach((result, index) => {
+          const operation = operations[index];
+          if (result.status === 'fulfilled') {
+            completed[operation.action] += 1;
+          } else {
+            failures.push({ ...operation, error: result.reason });
+          }
+        });
 
-                if (failures.length > 0) {
-                  // Algumas operações podem ter sido concluídas antes da falha. Recarregar
-                  // a fonte persistida impede que uma nova tentativa trate sucesso anterior
-                  // como criação inédita e produza falso conflito de duplicidade.
-                  await loadRecords();
+        if (failures.length > 0) {
+          // Algumas operações podem ter sido concluídas antes da falha. Recarregar
+          // a fonte persistida impede que nova tentativa crie falso conflito.
+          await loadRecords();
 
-                  const successfulCount = completed.created + completed.updated + completed.deleted;
-                  const failureDetails = failures.slice(0, 3).map(({ courseId, label, error }) => {
-                    const courseName = courses.find(course => course.id === courseId)?.name || courseId || 'componente não identificado';
-                    const detail = error?.response?.data?.detail;
-                    const message = typeof detail === 'string'
-                      ? detail
-                      : detail?.message || error?.message || 'erro não identificado pelo servidor';
-                    const code = typeof detail === 'object' && detail?.code ? ` [${detail.code}]` : '';
-                    return `${courseName} (${label}): ${message}${code}`;
-                  });
-                  const omitted = failures.length > 3 ? `; e mais ${failures.length - 3} falha(s)` : '';
-                  const partial = successfulCount > 0
-                    ? `Salvamento parcial: ${successfulCount} operação(ões) concluída(s). `
-                    : '';
-                  const saveError = new Error(
-                    `${partial}Não foi possível concluir ${failures.length} operação(ões): ${failureDetails.join(' | ')}${omitted}`
-                  );
-                  saveError.code = 'CONTENT_MULTICOMPONENT_SAVE_FAILED';
-                  saveError.failures = failures;
-                  throw saveError;
-                }
+          const successfulCount = completed.created + completed.updated + completed.deleted;
+          const failureDetails = failures.slice(0, 3).map(({ courseId, label, error }) => {
+            const courseName = courses.find(course => course.id === courseId)?.name || courseId || 'componente não identificado';
+            const detail = error?.response?.data?.detail;
+            const message = typeof detail === 'string'
+              ? detail
+              : detail?.message || error?.message || 'erro não identificado pelo servidor';
+            const code = typeof detail === 'object' && detail?.code ? ` [${detail.code}]` : '';
+            return `${courseName} (${label}): ${message}${code}`;
+          });
+          const omitted = failures.length > 3 ? `; e mais ${failures.length - 3} falha(s)` : '';
+          const partial = successfulCount > 0
+            ? `Salvamento parcial: ${successfulCount} operação(ões) concluída(s). `
+            : '';
+          const saveError = new Error(
+            `${partial}Não foi possível concluir ${failures.length} operação(ões): ${failureDetails.join(' | ')}${omitted}`
+          );
+          saveError.code = 'CONTENT_MULTICOMPONENT_SAVE_FAILED';
+          saveError.failures = failures;
+          throw saveError;
+        }
 
-                const actions = [];
-                if (completed.created > 0) actions.push(`${completed.created} criado(s)`);
-                if (completed.updated > 0) actions.push(`${completed.updated} atualizado(s)`);
-                if (completed.deleted > 0) actions.push(`${completed.deleted} excluído(s)`);
-                showAlert('success', `Registros: ${actions.join(', ')}`);
-          """
+        const actions = [];
+        if (completed.created > 0) actions.push(`${completed.created} criado(s)`);
+        if (completed.updated > 0) actions.push(`${completed.updated} atualizado(s)`);
+        if (completed.deleted > 0) actions.push(`${completed.deleted} excluído(s)`);
+        showAlert('success', `Registros: ${actions.join(', ')}`);"""
 
           text = text[:start] + replacement + text[end:]
 
           old_catch = """    } catch (error) {
-                console.error('Erro ao salvar:', error);
-                showAlert('error', error.response?.data?.detail || 'Erro ao salvar registro');
-              } finally {
-          """
+      console.error('Erro ao salvar:', error);
+      showAlert('error', error.response?.data?.detail || 'Erro ao salvar registro');
+    } finally {"""
           new_catch = """    } catch (error) {
-                console.error('Erro ao salvar:', error);
-                const detail = error?.response?.data?.detail;
-                const message = typeof detail === 'string'
-                  ? detail
-                  : detail?.message || error?.message || 'Erro ao salvar registro';
-                showAlert('error', message);
-              } finally {
-          """
+      console.error('Erro ao salvar:', error);
+      const detail = error?.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : detail?.message || error?.message || 'Erro ao salvar registro';
+      showAlert('error', message);
+    } finally {"""
           if text.count(old_catch) != 1:
               raise SystemExit(f'P0 patch: expected exactly one save catch, found {text.count(old_catch)}')
           text = text.replace(old_catch, new_catch, 1)
-
           page.write_text(text, encoding='utf-8')
 
           test_path = Path('backend/tests/test_professor_content_parity_p0.py')
@@ -216,8 +204,7 @@ No teste de Karina, ao salvar conteúdo da turma 1º e 2º Ano:
 - se houver inconsistência de vínculo/componente/data, o SIGESC deve informar o componente e o erro técnico estruturado, sem exibir falso sucesso.
 """, encoding='utf-8')
 
-          workflow = Path('.github/workflows/p0_patch_content_silent_save.yml')
-          workflow.unlink()
+          Path('.github/workflows/p0_patch_content_silent_save.yml').unlink()
           PY
 
       - name: Commit patched sources
