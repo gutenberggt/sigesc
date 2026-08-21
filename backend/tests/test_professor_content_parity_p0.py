@@ -12,6 +12,7 @@ COPY_ADAPTER = ROOT / "backend/routers/content_copy_dvd.py"
 LEGACY_OBJECTS = ROOT / "backend/routers/learning_objects.py"
 HISTORY_ADAPTER = ROOT / "backend/routers/content_dvd_history.py"
 ROUTERS_INIT = ROOT / "backend/routers/__init__.py"
+LEARNING_OBJECTS_PAGE = ROOT / "frontend/src/pages/LearningObjects.js"
 
 
 def test_quick_access_content_requires_diary_context():
@@ -154,3 +155,20 @@ def test_copy_setup_is_installed_after_history_bridge():
     history = source.index('install_content_history_setups(')
     copy = source.index('install_content_copy_setup(')
     assert history < copy
+
+
+def test_multicomponent_content_save_never_swallows_persistence_failures():
+    source = LEARNING_OBJECTS_PAGE.read_text(encoding="utf-8")
+    start = source.index("if (isMultiSelectMode) {", source.index("const handleSave = async ()"))
+    end = source.index("} else if (editingRecord)", start)
+    block = source[start:end]
+
+    assert ".catch(() => null)" not in block
+    assert "Promise.allSettled" in block
+    assert "CONTENT_MULTICOMPONENT_SAVE_FAILED" in block
+    assert "successfulCount" in block
+    assert "await loadRecords()" in block
+    assert "completed.created" in block
+    assert "completed.updated" in block
+    assert "completed.deleted" in block
+    assert "detail?.message || error?.message" in source
