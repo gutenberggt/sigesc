@@ -122,6 +122,53 @@ class AEEV2Repository:
             working_snapshot=working,
         )
 
+    async def _repair_partial_bootstrap(self, legacy_plano_id: str, head_template: dict) -> bool:
+        """Reconstrói apenas o head se o primeiro snapshot já tiver sido gravado.
+
+        A ordem snapshot→head evita um ponteiro para snapshot inexistente. Se o
+        processo cair entre as duas inserções, o índice único de v1.r1 permite
+        localizar o snapshot imutável e completar o head de modo idempotente.
+        """
+        stranded = await self.snapshots.find_one(
+            {
+                "legacy_plano_id": legacy_plano_id,
+                "document_version": 1,
+                "revision": 1,
+                "operation": "bootstrap",
+            },
+            {"_id": 0},
+        )
+        if not stranded:
+            return False
+        if not verify_snapshot_hash(stranded):
+            raise AEEV2IntegrityError(
+                "Snapshot inicial AEE v2 existente falhou na verificação de integridade."
+            )
+
+        dossier = AEEDossierV2.model_validate(stranded["dossier"])
+        repaired = deepcopy(head_template)
+        repaired.update(
+            {
+                "legacy_plano_id": legacy_plano_id,
+                "student_id": dossier.student_id,
+                "school_id": dossier.school_id,
+                "academic_year": dossier.academic_year,
+                "active_snapshot_id": None,
+                "working_snapshot_id": stranded["id"],
+                "head_revision": 1,
+                "next_document_version": 2,
+                "created_at": stranded.get("created_at") or repaired.get("created_at"),
+                "created_by": stranded.get("created_by"),
+                "updated_at": stranded.get("created_at") or repaired.get("updated_at"),
+                "updated_by": stranded.get("created_by"),
+            }
+        )
+        try:
+            await self.heads.insert_one(repaired)
+            return True
+        except DuplicateKeyError:
+            return bool(await self.get_head(legacy_plano_id))
+
     async def bootstrap(self, plano: dict, *, actor: Optional[dict]) -> AEEV2State:
         await self.ensure_indexes()
         legacy_plano_id = str(plano.get("id") or "")
@@ -137,11 +184,16 @@ class AEEV2Repository:
             await self.snapshots.insert_one(deepcopy(snapshot))
             await self.heads.insert_one(deepcopy(head))
         except DuplicateKeyError as exc:
-            # Corrida concorrente: o primeiro bootstrap válido vence. Nenhum
-            # documento legado é tocado; o chamador recarrega o head vencedor.
+            # Corrida concorrente: o primeiro head válido vence.
             winner = await self.get_head(legacy_plano_id)
             if winner:
                 return await self.get_state(legacy_plano_id)
+
+            # Recupera interrupção entre snapshot e head sem apagar ou regravar
+            # o snapshot já persistido.
+            if await self._repair_partial_bootstrap(legacy_plano_id, head):
+                return await self.get_state(legacy_plano_id)
+
             raise AEEV2Conflict("Bootstrap concorrente do Dossiê AEE v2.") from exc
 
         return await self.get_state(legacy_plano_id)
