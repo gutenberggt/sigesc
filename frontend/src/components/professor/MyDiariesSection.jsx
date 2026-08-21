@@ -54,13 +54,27 @@ const getComponentOperationalState = (component) => {
   };
 };
 
-const buildComponentContext = (component, module, academicYear) => ({
-  academicYear: component.academicYear || module.classInfo?.academic_year || academicYear,
-  schoolId: component.schoolId || module.school_id,
-  classId: module.class_id,
-  courseId: component.id || '',
-  assignmentId: component.diary?.assignment_id || '',
-});
+const buildComponentContext = (component, module, academicYear) => {
+  const diary = component.diary;
+  const baseContext = {
+    academicYear: component.academicYear || module.classInfo?.academic_year || academicYear,
+    schoolId: component.schoolId || module.school_id,
+    classId: module.class_id,
+    courseId: component.id || '',
+  };
+
+  if (diary) {
+    return {
+      ...baseContext,
+      assignmentId: diary.assignment_id,
+    };
+  }
+
+  return {
+    ...baseContext,
+    assignmentId: '',
+  };
+};
 
 export default function MyDiariesSection({ legacyClasses = [] }) {
   const navigate = useNavigate();
@@ -326,15 +340,16 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                 <CardContent className="px-3 pt-0 pb-2">
                   <div className="divide-y divide-slate-100">
                     {module.components.map((component) => {
+                      const diary = component.diary;
                       const ops = getComponentOperationalState(component);
                       const actionContext = buildComponentContext(component, module, academicYear);
 
                       return (
                         <div
-                          key={component.diary?.assignment_id || component.id || component.name}
+                          key={diary?.assignment_id || component.id || component.name}
                           className="py-2 first:pt-1 last:pb-1"
-                          data-testid={component.diary?.assignment_id
-                            ? `diario-card-${component.diary.assignment_id}`
+                          data-testid={diary?.assignment_id
+                            ? `diario-card-${diary.assignment_id}`
                             : `legacy-component-${module.class_id}-${component.id}`}
                         >
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -369,7 +384,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                                 </Button>
                               )}
 
-                              {(component.diary?.capabilities?.grades_enabled !== false || !component.diary) && (
+                              {(diary?.capabilities?.grades_enabled !== false || !diary) && (
                                 <Button
                                   type="button"
                                   size="sm"
@@ -377,8 +392,8 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                                   disabled={!ops.canGrades}
                                   onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
                                   className="h-8 px-2 text-xs"
-                                  data-testid={component.diary?.assignment_id
-                                    ? `open-grades-${component.diary.assignment_id}`
+                                  data-testid={diary
+                                    ? `open-grades-${diary.assignment_id}`
                                     : `legacy-grades-${module.class_id}-${component.id}`}
                                 >
                                   <ClipboardList size={14} className="mr-1.5" />
@@ -386,16 +401,28 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                                 </Button>
                               )}
 
-                              {ops.canContent && (
+                              {ops.canContent && diary && (
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="outline"
                                   onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
                                   className="h-8 px-2 text-xs"
-                                  data-testid={component.diary?.assignment_id
-                                    ? `open-content-${component.diary.assignment_id}`
-                                    : `legacy-content-${module.class_id}-${component.id}`}
+                                  data-testid={`open-content-${diary.assignment_id}`}
+                                >
+                                  <BookOpen size={14} className="mr-1.5" />
+                                  Conteúdos
+                                </Button>
+                              )}
+
+                              {ops.canContent && !diary && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
+                                  className="h-8 px-2 text-xs"
+                                  data-testid={`legacy-content-${module.class_id}-${component.id}`}
                                 >
                                   <BookOpen size={14} className="mr-1.5" />
                                   Conteúdos
