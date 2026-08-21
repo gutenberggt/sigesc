@@ -37,4 +37,5 @@ jobs:
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_aee_v2_contracts.py \
             tests/test_aee_v2_p0.py \
-            tests/test_aee_v2_versioning.py
+            tests/test_aee_v2_versioning.py \
+            tests/test_aee_v2_bootstrap_recovery.py
