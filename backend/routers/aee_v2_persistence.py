@@ -393,7 +393,7 @@ def install_aee_v2_persistence(
             _translate_repository_error(exc)
         await _audit_sidecar(
             audit_service,
-            action="publish",
+            action="approve",
             request=request,
             user=current_user,
             plano=plano,
