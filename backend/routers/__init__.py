@@ -49,6 +49,12 @@ from .content_copy_dvd import install_content_copy_setup
 from . import mantenedora as _mantenedora_mod
 from .assessment_policy_admin import install_assessment_policy_admin_setup
 
+# AEE v2 P0 — hardening incremental autorizado pelo proprietário em 21/08/2026.
+# O router legado bloqueado permanece intacto; esta camada envolve somente os
+# endpoints críticos de autoria/responsabilidade e exclusão de Plano AEE.
+from . import aee as _aee_mod
+from .aee_v2_p0 import install_aee_v2_p0_setup
+
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
 # setup aqui garante que o endpoint legado de PDF/alertas seja protegido antes
@@ -57,6 +63,7 @@ install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 install_content_copy_setup(_content_entries_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
+install_aee_v2_p0_setup(_aee_mod)
 
 
 def setup_grades_router(
@@ -112,7 +119,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
     return install_attendance_pdf_dvd_parity(
         configured,
         db,
-        sandbox_db,
+        sandbox_db=sandbox_db,
     )
 
 
