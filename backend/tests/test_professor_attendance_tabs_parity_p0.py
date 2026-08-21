@@ -30,6 +30,29 @@ def test_cutover_history_is_read_only_and_not_reassigned():
     assert '"$set": {"assignment_id"' not in source
 
 
+def test_class_daily_history_uses_class_natural_key_not_teacher_owner():
+    source = _read(BACKEND_PARITY)
+    canonical_block = source.split(
+        "# Frequência DVD class_daily é canônica da turma/data.", 1
+    )[1].split("# Histórico anterior à Fase 4", 1)[0]
+
+    assert '"class_id": class_id' in canonical_block
+    assert '"course_id": None' in canonical_block
+    assert '"attendance_mode": AttendanceMode.CLASS_DAILY.value' in canonical_block
+    assert '"attendance_purpose": AttendancePurpose.OFFICIAL.value' in canonical_block
+    assert '"teacher_id": teacher_id' not in canonical_block
+    assert '"assignment_id": context.assignment.get("id")' not in canonical_block
+
+
+def test_non_cutover_class_daily_history_respects_assignment_validity():
+    source = _read(BACKEND_PARITY)
+
+    assert 'effective_valid_from = None if cutover_legacy else context.assignment.get("valid_from")' in source
+    assert 'if valid_from:' in source
+    assert 'lower = max(lower, str(valid_from)[:10])' in source
+    assert 'context.assignment.get("valid_until")' in source
+
+
 def test_regular_same_teacher_reuses_owner_without_transferring_ownership():
     source = _read(BACKEND_PARITY)
 
