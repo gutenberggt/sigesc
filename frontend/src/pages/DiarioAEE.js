@@ -9,6 +9,9 @@
  * AEE v2 P0: alterações desta rodada autorizadas explicitamente pelo
  * proprietário do produto em 21/08/2026.
  *
+ * AEE v2 Fase 3: interface do Dossiê Individual AEE V2 autorizada
+ * explicitamente pelo proprietário em 21/08/2026.
+ *
  * Regras para qualquer agente/desenvolvedor:
  *   1. Não refatore, não "limpe", não mude visual/UX, não renomeie campos,
  *      não modifique payload, modais, validações ou rotas.
@@ -27,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import PlanoAEEModal from '@/components/PlanoAEEModal';
+import DossieAEEV2Modal from '@/components/DossieAEEV2Modal';
 import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -135,6 +139,7 @@ const DiarioAEE = () => {
   const [editingAtendimento, setEditingAtendimento] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedPlano, setSelectedPlano] = useState(null);
+  const [dossiePlano, setDossiePlano] = useState(null);
   
   // Formulários
   const [atendimentoForm, setAtendimentoForm] = useState({
@@ -978,6 +983,14 @@ const DiarioAEE = () => {
                       >
                         <Eye size={16} />
                       </button>
+                      <button
+                        onClick={() => setDossiePlano(plano)}
+                        className="p-1 text-cyan-700 hover:bg-cyan-50 rounded"
+                        title="Abrir Dossiê Individual AEE V2"
+                        data-testid={`btn-dossie-v2-${plano.id}`}
+                      >
+                        <ClipboardList size={16} />
+                      </button>
                       {canEdit && (
                       <>
                       <button
@@ -1091,7 +1104,7 @@ const DiarioAEE = () => {
   const TabDiario = () => (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-800">Diário AEE - Visão Consolidada</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Diário AEE V2.0 - Visão Consolidada</h3>
         <button
           onClick={() => setShowPeriodoModal(true)}
           data-testid="btn-baixar-pdf-completo"
@@ -1494,7 +1507,7 @@ const DiarioAEE = () => {
           </button>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BookOpen className="text-blue-600" />
-            Diário AEE
+            Diário AEE V2.0
           </h1>
         </div>
         <p className="text-gray-500">Atendimento Educacional Especializado</p>
@@ -1617,6 +1630,13 @@ const DiarioAEE = () => {
           .map(p => p.student_id)}
       />
       {showAtendimentoModal && atendimentoModalContent}
+      <DossieAEEV2Modal
+        show={Boolean(dossiePlano)}
+        onClose={() => setDossiePlano(null)}
+        plano={dossiePlano}
+        token={token}
+        canEdit={canEdit}
+      />
 
       {/* Modal de Visualização do Plano AEE (Feb 2026) */}
       {viewingPlano && (

@@ -469,7 +469,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
               <SpellTextField label="Orientações para Sala Comum" value={form.orientacoes_sala_comum} onChange={(t) => handleChange('orientacoes_sala_comum', t)} rows={3} placeholder="Orientações e estratégias para o professor da sala regular..." />
               <SpellTextField label="Combinados com o Professor Regente" value={form.combinados_professor_regente} onChange={(t) => handleChange('combinados_professor_regente', t)} rows={2} placeholder="Acordos e combinados com o professor da sala regular..." />
               <SpellTextField label="Adequações Curriculares" value={form.adequacoes_curriculares} onChange={(t) => handleChange('adequacoes_curriculares', t)} rows={2} placeholder="Adaptações curriculares necessárias por componente..." />
-              <SpellTextField label="Adaptações por Componente Curricular" value={form.adaptacoes_por_componente} onChange={(t) => handleChange('adaptacoes_por_componente', t)} rows={2} placeholder="Adaptações específicas para cada componente curricular..." />
+              <SpellTextField label="Adaptações por Componente Curricular/Campos de Experiência" value={form.adaptacoes_por_componente} onChange={(t) => handleChange('adaptacoes_por_componente', t)} rows={2} placeholder="Adaptações específicas para cada componente curricular ou campo de experiência..." />
             </div>
           </div>
 
