@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { getDiaryPrefill } from '@/utils/diaryPrefill';
 import '@/services/contentDvdBridge';
+import '@/utils/contentCopyErrorNormalizerLate';
 
 /**
  * Aplica uma única vez o contexto vindo do dashboard somente quando cada valor
