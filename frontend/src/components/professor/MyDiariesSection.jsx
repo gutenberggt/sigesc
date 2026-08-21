@@ -143,11 +143,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
       {!loading && !error && diaryGroups.length > 0 && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4" data-testid="diarios-compactos">
           {diaryGroups.map((group) => (
-            <Card
-              key={group.key}
-              className="border-l-4 border-l-indigo-500"
-              data-testid={`diario-group-${group.class_id}-${group.profile || 'regular'}`}
-            >
+            <Card key={group.key} className="border-l-4 border-l-indigo-500" data-testid={`diario-group-${group.class_id}-${group.profile || 'regular'}`}>
               <CardHeader className="pt-4 pb-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -162,7 +158,6 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                   </span>
                 </div>
               </CardHeader>
-
               <CardContent className="pt-0 pb-3 space-y-3">
                 <div className="divide-y divide-slate-100">
                   {group.diaries.map((diary) => {
@@ -187,58 +182,25 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                             </p>
                             {(unresolvedGroup || !sharedGradeOwner) && (
                               <p className="mt-1 text-[11px] leading-4 text-amber-700">
-                                {unresolvedGroup
-                                  ? 'Aguardando definição auditável do grupo de estudantes.'
-                                  : 'Avaliação aguardando responsável oficial do vínculo compartilhado.'}
+                                {unresolvedGroup ? 'Aguardando definição auditável do grupo de estudantes.' : 'Avaliação aguardando responsável oficial do vínculo compartilhado.'}
                               </p>
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2 lg:justify-end">
                             {caps.attendance_enabled && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
-                                disabled={unresolvedGroup}
-                                onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))}
-                                className="h-8 px-2.5 text-xs"
-                                data-testid={`open-attendance-${diary.assignment_id}`}
-                              >
+                              <Button type="button" size="sm" variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'} disabled={unresolvedGroup} onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`open-attendance-${diary.assignment_id}`}>
                                 <CheckSquare size={14} className="mr-1.5" />
-                                {unresolvedGroup
-                                  ? 'Frequência aguardando grupo'
-                                  : caps.attendance_purpose === 'pdf_only'
-                                    ? 'Registro documental'
-                                    : 'Frequência'}
+                                {unresolvedGroup ? 'Frequência aguardando grupo' : caps.attendance_purpose === 'pdf_only' ? 'Registro documental' : 'Frequência'}
                               </Button>
                             )}
                             {caps.grades_enabled && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={!gradesOperational}
-                                onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
-                                className="h-8 px-2.5 text-xs"
-                                data-testid={`open-grades-${diary.assignment_id}`}
-                              >
+                              <Button type="button" size="sm" variant="outline" disabled={!gradesOperational} onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`open-grades-${diary.assignment_id}`}>
                                 <ClipboardList size={14} className="mr-1.5" />
-                                {unresolvedGroup
-                                  ? 'Avaliação aguardando grupo'
-                                  : !sharedGradeOwner
-                                    ? 'Avaliação aguardando responsável'
-                                    : 'Notas / Conceitos'}
+                                {unresolvedGroup ? 'Avaliação aguardando grupo' : !sharedGradeOwner ? 'Avaliação aguardando responsável' : 'Notas / Conceitos'}
                               </Button>
                             )}
                             {caps.content_enabled && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
-                                className="h-8 px-2.5 text-xs"
-                                data-testid={`open-content-${diary.assignment_id}`}
-                              >
+                              <Button type="button" size="sm" variant="outline" onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`open-content-${diary.assignment_id}`}>
                                 <BookOpen size={14} className="mr-1.5" />
                                 Conteúdos
                               </Button>
@@ -249,19 +211,9 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                     );
                   })}
                 </div>
-
                 <div className="flex flex-col gap-2 border-t border-slate-100 pt-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-[11px] leading-4 text-slate-500">
-                    Frequência, Notas/Conceitos e Conteúdos abrem com o vínculo, a turma e o componente já definidos.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(legacyStudentsRoute(group.class_id))}
-                    className="h-8 shrink-0 px-2.5 text-xs"
-                    data-testid={`open-students-${group.class_id}`}
-                  >
+                  <p className="text-[11px] leading-4 text-slate-500">Frequência, Notas/Conceitos e Conteúdos abrem com o vínculo, a turma e o componente já definidos.</p>
+                  <Button type="button" size="sm" variant="outline" onClick={() => navigate(legacyStudentsRoute(group.class_id))} className="h-8 shrink-0 px-2.5 text-xs" data-testid={`open-students-${group.class_id}`}>
                     <Users size={14} className="mr-1.5" />
                     Estudantes
                   </Button>
@@ -288,20 +240,13 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                       <span className="truncate">{turma.school_name}</span>
                     </CardDescription>
                   </div>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                    Fluxo atual
-                  </span>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Fluxo atual</span>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 pb-3 space-y-3">
                 <div className="divide-y divide-slate-100">
                   {(turma.componentes || []).map((comp) => {
-                    const actionContext = {
-                      academicYear: turma.academic_year || academicYear,
-                      schoolId: turma.school_id,
-                      classId: turma.id,
-                      courseId: comp.id,
-                    };
+                    const actionContext = { academicYear: turma.academic_year || academicYear, schoolId: turma.school_id, classId: turma.id, courseId: comp.id };
                     return (
                       <div key={comp.id} className="py-3 first:pt-1 last:pb-1">
                         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -310,36 +255,19 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                             <p className="text-sm font-semibold text-slate-800 truncate" title={comp.name || ''}>{comp.name}</p>
                           </div>
                           <div className="flex flex-wrap gap-2 lg:justify-end">
-                            <Button variant="outline" size="sm" onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`legacy-attendance-${turma.id}-${comp.id}`}>
-                              <CheckSquare size={14} className="mr-1.5" />
-                              Frequência
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`legacy-grades-${turma.id}-${comp.id}`}>
-                              <ClipboardList size={14} className="mr-1.5" />
-                              Notas / Conceitos
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`legacy-content-${turma.id}-${comp.id}`}>
-                              <BookOpen size={14} className="mr-1.5" />
-                              Conteúdos
-                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`legacy-attendance-${turma.id}-${comp.id}`}><CheckSquare size={14} className="mr-1.5" />Frequência</Button>
+                            <Button variant="outline" size="sm" onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`legacy-grades-${turma.id}-${comp.id}`}><ClipboardList size={14} className="mr-1.5" />Notas / Conceitos</Button>
+                            <Button variant="outline" size="sm" onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))} className="h-8 px-2.5 text-xs" data-testid={`legacy-content-${turma.id}-${comp.id}`}><BookOpen size={14} className="mr-1.5" />Conteúdos</Button>
                           </div>
                         </div>
                       </div>
                     );
                   })}
-                  {(!turma.componentes || turma.componentes.length === 0) && (
-                    <span className="block py-2 text-xs text-slate-500">Nenhum componente informado para criar atalhos diretos.</span>
-                  )}
+                  {(!turma.componentes || turma.componentes.length === 0) && <span className="block py-2 text-xs text-slate-500">Nenhum componente informado para criar atalhos diretos.</span>}
                 </div>
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-2">
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/professor/turma/${turma.id}/diario`)} className="h-8 px-2.5 text-xs">
-                    <ClipboardList size={14} className="mr-1.5" />
-                    Diário
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => navigate(legacyStudentsRoute(turma.id))} className="h-8 px-2.5 text-xs">
-                    <Users size={14} className="mr-1.5" />
-                    Estudantes
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/professor/turma/${turma.id}/diario`)} className="h-8 px-2.5 text-xs"><ClipboardList size={14} className="mr-1.5" />Diário</Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(legacyStudentsRoute(turma.id))} className="h-8 px-2.5 text-xs"><Users size={14} className="mr-1.5" />Estudantes</Button>
                 </div>
               </CardContent>
             </Card>
@@ -348,9 +276,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
       )}
 
       {!loading && visibleTotal > 0 && (
-        <p className="text-xs text-slate-500">
-          “Fluxo atual” identifica turmas que ainda não possuem um Diário por Vínculo ativo ou que permanecem fora do escopo atual do DVD. Os atalhos usam somente filtros já autorizados ao professor.
-        </p>
+        <p className="text-xs text-slate-500">“Fluxo atual” identifica turmas que ainda não possuem um Diário por Vínculo ativo ou que permanecem fora do escopo atual do DVD. Os atalhos usam somente filtros já autorizados ao professor.</p>
       )}
     </section>
   );
