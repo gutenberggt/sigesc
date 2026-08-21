@@ -49,9 +49,6 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
 
   const diaries = useMemo(() => data?.items || [], [data]);
 
-  // Dashboard compacto: um card por turma/perfil, mantendo cada assignment
-  // individual na linha do componente para que as ações continuem levando o
-  // vínculo correto (assignment_id) para Frequência, Notas e Conteúdos.
   const diaryGroups = useMemo(() => {
     const groups = new Map();
 
@@ -77,10 +74,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
     });
 
     return Array.from(groups.values())
-      .map((group) => ({
-        ...group,
-        diaries: [...group.diaries].sort(sortByComponent),
-      }))
+      .map((group) => ({ ...group, diaries: [...group.diaries].sort(sortByComponent) }))
       .sort((left, right) => {
         const schoolCompare = (left.school_name || '').localeCompare(right.school_name || '', 'pt-BR');
         if (schoolCompare !== 0) return schoolCompare;
@@ -232,7 +226,6 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                                     : 'Frequência'}
                               </Button>
                             )}
-
                             {caps.grades_enabled && (
                               <Button
                                 type="button"
@@ -251,7 +244,6 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                                     : 'Notas / Conceitos'}
                               </Button>
                             )}
-
                             {caps.content_enabled && (
                               <Button
                                 type="button"
