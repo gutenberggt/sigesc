@@ -1,0 +1,39 @@
+name: AEE v2 - Contract Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  aee-v2-contract:
+    name: AEE v2 - contrato e preservação do legado
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install isolated dependencies
+        run: pip install pytest pydantic
+
+      - name: Compile canonical AEE v2 package
+        run: python -m compileall -q aee_v2
+
+      - name: Run AEE v2 contract and legacy-preservation tests
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_aee_v2_contracts.py \
+            tests/test_aee_v2_p0.py

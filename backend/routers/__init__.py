@@ -54,6 +54,7 @@ from .assessment_policy_admin import install_assessment_policy_admin_setup
 # endpoints críticos de autoria/responsabilidade e exclusão de Plano AEE.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
+from .aee_v2_dossier import install_aee_v2_dossier_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -64,6 +65,7 @@ install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 install_content_copy_setup(_content_entries_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
 install_aee_v2_p0_setup(_aee_mod)
+install_aee_v2_dossier_setup(_aee_mod)
 
 
 def setup_grades_router(
