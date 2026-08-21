@@ -1,22 +1,81 @@
 """Testes unitários das salvaguardas P0 do AEE v2.
 
-Não usam MongoDB, HTTP ou dados de produção. O objetivo é certificar as regras
-que precisam permanecer invariantes durante a evolução do Diário AEE.
+Não usam MongoDB, FastAPI real, HTTP ou dados de produção. O módulo é carregado
+com stubs mínimos para que estas invariantes possam integrar o gate leve do CI.
 """
 
 import asyncio
+import importlib.util
+from pathlib import Path
 import sys
+import types
 
 import pytest
-from fastapi import HTTPException
 
-sys.path.insert(0, "/app/backend")
 
-from routers.aee_v2_p0 import (  # noqa: E402
-    aee_status_label,
-    plan_hard_delete_allowed,
-    resolve_aee_responsible_professor,
-)
+class FakeHTTPException(Exception):
+    def __init__(self, status_code, detail=None):
+        super().__init__(str(detail))
+        self.status_code = status_code
+        self.detail = detail
+
+
+class FakeStatus:
+    HTTP_201_CREATED = 201
+    HTTP_403_FORBIDDEN = 403
+    HTTP_409_CONFLICT = 409
+    HTTP_422_UNPROCESSABLE_ENTITY = 422
+
+
+def _load_p0_module():
+    """Carrega o módulo diretamente, sem executar ``routers/__init__.py``."""
+    fastapi_stub = types.ModuleType("fastapi")
+    fastapi_stub.HTTPException = FakeHTTPException
+    fastapi_stub.Request = object
+    fastapi_stub.status = FakeStatus()
+
+    auth_stub = types.ModuleType("auth_middleware")
+
+    class FakeAuthMiddleware:
+        pass
+
+    auth_stub.AuthMiddleware = FakeAuthMiddleware
+
+    models_stub = types.ModuleType("models")
+    for model_name in (
+        "AtendimentoAEE",
+        "AtendimentoAEECreate",
+        "AtendimentoAEEUpdate",
+        "PlanoAEE",
+        "PlanoAEECreate",
+        "PlanoAEEUpdate",
+    ):
+        setattr(models_stub, model_name, type(model_name, (), {}))
+
+    old_modules = {
+        name: sys.modules.get(name)
+        for name in ("fastapi", "auth_middleware", "models")
+    }
+    sys.modules["fastapi"] = fastapi_stub
+    sys.modules["auth_middleware"] = auth_stub
+    sys.modules["models"] = models_stub
+
+    try:
+        module_path = Path(__file__).resolve().parents[1] / "routers" / "aee_v2_p0.py"
+        spec = importlib.util.spec_from_file_location("aee_v2_p0_under_test", module_path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        for name, previous in old_modules.items():
+            if previous is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = previous
+
+
+P0 = _load_p0_module()
 
 
 class FakeCollection:
@@ -56,27 +115,27 @@ class FakeDB:
 
 
 def test_status_labels_are_presentation_only():
-    assert aee_status_label("rascunho") == "Em elaboração"
-    assert aee_status_label("ativo") == "Vigente"
-    assert aee_status_label("revisao") == "Em revisão"
-    assert aee_status_label("encerrado") == "Encerrado"
-    assert aee_status_label("legado_desconhecido") == "legado_desconhecido"
+    assert P0.aee_status_label("rascunho") == "Em elaboração"
+    assert P0.aee_status_label("ativo") == "Vigente"
+    assert P0.aee_status_label("revisao") == "Em revisão"
+    assert P0.aee_status_label("encerrado") == "Encerrado"
+    assert P0.aee_status_label("legado_desconhecido") == "legado_desconhecido"
 
 
 def test_hard_delete_only_allows_empty_draft():
     empty = {"atendimentos": 0, "evolucoes": 0, "articulacoes": 0}
-    assert plan_hard_delete_allowed("rascunho", empty) is True
+    assert P0.plan_hard_delete_allowed("rascunho", empty) is True
 
     for plan_status in ("ativo", "revisao", "encerrado"):
-        assert plan_hard_delete_allowed(plan_status, empty) is False
+        assert P0.plan_hard_delete_allowed(plan_status, empty) is False
 
-    assert plan_hard_delete_allowed(
+    assert P0.plan_hard_delete_allowed(
         "rascunho", {"atendimentos": 1, "evolucoes": 0, "articulacoes": 0}
     ) is False
-    assert plan_hard_delete_allowed(
+    assert P0.plan_hard_delete_allowed(
         "rascunho", {"atendimentos": 0, "evolucoes": 1, "articulacoes": 0}
     ) is False
-    assert plan_hard_delete_allowed(
+    assert P0.plan_hard_delete_allowed(
         "rascunho", {"atendimentos": 0, "evolucoes": 0, "articulacoes": 1}
     ) is False
 
@@ -98,7 +157,7 @@ def test_responsible_professor_prefers_aee_class_assignment():
     )
 
     professor_id, professor_nome = asyncio.run(
-        resolve_aee_responsible_professor(
+        P0.resolve_aee_responsible_professor(
             db,
             student_id="student-1",
             requested_id="user-admin",
@@ -118,7 +177,7 @@ def test_responsible_professor_accepts_explicit_professor_user():
     )
 
     professor_id, professor_nome = asyncio.run(
-        resolve_aee_responsible_professor(
+        P0.resolve_aee_responsible_professor(
             db,
             student_id="student-2",
             requested_id="user-prof-2",
@@ -137,9 +196,9 @@ def test_admin_actor_is_never_used_as_responsible_professor_fallback():
         users=[{"id": "user-admin", "role": "admin", "full_name": "Administrador"}],
     )
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(FakeHTTPException) as exc_info:
         asyncio.run(
-            resolve_aee_responsible_professor(
+            P0.resolve_aee_responsible_professor(
                 db,
                 student_id="student-3",
                 requested_id="user-admin",
