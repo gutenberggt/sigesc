@@ -28,6 +28,7 @@ from motor.motor_asyncio import AsyncIOMotorClient  # noqa: E402
 from scripts.audit_dvd_cutover_plan import collect_cutover_plan  # noqa: E402
 from scripts.audit_dvd_schedule_recovery import collect_recovery  # noqa: E402
 from scripts.audit_dvd_first_wave_manifest import (  # noqa: E402
+    RECOVERABLE_STATES,
     build_manifest_weekly_slots,
     first_wave_blocker,
 )
@@ -94,6 +95,32 @@ def _regular_sibling_evidence(
         if dvd.get("id"):
             ids.append(str(dvd["id"]))
     return sorted(set(ids))
+
+
+def _schedule_diagnostics(
+    *,
+    schedule_docs: list[Mapping[str, Any]],
+    recovery_row: Mapping[str, Any],
+    course_id: str,
+) -> tuple[list[str], list[dict[str, Any]]]:
+    blockers: list[str] = []
+    if len(schedule_docs) != 1:
+        blockers.append("schedule_document_not_unique")
+        return blockers, []
+
+    recovery_state = str(recovery_row.get("recovery_state") or "")
+    if recovery_state not in RECOVERABLE_STATES:
+        blockers.append(f"schedule:{recovery_state or 'unknown'}")
+        return blockers, []
+
+    weekly_slots = build_manifest_weekly_slots(
+        schedule_docs[0],
+        course_id=course_id,
+        recovery_row=recovery_row,
+    )
+    if not weekly_slots:
+        blockers.append("weekly_slots_reconstruction_failed")
+    return blockers, weekly_slots
 
 
 async def collect_missing_bindings_preflight(
@@ -209,7 +236,7 @@ async def collect_missing_bindings_preflight(
             legacy_key_counts[key] += 1
 
     states: Counter[str] = Counter()
-    blockers: Counter[str] = Counter()
+    blocker_counts: Counter[str] = Counter()
     details: list[dict[str, Any]] = []
 
     for p in plan_rows:
@@ -233,24 +260,18 @@ async def collect_missing_bindings_preflight(
             continue
 
         r = recovery_by_legacy.get(legacy_id) or {}
-        blocker = first_wave_blocker(p, r)
-        if blocker is None and legacy_key_counts.get(key, 0) != 1:
-            blocker = "duplicate_legacy_binding_review"
+        first_wave_reason = first_wave_blocker(p, r)
+        diagnostic_blockers: list[str] = []
 
-        schedule_docs = schedules_by_class.get(class_id, [])
-        schedule = schedule_docs[0] if len(schedule_docs) == 1 else None
-        if blocker is None and len(schedule_docs) != 1:
-            blocker = "schedule_document_not_unique"
+        if legacy_key_counts.get(key, 0) != 1:
+            diagnostic_blockers.append("duplicate_legacy_binding_review")
 
-        weekly_slots: list[dict[str, Any]] = []
-        if blocker is None:
-            weekly_slots = build_manifest_weekly_slots(
-                schedule,
-                course_id=course_id,
-                recovery_row=r,
-            )
-            if not weekly_slots:
-                blocker = "weekly_slots_reconstruction_failed"
+        schedule_blockers, weekly_slots = _schedule_diagnostics(
+            schedule_docs=schedules_by_class.get(class_id, []),
+            recovery_row=r,
+            course_id=course_id,
+        )
+        diagnostic_blockers.extend(schedule_blockers)
 
         level = _level(klass)
         sibling_regular_ids = _regular_sibling_evidence(
@@ -261,21 +282,38 @@ async def collect_missing_bindings_preflight(
             classes_by_id=classes_by_id,
         ) if level else []
 
+        non_profile_first_wave_blocker = (
+            first_wave_reason
+            if first_wave_reason not in {None, "regular_or_integrator_review"}
+            else None
+        )
+        if non_profile_first_wave_blocker:
+            diagnostic_blockers.append(non_profile_first_wave_blocker)
+
+        diagnostic_blockers = sorted(set(diagnostic_blockers))
         state = "missing_blocked"
         remediation_hint = None
-        if blocker is None:
+
+        if first_wave_reason is None and not diagnostic_blockers:
             state = "missing_first_wave_ready_now"
             remediation_hint = "candidato automático pelos mesmos gates da 38E"
-        elif blocker == "regular_or_integrator_review" and sibling_regular_ids:
+        elif (
+            first_wave_reason == "regular_or_integrator_review"
+            and sibling_regular_ids
+            and not diagnostic_blockers
+            and weekly_slots
+        ):
             state = "missing_regular_sibling_evidence"
             remediation_hint = (
-                "há DVD regular vigente do mesmo professor e nível; "
-                "avaliar remediação pós-cutover sem inferir perfil apenas por nota"
+                "único bloqueio original era evidência de perfil; há DVD regular "
+                "vigente do mesmo professor e nível e horário reconstruível"
             )
 
         states[state] += 1
-        if blocker:
-            blockers[blocker] += 1
+        for blocker in diagnostic_blockers:
+            blocker_counts[blocker] += 1
+        if first_wave_reason:
+            blocker_counts[f"first_wave:{first_wave_reason}"] += 1
 
         details.append({
             "state": state,
@@ -286,9 +324,10 @@ async def collect_missing_bindings_preflight(
             "class_name": p.get("class_name"),
             "course_id": course_id,
             "course_name": p.get("course_name"),
-            "first_wave_blocker": blocker,
+            "first_wave_blocker": first_wave_reason,
+            "diagnostic_blockers": diagnostic_blockers,
             "recovery_state": r.get("recovery_state"),
-            "schedule_documents": len(schedule_docs),
+            "schedule_documents": len(schedules_by_class.get(class_id, [])),
             "weekly_slots_reconstructable": bool(weekly_slots),
             "weekly_slots_count": len(weekly_slots),
             "regular_sibling_evidence_ids": sibling_regular_ids,
@@ -314,7 +353,7 @@ async def collect_missing_bindings_preflight(
         "summary": {
             "legacy_bindings_for_teacher": len(plan_rows),
             "states": dict(sorted(states.items())),
-            "blockers": dict(sorted(blockers.items())),
+            "blockers": dict(sorted(blocker_counts.items())),
             "missing_total": sum(
                 count for state, count in states.items()
                 if state != "already_has_dvd"
