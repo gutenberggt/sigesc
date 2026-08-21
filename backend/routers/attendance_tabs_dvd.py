@@ -3,6 +3,8 @@
 Esta camada é instalada *depois* do adaptador Fase 4 e corrige lacunas de
 compatibilidade sem alterar/migrar registros históricos:
 
+- frequência oficial `class_daily` é lida pela chave canônica da turma/data,
+  sem depender do professor/assignment que gravou o documento;
 - histórico oficial `class_daily` anterior ao cutover volta a alimentar
   Registros, Resumo, Relatórios, Alertas e PDF em modo somente leitura;
 - vínculos `regular` do mesmo professor/turma compartilham a frequência diária
@@ -90,7 +92,8 @@ async def _safe_cutover_legacy_assignment(
     """Resolve a origem legada somente para vínculos realmente ativados na 38G-B.
 
     O vínculo legado é revalidado contra professor, turma, componente, ano e
-    status. Qualquer divergência desliga silenciosamente a ponte histórica.
+    status. Qualquer divergência desliga silenciosamente a exceção histórica que
+    permite atravessar o `valid_from` técnico do cutover.
     """
     if context.attendance_mode is not AttendanceMode.CLASS_DAILY:
         return None
@@ -124,9 +127,17 @@ async def _safe_cutover_legacy_assignment(
     return legacy
 
 
-def _date_bounds(academic_year: int, start: Optional[str], end: Optional[str], valid_until: Optional[str]):
+def _date_bounds(
+    academic_year: int,
+    start: Optional[str],
+    end: Optional[str],
+    valid_from: Optional[str],
+    valid_until: Optional[str],
+):
     lower = max(str(start or f"{academic_year}-01-01")[:10], f"{academic_year}-01-01")
     upper = min(str(end or f"{academic_year}-12-31")[:10], f"{academic_year}-12-31")
+    if valid_from:
+        lower = max(lower, str(valid_from)[:10])
     if valid_until:
         upper = min(upper, str(valid_until)[:10])
     return lower, upper
@@ -140,37 +151,45 @@ async def _combined_class_daily_docs(
     start: Optional[str] = None,
     end: Optional[str] = None,
 ) -> Optional[list[dict]]:
-    """Combina histórico legado + DVD sem reatribuir documentos legados.
+    """Resolve a frequência oficial `class_daily` pela chave canônica da turma.
 
-    Retorna None quando o assignment não é um cutover 38G-B validado; o chamador
-    deve então usar exatamente o comportamento original da Fase 4.
+    `assignment_id` e `teacher_id` autorizam o acesso ao Diário, mas não fazem
+    parte da chave natural da frequência diária. Depois que o vínculo foi
+    autorizado por `resolve_attendance_assignment`, a leitura consolidada usa
+    turma + data + período + `course_id=None`, igual a `logical_attendance_query`.
+
+    Para cutovers 38G-B revalidados, o `valid_from` técnico não corta o histórico
+    anual anterior à ativação. Nos demais vínculos, a leitura permanece limitada
+    à vigência real do assignment. Nenhum documento é atualizado ou reatribuído.
     """
-    legacy_assignment = await _safe_cutover_legacy_assignment(db, context, academic_year)
-    if not legacy_assignment:
+    if context.attendance_mode is not AttendanceMode.CLASS_DAILY:
+        return None
+    if context.attendance_purpose is not AttendancePurpose.OFFICIAL:
         return None
 
+    cutover_legacy = await _safe_cutover_legacy_assignment(db, context, academic_year)
+    effective_valid_from = None if cutover_legacy else context.assignment.get("valid_from")
     lower, upper = _date_bounds(
         academic_year,
         start,
         end,
+        effective_valid_from,
         context.assignment.get("valid_until"),
     )
     if lower > upper:
         return []
 
     class_id = context.assignment.get("class_id")
-    teacher_id = context.assignment.get("teacher_id")
     date_query = {"$gte": lower, "$lte": upper}
 
-    # Documentos DVD class_daily de qualquer componente REGULAR do mesmo
-    # professor são a mesma frequência oficial da turma. A autoria/proveniência
-    # armazenada permanece intocada; aqui ocorre apenas leitura consolidada.
+    # Frequência DVD class_daily é canônica da turma/data. O professor que
+    # efetuou o lançamento permanece preservado como proveniência, mas não pode
+    # fragmentar a leitura do relatório de outro vínculo autorizado da turma.
     canonical = await db.attendance.find(
         {
             "class_id": class_id,
             "date": date_query,
             "course_id": None,
-            "teacher_id": teacher_id,
             "attendance_mode": AttendanceMode.CLASS_DAILY.value,
             "attendance_purpose": AttendancePurpose.OFFICIAL.value,
         },
@@ -178,7 +197,7 @@ async def _combined_class_daily_docs(
     ).to_list(5000)
 
     # Histórico anterior à Fase 4 não possui assignment_id. Ele continua físico
-    # e imutável em `attendance`; a ponte apenas o apresenta na leitura anual.
+    # e imutável em `attendance`; a ponte apenas o apresenta na leitura autorizada.
     legacy = await db.attendance.find(
         {
             "class_id": class_id,
@@ -266,13 +285,13 @@ def install_attendance_tabs_dvd_adapter(base_router, db, audit_service=None, san
     from routers import attendance_dvd as dvd_mod
 
     # ------------------------------------------------------------
-    # 1. Fonte consolidada de histórico para Registros/Relatório/PDF/Alertas.
+    # 1. Fonte consolidada class_daily para Registros/Relatório/PDF/Alertas.
     # ------------------------------------------------------------
     if not hasattr(dvd_mod, "_tabs_parity_original_assignment_docs"):
         dvd_mod._tabs_parity_original_assignment_docs = dvd_mod._assignment_docs
         original_assignment_docs = dvd_mod._assignment_docs
 
-        async def assignment_docs_with_cutover_history(
+        async def assignment_docs_with_class_daily_history(
             db_arg,
             context: AttendanceAssignmentContext,
             academic_year: int,
@@ -297,7 +316,7 @@ def install_attendance_tabs_dvd_adapter(base_router, db, audit_service=None, san
                 end=end,
             )
 
-        dvd_mod._assignment_docs = assignment_docs_with_cutover_history
+        dvd_mod._assignment_docs = assignment_docs_with_class_daily_history
 
     if not hasattr(dvd_mod, "_tabs_parity_original_expected_sessions"):
         dvd_mod._tabs_parity_original_expected_sessions = dvd_mod._expected_sessions
