@@ -10,7 +10,7 @@ on:
 
 jobs:
   aee-v2-contract:
-    name: AEE v2 - contrato e preservação do legado
+    name: AEE v2 - contrato, persistência e preservação do legado
     runs-on: ubuntu-latest
 
     defaults:
@@ -27,13 +27,14 @@ jobs:
           python-version: '3.11'
 
       - name: Install isolated dependencies
-        run: pip install pytest pydantic
+        run: pip install pytest pydantic pymongo
 
       - name: Compile canonical AEE v2 package
-        run: python -m compileall -q aee_v2
+        run: python -m compileall -q aee_v2 routers/aee_v2_dossier.py routers/aee_v2_persistence.py
 
-      - name: Run AEE v2 contract and legacy-preservation tests
+      - name: Run AEE v2 contract, legacy-preservation and versioning tests
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_aee_v2_contracts.py \
-            tests/test_aee_v2_p0.py
+            tests/test_aee_v2_p0.py \
+            tests/test_aee_v2_versioning.py
