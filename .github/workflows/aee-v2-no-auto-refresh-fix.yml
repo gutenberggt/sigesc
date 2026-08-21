@@ -51,10 +51,22 @@ jobs:
               test.write_text(source, encoding='utf-8')
           PY
 
-      - name: Validate targeted contract
+      - name: Validate dependency-free UI contract
         run: |
-          python -m pip install -q pytest
-          python -m pytest -q backend/tests/test_aee_v2_fase3_ui_contract.py
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('frontend/src/components/DossieAEEV2Modal.jsx').read_text(encoding='utf-8')
+          effect = source[source.index('useEffect(() =>'):source.index('if (!show || !plano) return null;')]
+          assert 'useRef' in source
+          assert 'initialLoadKeyRef.current = null' in effect
+          guard = 'if (initialLoadKeyRef.current === openKey) return;'
+          assert guard in effect
+          assert effect.index(guard) < effect.index("setActiveTab('overview')")
+          assert source.count("setActiveTab('overview')") == 1
+          assert 'onClick={loadState}' in source
+          assert 'title="Recarregar"' in source
+          print('AEE V2 modal no-auto-refresh contract: PASS')
+          PY
           git diff --check
 
       - name: Commit functional fix and remove temporary workflow
