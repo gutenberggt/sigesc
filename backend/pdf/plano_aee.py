@@ -237,7 +237,7 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
          Paragraph(plano.get('combinados_professor_regente') or '-', value_style), '', ''],
         [Paragraph('Adequações Curriculares:', label),
          Paragraph(plano.get('adequacoes_curriculares') or '-', value_style), '', ''],
-        [Paragraph('Adaptações por Componente:', label),
+        [Paragraph('Adaptações por Componente Curricular/Campos de Experiência:', label),
          Paragraph(plano.get('adaptacoes_por_componente') or '-', value_style), '', ''],
     ]
     artic_t = Table(artic, colWidths=[3.5*cm, 6*cm, 3*cm, 5.5*cm])
