@@ -23,11 +23,13 @@ from services.teacher_grade_access import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO = ROOT.parent
 TEACHER_SCOPE = (ROOT / "services" / "teacher_grade_access.py").read_text(encoding="utf-8")
 HARDENING = (ROOT / "routers" / "grades_dvd_hardening.py").read_text(encoding="utf-8")
 STUDENT_SCOPE = (ROOT / "routers" / "grades_dvd_student_scope.py").read_text(encoding="utf-8")
 BULLETINS = (ROOT / "routers" / "bulletins.py").read_text(encoding="utf-8")
 BULLETIN_PDF = (ROOT / "routers" / "bulletin_pdf.py").read_text(encoding="utf-8")
+MY_DIARIES = (REPO / "frontend" / "src" / "components" / "professor" / "MyDiariesSection.jsx").read_text(encoding="utf-8")
 
 
 def _scope(*, source, assignment_id, class_id="c1", component_id="co1"):
@@ -200,3 +202,15 @@ def test_sync_pull_de_notas_preserva_legacy_e_ownership_dvd():
     assert 'dvd_scope_clauses' in HARDENING
     assert 'scope.source == "legacy"' in HARDENING
     assert '_mask_grade_for_teacher' in HARDENING
+
+
+def test_meus_diarios_agrupa_componentes_por_turma_em_layout_compacto():
+    assert 'const diaryGroups = useMemo(' in MY_DIARIES
+    assert 'group.diaries.map((diary)' in MY_DIARIES
+    assert 'data-testid="diarios-compactos"' in MY_DIARIES
+    assert 'data-testid={`diario-card-${diary.assignment_id}`}' in MY_DIARIES
+    assert "buildDiaryActionUrl('/professor/frequencia', actionContext)" in MY_DIARIES
+    assert "buildDiaryActionUrl('/professor/notas', actionContext)" in MY_DIARIES
+    assert "buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext)" in MY_DIARIES
+    assert 'function Capability(' not in MY_DIARIES
+    assert 'Operacional por vínculo docente; cada professor acessa seus próprios registros.' not in MY_DIARIES
