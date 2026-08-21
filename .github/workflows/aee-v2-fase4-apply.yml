@@ -1,0 +1,266 @@
+name: AEE v2 Fase 4 - Apply pedagogical adequacy
+
+on:
+  push:
+    branches:
+      - agent/aee-v2-fase4-adequacao-pedagogica
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'chore(aee): apply fase4 pedagogical adequacy [aee-v2-fase4]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/aee-v2-fase4-adequacao-pedagogica
+          fetch-depth: 0
+
+      - name: Apply deterministic Fase 4 patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: esperado 1 match, encontrado {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def append_once(path, marker, block):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if marker in text:
+                  return
+              p.write_text(text.rstrip() + '\n\n' + block.strip() + '\n', encoding='utf-8')
+
+          # ------------------------------------------------------------------
+          # 1. Validação pedagógica mínima
+          # ------------------------------------------------------------------
+          mapper = 'backend/aee_v2/legacy_mapper.py'
+          replace_once(
+              mapper,
+              '''    if not any(\n        _nonempty(value)\n        for value in (\n            sc.participacao_estudante,\n            sc.contribuicoes_estudante,\n            sc.contribuicoes_familia,\n        )\n    ):\n        gaps.append(\n            _gap(\n                "study_case",\n                "STUDY_CASE_STUDENT_FAMILY_PARTICIPATION",\n                "participacao_estudante/contribuicoes_familia",\n                "Registrar o envolvimento do estudante e da família no Estudo de Caso.",\n            )\n        )''',
+              '''    if not any(\n        _nonempty(value)\n        for value in (sc.participacao_estudante, sc.contribuicoes_estudante)\n    ):\n        gaps.append(\n            _gap(\n                "study_case",\n                "STUDY_CASE_STUDENT_PARTICIPATION",\n                "participacao_estudante/contribuicoes_estudante",\n                "Registrar a participação e/ou as contribuições do estudante no Estudo de Caso, respeitando suas formas de comunicação e expressão.",\n            )\n        )\n\n    if not _nonempty(sc.contribuicoes_familia):\n        gaps.append(\n            _gap(\n                "study_case",\n                "STUDY_CASE_FAMILY_PARTICIPATION",\n                "contribuicoes_familia",\n                "Registrar a participação e as contribuições da família no Estudo de Caso.",\n            )\n        )'''
+          )
+          replace_once(
+              mapper,
+              '''    if (\n        paee.tecnologia_assistiva.status == "not_assessed"\n        or paee.comunicacao_aumentativa_alternativa.status == "not_assessed"\n    ):\n        gaps.append(\n            _gap(\n                "paee",\n                "PAEE_TA_AAC_ASSESSMENT",\n                "tecnologia_assistiva/comunicacao_aumentativa_alternativa",\n                "Avaliar necessidade e capacidade de disponibilização de tecnologia assistiva e CAA.",\n            )\n        )''',
+              '''    ta_aac = (\n        ("tecnologia_assistiva", "Tecnologia Assistiva"),\n        ("comunicacao_aumentativa_alternativa", "Comunicação Aumentativa e Alternativa (CAA)"),\n    )\n    if any(getattr(paee, field).status == "not_assessed" for field, _ in ta_aac):\n        gaps.append(\n            _gap(\n                "paee",\n                "PAEE_TA_AAC_ASSESSMENT",\n                "tecnologia_assistiva/comunicacao_aumentativa_alternativa",\n                "Avaliar pedagogicamente a necessidade de Tecnologia Assistiva e de Comunicação Aumentativa e Alternativa (CAA).",\n            )\n        )\n\n    for field, label in ta_aac:\n        assessment = getattr(paee, field)\n        if (\n            assessment.status in {"needed", "provided", "unavailable"}\n            and not _nonempty(assessment.capacidade_disponibilizacao)\n        ):\n            gaps.append(\n                _gap(\n                    "paee",\n                    f"PAEE_{field.upper()}_CAPACITY",\n                    f"{field}.capacidade_disponibilizacao",\n                    f"Registrar a capacidade de disponibilização para {label} quando sua necessidade foi identificada.",\n                )\n            )'''
+          )
+          replace_once(
+              mapper,
+              '''    if not (\n        paee.demandas_formacao_educacao_especial_inclusiva\n        or paee.acionamentos_rede_protecao\n    ):\n        gaps.append(\n            _gap(\n                "paee",\n                "PAEE_TRAINING_NETWORK_ASSESSMENT",\n                "demandas_formacao_educacao_especial_inclusiva/acionamentos_rede_protecao",\n                "Registrar a avaliação de demandas de formação e de acionamento da rede de proteção.",\n            )\n        )''',
+              '''    if not paee.demandas_formacao_educacao_especial_inclusiva:\n        gaps.append(\n            _gap(\n                "paee",\n                "PAEE_TRAINING_ASSESSMENT",\n                "demandas_formacao_educacao_especial_inclusiva",\n                "Registrar a avaliação das demandas de formação em Educação Especial Inclusiva, inclusive quando nenhuma demanda adicional for identificada.",\n            )\n        )\n\n    if not paee.acionamentos_rede_protecao:\n        gaps.append(\n            _gap(\n                "paee",\n                "PAEE_NETWORK_ASSESSMENT",\n                "acionamentos_rede_protecao",\n                "Registrar a avaliação sobre necessidade de acionamento da rede de proteção, inclusive quando não houver acionamento indicado.",\n            )\n        )'''
+          )
+          replace_once(
+              mapper,
+              '''    if not (pei.atividades_aee or _nonempty(pei.articulacao_sala_comum)):\n        gaps.append(\n            _gap(\n                "pei",\n                "PEI_AEE_ACTIVITIES_ARTICULATION",\n                "atividades_aee/articulacao_sala_comum",\n                "Registrar atividades do AEE e sua articulação com sala comum e equipe escolar.",\n            )\n        )''',
+              '''    if not pei.atividades_aee:\n        gaps.append(\n            _gap(\n                "pei",\n                "PEI_AEE_ACTIVITIES",\n                "atividades_aee",\n                "Registrar as atividades do AEE previstas para o estudante.",\n            )\n        )\n\n    if not _nonempty(pei.articulacao_sala_comum):\n        gaps.append(\n            _gap(\n                "pei",\n                "PEI_COMMON_ROOM_ARTICULATION",\n                "articulacao_sala_comum",\n                "Registrar a articulação das atividades do AEE com o professor regente e os demais profissionais da escola.",\n            )\n        )'''
+          )
+          replace_once(
+              mapper,
+              '''            _gap(\n                "lifecycle",\n                "ANNUAL_REVIEW_DATE",\n                "review_at",\n                "Programar revisão compatível com a avaliação contínua e a revisão anual.",\n                severity="recommended",\n            )''',
+              '''            _gap(\n                "lifecycle",\n                "ANNUAL_REVIEW_DATE",\n                "review_at",\n                "Programar a data de revisão anual do PAEE/PEI, mantendo atualização contínua sempre que necessária.",\n                severity="required",\n            )'''
+          )
+
+          # ------------------------------------------------------------------
+          # 2. Persistência versionada da vigência/revisão sem alterar o schema
+          # ------------------------------------------------------------------
+          versioning = 'backend/aee_v2/versioning.py'
+          replace_once(
+              versioning,
+              '''    "update_schedule",\n    "start_revision",''',
+              '''    "update_schedule",\n    "update_lifecycle",\n    "start_revision",'''
+          )
+          replace_once(
+              versioning,
+              '''class AEEV2ScheduleUpdate(AEEV2ExpectedHead):\n    section: AEESchedule\n\n\nclass AEEV2ActivationRequest(AEEV2ExpectedHead):''',
+              '''class AEEV2ScheduleUpdate(AEEV2ExpectedHead):\n    section: AEESchedule\n\n\nclass AEEV2LifecycleFields(BaseModel):\n    effective_from: Optional[str] = None\n    effective_to: Optional[str] = None\n    review_at: Optional[str] = None\n    periodo_vigencia_legacy: Optional[str] = None\n\n\nclass AEEV2LifecycleUpdate(AEEV2ExpectedHead):\n    section: AEEV2LifecycleFields\n\n\nclass AEEV2ActivationRequest(AEEV2ExpectedHead):'''
+          )
+
+          repository = 'backend/aee_v2/repository.py'
+          replace_once(
+              repository,
+              '''        return await self.get_state(legacy_plano_id)\n\n    async def start_revision(''',
+              '''        return await self.get_state(legacy_plano_id)\n\n    async def save_lifecycle(\n        self,\n        legacy_plano_id: str,\n        *,\n        section,\n        expected_head_revision: int,\n        expected_working_snapshot_id: str,\n        actor: Optional[dict],\n    ) -> AEEV2State:\n        """Atualiza somente datas/metadados de vigência, preservando status e versão."""\n        await self.ensure_indexes()\n        head = await self.get_head(legacy_plano_id)\n        if not head:\n            raise AEEV2NotFound("Dossiê AEE v2 ainda não foi inicializado.")\n        if (\n            head.get("head_revision") != expected_head_revision\n            or head.get("working_snapshot_id") != expected_working_snapshot_id\n        ):\n            raise AEEV2Conflict("O Dossiê foi alterado por outra sessão. Recarregue antes de salvar.")\n\n        parent = await self.get_snapshot(expected_working_snapshot_id)\n        if not parent:\n            raise AEEV2NotFound("Snapshot de trabalho não encontrado.")\n\n        dossier = AEEDossierV2.model_validate(deepcopy(parent["dossier"]))\n        lifecycle_values = section.model_dump(exclude_unset=True)\n        for field in (\n            "effective_from",\n            "effective_to",\n            "review_at",\n            "periodo_vigencia_legacy",\n        ):\n            if field in lifecycle_values:\n                setattr(dossier.lifecycle, field, lifecycle_values[field])\n        dossier.provenance.projection_mode = "native_v2"\n        dossier.provenance.updated_by = (actor or {}).get("id")\n        dossier.provenance.updated_at = utc_now_iso()\n\n        new_snapshot = make_snapshot(\n            legacy_plano_id=legacy_plano_id,\n            dossier=dossier,\n            document_version=int(parent["document_version"]),\n            revision=int(parent["revision"]) + 1,\n            operation="update_lifecycle",\n            actor=actor,\n            parent_snapshot=parent,\n            base_active_snapshot_id=head.get("active_snapshot_id"),\n            changed_section="lifecycle",\n        )\n        try:\n            await self.snapshots.insert_one(deepcopy(new_snapshot))\n        except DuplicateKeyError as exc:\n            raise AEEV2Conflict(\n                "Já existe uma revisão concorrente para esta versão do Dossiê."\n            ) from exc\n\n        updated = await self.heads.find_one_and_update(\n            {\n                "legacy_plano_id": legacy_plano_id,\n                "head_revision": expected_head_revision,\n                "working_snapshot_id": expected_working_snapshot_id,\n            },\n            {\n                "$set": {\n                    "working_snapshot_id": new_snapshot["id"],\n                    "updated_at": utc_now_iso(),\n                    "updated_by": (actor or {}).get("id"),\n                },\n                "$inc": {"head_revision": 1},\n            },\n            projection={"_id": 0},\n            return_document=ReturnDocument.AFTER,\n        )\n        if not updated:\n            raise AEEV2Conflict(\n                "O ponteiro do Dossiê mudou durante o salvamento. Recarregue antes de continuar."\n            )\n        return await self.get_state(legacy_plano_id)\n\n    async def start_revision('''
+          )
+
+          router = 'backend/routers/aee_v2_persistence.py'
+          replace_once(
+              router,
+              '''    AEEV2ActivationRequest,\n    AEEV2PAEEUpdate,''',
+              '''    AEEV2ActivationRequest,\n    AEEV2LifecycleUpdate,\n    AEEV2PAEEUpdate,'''
+          )
+          replace_once(
+              router,
+              '''        try:\n            state = await repo.save_section(\n                plano_id,\n                section_name=section_name,\n                section=payload.section,\n                expected_head_revision=payload.expected_head_revision,\n                expected_working_snapshot_id=payload.expected_working_snapshot_id,\n                actor=current_user,\n            )\n        except Exception as exc:''',
+              '''        try:\n            if section_name == "lifecycle":\n                state = await repo.save_lifecycle(\n                    plano_id,\n                    section=payload.section,\n                    expected_head_revision=payload.expected_head_revision,\n                    expected_working_snapshot_id=payload.expected_working_snapshot_id,\n                    actor=current_user,\n                )\n            else:\n                state = await repo.save_section(\n                    plano_id,\n                    section_name=section_name,\n                    section=payload.section,\n                    expected_head_revision=payload.expected_head_revision,\n                    expected_working_snapshot_id=payload.expected_working_snapshot_id,\n                    actor=current_user,\n                )\n        except Exception as exc:'''
+          )
+          replace_once(
+              router,
+              '''    @base_router.post(\n        "/planos/{plano_id}/dossie-v2/revisions",''',
+              '''    @base_router.patch(\n        "/planos/{plano_id}/dossie-v2/sections/lifecycle",\n        response_model=AEEV2State,\n    )\n    async def update_aee_v2_lifecycle(\n        plano_id: str,\n        payload: AEEV2LifecycleUpdate,\n        request: Request,\n    ):\n        return await _save_section(\n            plano_id=plano_id,\n            request=request,\n            payload=payload,\n            section_name="lifecycle",\n        )\n\n    @base_router.post(\n        "/planos/{plano_id}/dossie-v2/revisions",'''
+          )
+
+          # ------------------------------------------------------------------
+          # 3. UI: linguagem humana, navegação para correção, capacidade TA/CAA
+          #    e vigência/revisão versionadas
+          # ------------------------------------------------------------------
+          ui = 'frontend/src/components/DossieAEEV2Modal.jsx'
+          replace_once(
+              ui,
+              '''  { id: 'schedule', label: 'Agenda', icon: CalendarDays },\n  { id: 'attendances', label: 'Atendimentos', icon: Users },''',
+              '''  { id: 'schedule', label: 'Agenda', icon: CalendarDays },\n  { id: 'lifecycle', label: 'Vigência e Revisão', icon: FileClock },\n  { id: 'attendances', label: 'Atendimentos', icon: Users },'''
+          )
+          replace_once(
+              ui,
+              '''  schedule: 'Agenda / Cronograma',\n};''',
+              '''  schedule: 'Agenda / Cronograma',\n  lifecycle: 'Vigência e Revisão',\n};'''
+          )
+          replace_once(
+              ui,
+              '''  schedule: 'schedule',\n};''',
+              '''  schedule: 'schedule',\n  lifecycle: 'lifecycle',\n};'''
+          )
+          replace_once(
+              ui,
+              '''  legacy_projected: 'Projetado do legado',''',
+              '''  legacy_projected: 'Projetado do Plano anterior — revisar','''
+          )
+          replace_once(
+              ui,
+              '''function SelectField({ label, value, onChange, options, disabled = false, help = null }) {''',
+              '''function InputField({ label, value, onChange, type = 'text', disabled = false, help = null }) {\n  const displayValue = type === 'date' && value ? String(value).slice(0, 10) : (value || '');\n  return (\n    <label className="block">\n      <span className="block text-xs font-semibold text-gray-700 mb-1">{label}</span>\n      <input\n        type={type}\n        value={displayValue}\n        onChange={(event) => onChange(event.target.value)}\n        disabled={disabled}\n        className="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"\n      />\n      {help && <span className="block text-[11px] text-gray-500 mt-1">{help}</span>}\n    </label>\n  );\n}\n\nfunction SelectField({ label, value, onChange, options, disabled = false, help = null }) {'''
+          )
+          replace_once(
+              ui,
+              '''function SupportAssessment({ title, value, onChange, disabled }) {\n  const current = value || { status: 'not_assessed' };\n  return (\n    <div className="border rounded-lg p-3 bg-gray-50">\n      <p className="text-sm font-semibold text-gray-800 mb-2">{title}</p>\n      <div className="grid md:grid-cols-2 gap-3">\n        <SelectField\n          label="Avaliação"\n          value={current.status || 'not_assessed'}\n          onChange={(status) => onChange({ ...current, status })}\n          disabled={disabled}\n          options={Object.entries(SUPPORT_STATUS)}\n          help="Não avaliado é diferente de não necessário."\n        />\n        <Field\n          label="Justificativa pedagógica"\n          value={current.justificativa}\n          onChange={(justificativa) => onChange({ ...current, justificativa })}\n          rows={2}\n          disabled={disabled}\n        />\n      </div>\n    </div>\n  );\n}''',
+              '''function SupportAssessment({ title, value, onChange, disabled, showCapacity = false }) {\n  const current = value || { status: 'not_assessed' };\n  return (\n    <div className="border rounded-lg p-3 bg-gray-50">\n      <p className="text-sm font-semibold text-gray-800 mb-2">{title}</p>\n      <div className={`grid gap-3 ${showCapacity ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>\n        <SelectField\n          label="Avaliação da necessidade"\n          value={current.status || 'not_assessed'}\n          onChange={(status) => onChange({ ...current, status })}\n          disabled={disabled}\n          options={Object.entries(SUPPORT_STATUS)}\n          help="Não avaliado é diferente de não necessário."\n        />\n        <Field\n          label="Justificativa pedagógica"\n          value={current.justificativa}\n          onChange={(justificativa) => onChange({ ...current, justificativa })}\n          rows={2}\n          disabled={disabled}\n        />\n        {showCapacity && (\n          <Field\n            label="Capacidade de disponibilização"\n            value={current.capacidade_disponibilizacao}\n            onChange={(capacidade_disponibilizacao) => onChange({ ...current, capacidade_disponibilizacao })}\n            rows={2}\n            disabled={disabled}\n            help="Quando houver necessidade, registre como o recurso poderá ser disponibilizado ou a limitação existente."\n          />\n        )}\n      </div>\n    </div>\n  );\n}'''
+          )
+          replace_once(
+              ui,
+              '''function SnapshotBadge({ snapshot, kind }) {''',
+              '''function blockerText(item) {\n  if (!item) return 'Pendência de adequação.';\n  if (item.code === 'AEE_V2_SECTION_NOT_COMPLETE') {\n    return `${SECTION_LABELS[item.section] || 'Seção'}: marque a situação da seção como “Concluído” após revisar os dados.`;\n  }\n  return item.description || item.message || 'Há uma pendência que precisa ser revisada.';\n}\n\nfunction blockerTab(item) {\n  return ['study_case', 'paee', 'pei', 'schedule', 'lifecycle'].includes(item?.section)\n    ? item.section\n    : null;\n}\n\nfunction SnapshotBadge({ snapshot, kind }) {'''
+          )
+          replace_once(
+              ui,
+              '''          ? `Ativação bloqueada: ${blockers.map(item => item.description || item.code).join(' · ')}`''',
+              '''          ? `Ativação bloqueada: ${blockers.map(blockerText).join(' · ')}`'''
+          )
+          replace_once(
+              ui,
+              '''  const saveButton = (sectionName) => (''',
+              '''  const renderSectionBlockers = (sectionName) => {\n    const items = (activation?.blockers || []).filter(item => item.section === sectionName);\n    if (!items.length) return null;\n    return (\n      <div className="mb-4 border border-amber-200 bg-amber-50 rounded-lg p-3">\n        <p className="text-sm font-semibold text-amber-900">Pendências desta seção</p>\n        <ul className="mt-2 space-y-1 text-sm text-amber-900 list-disc list-inside">\n          {items.map((item, index) => <li key={`${item.code}-${index}`}>{blockerText(item)}</li>)}\n        </ul>\n      </div>\n    );\n  };\n\n  const saveButton = (sectionName) => ('''
+          )
+          replace_once(
+              ui,
+              '''  const schedule = draft?.schedule || {};''',
+              '''  const schedule = draft?.schedule || {};\n  const lifecycle = draft?.lifecycle || {};'''
+          )
+          replace_once(
+              ui,
+              '''              {!activation?.ready && activation?.blockers?.length > 0 && (\n                <ul className="text-sm mt-2 list-disc list-inside space-y-1">\n                  {activation.blockers.map((item, index) => <li key={`${item.code}-${index}`}>{item.description || item.code}</li>)}\n                </ul>\n              )}''',
+              '''              {!activation?.ready && activation?.blockers?.length > 0 && (\n                <div className="mt-3 space-y-2">\n                  {activation.blockers.map((item, index) => {\n                    const targetTab = blockerTab(item);\n                    return (\n                      <div key={`${item.code}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white/70 border border-amber-200 px-3 py-2">\n                        <span className="text-sm text-amber-950">{blockerText(item)}</span>\n                        {targetTab && (\n                          <button\n                            type="button"\n                            onClick={() => setActiveTab(targetTab)}\n                            className="shrink-0 text-xs font-semibold text-blue-700 hover:underline"\n                          >\n                            Corrigir →\n                          </button>\n                        )}\n                      </div>\n                    );\n                  })}\n                </div>\n              )}'''
+          )
+          replace_once(
+              ui,
+              '''          <SectionState section={study} onChange={(next) => mutateSection('study_case', next)} disabled={!editable} />\n          <div className="grid md:grid-cols-2 gap-4">''',
+              '''          <SectionState section={study} onChange={(next) => mutateSection('study_case', next)} disabled={!editable} />\n          {renderSectionBlockers('study_case')}\n          <div className="grid md:grid-cols-2 gap-4">'''
+          )
+          replace_once(
+              ui,
+              '''          <SectionState section={paee} onChange={(next) => mutateSection('paee', next)} disabled={!editable} />\n          <div className="grid md:grid-cols-2 gap-4">''',
+              '''          <SectionState section={paee} onChange={(next) => mutateSection('paee', next)} disabled={!editable} />\n          {renderSectionBlockers('paee')}\n          <div className="grid md:grid-cols-2 gap-4">'''
+          )
+          replace_once(
+              ui,
+              '''            <Field label="Demandas de formação em Educação Especial Inclusiva" value={asLines(paee.demandas_formacao_educacao_especial_inclusiva)} onChange={(value) => mutateSection('paee', s => ({ ...s, demandas_formacao_educacao_especial_inclusiva: lines(value) }))} disabled={!editable} />\n            <Field label="Acionamentos da rede de proteção" value={asLines(paee.acionamentos_rede_protecao)} onChange={(value) => mutateSection('paee', s => ({ ...s, acionamentos_rede_protecao: lines(value) }))} disabled={!editable} />''',
+              '''            <Field label="Avaliação de demandas de formação em Educação Especial Inclusiva" value={asLines(paee.demandas_formacao_educacao_especial_inclusiva)} onChange={(value) => mutateSection('paee', s => ({ ...s, demandas_formacao_educacao_especial_inclusiva: lines(value) }))} disabled={!editable} help="Registre a demanda identificada ou declare explicitamente que nenhuma demanda adicional foi identificada neste momento." />\n            <Field label="Avaliação sobre acionamento da rede de proteção" value={asLines(paee.acionamentos_rede_protecao)} onChange={(value) => mutateSection('paee', s => ({ ...s, acionamentos_rede_protecao: lines(value) }))} disabled={!editable} help="Registre o acionamento necessário ou declare explicitamente que não há acionamento indicado neste momento." />'''
+          )
+          replace_once(
+              ui,
+              '''            <SupportAssessment title="Tecnologia Assistiva" value={paee.tecnologia_assistiva} onChange={(value) => mutateSection('paee', s => ({ ...s, tecnologia_assistiva: value }))} disabled={!editable} />\n            <SupportAssessment title="Comunicação Aumentativa e Alternativa (CAA)" value={paee.comunicacao_aumentativa_alternativa} onChange={(value) => mutateSection('paee', s => ({ ...s, comunicacao_aumentativa_alternativa: value }))} disabled={!editable} />''',
+              '''            <SupportAssessment title="Tecnologia Assistiva" value={paee.tecnologia_assistiva} onChange={(value) => mutateSection('paee', s => ({ ...s, tecnologia_assistiva: value }))} disabled={!editable} showCapacity />\n            <SupportAssessment title="Comunicação Aumentativa e Alternativa (CAA)" value={paee.comunicacao_aumentativa_alternativa} onChange={(value) => mutateSection('paee', s => ({ ...s, comunicacao_aumentativa_alternativa: value }))} disabled={!editable} showCapacity />'''
+          )
+          replace_once(
+              ui,
+              '''          <SectionState section={pei} onChange={(next) => mutateSection('pei', next)} disabled={!editable} />\n          <div className="grid md:grid-cols-2 gap-4">''',
+              '''          <SectionState section={pei} onChange={(next) => mutateSection('pei', next)} disabled={!editable} />\n          {renderSectionBlockers('pei')}\n          <div className="grid md:grid-cols-2 gap-4">'''
+          )
+          replace_once(
+              ui,
+              '''            <Field label="Atividades do AEE" value={asLines(pei.atividades_aee)} onChange={(value) => mutateSection('pei', s => ({ ...s, atividades_aee: lines(value) }))} disabled={!editable} />\n            <Field label="Articulação com a Sala Comum" value={pei.articulacao_sala_comum} onChange={(value) => mutateSection('pei', s => ({ ...s, articulacao_sala_comum: value }))} disabled={!editable} />''',
+              '''            <Field label="Atividades do AEE" value={asLines(pei.atividades_aee)} onChange={(value) => mutateSection('pei', s => ({ ...s, atividades_aee: lines(value) }))} disabled={!editable} help="Registre as atividades previstas no AEE para este estudante." />\n            <Field label="Articulação com a Sala Comum" value={pei.articulacao_sala_comum} onChange={(value) => mutateSection('pei', s => ({ ...s, articulacao_sala_comum: value }))} disabled={!editable} help="Descreva a articulação com o professor regente e, quando pertinente, com outros profissionais da escola." />'''
+          )
+          replace_once(
+              ui,
+              '''  const scheduleText = (schedule.sessions || []).map(item => [''',
+              '''  const renderLifecycle = () => (\n    <div>\n      {!draft ? <p className="text-sm text-gray-500">Inicialize o Dossiê V2 para acessar esta seção.</p> : (\n        <>\n          {renderSectionBlockers('lifecycle')}\n          <div className="grid md:grid-cols-2 gap-4">\n            <InputField label="Início da vigência" type="date" value={lifecycle.effective_from} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, effective_from: value }))} disabled={!editable} />\n            <InputField label="Fim da vigência (quando aplicável)" type="date" value={lifecycle.effective_to} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, effective_to: value }))} disabled={!editable} />\n            <InputField label="Data programada para revisão anual" type="date" value={lifecycle.review_at} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, review_at: value }))} disabled={!editable} help="A revisão anual não impede atualizações anteriores sempre que necessárias." />\n            <Field label="Período de vigência / observação legada" value={lifecycle.periodo_vigencia_legacy} onChange={(value) => mutateSection('lifecycle', s => ({ ...s, periodo_vigencia_legacy: value }))} disabled={!editable} rows={2} />\n          </div>\n          {saveButton('lifecycle')}\n        </>\n      )}\n    </div>\n  );\n\n  const scheduleText = (schedule.sessions || []).map(item => ['''
+          )
+          replace_once(
+              ui,
+              '''    schedule: renderSchedule,\n    attendances: renderAttendances,''',
+              '''    schedule: renderSchedule,\n    lifecycle: renderLifecycle,\n    attendances: renderAttendances,'''
+          )
+
+          # ------------------------------------------------------------------
+          # 4. Testes: novos requisitos, lifecycle versionado e UX legível
+          # ------------------------------------------------------------------
+          contracts_test = 'backend/tests/test_aee_v2_contracts.py'
+          replace_once(
+              contracts_test,
+              '''    assert "STUDY_CASE_STUDENT_FAMILY_PARTICIPATION" in gap_codes\n    assert "PEI_FAMILY_FEEDBACK" in gap_codes''',
+              '''    assert "STUDY_CASE_STUDENT_PARTICIPATION" in gap_codes\n    assert "STUDY_CASE_FAMILY_PARTICIPATION" in gap_codes\n    assert "PEI_FAMILY_FEEDBACK" in gap_codes'''
+          )
+
+          version_test = 'backend/tests/test_aee_v2_versioning.py'
+          replace_once(
+              version_test,
+              '''        demandas_formacao_educacao_especial_inclusiva=[\n            "Avaliado: não há demanda adicional identificada neste momento."\n        ],\n        indicadores_progresso="Monitoramento contínuo.",''',
+              '''        demandas_formacao_educacao_especial_inclusiva=[\n            "Avaliado: não há demanda adicional identificada neste momento."\n        ],\n        acionamentos_rede_protecao=[\n            "Avaliado: não há acionamento da rede de proteção indicado neste momento."\n        ],\n        indicadores_progresso="Monitoramento contínuo.",'''
+          )
+          append_once(
+              version_test,
+              'def test_fase4_student_and_family_participation_are_independent_requirements',
+              '''def test_fase4_student_and_family_participation_are_independent_requirements(legacy_plan, actor):\n    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)\n    from aee_v2.contracts import AEEDossierV2\n\n    dossier = AEEDossierV2.model_validate(snapshot["dossier"])\n    dossier.study_case.participacao_estudante = "Participação registrada."\n    dossier.study_case.contribuicoes_estudante = None\n    dossier.study_case.contribuicoes_familia = None\n    codes = {item["code"] for item in activation_validation(dossier).blockers}\n    assert "STUDY_CASE_STUDENT_PARTICIPATION" not in codes\n    assert "STUDY_CASE_FAMILY_PARTICIPATION" in codes\n\n\ndef test_fase4_ta_aac_capacity_is_required_when_need_is_identified(legacy_plan, actor):\n    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)\n    from aee_v2.contracts import AEEDossierV2\n\n    dossier = AEEDossierV2.model_validate(snapshot["dossier"])\n    dossier.paee.tecnologia_assistiva = AEESupportAssessment(\n        status="needed",\n        justificativa="Necessidade identificada pedagogicamente.",\n    )\n    codes = {item["code"] for item in activation_validation(dossier).blockers}\n    assert "PAEE_TECNOLOGIA_ASSISTIVA_CAPACITY" in codes\n\n    dossier.paee.tecnologia_assistiva.capacidade_disponibilizacao = "Disponibilização prevista pela escola."\n    codes = {item["code"] for item in activation_validation(dossier).blockers}\n    assert "PAEE_TECNOLOGIA_ASSISTIVA_CAPACITY" not in codes\n\n\ndef test_fase4_training_and_network_are_independent_assessments(legacy_plan, actor):\n    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)\n    from aee_v2.contracts import AEEDossierV2\n\n    dossier = AEEDossierV2.model_validate(snapshot["dossier"])\n    dossier.paee.demandas_formacao_educacao_especial_inclusiva = ["Nenhuma demanda adicional."]\n    dossier.paee.acionamentos_rede_protecao = []\n    codes = {item["code"] for item in activation_validation(dossier).blockers}\n    assert "PAEE_TRAINING_ASSESSMENT" not in codes\n    assert "PAEE_NETWORK_ASSESSMENT" in codes\n\n\ndef test_fase4_pei_requires_activities_and_common_room_articulation(legacy_plan, actor):\n    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)\n    from aee_v2.contracts import AEEDossierV2\n\n    dossier = AEEDossierV2.model_validate(snapshot["dossier"])\n    dossier.pei.atividades_aee = ["Atividade prevista"]\n    dossier.pei.articulacao_sala_comum = None\n    codes = {item["code"] for item in activation_validation(dossier).blockers}\n    assert "PEI_AEE_ACTIVITIES" not in codes\n    assert "PEI_COMMON_ROOM_ARTICULATION" in codes\n\n\ndef test_fase4_annual_review_date_is_required_for_activation(legacy_plan, actor):\n    dossier = bootstrap_documents(legacy_plan, actor=actor)[1]["dossier"]\n    from aee_v2.contracts import AEEDossierV2\n\n    parsed = AEEDossierV2.model_validate(dossier)\n    parsed.lifecycle.review_at = None\n    codes = {item["code"] for item in activation_validation(parsed).blockers}\n    assert "ANNUAL_REVIEW_DATE" in codes\n\n\ndef test_fase4_lifecycle_update_is_versioned_and_preserves_status_version(legacy_plan, actor):\n    async def scenario():\n        from aee_v2.versioning import AEEV2LifecycleFields\n\n        repo = AEEV2Repository(FakeDB())\n        state = await repo.bootstrap(legacy_plan, actor=actor)\n        old_status = state.working_snapshot.dossier.lifecycle.status\n        old_version = state.working_snapshot.dossier.lifecycle.version\n        old_snapshot = state.working_snapshot.id\n\n        state = await repo.save_lifecycle(\n            "legacy-plan-1",\n            section=AEEV2LifecycleFields(\n                effective_from="2026-02-10",\n                review_at="2026-12-15",\n                periodo_vigencia_legacy="Ano letivo 2026",\n            ),\n            expected_head_revision=state.head.head_revision,\n            expected_working_snapshot_id=old_snapshot,\n            actor=actor,\n        )\n\n        assert state.working_snapshot.id != old_snapshot\n        assert state.working_snapshot.operation == "update_lifecycle"\n        assert state.working_snapshot.changed_section == "lifecycle"\n        assert state.working_snapshot.dossier.lifecycle.review_at == "2026-12-15"\n        assert state.working_snapshot.dossier.lifecycle.status == old_status\n        assert state.working_snapshot.dossier.lifecycle.version == old_version\n\n    asyncio.run(scenario())'''
+          )
+
+          ui_test = 'backend/tests/test_aee_v2_fase3_ui_contract.py'
+          append_once(
+              ui_test,
+              'def test_fase4_ui_translates_blockers_and_exposes_normative_completion_fields',
+              '''def test_fase4_ui_translates_blockers_and_exposes_normative_completion_fields():\n    source = _read(DOSSIE)\n\n    assert "item.description || item.message" in source\n    assert "Corrigir →" in source\n    assert "Pendências desta seção" in source\n    assert "Vigência e Revisão" in source\n    assert "capacidade_disponibilizacao" in source\n    assert "Capacidade de disponibilização" in source\n    assert "Avaliação de demandas de formação em Educação Especial Inclusiva" in source\n    assert "Avaliação sobre acionamento da rede de proteção" in source\n    assert "sections/${SECTION_PATHS[sectionName]}" in source\n    assert "lifecycle: 'lifecycle'" in source'''
+          )
+          PY
+
+      - name: Validate intended diff
+        run: |
+          git diff --check
+          grep -q 'STUDY_CASE_STUDENT_PARTICIPATION' backend/aee_v2/legacy_mapper.py
+          grep -q 'PAEE_TECNOLOGIA_ASSISTIVA_CAPACITY' backend/tests/test_aee_v2_versioning.py
+          grep -q 'update_lifecycle' backend/aee_v2/versioning.py
+          grep -q 'sections/lifecycle' backend/routers/aee_v2_persistence.py
+          grep -q 'Vigência e Revisão' frontend/src/components/DossieAEEV2Modal.jsx
+          grep -q 'item.description || item.message' frontend/src/components/DossieAEEV2Modal.jsx
+          grep -q 'capacidade_disponibilizacao' frontend/src/components/DossieAEEV2Modal.jsx
+
+      - name: Commit Fase 4 patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            backend/aee_v2/legacy_mapper.py \
+            backend/aee_v2/versioning.py \
+            backend/aee_v2/repository.py \
+            backend/routers/aee_v2_persistence.py \
+            backend/tests/test_aee_v2_contracts.py \
+            backend/tests/test_aee_v2_versioning.py \
+            backend/tests/test_aee_v2_fase3_ui_contract.py \
+            frontend/src/components/DossieAEEV2Modal.jsx
+          git commit -m 'feat(aee): complete pedagogical adequacy guidance for Dossie V2'
+          git push origin HEAD:agent/aee-v2-fase4-adequacao-pedagogica
