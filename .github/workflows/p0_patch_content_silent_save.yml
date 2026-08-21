@@ -1,11 +1,12 @@
 name: P0 patch content multicomponent silent save
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/content-multicomponent-silent-save-p0
-    paths:
-      - .github/workflows/p0_patch_content_silent_save.yml
+      - main
+    types:
+      - opened
+      - reopened
 
 permissions:
   contents: write
