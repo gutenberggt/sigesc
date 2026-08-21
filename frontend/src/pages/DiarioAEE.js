@@ -985,11 +985,12 @@ const DiarioAEE = () => {
                       </button>
                       <button
                         onClick={() => setDossiePlano(plano)}
-                        className="p-1 text-cyan-700 hover:bg-cyan-50 rounded"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-md hover:bg-cyan-100 whitespace-nowrap"
                         title="Abrir Dossiê Individual AEE V2"
                         data-testid={`btn-dossie-v2-${plano.id}`}
                       >
-                        <ClipboardList size={16} />
+                        <ClipboardList size={14} />
+                        <span>Dossiê V2</span>
                       </button>
                       {canEdit && (
                       <>
