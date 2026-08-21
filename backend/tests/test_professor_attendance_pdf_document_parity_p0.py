@@ -1,10 +1,11 @@
-"""Regressão P0 — PDF DVD deve espelhar metadados documentais do Admin."""
+"""Regressões P0 — PDF de frequência preserva paridade documental e escopo diário."""
 
 from pathlib import Path
 
 
 BACKEND = Path(__file__).resolve().parents[1]
 PDF_PARITY = BACKEND / "routers" / "attendance_pdf_dvd_parity.py"
+EXT_DVD = BACKEND / "routers" / "attendance_ext_dvd.py"
 ROUTERS_INIT = BACKEND / "routers" / "__init__.py"
 
 
@@ -45,3 +46,21 @@ def test_pdf_parity_does_not_write_or_migrate_attendance():
     )
     for token in forbidden:
         assert token not in source
+
+
+def test_daily_legacy_pdf_drops_residual_course_id_before_querying_attendance():
+    source = EXT_DVD.read_text(encoding="utf-8")
+
+    assert "def _uses_component_attendance(class_info: dict) -> bool:" in source
+    assert "effective_course_id = course_id" in source
+    assert "if class_info and not _uses_component_attendance(class_info):" in source
+    assert "effective_course_id = None" in source
+    assert '"course_id": effective_course_id' in source
+
+
+def test_daily_pdf_scope_covers_infantil_and_first_to_fifth_year():
+    source = EXT_DVD.read_text(encoding="utf-8")
+
+    assert 're.search(r"PRÉ|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL", ref)' in source
+    assert 'return int(match.group(1)) >= 6' in source
+    assert '{"fundamental_anos_finais", "eja_final", "ensino_medio"}' in source

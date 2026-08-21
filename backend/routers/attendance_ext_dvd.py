@@ -3,11 +3,16 @@
 O PDF e os alertas legados permanecem disponíveis para gestão/consolidação.
 Professor em turma DVD usa `assignment_id`, evitando exposição de dados de
 outros vínculos e reutilizando o relatório canônico autorizado do próprio DVD.
+
+A camada também normaliza o escopo documental do PDF legado: Educação Infantil,
+Anos Iniciais e EJA inicial usam frequência diária por turma. Nesses níveis, um
+`course_id` residual da navegação não pode filtrar a frequência e zerar o PDF.
 """
 
 from __future__ import annotations
 
 import inspect
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -46,6 +51,38 @@ def _accepted_call(endpoint, values: dict):
         for name in inspect.signature(endpoint).parameters
         if name in values
     }
+
+
+def _uses_component_attendance(class_info: dict) -> bool:
+    """Retorna True somente quando a frequência oficial é por componente/aula.
+
+    Educação Infantil, Anos Iniciais e EJA inicial são `class_daily`; portanto
+    `course_id` é contexto de navegação/conteúdo, não chave de leitura da
+    frequência. A inferência replica as regras já usadas pela tela/relatórios.
+    """
+    level = str(
+        (class_info or {}).get("education_level")
+        or (class_info or {}).get("nivel_ensino")
+        or ""
+    ).strip().lower()
+    if level:
+        return level in {"fundamental_anos_finais", "eja_final", "ensino_medio"}
+
+    ref = str(
+        (class_info or {}).get("grade_level")
+        or (class_info or {}).get("grade")
+        or (class_info or {}).get("name")
+        or ""
+    ).upper()
+    if re.search(r"PRÉ|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL", ref):
+        return False
+    if re.search(r"\bEJA\b", ref):
+        return bool(re.search(r"FINAL|[6-9]", ref))
+
+    match = re.match(r"\s*(\d+)", ref)
+    if match:
+        return int(match.group(1)) >= 6
+    return False
 
 
 def install_attendance_ext_dvd_setup() -> None:
@@ -100,12 +137,33 @@ def install_attendance_ext_dvd_setup() -> None:
                         },
                     )
 
+                # P0 21/08/2026 — o botão de PDF pode herdar `course_id` do
+                # contexto de Meus Diários mesmo em turma de frequência diária.
+                # O relatório em tela não usa esse filtro nesses níveis; o PDF
+                # também não pode usá-lo, sob pena de retornar 0 dias quando os
+                # documentos oficiais possuem `course_id=None`.
+                effective_course_id = course_id
+                if course_id:
+                    class_info = await current_db.classes.find_one(
+                        {"id": class_id},
+                        {
+                            "_id": 0,
+                            "education_level": 1,
+                            "nivel_ensino": 1,
+                            "grade_level": 1,
+                            "grade": 1,
+                            "name": 1,
+                        },
+                    )
+                    if class_info and not _uses_component_attendance(class_info):
+                        effective_course_id = None
+
                 return await legacy_pdf(**_accepted_call(legacy_pdf, {
                     "class_id": class_id,
                     "request": request,
                     "bimestre": bimestre,
                     "academic_year": academic_year,
-                    "course_id": course_id,
+                    "course_id": effective_course_id,
                 }))
 
         if legacy_alerts is not None:
