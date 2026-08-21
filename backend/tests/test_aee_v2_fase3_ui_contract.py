@@ -24,6 +24,8 @@ def test_diario_exposes_v2_title_and_dossier_entrypoint():
     assert "Diário AEE V2.0" in source
     assert "import DossieAEEV2Modal" in source
     assert "btn-dossie-v2-" in source
+    assert "<span>Dossiê V2</span>" in source
+    assert "inline-flex items-center" in source
     assert "<DossieAEEV2Modal" in source
 
 
