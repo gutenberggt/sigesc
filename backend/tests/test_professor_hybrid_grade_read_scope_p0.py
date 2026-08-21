@@ -204,12 +204,34 @@ def test_sync_pull_de_notas_preserva_legacy_e_ownership_dvd():
     assert '_mask_grade_for_teacher' in HARDENING
 
 
-def test_meus_diarios_agrupa_componentes_por_turma_em_layout_compacto():
-    assert 'const diaryGroups = useMemo(' in MY_DIARIES
-    assert 'group.diaries.map((diary)' in MY_DIARIES
-    assert 'data-testid="diarios-compactos"' in MY_DIARIES
-    assert 'data-testid={`diario-card-${diary.assignment_id}`}' in MY_DIARIES
-    assert "buildDiaryActionUrl('/professor/frequencia', actionContext)" in MY_DIARIES
+def test_meus_diarios_tem_um_modulo_por_turma_e_mescla_todos_os_componentes():
+    assert "import { inferEducationLevel } from '../../utils/educationLevel';" in MY_DIARIES
+    assert 'const classModules = useMemo(' in MY_DIARIES
+    assert 'legacyClasses.forEach((turma) =>' in MY_DIARIES
+    assert 'diaries.forEach((diary) =>' in MY_DIARIES
+    assert 'components: new Map()' in MY_DIARIES
+    assert 'module.components.set(key' in MY_DIARIES
+    assert 'key={module.class_id}' in MY_DIARIES
+    assert 'data-testid={`diario-group-${module.class_id}`}' in MY_DIARIES
+    assert 'legacyFallbackClasses' not in MY_DIARIES
+
+
+def test_meus_diarios_posiciona_frequencia_por_etapa_e_remove_estudantes():
+    assert "'fundamental_anos_finais'" in MY_DIARIES
+    assert "'eja_final'" in MY_DIARIES
+    assert 'const attendancePerComponent = usesAttendanceByComponent(module.classInfo);' in MY_DIARIES
+    assert 'const topAttendanceComponent = !attendancePerComponent' in MY_DIARIES
+    assert 'data-testid={`class-attendance-${module.class_id}`}' in MY_DIARIES
+    assert 'attendancePerComponent && ops.canAttendance' in MY_DIARIES
+    assert 'data-testid={`component-attendance-${module.class_id}-${component.id}`}' in MY_DIARIES
+    assert 'Estudantes' not in MY_DIARIES
+    assert 'legacyStudentsRoute' not in MY_DIARIES
+
+
+def test_meus_diarios_exibe_nome_completo_e_mantem_acoes_por_componente():
+    assert 'whitespace-normal break-words text-sm font-semibold leading-4' in MY_DIARIES
+    assert 'truncate' not in MY_DIARIES
+    assert "buildDiaryActionUrl('/professor/frequencia'," in MY_DIARIES
     assert "buildDiaryActionUrl('/professor/notas', actionContext)" in MY_DIARIES
     assert "buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext)" in MY_DIARIES
     assert 'function Capability(' not in MY_DIARIES
