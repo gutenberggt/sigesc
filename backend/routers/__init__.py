@@ -49,12 +49,13 @@ from .content_copy_dvd import install_content_copy_setup
 from . import mantenedora as _mantenedora_mod
 from .assessment_policy_admin import install_assessment_policy_admin_setup
 
-# AEE v2 P0 — hardening incremental autorizado pelo proprietário em 21/08/2026.
-# O router legado bloqueado permanece intacto; esta camada envolve somente os
-# endpoints críticos de autoria/responsabilidade e exclusão de Plano AEE.
+# AEE v2 — evolução incremental autorizada pelo proprietário em 21/08/2026.
+# O router legado bloqueado permanece intacto. P0 protege integridade/autoria;
+# Fase 1 projeta o Dossiê canônico; Fase 2 adiciona persistência sidecar versionada.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
 from .aee_v2_dossier import install_aee_v2_dossier_setup
+from .aee_v2_persistence import install_aee_v2_persistence_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -66,6 +67,7 @@ install_content_copy_setup(_content_entries_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
 install_aee_v2_p0_setup(_aee_mod)
 install_aee_v2_dossier_setup(_aee_mod)
+install_aee_v2_persistence_setup(_aee_mod)
 
 
 def setup_grades_router(
