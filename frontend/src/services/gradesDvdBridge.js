@@ -6,9 +6,16 @@ const gradeAssignmentByScope = new Map();
 const gradeCreationByStudentCourse = new Map();
 let currentAcademicYear = new Date().getFullYear();
 
-const getAssignmentId = () => {
-  if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search || '').get('assignment_id') || '';
+const getEntryAssignmentContext = () => {
+  if (typeof window === 'undefined') {
+    return { assignmentId: '', classId: '', courseId: '' };
+  }
+  const params = new URLSearchParams(window.location.search || '');
+  return {
+    assignmentId: params.get('assignment_id') || '',
+    classId: params.get('class_id') || '',
+    courseId: params.get('course_id') || '',
+  };
 };
 
 const isProfessorGradesPage = () => (
@@ -43,6 +50,70 @@ const scopeKey = (studentId, classId, courseId) => (
 const studentCourseKey = (studentId, courseId) => (
   `${studentId || ''}|${courseId || ''}`
 );
+
+const queryParam = (config, name) => {
+  const url = config?.url || '';
+  const query = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
+  const urlValue = new URLSearchParams(query).get(name);
+  if (urlValue) return urlValue;
+
+  const params = config?.params;
+  if (params instanceof URLSearchParams) return params.get(name) || '';
+  if (params && typeof params === 'object') return params[name] || '';
+  return '';
+};
+
+const getRequestGradeScope = (config) => {
+  const url = config?.url || '';
+
+  const pathMatch = url.match(/\/grades\/(?:by-class|pdf)\/([^/?]+)\/([^/?&]+)/);
+  if (pathMatch) {
+    return {
+      classId: decodeURIComponent(pathMatch[1]),
+      courseId: decodeURIComponent(pathMatch[2]),
+    };
+  }
+
+  if (url.includes('/grades/batch')) {
+    const payload = parseData(config?.data);
+    const rows = Array.isArray(payload) ? payload : [];
+    const scopes = new Map();
+    rows.forEach((row) => {
+      if (!row?.class_id || !row?.course_id) return;
+      scopes.set(`${row.class_id}|${row.course_id}`, {
+        classId: String(row.class_id),
+        courseId: String(row.course_id),
+      });
+    });
+    if (scopes.size === 1) return [...scopes.values()][0];
+    return null;
+  }
+
+  const classId = queryParam(config, 'class_id');
+  const courseId = queryParam(config, 'course_id');
+  if (classId && courseId) {
+    return { classId: String(classId), courseId: String(courseId) };
+  }
+  return null;
+};
+
+const getEntryAssignmentForRequest = (config) => {
+  const entry = getEntryAssignmentContext();
+  if (!entry.assignmentId || !entry.classId || !entry.courseId) return '';
+
+  const requestScope = getRequestGradeScope(config);
+  if (!requestScope) return '';
+
+  if (
+    String(requestScope.classId) !== String(entry.classId)
+    || String(requestScope.courseId) !== String(entry.courseId)
+  ) {
+    // O assignment_id da URL pertence somente ao diário que abriu a página.
+    // Ao trocar filtros, o backend deve resolver novamente DVD ou legado.
+    return '';
+  }
+  return entry.assignmentId;
+};
 
 const rememberStudentAssignments = (payload) => {
   gradeAssignmentById.clear();
@@ -86,10 +157,11 @@ const isAggregateStudentRead = (url = '') => (
 );
 
 /**
- * Preserva o vínculo do diário para a visão Por Turma e, na visão Por
- * Estudante, usa o assignment específico devolvido pelo backend para cada
- * linha/componente. Também troca a listagem ampla de /students pelo roster
- * avaliativo do professor enquanto a página /professor/notas estiver aberta.
+ * Preserva o vínculo do diário somente para o escopo que abriu a página.
+ * Se o professor trocar turma/componente nos filtros, o assignment raiz não é
+ * reaproveitado: o backend resolve novamente o vínculo DVD ou o legado correto.
+ * Na visão Por Estudante, usa o assignment específico devolvido pelo backend
+ * para cada linha/componente.
  */
 export const installGradesDvdAxiosBridge = () => {
   if (typeof window === 'undefined' || window[BRIDGE_FLAG]) return;
@@ -172,7 +244,7 @@ export const installGradesDvdAxiosBridge = () => {
       return config;
     }
 
-    const assignmentId = getAssignmentId();
+    const assignmentId = getEntryAssignmentForRequest(config);
     if (!assignmentId) return config;
     config.url = appendAssignmentId(config.url, assignmentId);
     return config;
