@@ -33,8 +33,9 @@ def test_p0_missing_bindings_reuses_sealed_cutover_evidence_rules():
     source = _source()
 
     assert "first_wave_blocker" in source
+    assert "RECOVERABLE_STATES" in source
     assert "build_manifest_weekly_slots" in source
-    assert 'blocker == "regular_or_integrator_review"' in source
+    assert '"regular_or_integrator_review"' in source
     assert "regular_sibling_evidence_ids" in source
     assert 'state = "missing_regular_sibling_evidence"' in source
 
@@ -43,4 +44,4 @@ def test_p0_missing_bindings_requires_teacher_scope():
     source = _source()
 
     assert 'parser.add_argument("--teacher-user-id", required=True)' in source
-    assert '"teacher_id": teacher_user_id' in source
+    assert '{"teacher_id": teacher_user_id' in source
