@@ -39,6 +39,7 @@ SnapshotOperation = Literal[
     "update_paee",
     "update_pei",
     "update_schedule",
+    "update_lifecycle",
     "start_revision",
     "activate",
 ]
@@ -113,6 +114,17 @@ class AEEV2PEIUpdate(AEEV2ExpectedHead):
 
 class AEEV2ScheduleUpdate(AEEV2ExpectedHead):
     section: AEESchedule
+
+
+class AEEV2LifecycleFields(BaseModel):
+    effective_from: Optional[str] = None
+    effective_to: Optional[str] = None
+    review_at: Optional[str] = None
+    periodo_vigencia_legacy: Optional[str] = None
+
+
+class AEEV2LifecycleUpdate(AEEV2ExpectedHead):
+    section: AEEV2LifecycleFields
 
 
 class AEEV2ActivationRequest(AEEV2ExpectedHead):

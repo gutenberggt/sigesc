@@ -242,18 +242,24 @@ def evaluate_minimum_gaps(dossier: AEEDossierV2) -> list[AEEMappingGap]:
 
     if not any(
         _nonempty(value)
-        for value in (
-            sc.participacao_estudante,
-            sc.contribuicoes_estudante,
-            sc.contribuicoes_familia,
-        )
+        for value in (sc.participacao_estudante, sc.contribuicoes_estudante)
     ):
         gaps.append(
             _gap(
                 "study_case",
-                "STUDY_CASE_STUDENT_FAMILY_PARTICIPATION",
-                "participacao_estudante/contribuicoes_familia",
-                "Registrar o envolvimento do estudante e da família no Estudo de Caso.",
+                "STUDY_CASE_STUDENT_PARTICIPATION",
+                "participacao_estudante/contribuicoes_estudante",
+                "Registrar a participação e/ou as contribuições do estudante no Estudo de Caso, respeitando suas formas de comunicação e expressão.",
+            )
+        )
+
+    if not _nonempty(sc.contribuicoes_familia):
+        gaps.append(
+            _gap(
+                "study_case",
+                "STUDY_CASE_FAMILY_PARTICIPATION",
+                "contribuicoes_familia",
+                "Registrar a participação e as contribuições da família no Estudo de Caso.",
             )
         )
 
@@ -267,18 +273,34 @@ def evaluate_minimum_gaps(dossier: AEEDossierV2) -> list[AEEMappingGap]:
             )
         )
 
-    if (
-        paee.tecnologia_assistiva.status == "not_assessed"
-        or paee.comunicacao_aumentativa_alternativa.status == "not_assessed"
-    ):
+    ta_aac = (
+        ("tecnologia_assistiva", "Tecnologia Assistiva"),
+        ("comunicacao_aumentativa_alternativa", "Comunicação Aumentativa e Alternativa (CAA)"),
+    )
+    if any(getattr(paee, field).status == "not_assessed" for field, _ in ta_aac):
         gaps.append(
             _gap(
                 "paee",
                 "PAEE_TA_AAC_ASSESSMENT",
                 "tecnologia_assistiva/comunicacao_aumentativa_alternativa",
-                "Avaliar necessidade e capacidade de disponibilização de tecnologia assistiva e CAA.",
+                "Avaliar pedagogicamente a necessidade de Tecnologia Assistiva e de Comunicação Aumentativa e Alternativa (CAA).",
             )
         )
+
+    for field, label in ta_aac:
+        assessment = getattr(paee, field)
+        if (
+            assessment.status in {"needed", "provided", "unavailable"}
+            and not _nonempty(assessment.capacidade_disponibilizacao)
+        ):
+            gaps.append(
+                _gap(
+                    "paee",
+                    f"PAEE_{field.upper()}_CAPACITY",
+                    f"{field}.capacidade_disponibilizacao",
+                    f"Registrar a capacidade de disponibilização para {label} quando sua necessidade foi identificada.",
+                )
+            )
 
     support_assessments = (
         paee.profissional_apoio_escolar,
@@ -295,26 +317,43 @@ def evaluate_minimum_gaps(dossier: AEEDossierV2) -> list[AEEMappingGap]:
             )
         )
 
-    if not (
-        paee.demandas_formacao_educacao_especial_inclusiva
-        or paee.acionamentos_rede_protecao
-    ):
+    if not paee.demandas_formacao_educacao_especial_inclusiva:
         gaps.append(
             _gap(
                 "paee",
-                "PAEE_TRAINING_NETWORK_ASSESSMENT",
-                "demandas_formacao_educacao_especial_inclusiva/acionamentos_rede_protecao",
-                "Registrar a avaliação de demandas de formação e de acionamento da rede de proteção.",
+                "PAEE_TRAINING_ASSESSMENT",
+                "demandas_formacao_educacao_especial_inclusiva",
+                "Registrar a avaliação das demandas de formação em Educação Especial Inclusiva, inclusive quando nenhuma demanda adicional for identificada.",
             )
         )
 
-    if not (pei.atividades_aee or _nonempty(pei.articulacao_sala_comum)):
+    if not paee.acionamentos_rede_protecao:
+        gaps.append(
+            _gap(
+                "paee",
+                "PAEE_NETWORK_ASSESSMENT",
+                "acionamentos_rede_protecao",
+                "Registrar a avaliação sobre necessidade de acionamento da rede de proteção, inclusive quando não houver acionamento indicado.",
+            )
+        )
+
+    if not pei.atividades_aee:
         gaps.append(
             _gap(
                 "pei",
-                "PEI_AEE_ACTIVITIES_ARTICULATION",
-                "atividades_aee/articulacao_sala_comum",
-                "Registrar atividades do AEE e sua articulação com sala comum e equipe escolar.",
+                "PEI_AEE_ACTIVITIES",
+                "atividades_aee",
+                "Registrar as atividades do AEE previstas para o estudante.",
+            )
+        )
+
+    if not _nonempty(pei.articulacao_sala_comum):
+        gaps.append(
+            _gap(
+                "pei",
+                "PEI_COMMON_ROOM_ARTICULATION",
+                "articulacao_sala_comum",
+                "Registrar a articulação das atividades do AEE com o professor regente e os demais profissionais da escola.",
             )
         )
 
@@ -361,8 +400,8 @@ def evaluate_minimum_gaps(dossier: AEEDossierV2) -> list[AEEMappingGap]:
                 "lifecycle",
                 "ANNUAL_REVIEW_DATE",
                 "review_at",
-                "Programar revisão compatível com a avaliação contínua e a revisão anual.",
-                severity="recommended",
+                "Programar a data de revisão anual do PAEE/PEI, mantendo atualização contínua sempre que necessária.",
+                severity="required",
             )
         )
 

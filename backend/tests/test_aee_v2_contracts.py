@@ -143,7 +143,8 @@ def test_student_and_family_participation_is_explicit_gap_in_legacy_projection(l
     projection = project_legacy_plan(legacy_plan)
     gap_codes = {gap.code for gap in projection.report.gaps}
 
-    assert "STUDY_CASE_STUDENT_FAMILY_PARTICIPATION" in gap_codes
+    assert "STUDY_CASE_STUDENT_PARTICIPATION" in gap_codes
+    assert "STUDY_CASE_FAMILY_PARTICIPATION" in gap_codes
     assert "PEI_FAMILY_FEEDBACK" in gap_codes
 
 

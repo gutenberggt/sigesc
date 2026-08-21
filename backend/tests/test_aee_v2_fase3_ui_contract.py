@@ -79,3 +79,17 @@ def test_dossier_keeps_legacy_records_read_only_in_fase3():
     write_calls = [line.strip() for line in source.splitlines() if "method:" in line]
     assert write_calls
     assert all("'POST'" in line or "'PATCH'" in line for line in write_calls)
+
+def test_fase4_ui_translates_blockers_and_exposes_normative_completion_fields():
+    source = _read(DOSSIE)
+
+    assert "item.description || item.message" in source
+    assert "Corrigir →" in source
+    assert "Pendências desta seção" in source
+    assert "Vigência e Revisão" in source
+    assert "capacidade_disponibilizacao" in source
+    assert "Capacidade de disponibilização" in source
+    assert "Avaliação de demandas de formação em Educação Especial Inclusiva" in source
+    assert "Avaliação sobre acionamento da rede de proteção" in source
+    assert "sections/${SECTION_PATHS[sectionName]}" in source
+    assert "lifecycle: 'lifecycle'" in source

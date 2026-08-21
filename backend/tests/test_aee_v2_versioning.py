@@ -219,6 +219,9 @@ def ready_paee():
         demandas_formacao_educacao_especial_inclusiva=[
             "Avaliado: não há demanda adicional identificada neste momento."
         ],
+        acionamentos_rede_protecao=[
+            "Avaliado: não há acionamento da rede de proteção indicado neste momento."
+        ],
         indicadores_progresso="Monitoramento contínuo.",
     )
 
@@ -374,3 +377,98 @@ def test_persistence_router_never_writes_or_deletes_legacy_plan_collection():
     )
     for token in forbidden:
         assert token not in router_source
+
+def test_fase4_student_and_family_participation_are_independent_requirements(legacy_plan, actor):
+    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)
+    from aee_v2.contracts import AEEDossierV2
+
+    dossier = AEEDossierV2.model_validate(snapshot["dossier"])
+    dossier.study_case.participacao_estudante = "Participação registrada."
+    dossier.study_case.contribuicoes_estudante = None
+    dossier.study_case.contribuicoes_familia = None
+    codes = {item["code"] for item in activation_validation(dossier).blockers}
+    assert "STUDY_CASE_STUDENT_PARTICIPATION" not in codes
+    assert "STUDY_CASE_FAMILY_PARTICIPATION" in codes
+
+
+def test_fase4_ta_aac_capacity_is_required_when_need_is_identified(legacy_plan, actor):
+    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)
+    from aee_v2.contracts import AEEDossierV2
+
+    dossier = AEEDossierV2.model_validate(snapshot["dossier"])
+    dossier.paee.tecnologia_assistiva = AEESupportAssessment(
+        status="needed",
+        justificativa="Necessidade identificada pedagogicamente.",
+    )
+    codes = {item["code"] for item in activation_validation(dossier).blockers}
+    assert "PAEE_TECNOLOGIA_ASSISTIVA_CAPACITY" in codes
+
+    dossier.paee.tecnologia_assistiva.capacidade_disponibilizacao = "Disponibilização prevista pela escola."
+    codes = {item["code"] for item in activation_validation(dossier).blockers}
+    assert "PAEE_TECNOLOGIA_ASSISTIVA_CAPACITY" not in codes
+
+
+def test_fase4_training_and_network_are_independent_assessments(legacy_plan, actor):
+    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)
+    from aee_v2.contracts import AEEDossierV2
+
+    dossier = AEEDossierV2.model_validate(snapshot["dossier"])
+    dossier.paee.demandas_formacao_educacao_especial_inclusiva = ["Nenhuma demanda adicional."]
+    dossier.paee.acionamentos_rede_protecao = []
+    codes = {item["code"] for item in activation_validation(dossier).blockers}
+    assert "PAEE_TRAINING_ASSESSMENT" not in codes
+    assert "PAEE_NETWORK_ASSESSMENT" in codes
+
+
+def test_fase4_pei_requires_activities_and_common_room_articulation(legacy_plan, actor):
+    _, snapshot = bootstrap_documents(legacy_plan, actor=actor)
+    from aee_v2.contracts import AEEDossierV2
+
+    dossier = AEEDossierV2.model_validate(snapshot["dossier"])
+    dossier.pei.atividades_aee = ["Atividade prevista"]
+    dossier.pei.articulacao_sala_comum = None
+    codes = {item["code"] for item in activation_validation(dossier).blockers}
+    assert "PEI_AEE_ACTIVITIES" not in codes
+    assert "PEI_COMMON_ROOM_ARTICULATION" in codes
+
+
+def test_fase4_annual_review_date_is_required_for_activation(legacy_plan, actor):
+    dossier = bootstrap_documents(legacy_plan, actor=actor)[1]["dossier"]
+    from aee_v2.contracts import AEEDossierV2
+
+    parsed = AEEDossierV2.model_validate(dossier)
+    parsed.lifecycle.review_at = None
+    codes = {item["code"] for item in activation_validation(parsed).blockers}
+    assert "ANNUAL_REVIEW_DATE" in codes
+
+
+def test_fase4_lifecycle_update_is_versioned_and_preserves_status_version(legacy_plan, actor):
+    async def scenario():
+        from aee_v2.versioning import AEEV2LifecycleFields
+
+        repo = AEEV2Repository(FakeDB())
+        state = await repo.bootstrap(legacy_plan, actor=actor)
+        old_status = state.working_snapshot.dossier.lifecycle.status
+        old_version = state.working_snapshot.dossier.lifecycle.version
+        old_snapshot = state.working_snapshot.id
+
+        state = await repo.save_lifecycle(
+            "legacy-plan-1",
+            section=AEEV2LifecycleFields(
+                effective_from="2026-02-10",
+                review_at="2026-12-15",
+                periodo_vigencia_legacy="Ano letivo 2026",
+            ),
+            expected_head_revision=state.head.head_revision,
+            expected_working_snapshot_id=old_snapshot,
+            actor=actor,
+        )
+
+        assert state.working_snapshot.id != old_snapshot
+        assert state.working_snapshot.operation == "update_lifecycle"
+        assert state.working_snapshot.changed_section == "lifecycle"
+        assert state.working_snapshot.dossier.lifecycle.review_at == "2026-12-15"
+        assert state.working_snapshot.dossier.lifecycle.status == old_status
+        assert state.working_snapshot.dossier.lifecycle.version == old_version
+
+    asyncio.run(scenario())
