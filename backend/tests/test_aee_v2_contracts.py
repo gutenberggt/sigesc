@@ -1,6 +1,7 @@
 """Fase 1 — contrato canônico e projeção não destrutiva do AEE v2."""
 
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 
@@ -166,3 +167,16 @@ def test_mutable_defaults_are_isolated_between_documents():
 def test_projection_requires_minimum_identity():
     with pytest.raises(ValueError, match="student_id"):
         project_legacy_plan({"school_id": "s1", "academic_year": 2026})
+
+
+def test_dossier_adapter_is_read_only_by_contract():
+    adapter = (
+        Path(__file__).resolve().parents[1] / "routers" / "aee_v2_dossier.py"
+    ).read_text(encoding="utf-8")
+
+    assert "@base_router.get(" in adapter
+    for write_decorator in ("@base_router.post(", "@base_router.put(", "@base_router.patch(", "@base_router.delete("):
+        assert write_decorator not in adapter
+
+    for write_operation in ("insert_one(", "insert_many(", "update_one(", "update_many(", "delete_one(", "delete_many("):
+        assert write_operation not in adapter
