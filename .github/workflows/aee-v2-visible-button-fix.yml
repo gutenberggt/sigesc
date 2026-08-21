@@ -1,16 +1,16 @@
 name: AEE v2 - Visible Dossie button fix
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/aee-v2-dossie-visible-button
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.event.head_commit.message == 'chore(aee): apply visible dossie button fix [aee-v2-visible-button]'
+    if: github.head_ref == 'fix/aee-v2-dossie-visible-button'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,28 +23,26 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          def replace_once(path, old, new):
-              p = Path(path)
-              text = p.read_text(encoding='utf-8')
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{path}: esperado 1 match, encontrado {count}: {old[:120]!r}')
-              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          diario = Path('frontend/src/pages/DiarioAEE.js')
+          test = Path('backend/tests/test_aee_v2_fase3_ui_contract.py')
 
-          diario = 'frontend/src/pages/DiarioAEE.js'
-          test = 'backend/tests/test_aee_v2_fase3_ui_contract.py'
+          old_button = '''                      <button\n                        onClick={() => setDossiePlano(plano)}\n                        className="p-1 text-cyan-700 hover:bg-cyan-50 rounded"\n                        title="Abrir Dossiê Individual AEE V2"\n                        data-testid={`btn-dossie-v2-${plano.id}`}\n                      >\n                        <ClipboardList size={16} />\n                      </button>'''
+          new_button = '''                      <button\n                        onClick={() => setDossiePlano(plano)}\n                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-md hover:bg-cyan-100 whitespace-nowrap"\n                        title="Abrir Dossiê Individual AEE V2"\n                        data-testid={`btn-dossie-v2-${plano.id}`}\n                      >\n                        <ClipboardList size={14} />\n                        <span>Dossiê V2</span>\n                      </button>'''
 
-          replace_once(
-              diario,
-              '''                      <button\n                        onClick={() => setDossiePlano(plano)}\n                        className="p-1 text-cyan-700 hover:bg-cyan-50 rounded"\n                        title="Abrir Dossiê Individual AEE V2"\n                        data-testid={`btn-dossie-v2-${plano.id}`}\n                      >\n                        <ClipboardList size={16} />\n                      </button>''',
-              '''                      <button\n                        onClick={() => setDossiePlano(plano)}\n                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-md hover:bg-cyan-100 whitespace-nowrap"\n                        title="Abrir Dossiê Individual AEE V2"\n                        data-testid={`btn-dossie-v2-${plano.id}`}\n                      >\n                        <ClipboardList size={14} />\n                        <span>Dossiê V2</span>\n                      </button>'''
-          )
+          diario_text = diario.read_text(encoding='utf-8')
+          if new_button not in diario_text:
+              if diario_text.count(old_button) != 1:
+                  raise SystemExit('DiarioAEE.js: botão legado esperado não encontrado de forma única')
+              diario.write_text(diario_text.replace(old_button, new_button, 1), encoding='utf-8')
 
-          replace_once(
-              test,
-              '''    assert "btn-dossie-v2-" in source\n    assert "<DossieAEEV2Modal" in source''',
-              '''    assert "btn-dossie-v2-" in source\n    assert "<span>Dossiê V2</span>" in source\n    assert "inline-flex items-center" in source\n    assert "<DossieAEEV2Modal" in source'''
-          )
+          old_test = '''    assert "btn-dossie-v2-" in source\n    assert "<DossieAEEV2Modal" in source'''
+          new_test = '''    assert "btn-dossie-v2-" in source\n    assert "<span>Dossiê V2</span>" in source\n    assert "inline-flex items-center" in source\n    assert "<DossieAEEV2Modal" in source'''
+
+          test_text = test.read_text(encoding='utf-8')
+          if new_test not in test_text:
+              if test_text.count(old_test) != 1:
+                  raise SystemExit('teste de UI: trecho esperado não encontrado de forma única')
+              test.write_text(test_text.replace(old_test, new_test, 1), encoding='utf-8')
           PY
 
       - name: Validate intended diff
@@ -54,8 +52,12 @@ jobs:
           grep -q 'btn-dossie-v2-' frontend/src/pages/DiarioAEE.js
           grep -q '<span>Dossiê V2</span>' backend/tests/test_aee_v2_fase3_ui_contract.py
 
-      - name: Commit fix
+      - name: Commit fix when needed
         run: |
+          if git diff --quiet; then
+            echo 'Patch already applied.'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- frontend/src/pages/DiarioAEE.js backend/tests/test_aee_v2_fase3_ui_contract.py
