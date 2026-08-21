@@ -9,7 +9,7 @@ Invariantes da Sprint 008/Fase 1:
 - mapping_hash reutiliza a canonicalização do Shadow v1;
 - binding é tenant-scoped e vinculado ao rule_hash exato da policy;
 - nenhuma inferência de campo legado, recuperação ou frequência;
-- nenhum publish/cutover/runtime.
+- nenhum publish, cutover ou runtime.
 """
 
 from __future__ import annotations
