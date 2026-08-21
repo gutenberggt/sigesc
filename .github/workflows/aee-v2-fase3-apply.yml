@@ -1,6 +1,9 @@
 name: AEE v2 Fase 3 - Apply integration patch
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - agent/aee-v2-fase3-interface
@@ -10,7 +13,6 @@ permissions:
 
 jobs:
   apply:
-    if: github.event.head_commit.message == 'chore(aee): apply fase3 integration patch [aee-v2-fase3-bootstrap]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +20,17 @@ jobs:
           ref: agent/aee-v2-fase3-interface
           fetch-depth: 0
 
+      - name: Detect already-applied patch
+        id: detect
+        run: |
+          if grep -q "import DossieAEEV2Modal" frontend/src/pages/DiarioAEE.js; then
+            echo "applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Apply deterministic Fase 3 integrations
+        if: steps.detect.outputs.applied != 'true'
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -70,7 +82,6 @@ jobs:
               "      {showAtendimentoModal && atendimentoModalContent}\n\n      {/* Modal de Visualização do Plano AEE (Feb 2026) */}",
               "      {showAtendimentoModal && atendimentoModalContent}\n      <DossieAEEV2Modal\n        show={Boolean(dossiePlano)}\n        onClose={() => setDossiePlano(null)}\n        plano={dossiePlano}\n        token={token}\n        canEdit={canEdit}\n      />\n\n      {/* Modal de Visualização do Plano AEE (Feb 2026) */}"
           )
-
           replace_once(
               modal,
               'label="Adaptações por Componente Curricular" value={form.adaptacoes_por_componente}',
@@ -81,7 +92,6 @@ jobs:
               'placeholder="Adaptações específicas para cada componente curricular..."',
               'placeholder="Adaptações específicas para cada componente curricular ou campo de experiência..."'
           )
-
           replace_once(
               pdf,
               "[Paragraph('Adaptações por Componente:', label),",
@@ -90,6 +100,7 @@ jobs:
           PY
 
       - name: Validate intended diff
+        if: steps.detect.outputs.applied != 'true'
         run: |
           git diff --check
           grep -q 'Diário AEE V2.0' frontend/src/pages/DiarioAEE.js
@@ -98,6 +109,7 @@ jobs:
           grep -q 'Adaptações por Componente Curricular/Campos de Experiência' backend/pdf/plano_aee.py
 
       - name: Commit integration patch
+        if: steps.detect.outputs.applied != 'true'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
