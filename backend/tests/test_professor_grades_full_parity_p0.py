@@ -113,6 +113,17 @@ def test_bridge_nao_prende_leitura_ou_edicao_agregada_ao_assignment_raiz():
     assert 'assignment raiz de outro componente' in BRIDGE
 
 
+def test_bridge_assignment_de_entrada_nao_vaza_apos_troca_de_filtro():
+    assert 'const getEntryAssignmentContext = () =>' in BRIDGE
+    assert 'const getRequestGradeScope = (config) =>' in BRIDGE
+    assert 'const getEntryAssignmentForRequest = (config) =>' in BRIDGE
+    assert 'String(requestScope.classId) !== String(entry.classId)' in BRIDGE
+    assert 'String(requestScope.courseId) !== String(entry.courseId)' in BRIDGE
+    assert 'const assignmentId = getEntryAssignmentForRequest(config);' in BRIDGE
+    assert 'const assignmentId = getAssignmentId();' not in BRIDGE
+    assert 'o backend deve resolver novamente DVD ou legado' in BRIDGE
+
+
 def test_ui_bloqueia_campos_historicos_e_preserva_conceitos():
     assert 'dvd_read_only_fields' in ALUNO_TAB
     assert 'dvd_locked_fields' in ALUNO_TAB

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CheckSquare, ClipboardList, School, Users, AlertTriangle, GraduationCap } from 'lucide-react';
+import { BookOpen, CheckSquare, ClipboardList, School, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { teacherDiariesAPI } from '../../services/teacherDiaries';
 import { buildDiaryActionUrl } from '../../utils/diaryPrefill';
+import { inferEducationLevel } from '../../utils/educationLevel';
 
 const PROFILE_LABELS = {
   regular: 'Regular',
@@ -12,19 +13,68 @@ const PROFILE_LABELS = {
   shared: 'Compartilhado',
 };
 
-const legacyStudentsRoute = (classId) => `/professor/turma/${classId}/alunos`; // nomenclature-allow: rota técnica legada
+const ATTENDANCE_BY_COMPONENT_LEVELS = new Set([
+  'fundamental_anos_finais',
+  'eja_final',
+  'ensino_medio',
+]);
 
-function Capability({ icon: Icon, label, enabled, detail }) {
-  return (
-    <div className={`rounded-lg border p-3 ${enabled ? 'bg-white' : 'bg-gray-50 opacity-70'}`}>
-      <div className="flex items-center gap-2">
-        <Icon size={17} className={enabled ? 'text-slate-700' : 'text-slate-400'} />
-        <span className="text-sm font-medium">{label}</span>
-      </div>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
-    </div>
-  );
-}
+const sortByComponentName = (left, right) => (
+  (left?.name || '').localeCompare(right?.name || '', 'pt-BR')
+);
+
+const usesAttendanceByComponent = (classInfo) => (
+  ATTENDANCE_BY_COMPONENT_LEVELS.has(inferEducationLevel(classInfo))
+);
+
+const getComponentOperationalState = (component) => {
+  if (!component?.diary) {
+    return {
+      canAttendance: true,
+      canGrades: true,
+      canContent: true,
+      attendancePurpose: null,
+      unresolvedGroup: false,
+      sharedGradeOwner: true,
+    };
+  }
+
+  const diary = component.diary;
+  const caps = diary.capabilities || {};
+  const unresolvedGroup = diary.profile === 'shared' && diary.student_scope === 'group';
+  const sharedGradeOwner = diary.profile !== 'shared' || diary.grades_official_owner === true;
+
+  return {
+    canAttendance: !!caps.attendance_enabled && !unresolvedGroup,
+    canGrades: !!caps.grades_enabled && !unresolvedGroup && sharedGradeOwner,
+    canContent: !!caps.content_enabled,
+    attendancePurpose: caps.attendance_purpose || null,
+    unresolvedGroup,
+    sharedGradeOwner,
+  };
+};
+
+const buildComponentContext = (component, module, academicYear) => {
+  const diary = component.diary;
+  const baseContext = {
+    academicYear: component.academicYear || module.classInfo?.academic_year || academicYear,
+    schoolId: component.schoolId || module.school_id,
+    classId: module.class_id,
+    courseId: component.id || '',
+  };
+
+  if (diary) {
+    return {
+      ...baseContext,
+      assignmentId: diary.assignment_id,
+    };
+  }
+
+  return {
+    ...baseContext,
+    assignmentId: '',
+  };
+};
 
 export default function MyDiariesSection({ legacyClasses = [] }) {
   const navigate = useNavigate();
@@ -51,20 +101,105 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
         if (active) setLoading(false);
       }
     };
+
     load();
     return () => { active = false; };
   }, [academicYear]);
 
   const diaries = useMemo(() => data?.items || [], [data]);
-  const diaryClassIds = useMemo(
-    () => new Set(diaries.map((diary) => diary.class_id).filter(Boolean)),
-    [diaries]
-  );
-  const legacyFallbackClasses = useMemo(
-    () => (legacyClasses || []).filter((turma) => !diaryClassIds.has(turma.id)),
-    [legacyClasses, diaryClassIds]
-  );
-  const visibleTotal = diaries.length + legacyFallbackClasses.length;
+
+  // Um único módulo por turma. Os componentes do fluxo legado são a base da
+  // lotação do professor; quando existe DVD para o mesmo turma/componente, o
+  // vínculo DVD sobrepõe apenas as capacidades/assignment daquele componente.
+  const classModules = useMemo(() => {
+    const modules = new Map();
+
+    const ensureModule = (classId, seed = {}) => {
+      if (!classId) return null;
+      if (!modules.has(classId)) {
+        modules.set(classId, {
+          class_id: classId,
+          class_name: seed.class_name || seed.name || 'Turma sem nome',
+          school_id: seed.school_id || '',
+          school_name: seed.school_name || 'Escola não informada',
+          classInfo: { ...seed },
+          components: new Map(),
+          profiles: new Set(),
+        });
+      }
+
+      const module = modules.get(classId);
+      module.class_name = module.class_name || seed.class_name || seed.name || 'Turma sem nome';
+      module.school_id = module.school_id || seed.school_id || '';
+      module.school_name = module.school_name || seed.school_name || 'Escola não informada';
+      module.classInfo = { ...seed, ...module.classInfo };
+      return module;
+    };
+
+    legacyClasses.forEach((turma) => {
+      const module = ensureModule(turma.id, turma);
+      if (!module) return;
+
+      (turma.componentes || []).forEach((component) => {
+        if (!component?.id) return;
+        const key = String(component.id);
+        module.components.set(key, {
+          id: component.id,
+          name: component.name || 'Componente sem nome',
+          academicYear: turma.academic_year || academicYear,
+          schoolId: turma.school_id,
+          legacyAssignmentId: component.assignment_id || '',
+          diary: null,
+        });
+      });
+    });
+
+    diaries.forEach((diary) => {
+      const module = ensureModule(diary.class_id, {
+        id: diary.class_id,
+        name: diary.class_name,
+        class_name: diary.class_name,
+        school_id: diary.school_id,
+        school_name: diary.school_name,
+        academic_year: diary.academic_year,
+        education_level: diary.education_level,
+        grade_level: diary.grade_level,
+        shift: diary.shift,
+      });
+      if (!module) return;
+
+      if (diary.profile) module.profiles.add(diary.profile);
+
+      const key = diary.component_id
+        ? String(diary.component_id)
+        : `assignment:${diary.assignment_id}`;
+      const existing = module.components.get(key);
+
+      module.components.set(key, {
+        id: diary.component_id || existing?.id || '',
+        name: diary.component_name || existing?.name || 'Regência / vínculo da turma',
+        academicYear: diary.academic_year || existing?.academicYear || academicYear,
+        schoolId: diary.school_id || existing?.schoolId || module.school_id,
+        legacyAssignmentId: existing?.legacyAssignmentId || '',
+        diary,
+      });
+    });
+
+    return Array.from(modules.values())
+      .map((module) => ({
+        ...module,
+        components: Array.from(module.components.values()).sort(sortByComponentName),
+        profiles: Array.from(module.profiles),
+      }))
+      .sort((left, right) => {
+        const schoolCompare = (left.school_name || '').localeCompare(right.school_name || '', 'pt-BR');
+        return schoolCompare !== 0
+          ? schoolCompare
+          : (left.class_name || '').localeCompare(right.class_name || '', 'pt-BR');
+      });
+  }, [academicYear, diaries, legacyClasses]);
+
+  const visibleTotal = classModules.length;
 
   return (
     <section data-testid="meus-diarios-section" className="space-y-4">
@@ -80,14 +215,16 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
         </div>
         {!loading && visibleTotal > 0 && (
           <span className="text-sm text-slate-500" data-testid="meus-diarios-total">
-            {visibleTotal} turma(s) / diário(s)
+            {visibleTotal} turma(s)
           </span>
         )}
       </div>
 
       {loading && (
         <Card>
-          <CardContent className="p-6 text-sm text-slate-500">Carregando seus diários...</CardContent>
+          <CardContent className="p-6 text-sm text-slate-500">
+            Carregando seus diários...
+          </CardContent>
         </Card>
       )}
 
@@ -97,7 +234,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
             <span>
               {typeof error === 'string' ? error : 'Não foi possível carregar seus diários por vínculo.'}
-              {' '}Suas turmas continuam disponíveis abaixo no fluxo atual.
+              {' '}Suas turmas continuam disponíveis no fluxo autorizado.
             </span>
           </CardContent>
         </Card>
@@ -107,284 +244,201 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 flex items-start gap-2">
           <AlertTriangle size={17} className="mt-0.5 shrink-0" />
           <span>
-            Há {data.blocked_total} vínculo(s) que precisam ser revisado(s) pela coordenação. A turma correspondente permanece disponível no fluxo atual quando aplicável.
+            Há {data.blocked_total} vínculo(s) que precisam ser revisado(s) pela coordenação.
           </span>
         </div>
       )}
 
-      {!loading && !error && diaries.length === 0 && legacyFallbackClasses.length === 0 && (
+      {!loading && !error && classModules.length === 0 && (
         <Card>
           <CardContent className="p-6 text-center text-slate-500">
             <BookOpen size={42} className="mx-auto mb-2 text-slate-300" />
-            <p className="font-medium text-slate-700">Nenhuma turma ou Diário por Vínculo disponível para {academicYear}.</p>
+            <p className="font-medium text-slate-700">
+              Nenhuma turma disponível para {academicYear}.
+            </p>
             <p className="mt-1 text-sm">Entre em contato com a coordenação para revisar sua lotação.</p>
           </CardContent>
         </Card>
       )}
 
-      {!loading && !error && diaries.length > 0 && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {diaries.map((diary) => {
-            const caps = diary.capabilities || {};
-            const unresolvedGroup = diary.profile === 'shared' && diary.student_scope === 'group';
-            const sharedGradeOwner = diary.profile !== 'shared' || diary.grades_official_owner === true;
-            const gradesOperational = !!caps.grades_enabled && !unresolvedGroup && sharedGradeOwner;
-            const actionContext = {
-              academicYear: diary.academic_year || academicYear,
-              schoolId: diary.school_id,
-              classId: diary.class_id,
-              courseId: diary.component_id,
-              assignmentId: diary.assignment_id,
-            };
-            const attendanceDetail = !caps.attendance_enabled
-              ? 'Não se aplica a este vínculo.'
-              : unresolvedGroup
-                ? 'Aguarda a definição auditável dos estudantes do grupo antes do lançamento.'
-                : caps.attendance_purpose === 'pdf_only'
-                  ? 'Operacional: registro opcional, documental e exclusivo deste diário; não produz efeitos oficiais.'
-                  : 'Operacional por vínculo docente.';
-            const gradesDetail = !caps.grades_enabled
-              ? 'Não se aplica a este vínculo.'
-              : unresolvedGroup
-                ? 'Aguarda a definição auditável dos estudantes do grupo antes do lançamento.'
-                : !sharedGradeOwner
-                  ? 'A coordenação deve definir qual vínculo shared é o responsável oficial pela avaliação.'
-                  : diary.profile === 'shared'
-                    ? 'Este vínculo é o responsável oficial pela avaliação compartilhada.'
-                    : 'Operacional com autoria por vínculo e por período avaliativo.';
+      {!loading && !error && classModules.length > 0 && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4" data-testid="diarios-compactos">
+          {classModules.map((module) => {
+            const attendancePerComponent = usesAttendanceByComponent(module.classInfo);
+            const topAttendanceComponent = !attendancePerComponent
+              ? (
+                module.components.find((component) => (
+                  component.diary && getComponentOperationalState(component).canAttendance
+                ))
+                || module.components.find((component) => getComponentOperationalState(component).canAttendance)
+              )
+              : null;
+
+            const topAttendanceContext = topAttendanceComponent
+              ? buildComponentContext(topAttendanceComponent, module, academicYear)
+              : null;
+            const topAttendanceState = topAttendanceComponent
+              ? getComponentOperationalState(topAttendanceComponent)
+              : null;
+
+            const profileLabels = module.profiles
+              .map((profile) => PROFILE_LABELS[profile] || profile)
+              .filter(Boolean);
 
             return (
-              <Card key={diary.assignment_id} className="border-l-4 border-l-indigo-500" data-testid={`diario-card-${diary.assignment_id}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-lg">{diary.class_name || 'Turma sem nome'}</CardTitle>
-                      <CardDescription className="mt-1 flex items-center gap-1">
-                        <School size={14} />
-                        {diary.school_name || 'Escola não informada'}
+              <Card
+                key={module.class_id}
+                className="border-l-4 border-l-indigo-500"
+                data-testid={`diario-group-${module.class_id}`}
+              >
+                <CardHeader className="px-3 pt-3 pb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <CardTitle className="text-base sm:text-lg leading-tight">
+                        {module.class_name || 'Turma sem nome'}
+                      </CardTitle>
+                      <CardDescription className="mt-1 flex items-start gap-1 text-xs sm:text-sm">
+                        <School size={14} className="mt-0.5 shrink-0" />
+                        <span className="whitespace-normal break-words">
+                          {module.school_name || 'Escola não informada'}
+                        </span>
                       </CardDescription>
                     </div>
-                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
-                      {PROFILE_LABELS[diary.profile] || diary.profile}
-                    </span>
+
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {topAttendanceContext && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={topAttendanceState?.attendancePurpose === 'pdf_only' ? 'outline' : 'default'}
+                          onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', topAttendanceContext))}
+                          className="h-8 px-2.5 text-xs"
+                          data-testid={`class-attendance-${module.class_id}`}
+                        >
+                          <CheckSquare size={14} className="mr-1.5" />
+                          Frequência
+                        </Button>
+                      )}
+
+                      {profileLabels.length === 0 ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          Fluxo atual
+                        </span>
+                      ) : profileLabels.length === 1 ? (
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                          {profileLabels[0]}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                          Misto
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-slate-500">Componente</span>
-                      <p className="font-medium">{diary.component_name || 'Regência / vínculo da turma'}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Vigência</span>
-                      <p className="font-medium">{diary.valid_from} a {diary.valid_until || 'sem data final'}</p>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <Capability
-                      icon={BookOpen}
-                      label="Conteúdos"
-                      enabled={!!caps.content_enabled}
-                      detail={caps.content_enabled
-                        ? 'Operacional por vínculo docente; cada professor acessa seus próprios registros.'
-                        : 'Não se aplica a este vínculo.'}
-                    />
-                    <Capability
-                      icon={CheckSquare}
-                      label="Frequência"
-                      enabled={!!caps.attendance_enabled && !unresolvedGroup}
-                      detail={attendanceDetail}
-                    />
-                    <Capability
-                      icon={ClipboardList}
-                      label="Avaliação"
-                      enabled={gradesOperational}
-                      detail={gradesDetail}
-                    />
-                  </div>
+                <CardContent className="px-3 pt-0 pb-2">
+                  <div className="divide-y divide-slate-100">
+                    {module.components.map((component) => {
+                      const diary = component.diary;
+                      const ops = getComponentOperationalState(component);
+                      const actionContext = buildComponentContext(component, module, academicYear);
 
-                  {diary.student_scope === 'group' && (
-                    <div className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600 flex items-center gap-2">
-                      <Users size={15} />
-                      {unresolvedGroup
-                        ? 'Vínculo compartilhado por grupo: lançamento bloqueado até existir uma lista canônica e auditável de membros.'
-                        : 'Vínculo compartilhado com grupo específico de estudantes.'}
-                    </div>
-                  )}
+                      return (
+                        <div
+                          key={diary?.assignment_id || component.id || component.name}
+                          className="py-2 first:pt-1 last:pb-1"
+                          data-testid={diary?.assignment_id
+                            ? `diario-card-${diary.assignment_id}`
+                            : `legacy-component-${module.class_id}-${component.id}`}
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                                Componente
+                              </span>
+                              <p className="whitespace-normal break-words text-sm font-semibold leading-4 text-slate-800">
+                                {component.name}
+                              </p>
+                              {(ops.unresolvedGroup || !ops.sharedGradeOwner) && (
+                                <p className="mt-1 text-[11px] leading-4 text-amber-700">
+                                  {ops.unresolvedGroup
+                                    ? 'Aguardando definição auditável do grupo de estudantes.'
+                                    : 'Avaliação aguardando responsável oficial do vínculo compartilhado.'}
+                                </p>
+                              )}
+                            </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {caps.attendance_enabled && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={caps.attendance_purpose === 'pdf_only' ? 'outline' : 'default'}
-                        disabled={unresolvedGroup}
-                        onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))}
-                        data-testid={`open-attendance-${diary.assignment_id}`}
-                      >
-                        <CheckSquare size={16} className="mr-2" />
-                        {unresolvedGroup
-                          ? 'Frequência aguardando grupo'
-                          : caps.attendance_purpose === 'pdf_only'
-                            ? 'Abrir registro documental'
-                            : 'Frequência'}
-                      </Button>
-                    )}
-                    {caps.grades_enabled && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={!gradesOperational}
-                        onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
-                        data-testid={`open-grades-${diary.assignment_id}`}
-                      >
-                        <ClipboardList size={16} className="mr-2" />
-                        {unresolvedGroup
-                          ? 'Avaliação aguardando grupo'
-                          : !sharedGradeOwner
-                            ? 'Avaliação aguardando responsável'
-                            : 'Notas / Conceitos'}
-                      </Button>
-                    )}
-                    {caps.content_enabled && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
-                        data-testid={`open-content-${diary.assignment_id}`}
-                      >
-                        <BookOpen size={16} className="mr-2" />
-                        Conteúdos
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate(legacyStudentsRoute(diary.class_id))}
-                      data-testid={`open-students-${diary.assignment_id}`}
-                    >
-                      <Users size={16} className="mr-2" />
-                      Estudantes
-                    </Button>
-                  </div>
+                            <div className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end">
+                              {attendancePerComponent && ops.canAttendance && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={ops.attendancePurpose === 'pdf_only' ? 'outline' : 'default'}
+                                  onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))}
+                                  className="h-8 px-2 text-xs"
+                                  data-testid={`component-attendance-${module.class_id}-${component.id}`}
+                                >
+                                  <CheckSquare size={14} className="mr-1.5" />
+                                  Frequência
+                                </Button>
+                              )}
 
-                  <div className="rounded-md border border-dashed px-3 py-2 text-xs text-slate-500">
-                    Frequência, Notas/Conceitos e Conteúdos abrem com o vínculo, a turma e o componente já definidos.
+                              {(diary?.capabilities?.grades_enabled !== false || !diary) && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={!ops.canGrades}
+                                  onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
+                                  className="h-8 px-2 text-xs"
+                                  data-testid={diary
+                                    ? `open-grades-${diary.assignment_id}`
+                                    : `legacy-grades-${module.class_id}-${component.id}`}
+                                >
+                                  <ClipboardList size={14} className="mr-1.5" />
+                                  Notas / Conceitos
+                                </Button>
+                              )}
+
+                              {ops.canContent && diary && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
+                                  className="h-8 px-2 text-xs"
+                                  data-testid={`open-content-${diary.assignment_id}`}
+                                >
+                                  <BookOpen size={14} className="mr-1.5" />
+                                  Conteúdos
+                                </Button>
+                              )}
+
+                              {ops.canContent && !diary && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
+                                  className="h-8 px-2 text-xs"
+                                  data-testid={`legacy-content-${module.class_id}-${component.id}`}
+                                >
+                                  <BookOpen size={14} className="mr-1.5" />
+                                  Conteúdos
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
             );
           })}
         </div>
-      )}
-
-      {!loading && legacyFallbackClasses.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="turmas-fluxo-atual">
-          {legacyFallbackClasses.map((turma) => (
-            <Card key={turma.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-slate-300">
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <GraduationCap className="text-blue-600" size={20} />
-                      {turma.name}
-                    </CardTitle>
-                    <CardDescription className="mt-1 flex items-center gap-1">
-                      <School size={14} />
-                      {turma.school_name}
-                    </CardDescription>
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 whitespace-nowrap">
-                    Fluxo atual
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 mb-4">
-                  <p className="text-sm font-medium text-gray-700">Componentes e ações:</p>
-                  {(turma.componentes || []).map((comp) => {
-                    const actionContext = {
-                      academicYear: turma.academic_year || academicYear,
-                      schoolId: turma.school_id,
-                      classId: turma.id,
-                      courseId: comp.id,
-                    };
-                    return (
-                      <div key={comp.id} className="rounded-lg border bg-slate-50/60 p-2.5 space-y-2">
-                        <p className="text-sm font-medium text-purple-700">{comp.name}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(buildDiaryActionUrl('/professor/frequencia', actionContext))}
-                            className="flex items-center justify-center gap-1"
-                            data-testid={`legacy-attendance-${turma.id}-${comp.id}`}
-                          >
-                            <CheckSquare size={14} />
-                            Frequência
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
-                            className="flex items-center justify-center gap-1"
-                            data-testid={`legacy-grades-${turma.id}-${comp.id}`}
-                          >
-                            <ClipboardList size={14} />
-                            Notas / Conceitos
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
-                            className="flex items-center justify-center gap-1"
-                            data-testid={`legacy-content-${turma.id}-${comp.id}`}
-                          >
-                            <BookOpen size={14} />
-                            Conteúdos
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {(!turma.componentes || turma.componentes.length === 0) && (
-                    <span className="text-xs text-slate-500">Nenhum componente informado para criar atalhos diretos.</span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2 border-t pt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/professor/turma/${turma.id}/diario`)}
-                    className="flex items-center gap-1"
-                  >
-                    <ClipboardList size={14} />
-                    Diário
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(legacyStudentsRoute(turma.id))}
-                    className="flex items-center gap-1"
-                  >
-                    <Users size={14} />
-                    Estudantes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {!loading && visibleTotal > 0 && (
-        <p className="text-xs text-slate-500">
-          “Fluxo atual” identifica turmas que ainda não possuem um Diário por Vínculo ativo ou que permanecem fora do escopo atual do DVD. Os atalhos usam somente filtros já autorizados ao professor.
-        </p>
       )}
     </section>
   );
