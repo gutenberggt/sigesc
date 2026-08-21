@@ -3,6 +3,10 @@
  *
  * Faz parte do módulo Diário AEE (bloqueado). NÃO altere sem autorização
  * explícita do usuário. Veja /app/memory/PRD.md → "MÓDULOS BLOQUEADOS".
+ *
+ * AEE v2 P0: alterações abaixo autorizadas explicitamente pelo proprietário
+ * em 21/08/2026. Os nomes de campos e enums persistidos permanecem legados
+ * para garantir compatibilidade e preservação histórica.
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Target, Activity, BookOpen, Clock, Calendar, ChevronDown } from 'lucide-react';
@@ -297,8 +301,18 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                 <input type="text" value={form.escola_origem_nome} readOnly className="w-full border rounded-lg px-3 py-2 bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Critério de Elegibilidade</label>
-                <input type="text" value={form.criterio_elegibilidade} onChange={(e) => handleChange('criterio_elegibilidade', e.target.value)} className="w-full border rounded-lg px-3 py-2" placeholder="Laudo médico, avaliação pedagógica..." />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fundamentação pedagógica da identificação para o AEE</label>
+                <input
+                  type="text"
+                  value={form.criterio_elegibilidade}
+                  onChange={(e) => handleChange('criterio_elegibilidade', e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2"
+                  placeholder="Registre a fundamentação decorrente do Estudo de Caso"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Documentos clínicos ou avaliações externas podem subsidiar o processo quando pertinentes,
+                  mas não são requisito para acesso ao AEE.
+                </p>
               </div>
             </div>
           </div>
@@ -461,13 +475,16 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
 
           {/* Status */}
           <div className="border rounded-lg p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status do Plano</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Situação do Plano</label>
             <select value={form.status} onChange={(e) => handleChange('status', e.target.value)} className="w-full border rounded-lg px-3 py-2">
-              <option value="rascunho">Rascunho</option>
-              <option value="ativo">Ativo</option>
-              <option value="revisao">Em Revisão</option>
+              <option value="rascunho">Em elaboração</option>
+              <option value="ativo">Vigente</option>
+              <option value="revisao">Em revisão</option>
               <option value="encerrado">Encerrado</option>
             </select>
+            <p className="text-[11px] text-gray-500 mt-1">
+              Os valores técnicos legados são preservados internamente para manter compatibilidade e histórico.
+            </p>
           </div>
         </div>
 

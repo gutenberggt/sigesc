@@ -6,6 +6,9 @@
  * (/app/frontend/src/pages/tutorials/TutorialDiarioAEE.jsx) NÃO podem ser
  * alterados sem AUTORIZAÇÃO EXPLÍCITA do usuário (proprietário do produto).
  *
+ * AEE v2 P0: alterações desta rodada autorizadas explicitamente pelo
+ * proprietário do produto em 21/08/2026.
+ *
  * Regras para qualquer agente/desenvolvedor:
  *   1. Não refatore, não "limpe", não mude visual/UX, não renomeie campos,
  *      não modifique payload, modais, validações ou rotas.
@@ -78,6 +81,13 @@ const DIAS_SEMANA = {
   'quarta': 'Quarta',
   'quinta': 'Quinta',
   'sexta': 'Sexta'
+};
+
+const STATUS_PLANO_LABELS = {
+  'rascunho': 'Em elaboração',
+  'ativo': 'Vigente',
+  'revisao': 'Em revisão',
+  'encerrado': 'Encerrado'
 };
 
 const DiarioAEE = () => {
@@ -446,8 +456,8 @@ const DiarioAEE = () => {
         throw new Error(await parseResponseError(response, 'Erro ao duplicar plano'));
       }
       showAlert('success', duplicateMode === 'cross'
-        ? 'Plano AEE duplicado para outro estudante (rascunho)'
-        : 'Plano AEE duplicado com sucesso (rascunho)');
+        ? 'Plano AEE duplicado para outro estudante (em elaboração)'
+        : 'Plano AEE duplicado com sucesso (em elaboração)');
       setDuplicatingPlano(null);
       setDuplicateTargetStudentId('');
       setDuplicateMode('same');
@@ -624,7 +634,7 @@ const DiarioAEE = () => {
       } else if (!targetClassId) {
         setSelectedTurma('');
       }
-      showAlert('success', 'Plano AEE criado a partir do modelo (rascunho)');
+      showAlert('success', 'Plano AEE criado a partir do modelo (em elaboração)');
       setShowApplyTemplate(false);
       await fetchData();
     } catch (e) {
@@ -844,7 +854,7 @@ const DiarioAEE = () => {
       {filteredEstudantes.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <Users size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">{selectedTurma ? 'Nenhum estudante com Plano de AEE nesta turma' : 'Nenhum estudante com Plano de AEE ativo'}</p>
+          <p className="text-gray-500">{selectedTurma ? 'Nenhum estudante com Plano de AEE nesta turma' : 'Nenhum estudante com Plano de AEE'}</p>
           <p className="text-sm text-gray-400 mt-2">Clique em "Novo Plano de AEE" para cadastrar</p>
         </div>
       ) : (
@@ -936,7 +946,7 @@ const DiarioAEE = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Público-Alvo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Modalidade</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dias</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Situação</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
               </tr>
             </thead>
@@ -955,7 +965,7 @@ const DiarioAEE = () => {
                       plano.status === 'rascunho' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
-                      {plano.status === 'ativo' ? 'Ativo' : plano.status === 'rascunho' ? 'Rascunho' : plano.status}
+                      {STATUS_PLANO_LABELS[plano.status] || plano.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -1109,7 +1119,7 @@ const DiarioAEE = () => {
             <div className="bg-purple-50 rounded-lg p-4 text-center">
               <FileText size={24} className="mx-auto text-purple-600 mb-2" />
               <p className="text-2xl font-bold text-purple-700">{filteredPlanos.length}</p>
-              <p className="text-sm text-purple-600">Planos Ativos</p>
+              <p className="text-sm text-purple-600">Planos de AEE</p>
             </div>
             <div className="bg-orange-50 rounded-lg p-4 text-center">
               <Clock size={24} className="mx-auto text-orange-600 mb-2" />
@@ -1623,7 +1633,7 @@ const DiarioAEE = () => {
                 <div><span className="font-semibold text-gray-600">Estudante:</span> {estudantes.find(e => e.student_id === viewingPlano.student_id)?.full_name || '-'}</div>
                 <div><span className="font-semibold text-gray-600">Ano Letivo:</span> {viewingPlano.academic_year}</div>
                 <div><span className="font-semibold text-gray-600">Público-alvo:</span> {viewingPlano.publico_alvo?.replace(/_/g, ' ')}</div>
-                <div><span className="font-semibold text-gray-600">Status:</span> <span className="capitalize">{viewingPlano.status}</span></div>
+                <div><span className="font-semibold text-gray-600">Situação:</span> {STATUS_PLANO_LABELS[viewingPlano.status] || viewingPlano.status}</div>
                 <div><span className="font-semibold text-gray-600">Modalidade:</span> <span className="capitalize">{viewingPlano.modalidade || '-'}</span></div>
                 <div><span className="font-semibold text-gray-600">Carga Horária:</span> {viewingPlano.carga_horaria_semanal || '-'}</div>
                 <div><span className="font-semibold text-gray-600">Data Elaboração:</span> {viewingPlano.data_elaboracao || '-'}</div>
@@ -1691,17 +1701,16 @@ const DiarioAEE = () => {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Excluir Plano AEE</h3>
-                <p className="text-sm text-gray-500 mt-1">Esta ação não pode ser desfeita.</p>
+                <p className="text-sm text-gray-500 mt-1">A exclusão física é permitida somente para Plano Em elaboração sem histórico vinculado.</p>
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
               <div><b>Estudante:</b> {estudantes.find(e => e.student_id === deletingPlano.student_id)?.full_name || '-'}</div>
-              <div><b>Status:</b> <span className="capitalize">{deletingPlano.status}</span></div>
+              <div><b>Situação:</b> {STATUS_PLANO_LABELS[deletingPlano.status] || deletingPlano.status}</div>
               <div><b>Ano letivo:</b> {deletingPlano.academic_year}</div>
             </div>
             <p className="text-xs text-gray-600 mb-4">
-              Os atendimentos AEE vinculados permanecerão no sistema para fins de histórico,
-              mas perderão a referência a este plano.
+              Planos Vigentes, Em revisão, Encerrados ou que possuam atendimentos, evoluções ou articulações vinculadas são preservados pelo sistema e não podem ser excluídos definitivamente.
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -1712,7 +1721,7 @@ const DiarioAEE = () => {
                 onClick={confirmDeletePlano}
                 data-testid="confirm-delete-plano"
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
-              >Excluir definitivamente</button>
+              >Excluir plano vazio</button>
             </div>
           </div>
         </div>
@@ -1747,7 +1756,7 @@ const DiarioAEE = () => {
                 />
                 <div className="flex-1">
                   <p className="font-medium text-sm text-gray-800">Para o mesmo estudante</p>
-                  <p className="text-xs text-gray-500">Cria uma cópia em rascunho do plano para o mesmo estudante (útil para revisões/novo período).</p>
+                  <p className="text-xs text-gray-500">Cria uma cópia Em elaboração do plano para o mesmo estudante (útil para revisões/novo período).</p>
                 </div>
               </label>
               <label className="flex items-start gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
@@ -1902,7 +1911,7 @@ const DiarioAEE = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">Novo Plano a partir de Modelo</h3>
-                <p className="text-sm text-gray-500 mt-1">Selecione um modelo validado e o estudante alvo. O plano será criado em rascunho.</p>
+                <p className="text-sm text-gray-500 mt-1">Selecione um modelo validado e o estudante alvo. O plano será criado Em elaboração.</p>
               </div>
             </div>
             <div className="space-y-3">

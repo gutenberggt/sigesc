@@ -1,12 +1,15 @@
 """
 Gerador de PDF do Plano AEE (Atendimento Educacional Especializado).
 
-Design simplificado e impressível:
+Design simplificado e imprimível:
   - Cabeçalho institucional (mesma estrutura do PDF de frequência)
   - Identificação do estudante + plano
-  - Seções: Elegibilidade, Articulação com Sala Comum, Linha de Base,
-    Cronograma, Barreiras, Objetivos, Recursos, Avaliação, Observações
+  - Seções: fundamentação pedagógica, articulação com sala comum, linha de base,
+    cronograma, barreiras, objetivos, recursos e avaliação
   - Suporte a arrays de BarreiraAEE / ObjetivoAEE / RecursoAcessibilidade
+
+AEE v2 P0 (21/08/2026): os valores técnicos legados permanecem inalterados;
+apenas os rótulos apresentados no documento foram adequados semanticamente.
 """
 import io
 import re
@@ -48,6 +51,13 @@ FREQUENCIA_REVISAO_LABELS = {
     'bimestral': 'Bimestral',
     'trimestral': 'Trimestral',
     'semestral': 'Semestral',
+}
+
+STATUS_PLANO_LABELS = {
+    'rascunho': 'Em elaboração',
+    'ativo': 'Vigente',
+    'revisao': 'Em revisão',
+    'encerrado': 'Encerrado',
 }
 
 DIAS_LABELS = {
@@ -173,8 +183,8 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
          Paragraph(str(student.get('enrollment_number') or '-'), value_style)],
         [Paragraph('Ano Letivo:', label),
          Paragraph(str(plano.get('academic_year') or '-'), value_style),
-         Paragraph('Status do Plano:', label),
-         Paragraph((plano.get('status') or '-').title(), value_style)],
+         Paragraph('Situação do Plano:', label),
+         Paragraph(_label(plano.get('status'), STATUS_PLANO_LABELS), value_style)],
         [Paragraph('Data Elaboração:', label),
          Paragraph(_br_dates(plano.get('data_elaboracao')), value_style),
          Paragraph('Período Vigência:', label),
@@ -191,12 +201,12 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
     ]))
     elements.append(ident_table)
 
-    # === 2. Elegibilidade ===
-    elements.append(Paragraph('2. ELEGIBILIDADE', section))
+    # === 2. Fundamentação pedagógica ===
+    elements.append(Paragraph('2. FUNDAMENTAÇÃO PEDAGÓGICA PARA O AEE', section))
     eleg = [
         [Paragraph('Público-alvo:', label),
          Paragraph(_label(plano.get('publico_alvo'), PUBLICO_ALVO_LABELS), value_style)],
-        [Paragraph('Critério:', label),
+        [Paragraph('Fundamentação:', label),
          Paragraph(plano.get('criterio_elegibilidade') or '-', value_style)],
     ]
     eleg_t = Table(eleg, colWidths=[3*cm, 15*cm])
