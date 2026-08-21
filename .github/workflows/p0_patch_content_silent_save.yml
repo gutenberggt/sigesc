@@ -1,0 +1,228 @@
+name: P0 patch content multicomponent silent save
+
+on:
+  push:
+    branches:
+      - fix/content-multicomponent-silent-save-p0
+    paths:
+      - .github/workflows/p0_patch_content_silent_save.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/content-multicomponent-silent-save-p0
+          fetch-depth: 0
+
+      - name: Apply deterministic P0 patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path('frontend/src/pages/LearningObjects.js')
+          text = page.read_text(encoding='utf-8')
+
+          start_marker = """      if (isMultiSelectMode) {
+                // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos
+          """
+          end_marker = """        showAlert('success', `Registros: ${actions.join(', ')}`);
+          """
+
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit('P0 patch: start marker not found')
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('P0 patch: end marker not found')
+          end += len(end_marker)
+
+          replacement = r"""      if (isMultiSelectMode) {
+                // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos.
+                // P0 21/08/2026: nenhuma falha de persistência pode ser descartada silenciosamente.
+                const dayRecords = records.filter(r => r.date === selectedDate);
+                const existingCourseIds = dayRecords.map(r => r.course_id);
+
+                // Cursos a CRIAR (selecionados mas sem registro)
+                const toCreate = selectedCourses.filter(id => !existingCourseIds.includes(id));
+                // Cursos a EXCLUIR (tinham registro mas foram desmarcados)
+                const toDelete = dayRecords.filter(r => !selectedCourses.includes(r.course_id));
+                // Cursos a ATUALIZAR (já existem e continuam selecionados)
+                const toUpdate = dayRecords.filter(r => selectedCourses.includes(r.course_id));
+
+                const operations = [
+                  ...toCreate.map(courseId => ({
+                    action: 'created',
+                    label: 'criar',
+                    courseId,
+                    run: () => learningObjectsAPI.create({
+                      class_id: selectedClass,
+                      course_id: courseId,
+                      date: selectedDate,
+                      academic_year: academicYear,
+                      ...formData
+                    })
+                  })),
+                  ...toUpdate.map(rec => ({
+                    action: 'updated',
+                    label: 'atualizar',
+                    courseId: rec.course_id || rec.component_id,
+                    run: () => learningObjectsAPI.update(rec.id, formData)
+                  })),
+                  ...toDelete.map(rec => ({
+                    action: 'deleted',
+                    label: 'excluir',
+                    courseId: rec.course_id || rec.component_id,
+                    run: () => learningObjectsAPI.delete(rec.id)
+                  }))
+                ];
+
+                const results = await Promise.allSettled(operations.map(operation => operation.run()));
+                const completed = { created: 0, updated: 0, deleted: 0 };
+                const failures = [];
+
+                results.forEach((result, index) => {
+                  const operation = operations[index];
+                  if (result.status === 'fulfilled') {
+                    completed[operation.action] += 1;
+                  } else {
+                    failures.push({ ...operation, error: result.reason });
+                  }
+                });
+
+                if (failures.length > 0) {
+                  // Algumas operações podem ter sido concluídas antes da falha. Recarregar
+                  // a fonte persistida impede que uma nova tentativa trate sucesso anterior
+                  // como criação inédita e produza falso conflito de duplicidade.
+                  await loadRecords();
+
+                  const successfulCount = completed.created + completed.updated + completed.deleted;
+                  const failureDetails = failures.slice(0, 3).map(({ courseId, label, error }) => {
+                    const courseName = courses.find(course => course.id === courseId)?.name || courseId || 'componente não identificado';
+                    const detail = error?.response?.data?.detail;
+                    const message = typeof detail === 'string'
+                      ? detail
+                      : detail?.message || error?.message || 'erro não identificado pelo servidor';
+                    const code = typeof detail === 'object' && detail?.code ? ` [${detail.code}]` : '';
+                    return `${courseName} (${label}): ${message}${code}`;
+                  });
+                  const omitted = failures.length > 3 ? `; e mais ${failures.length - 3} falha(s)` : '';
+                  const partial = successfulCount > 0
+                    ? `Salvamento parcial: ${successfulCount} operação(ões) concluída(s). `
+                    : '';
+                  const saveError = new Error(
+                    `${partial}Não foi possível concluir ${failures.length} operação(ões): ${failureDetails.join(' | ')}${omitted}`
+                  );
+                  saveError.code = 'CONTENT_MULTICOMPONENT_SAVE_FAILED';
+                  saveError.failures = failures;
+                  throw saveError;
+                }
+
+                const actions = [];
+                if (completed.created > 0) actions.push(`${completed.created} criado(s)`);
+                if (completed.updated > 0) actions.push(`${completed.updated} atualizado(s)`);
+                if (completed.deleted > 0) actions.push(`${completed.deleted} excluído(s)`);
+                showAlert('success', `Registros: ${actions.join(', ')}`);
+          """
+
+          text = text[:start] + replacement + text[end:]
+
+          old_catch = """    } catch (error) {
+                console.error('Erro ao salvar:', error);
+                showAlert('error', error.response?.data?.detail || 'Erro ao salvar registro');
+              } finally {
+          """
+          new_catch = """    } catch (error) {
+                console.error('Erro ao salvar:', error);
+                const detail = error?.response?.data?.detail;
+                const message = typeof detail === 'string'
+                  ? detail
+                  : detail?.message || error?.message || 'Erro ao salvar registro';
+                showAlert('error', message);
+              } finally {
+          """
+          if text.count(old_catch) != 1:
+              raise SystemExit(f'P0 patch: expected exactly one save catch, found {text.count(old_catch)}')
+          text = text.replace(old_catch, new_catch, 1)
+
+          page.write_text(text, encoding='utf-8')
+
+          test_path = Path('backend/tests/test_professor_content_parity_p0.py')
+          test_text = test_path.read_text(encoding='utf-8')
+          test_name = 'test_multicomponent_content_save_never_swallows_persistence_failures'
+          if test_name not in test_text:
+              test_text += r'''
+
+
+def test_multicomponent_content_save_never_swallows_persistence_failures():
+    source = (ROOT / "frontend/src/pages/LearningObjects.js").read_text(encoding="utf-8")
+    start = source.index("if (isMultiSelectMode) {", source.index("const handleSave = async ()"))
+    end = source.index("} else if (editingRecord)", start)
+    block = source[start:end]
+
+    assert ".catch(() => null)" not in block
+    assert "Promise.allSettled" in block
+    assert "CONTENT_MULTICOMPONENT_SAVE_FAILED" in block
+    assert "successfulCount" in block
+    assert "await loadRecords()" in block
+    assert "detail?.message || error?.message" in source
+'''
+              test_path.write_text(test_text, encoding='utf-8')
+
+          audit = Path('memory/audit/P0_CONTEUDO_MULTICOMPONENT_SILENT_SAVE_2026-08-21.md')
+          audit.write_text("""# P0 — falha silenciosa ao salvar conteúdo multicomponente
+
+Data: 2026-08-21
+Caso sentinela: professora Karina Soares de Oliveira — Escola 22 de Abril — turma 1º e 2º Ano.
+
+## Sintoma
+
+A professora informa que o registro de conteúdo simplesmente não é salvo. O fluxo afetado é o de Educação Infantil/Anos Iniciais, que sincroniza vários componentes no mesmo dia.
+
+## Defeito confirmado no frontend
+
+`LearningObjects.handleSave()` executava create/update/delete de cada componente com `.catch(() => null)`. Qualquer 403/409/422/500, erro de resolução de `assignment_id` ou falha de rede era descartado. Em seguida, a interface calculava a mensagem de sucesso pela quantidade de operações planejadas, não pelas operações efetivamente persistidas.
+
+Isso permitia falso sucesso e impedia conhecer a causa real do caso da professora.
+
+## Correção
+
+- substitui descartes silenciosos por `Promise.allSettled`;
+- contabiliza somente operações realmente concluídas;
+- associa cada falha ao componente e à ação (criar/atualizar/excluir);
+- preserva `detail.message` e `detail.code` quando o backend retorna erro estruturado;
+- em falha parcial, recarrega os registros persistidos antes de permitir nova tentativa;
+- mantém o formulário aberto e informa claramente que houve falha/resultado parcial;
+- somente fecha o formulário e limpa o rascunho quando todas as operações terminam com sucesso.
+
+## Invariantes
+
+1. Não altera `content_entries`, `learning_objects` ou vínculos no banco.
+2. Não relaxa RBAC nem autorização DVD.
+3. Não reutiliza assignment de um componente para outro.
+4. Não transforma histórico legado em gravável.
+5. A causa específica do caso Karina deve ser obtida pela nova mensagem real do backend após deploy/teste operacional.
+
+## Critério de aceite
+
+No teste de Karina, ao salvar conteúdo da turma 1º e 2º Ano:
+
+- se todos os vínculos estiverem corretos, o conteúdo deve persistir normalmente;
+- se houver inconsistência de vínculo/componente/data, o SIGESC deve informar o componente e o erro técnico estruturado, sem exibir falso sucesso.
+""", encoding='utf-8')
+
+          workflow = Path('.github/workflows/p0_patch_content_silent_save.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit patched sources
+        run: |
+          git config user.name "gutenberggt"
+          git config user.email "strike.guto@gmail.com"
+          git add -A
+          git commit -m "fix(content): expor falhas reais no salvamento multicomponente"
+          git push origin HEAD:fix/content-multicomponent-silent-save-p0
