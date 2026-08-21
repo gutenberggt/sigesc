@@ -38,6 +38,19 @@ AEE_STATUS_LABELS = {
     "encerrado": "Encerrado",
 }
 
+# Mantém exatamente o contrato de autorização do DELETE legado. O hardening P0
+# restringe o que pode ser apagado, mas não amplia quem pode executar a ação.
+AEE_PLAN_DELETE_ROLES = [
+    "super_admin",
+    "gerente",
+    "admin",
+    "admin_teste",
+    "coordenador",
+    "apoio_pedagogico",
+    "auxiliar_secretaria",
+    "secretario",
+]
+
 
 def aee_status_label(value: Optional[str]) -> str:
     """Rótulo pedagógico sem alterar o enum persistido no legado."""
@@ -306,6 +319,10 @@ def install_aee_v2_p0(base_router, db, audit_service, *, write_roles: Iterable[s
 
     @base_router.delete("/planos/{plano_id}")
     async def p0_delete_plan(plano_id: str, request: Request):
+        # Autorização vem antes de qualquer consulta ao documento/dependências,
+        # evitando vazamento de existência ou contagens a perfis sem permissão.
+        await AuthMiddleware.require_roles(AEE_PLAN_DELETE_ROLES)(request)
+
         existing = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
@@ -386,7 +403,7 @@ def install_aee_v2_p0(base_router, db, audit_service, *, write_roles: Iterable[s
 
         requested_id = current_user.get("id") if current_user.get("role") == "professor" else None
         requested_nome = (
-            current_user.get("full_name") or current_user.get("email")
+            (current_user.get("full_name") or current_user.get("email"))
             if current_user.get("role") == "professor"
             else None
         )
