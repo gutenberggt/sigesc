@@ -859,42 +859,89 @@ export const LearningObjects = () => {
       setSaving(true);
       
       if (isMultiSelectMode) {
-        // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos
+        // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos.
+        // P0 21/08/2026: nenhuma falha de persistência pode ser descartada silenciosamente.
         const dayRecords = records.filter(r => r.date === selectedDate);
         const existingCourseIds = dayRecords.map(r => r.course_id);
-        
+
         // Cursos a CRIAR (selecionados mas sem registro)
         const toCreate = selectedCourses.filter(id => !existingCourseIds.includes(id));
         // Cursos a EXCLUIR (tinham registro mas foram desmarcados)
         const toDelete = dayRecords.filter(r => !selectedCourses.includes(r.course_id));
         // Cursos a ATUALIZAR (já existem e continuam selecionados)
         const toUpdate = dayRecords.filter(r => selectedCourses.includes(r.course_id));
-        
-        // Criar novos
-        for (const courseId of toCreate) {
-          await learningObjectsAPI.create({
-            class_id: selectedClass,
-            course_id: courseId,
-            date: selectedDate,
-            academic_year: academicYear,
-            ...formData
-          }).catch(() => null);
+
+        const operations = [
+          ...toCreate.map(courseId => ({
+            action: 'created',
+            label: 'criar',
+            courseId,
+            run: () => learningObjectsAPI.create({
+              class_id: selectedClass,
+              course_id: courseId,
+              date: selectedDate,
+              academic_year: academicYear,
+              ...formData
+            })
+          })),
+          ...toUpdate.map(rec => ({
+            action: 'updated',
+            label: 'atualizar',
+            courseId: rec.course_id || rec.component_id,
+            run: () => learningObjectsAPI.update(rec.id, formData)
+          })),
+          ...toDelete.map(rec => ({
+            action: 'deleted',
+            label: 'excluir',
+            courseId: rec.course_id || rec.component_id,
+            run: () => learningObjectsAPI.delete(rec.id)
+          }))
+        ];
+
+        const results = await Promise.allSettled(operations.map(operation => operation.run()));
+        const completed = { created: 0, updated: 0, deleted: 0 };
+        const failures = [];
+
+        results.forEach((result, index) => {
+          const operation = operations[index];
+          if (result.status === 'fulfilled') {
+            completed[operation.action] += 1;
+          } else {
+            failures.push({ ...operation, error: result.reason });
+          }
+        });
+
+        if (failures.length > 0) {
+          // Uma parte pode ter sido persistida antes da falha. Recarregar evita
+          // que a nova tentativa considere sucesso anterior como criação inédita.
+          await loadRecords();
+
+          const successfulCount = completed.created + completed.updated + completed.deleted;
+          const failureDetails = failures.slice(0, 3).map(({ courseId, label, error }) => {
+            const courseName = courses.find(course => course.id === courseId)?.name || courseId || 'componente não identificado';
+            const detail = error?.response?.data?.detail;
+            const message = typeof detail === 'string'
+              ? detail
+              : detail?.message || error?.message || 'erro não identificado pelo servidor';
+            const code = typeof detail === 'object' && detail?.code ? ` [${detail.code}]` : '';
+            return `${courseName} (${label}): ${message}${code}`;
+          });
+          const omitted = failures.length > 3 ? `; e mais ${failures.length - 3} falha(s)` : '';
+          const partial = successfulCount > 0
+            ? `Salvamento parcial: ${successfulCount} operação(ões) concluída(s). `
+            : '';
+          const saveError = new Error(
+            `${partial}Não foi possível concluir ${failures.length} operação(ões): ${failureDetails.join(' | ')}${omitted}`
+          );
+          saveError.code = 'CONTENT_MULTICOMPONENT_SAVE_FAILED';
+          saveError.failures = failures;
+          throw saveError;
         }
-        
-        // Atualizar existentes
-        for (const rec of toUpdate) {
-          await learningObjectsAPI.update(rec.id, formData).catch(() => null);
-        }
-        
-        // Excluir removidos
-        for (const rec of toDelete) {
-          await learningObjectsAPI.delete(rec.id).catch(() => null);
-        }
-        
+
         const actions = [];
-        if (toCreate.length > 0) actions.push(`${toCreate.length} criado(s)`);
-        if (toUpdate.length > 0) actions.push(`${toUpdate.length} atualizado(s)`);
-        if (toDelete.length > 0) actions.push(`${toDelete.length} excluído(s)`);
+        if (completed.created > 0) actions.push(`${completed.created} criado(s)`);
+        if (completed.updated > 0) actions.push(`${completed.updated} atualizado(s)`);
+        if (completed.deleted > 0) actions.push(`${completed.deleted} excluído(s)`);
         showAlert('success', `Registros: ${actions.join(', ')}`);
       } else if (editingRecord) {
         // Anos Finais / EJA: atualizar registro individual
@@ -922,7 +969,11 @@ export const LearningObjects = () => {
       loadRecords();
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      showAlert('error', error.response?.data?.detail || 'Erro ao salvar registro');
+      const detail = error?.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : detail?.message || error?.message || 'Erro ao salvar registro';
+      showAlert('error', message);
     } finally {
       setSaving(false);
     }
