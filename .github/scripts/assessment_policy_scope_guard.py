@@ -3,7 +3,7 @@
 Cada sprint possui manifesto explícito. O guard falha se a PR alterar arquivos
 fora do domínio/entregáveis aprovados para aquela fase. Isso evita ampliar
 silenciosamente o escopo entre Foundation, Resolver, Calculator, Outcome,
-Shadow, Shadow Runner, Assisted Config e fases futuras.
+Shadow, Shadow Runner, Assisted Config, Operational Binding e fases futuras.
 """
 
 from __future__ import annotations
@@ -88,6 +88,14 @@ ASSISTED_CONFIG_EXACT = COMMON_EXACT | {
     "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_007_ASSISTED_CONFIG.md",
 }
 
+OPERATIONAL_BINDING_EXACT = COMMON_EXACT | {
+    ".github/workflows/assessment-policy-operational-binding.yml",
+    "backend/assessment_policy/operational_binding.py",
+    "backend/tests/test_assessment_policy_operational_binding_v1.py",
+    "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_008_F0_OPERATIONAL_READINESS_ARCHITECTURE.md",
+    "memory/audit/ASSESSMENT_POLICY_V1_SPRINT_008_F1_OPERATIONAL_BINDING.md",
+}
+
 PREFIX_BY_PHASE = {
     # Sprints históricas nasceram com criação ampla do pacote. Preservamos seus
     # manifestos para eventual manutenção da branch, sem ampliar as fases novas.
@@ -98,6 +106,7 @@ PREFIX_BY_PHASE = {
     "shadow": (),
     "shadow-runner": (),
     "assisted-config": (),
+    "operational-binding": (),
     "unknown": (),
 }
 
@@ -134,6 +143,9 @@ def _manifest() -> tuple[str, set[str], tuple[str, ...]]:
         or os.environ.get("GITHUB_REF_NAME", "")
     ).strip()
 
+    if "assessment-policy-operational-binding" in head_ref:
+        phase = "operational-binding"
+        return phase, OPERATIONAL_BINDING_EXACT, PREFIX_BY_PHASE[phase]
     if "assessment-policy-assisted-config" in head_ref:
         phase = "assisted-config"
         return phase, ASSISTED_CONFIG_EXACT, PREFIX_BY_PHASE[phase]

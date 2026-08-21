@@ -1,0 +1,102 @@
+name: Assessment Policy v1 - Operational Binding Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/assessment_policy/operational_binding.py'
+      - 'backend/tests/test_assessment_policy_operational_binding_v1.py'
+      - 'memory/audit/ASSESSMENT_POLICY_V1_SPRINT_008_F0_OPERATIONAL_READINESS_ARCHITECTURE.md'
+      - 'memory/audit/ASSESSMENT_POLICY_V1_SPRINT_008_F1_OPERATIONAL_BINDING.md'
+      - '.github/scripts/assessment_policy_scope_guard.py'
+      - '.github/workflows/assessment-policy-operational-binding.yml'
+
+jobs:
+  scope-creep-guard:
+    name: Assessment Policy - Operational Binding Scope Guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Guard Operational Binding scope
+        run: python .github/scripts/assessment_policy_scope_guard.py
+
+  operational-binding-tests:
+    name: Assessment Policy - Operational Binding Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install isolated test dependencies
+        run: pip install 'pydantic>=2,<3' pytest pytest-asyncio fastapi
+
+      - name: Compile Assessment Policy package
+        run: python -m compileall -q backend/assessment_policy
+
+      - name: Run complete Assessment Policy regression through Operational Binding
+        run: |
+          PYTHONPATH=backend pytest -q --noconftest \
+            backend/tests/test_assessment_policy_foundation_v1.py \
+            backend/tests/test_assessment_policy_registry_v1.py \
+            backend/tests/test_assessment_policy_series_resolver_v1.py \
+            backend/tests/test_assessment_policy_resolver_v1.py \
+            backend/tests/test_assessment_policy_conflict_checker_v1.py \
+            backend/tests/test_assessment_policy_calculator_v1.py \
+            backend/tests/test_assessment_policy_recovery_v1.py \
+            backend/tests/test_assessment_policy_outcome_v1.py \
+            backend/tests/test_assessment_policy_shadow_v1.py \
+            backend/tests/test_assessment_policy_shadow_runner_v1.py \
+            backend/tests/test_assessment_policy_assisted_config_v1.py \
+            backend/tests/test_assessment_policy_pilot_runner_v1.py \
+            backend/tests/test_assessment_policy_operational_binding_v1.py
+
+      - name: Guard pure-contract boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path(
+              'backend/assessment_policy/operational_binding.py'
+          ).read_text(encoding='utf-8')
+
+          forbidden = [
+              'from motor',
+              'import motor',
+              'pymongo',
+              'fastapi',
+              'APIRouter',
+              'insert_one',
+              'update_one',
+              'replace_one',
+              'delete_one',
+              'calculate_and_update_grade',
+              'grade_calculator',
+              '@router.',
+              '/publish',
+              '/cutover',
+          ]
+          found = [item for item in forbidden if item in source]
+          if found:
+              raise SystemExit(
+                  f'Forbidden Operational Binding runtime/IO markers: {found}'
+              )
+
+          print('ASSESSMENT_POLICY_OPERATIONAL_BINDING_PURE=PASS')
+          PY
