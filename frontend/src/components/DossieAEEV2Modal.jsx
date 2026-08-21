@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   X, RefreshCw, Save, CheckCircle2, AlertTriangle, History,
   ClipboardList, BookOpen, Target, CalendarDays, Users, MessageSquare,
@@ -229,6 +229,7 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const initialLoadKeyRef = useRef(null);
 
   const baseUrl = plano?.id ? `${API_URL}/api/aee/planos/${plano.id}/dossie-v2` : null;
   const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
@@ -297,11 +298,18 @@ export default function DossieAEEV2Modal({ show, onClose, plano, token, canEdit 
   }, [show, baseUrl, authHeaders, plano?.id, requestJson, applyState]);
 
   useEffect(() => {
-    if (show) {
-      setActiveTab('overview');
-      loadState();
+    if (!show || !plano?.id) {
+      initialLoadKeyRef.current = null;
+      return;
     }
-  }, [show, loadState]);
+
+    const openKey = String(plano.id);
+    if (initialLoadKeyRef.current === openKey) return;
+
+    initialLoadKeyRef.current = openKey;
+    setActiveTab('overview');
+    loadState();
+  }, [show, plano?.id, loadState]);
 
   if (!show || !plano) return null;
 
