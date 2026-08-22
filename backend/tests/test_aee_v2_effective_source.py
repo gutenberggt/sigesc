@@ -1,5 +1,6 @@
 """Fase 6.1A — regressão do resolver central read-only da fonte efetiva."""
 
+import asyncio
 from copy import deepcopy
 
 import pytest
@@ -84,11 +85,10 @@ def _active_snapshot():
     )
 
 
-@pytest.mark.asyncio
-async def test_resolver_without_v2_head_uses_legacy_projection():
+def test_resolver_without_v2_head_uses_legacy_projection():
     db = FakeDB(plans=[LEGACY_PLAN])
 
-    resolved = await resolve_effective_dossier(db, LEGACY_PLAN["id"])
+    resolved = asyncio.run(resolve_effective_dossier(db, LEGACY_PLAN["id"]))
 
     assert resolved.source == "legacy"
     assert resolved.active_snapshot_id is None
@@ -99,14 +99,13 @@ async def test_resolver_without_v2_head_uses_legacy_projection():
     assert resolved.dossier.provenance.legacy_plano_id == LEGACY_PLAN["id"]
 
 
-@pytest.mark.asyncio
-async def test_resolver_with_working_only_keeps_legacy_as_effective_source():
+def test_resolver_with_working_only_keeps_legacy_as_effective_source():
     db = FakeDB(
         plans=[LEGACY_PLAN],
         heads=[_head(active_snapshot_id=None, working_snapshot_id="working-1")],
     )
 
-    resolved = await resolve_effective_dossier(db, LEGACY_PLAN["id"])
+    resolved = asyncio.run(resolve_effective_dossier(db, LEGACY_PLAN["id"]))
 
     assert resolved.source == "legacy"
     assert resolved.active_snapshot_id is None
@@ -115,8 +114,7 @@ async def test_resolver_with_working_only_keeps_legacy_as_effective_source():
     assert db.collections[AEEV2Repository.SNAPSHOTS].find_one_calls == []
 
 
-@pytest.mark.asyncio
-async def test_resolver_with_valid_active_snapshot_uses_sidecar_active():
+def test_resolver_with_valid_active_snapshot_uses_sidecar_active():
     snapshot = _active_snapshot()
     db = FakeDB(
         plans=[LEGACY_PLAN],
@@ -124,7 +122,7 @@ async def test_resolver_with_valid_active_snapshot_uses_sidecar_active():
         snapshots=[snapshot],
     )
 
-    resolved = await resolve_effective_dossier(db, LEGACY_PLAN["id"])
+    resolved = asyncio.run(resolve_effective_dossier(db, LEGACY_PLAN["id"]))
 
     assert resolved.source == "sidecar_active"
     assert resolved.active_snapshot_id == snapshot["id"]
@@ -135,19 +133,17 @@ async def test_resolver_with_valid_active_snapshot_uses_sidecar_active():
     assert resolved.dossier.study_case.demanda_inicial_contexto == "Conteúdo do V2 vigente"
 
 
-@pytest.mark.asyncio
-async def test_resolver_blocks_silent_legacy_fallback_when_active_snapshot_is_missing():
+def test_resolver_blocks_silent_legacy_fallback_when_active_snapshot_is_missing():
     db = FakeDB(
         plans=[LEGACY_PLAN],
         heads=[_head(active_snapshot_id="missing-active", working_snapshot_id=None)],
     )
 
     with pytest.raises(AEEV2IntegrityError, match="fallback legado foi bloqueado"):
-        await resolve_effective_dossier(db, LEGACY_PLAN["id"])
+        asyncio.run(resolve_effective_dossier(db, LEGACY_PLAN["id"]))
 
 
-@pytest.mark.asyncio
-async def test_resolver_blocks_corrupted_active_snapshot():
+def test_resolver_blocks_corrupted_active_snapshot():
     snapshot = _active_snapshot()
     corrupted = deepcopy(snapshot)
     corrupted["dossier"]["study_case"]["demanda_inicial_contexto"] = "violação do hash"
@@ -159,23 +155,21 @@ async def test_resolver_blocks_corrupted_active_snapshot():
     )
 
     with pytest.raises(AEEV2IntegrityError, match="Falha de integridade no snapshot"):
-        await resolve_effective_dossier(db, LEGACY_PLAN["id"])
+        asyncio.run(resolve_effective_dossier(db, LEGACY_PLAN["id"]))
 
 
-@pytest.mark.asyncio
-async def test_resolver_rejects_orphan_v2_head_without_legacy_anchor():
+def test_resolver_rejects_orphan_v2_head_without_legacy_anchor():
     db = FakeDB(
         plans=[],
         heads=[_head(active_snapshot_id=None, working_snapshot_id="working-1")],
     )
 
     with pytest.raises(AEEV2IntegrityError, match="sem o Plano AEE legado"):
-        await resolve_effective_dossier(db, LEGACY_PLAN["id"])
+        asyncio.run(resolve_effective_dossier(db, LEGACY_PLAN["id"]))
 
 
-@pytest.mark.asyncio
-async def test_resolver_reports_missing_plan_when_no_legacy_and_no_head():
+def test_resolver_reports_missing_plan_when_no_legacy_and_no_head():
     db = FakeDB()
 
     with pytest.raises(AEEV2NotFound, match="Plano AEE legado não encontrado"):
-        await resolve_effective_dossier(db, "legacy-inexistente")
+        asyncio.run(resolve_effective_dossier(db, "legacy-inexistente"))
