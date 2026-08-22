@@ -2,7 +2,8 @@
 
 Este serviço é estritamente READ-ONLY. Ele nunca migra, copia, atualiza ou exclui
 ``learning_objects``. ``content_entries`` continua sendo a fonte canônica para
-escritas DVD e para o período iniciado em ``assignment.valid_from``.
+novas escritas, inclusive para backfill de datas anteriores ao ``valid_from`` do
+assignment quando a propriedade pedagógica foi autorizada pelo motor canônico.
 """
 
 from __future__ import annotations
@@ -36,10 +37,11 @@ def _legacy_public(record: Mapping[str, Any]) -> dict:
     item["source"] = "learning_objects"
     item["legacy"] = True
     item["read_only"] = True
+    item["historical_backfill"] = False
     return item
 
 
-def _canonical_public(record: Mapping[str, Any]) -> dict:
+def _canonical_public(record: Mapping[str, Any], *, valid_from: Optional[str] = None) -> dict:
     item = dict(record)
     item.pop("_id", None)
     item["course_id"] = item.get("course_id") or item.get("component_id")
@@ -47,6 +49,11 @@ def _canonical_public(record: Mapping[str, Any]) -> dict:
     item.setdefault("source", "content_entries")
     item.setdefault("legacy", False)
     item.setdefault("read_only", False)
+    item["historical_backfill"] = bool(
+        valid_from
+        and item.get("date")
+        and str(item.get("date")) < str(valid_from)
+    )
     return item
 
 
@@ -62,6 +69,16 @@ def _sort_items(items: list[dict]) -> list[dict]:
     )
     items.sort(key=lambda item: str(item.get("date") or ""), reverse=True)
     return items
+
+
+def _semantic_key(item: Mapping[str, Any]) -> tuple[str, str, str, str]:
+    """Chave defensiva para não duplicar legado quando já existe backfill canônico."""
+    return (
+        str(item.get("class_id") or ""),
+        str(item.get("component_id") or item.get("course_id") or ""),
+        str(item.get("teacher_id") or item.get("recorded_by") or ""),
+        str(item.get("date") or ""),
+    )
 
 
 async def list_assignment_content_history(
@@ -80,9 +97,11 @@ async def list_assignment_content_history(
 
     Regras:
     - autoriza o vínculo vivo para VIEW usando a política central DVD;
-    - ``date < valid_from`` pode vir somente de ``learning_objects``;
-    - ``date >= valid_from`` pode vir somente de ``content_entries``;
-    - legado é filtrado pelo ``recorded_by`` histórico do proprietário;
+    - ``content_entries`` do próprio assignment são visíveis em qualquer data;
+    - entry anterior a ``valid_from`` é classificada como ``historical_backfill``;
+    - ``learning_objects`` anterior ao cutover continua visível e read-only;
+    - se houver backfill canônico para a mesma turma/componente/professor/data,
+      ele prevalece sobre o registro legado equivalente;
     - nenhuma operação de escrita é executada.
     """
     try:
@@ -123,33 +142,32 @@ async def list_assignment_content_history(
 
     resolved_component_id = component_id or assignment_component_id
 
-    # Fechamento temporal explícito: conteúdo canônico nunca é projetado para o
-    # período anterior ao início do vínculo, mesmo que exista dado inconsistente.
-    canonical_date_allowed = not date or str(date) >= str(valid_from)
-    canonical_items: list[dict] = []
-    if canonical_date_allowed:
-        canonical_query: dict[str, Any] = {"assignment_id": assignment_id}
-        if not include_deleted:
-            canonical_query["deleted"] = False
-        if resolved_class_id:
-            canonical_query["class_id"] = resolved_class_id
-        if resolved_component_id:
-            canonical_query["component_id"] = resolved_component_id
-        if date:
-            canonical_query["date"] = date
-        else:
-            canonical_query["date"] = {"$gte": valid_from}
+    # O assignment_id + snapshot persistido é a prova de propriedade histórica.
+    # Por isso um content_entry canônico criado como backfill antes de valid_from
+    # continua visível sem retroagir a validade do vínculo vivo.
+    canonical_query: dict[str, Any] = {"assignment_id": assignment_id}
+    if not include_deleted:
+        canonical_query["deleted"] = False
+    if resolved_class_id:
+        canonical_query["class_id"] = resolved_class_id
+    if resolved_component_id:
+        canonical_query["component_id"] = resolved_component_id
+    if date:
+        canonical_query["date"] = date
 
-        canonical_candidates = await db.content_entries.find(
-            canonical_query, {"_id": 0}
-        ).to_list(2000)
-        canonical_visible = await filter_visible_content_entries(
-            db,
-            current_user,
-            canonical_candidates,
-            active_mantenedora_id=active_mantenedora_id,
-        )
-        canonical_items = [_canonical_public(item) for item in canonical_visible]
+    canonical_candidates = await db.content_entries.find(
+        canonical_query, {"_id": 0}
+    ).to_list(2000)
+    canonical_visible = await filter_visible_content_entries(
+        db,
+        current_user,
+        canonical_candidates,
+        active_mantenedora_id=active_mantenedora_id,
+    )
+    canonical_items = [
+        _canonical_public(item, valid_from=valid_from)
+        for item in canonical_visible
+    ]
 
     legacy_items: list[dict] = []
     legacy_date_allowed = not date or str(date) < str(valid_from)
@@ -170,8 +188,20 @@ async def list_assignment_content_history(
         ).to_list(5000)
         legacy_items = [_legacy_public(item) for item in legacy_candidates]
 
-    # Deduplicação somente defensiva por origem+id. Não cruza IDs nem tenta
-    # considerar um legado como versão de um content_entry.
+    # Backfill canônico prevalece sobre o legado equivalente. Isso evita duas
+    # linhas para a mesma data quando um lançamento histórico foi reconstruído
+    # pelo motor novo.
+    canonical_historical_keys = {
+        _semantic_key(item)
+        for item in canonical_items
+        if item.get("historical_backfill") is True
+    }
+    legacy_items = [
+        item for item in legacy_items
+        if _semantic_key(item) not in canonical_historical_keys
+    ]
+
+    # Deduplicação por origem+id continua como proteção adicional.
     seen: set[tuple[str, str]] = set()
     merged: list[dict] = []
     for item in [*canonical_items, *legacy_items]:
@@ -188,5 +218,6 @@ async def list_assignment_content_history(
             "assignment_id": assignment_id,
             "valid_from": valid_from,
             "legacy_read_only": True,
+            "historical_backfill_enabled": True,
         },
     }
