@@ -100,7 +100,7 @@ def authorized(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_merge_preserva_legado_e_canonico_na_fronteira(authorized):
+async def test_merge_preserva_legado_e_canonico_com_backfill_na_fronteira(authorized):
     db = FakeDb(
         canonical=[
             _canonical("canonical-before", "2026-08-17"),
@@ -123,13 +123,18 @@ async def test_merge_preserva_legado_e_canonico_na_fronteira(authorized):
     )
 
     ids = [item["id"] for item in result["items"]]
-    assert "legacy-before" in ids
+    assert "canonical-before" in ids
+    assert "legacy-before" not in ids  # backfill canônico prevalece
     assert "legacy-boundary" not in ids
     assert "legacy-after" not in ids
-    assert "canonical-before" not in ids
     assert "canonical-boundary" in ids
     assert "canonical-after" in ids
+
+    by_id = {item["id"]: item for item in result["items"]}
+    assert by_id["canonical-before"]["historical_backfill"] is True
+    assert by_id["canonical-boundary"]["historical_backfill"] is False
     assert result["history_bridge"]["valid_from"] == "2026-08-18"
+    assert result["history_bridge"]["historical_backfill_enabled"] is True
 
 
 @pytest.mark.asyncio
@@ -147,17 +152,33 @@ async def test_legado_e_explicitamente_read_only_sem_assignment_retroativo(autho
     assert item["source"] == "learning_objects"
     assert item["legacy"] is True
     assert item["read_only"] is True
+    assert item["historical_backfill"] is False
     assert item["assignment_id"] is None
     assert item["teacher_id"] == "teacher-1"
     assert item["recorded_by"] == "teacher-1"
 
 
 @pytest.mark.asyncio
-async def test_data_exata_anterior_retorna_somente_legado(authorized):
+async def test_data_exata_anterior_prefere_backfill_canonico(authorized):
     db = FakeDb(
         canonical=[_canonical(date="2026-08-17")],
         legacy=[_legacy(date="2026-08-17")],
     )
+    result = await bridge.list_assignment_content_history(
+        db,
+        {"id": "teacher-1"},
+        assignment_id="assignment-1",
+        class_id="class-1",
+        component_id="math",
+        date="2026-08-17",
+    )
+    assert [item["id"] for item in result["items"]] == ["canonical-1"]
+    assert result["items"][0]["historical_backfill"] is True
+
+
+@pytest.mark.asyncio
+async def test_data_exata_anterior_sem_backfill_retorna_legado(authorized):
+    db = FakeDb(legacy=[_legacy(date="2026-08-17")])
     result = await bridge.list_assignment_content_history(
         db,
         {"id": "teacher-1"},
@@ -184,6 +205,7 @@ async def test_data_exata_no_cutover_retorna_somente_canonico(authorized):
         date="2026-08-18",
     )
     assert [item["id"] for item in result["items"]] == ["canonical-1"]
+    assert result["items"][0]["historical_backfill"] is False
 
 
 @pytest.mark.asyncio
