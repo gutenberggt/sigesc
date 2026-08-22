@@ -10,12 +10,12 @@ permissions:
 
 jobs:
   apply:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/global-local-time-contract-p0'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/global-local-time-contract-p0-v2'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/global-local-time-contract-p0
+          ref: fix/global-local-time-contract-p0-v2
           fetch-depth: 0
 
       - name: Run patch source from one-shot workflow
@@ -59,6 +59,7 @@ jobs:
         run: |
           git rm .github/workflows/one-shot-global-local-time-p0.yml
           git rm .github/workflows/one-shot-global-local-time-pr.yml
+          git rm -f .github/workflows/one-shot-global-local-time-push2.yml
 
       - name: Validate syntax and focused tests
         run: |
@@ -72,4 +73,4 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m "fix(time): aplicar fuso local global em UI auditoria e documentos"
-          git push origin HEAD:fix/global-local-time-contract-p0
+          git push origin HEAD:fix/global-local-time-contract-p0-v2
