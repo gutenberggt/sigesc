@@ -341,4 +341,4 @@ def test_route_and_generator_cutover_survive_fastapi_include_router():
 
     # ContextVar foi resetado: chamada direta seguinte volta ao legado.
     result_after = generator_module.generate_plano_aee_pdf(legacy_plan(), {}, {}, {})
-    assert result_after == "Fundamentação legado"
+    assert result_after == {"source_value": "Fundamentação legado"}
