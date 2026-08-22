@@ -45,7 +45,21 @@ def _canonical_pdf_class_info(class_info: dict, context) -> dict:
 
 
 def install_attendance_pdf_dvd_parity(base_router, db, sandbox_db=None):
-    """Instala a rota de PDF DVD com metadados documentais canônicos."""
+    """Instala backfill P0 + rota de PDF DVD com metadados canônicos."""
+    # Este instalador já é chamado depois da Fase 4 e da paridade das abas. Usá-lo
+    # como ponto de composição evita alterar o agregador global de routers e mantém
+    # a exceção histórica estritamente dentro do domínio da Frequência DVD.
+    from routers.attendance_historical_backfill_dvd import (
+        install_attendance_historical_backfill_dvd,
+    )
+
+    base_router = install_attendance_historical_backfill_dvd(
+        base_router,
+        db,
+        audit_service=None,
+        sandbox_db=sandbox_db,
+    )
+
     if getattr(base_router, "_dvd_pdf_document_parity_installed", False):
         return base_router
 
