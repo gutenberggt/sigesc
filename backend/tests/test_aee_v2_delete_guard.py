@@ -3,7 +3,6 @@
 import asyncio
 
 from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.routing import APIRoute
 
 from aee_v2.delete_guard import (
     ensure_legacy_plan_delete_allowed,
@@ -37,20 +36,26 @@ async def allow_delete(_request):
     return None
 
 
-def _delete_route(routes, path="/aee/planos/{plano_id}"):
+def _route_by_method(routes, method, path=None):
+    method = method.upper()
     return next(
         route
         for route in routes
-        if isinstance(route, APIRoute)
-        and route.path == path
-        and "DELETE" in (route.methods or set())
+        if (path is None or getattr(route, "path", None) == path)
+        and method in (getattr(route, "methods", set()) or set())
     )
 
 
+def _delete_route(routes, path="/aee/planos/{plano_id}"):
+    return _route_by_method(routes, "DELETE", path)
+
+
 def _guard_calls(route):
+    dependant = getattr(route, "dependant", None)
+    dependencies = getattr(dependant, "dependencies", []) or []
     return [
         dependency.call
-        for dependency in route.dependant.dependencies
+        for dependency in dependencies
         if getattr(dependency.call, "__name__", None) == "protect_legacy_anchor"
     ]
 
@@ -101,11 +106,7 @@ def test_delete_guard_installer_targets_only_legacy_delete_and_is_idempotent():
         return {"id": plano_id}
 
     delete_route = _delete_route(router.routes)
-    read_route = next(
-        route
-        for route in router.routes
-        if isinstance(route, APIRoute) and "GET" in (route.methods or set())
-    )
+    read_route = _route_by_method(router.routes, "GET")
 
     delete_dependant_before = len(delete_route.dependant.dependencies)
     delete_declared_before = len(delete_route.dependencies)
@@ -160,7 +161,7 @@ def test_delete_guard_survives_fastapi_include_router():
         path="/api/aee/planos/{plano_id}",
     )
 
-    assert app_delete_route.name == "p0_delete_plan"
+    assert getattr(app_delete_route, "name", None) == "p0_delete_plan"
     assert len(_guard_calls(app_delete_route)) == 1
 
     async def scenario():
