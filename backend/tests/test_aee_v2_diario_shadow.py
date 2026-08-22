@@ -6,11 +6,11 @@ from types import SimpleNamespace
 
 from fastapi import APIRouter, FastAPI, Request
 
-from aee_v2.repository import AEEV2IntegrityError
-from routers.aee_v2_diario_shadow import (
+from aee_v2.diario_shadow import (
     enrich_diario_shadow,
     install_aee_v2_diario_shadow,
 )
+from aee_v2.repository import AEEV2IntegrityError
 
 
 class FakeSchedule:
