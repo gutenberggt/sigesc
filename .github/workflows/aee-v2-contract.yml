@@ -27,7 +27,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install isolated dependencies
-        run: pip install pytest pydantic pymongo fastapi
+        # Mantém o comportamento de roteamento idêntico ao backend de produção.
+        # FastAPI >= 0.137 alterou estruturalmente include_router() e não reproduz
+        # a clonagem de APIRoute usada pelo SIGESC enquanto estiver em 0.110.1.
+        run: pip install pytest pydantic pymongo 'fastapi==0.110.1'
 
       - name: Compile canonical AEE v2 package
         run: python -m compileall -q aee_v2 routers/aee_v2_dossier.py routers/aee_v2_persistence.py routers/aee_v2_delete_guard.py

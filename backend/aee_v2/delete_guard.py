@@ -54,7 +54,14 @@ def install_aee_v2_delete_guard(
     *,
     authorize_delete: AuthorizeDelete,
 ):
-    """Anexa o guard apenas ao DELETE legado de ``/aee/planos/{plano_id}``."""
+    """Anexa o guard apenas ao DELETE legado de ``/aee/planos/{plano_id}``.
+
+    O FastAPI recria APIRoutes quando ``app.include_router()`` é chamado. Por
+    isso a dependência precisa existir em ``route.dependencies`` (fonte usada
+    durante a clonagem) e em ``route.dependant.dependencies`` (router já
+    configurado). Registrar apenas no ``dependant`` protege o APIRouter corrente,
+    mas a proteção desaparece na rota final da aplicação.
+    """
 
     if getattr(base_router, "_aee_v2_delete_guard_installed", False):
         return base_router
@@ -76,6 +83,12 @@ def install_aee_v2_delete_guard(
         )
 
     dependency = Depends(_make_delete_guard(db, authorize_delete))
+
+    # Persistência estrutural: FastAPI usa ``route.dependencies`` quando copia
+    # esta rota do APIRouter para o FastAPI principal via include_router().
+    target.dependencies.insert(0, dependency)
+
+    # Efeito imediato no APIRouter já configurado.
     target.dependant.dependencies.insert(
         0,
         get_parameterless_sub_dependant(
