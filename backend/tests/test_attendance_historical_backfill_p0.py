@@ -240,10 +240,14 @@ def test_legado_editado_nao_recebe_assignment_id_retroativo():
     assert "Deliberadamente NÃO adiciona assignment_id" in block
 
 
-def test_instalacao_ocorre_depois_da_paridade_das_abas_e_antes_do_pdf():
-    source = Path("routers/__init__.py").read_text(encoding="utf-8")
-    phase4 = source.index("install_attendance_dvd_adapter")
-    tabs = source.index("install_attendance_tabs_dvd_adapter")
-    historical = source.index("install_attendance_historical_backfill_dvd")
-    pdf = source.index("install_attendance_pdf_dvd_parity")
-    assert phase4 < tabs < historical < pdf
+def test_instalacao_fica_no_dominio_da_frequencia_dvd():
+    pdf_source = Path("routers/attendance_pdf_dvd_parity.py").read_text(encoding="utf-8")
+    historical_call = pdf_source.index("install_attendance_historical_backfill_dvd(")
+    pdf_guard = pdf_source.index("_dvd_pdf_document_parity_installed")
+    assert historical_call < pdf_guard
+    assert "audit_service=None" in pdf_source
+
+    # O agregador global deve permanecer idêntico ao contrato anterior. Isso
+    # também evita disparar gates de domínios não relacionados (Assessment Policy).
+    init_source = Path("routers/__init__.py").read_text(encoding="utf-8")
+    assert "attendance_historical_backfill_dvd" not in init_source
