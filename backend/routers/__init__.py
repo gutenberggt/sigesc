@@ -56,8 +56,9 @@ from .assessment_policy_admin import install_assessment_policy_admin_setup
 # Fase 6.2A anexa metadados da fonte efetiva ao Diário em Shadow Mode;
 # Fase 6.2B troca somente a grade semanal pela agenda efetiva, preservando
 # grade_horarios_legacy e bloqueando cutover parcial quando o shadow falhar;
-# Fase 6.3A observa o PDF legado em paralelo e registra paridade/divergência
-# com a agenda efetiva, sem alterar bytes, layout ou resposta HTTP do PDF.
+# Fase 6.3A observa o PDF legado em paralelo e registra paridade/divergência;
+# Fase 6.3B usa a agenda efetiva no PDF apenas sob paridade total, de modo
+# atômico e fail-closed, preservando o gerador ReportLab e o router legado.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
 from .aee_v2_dossier import install_aee_v2_dossier_setup
@@ -66,6 +67,7 @@ from .aee_v2_delete_guard import install_aee_v2_delete_guard_setup
 from aee_v2.diario_shadow import install_aee_v2_diario_shadow_setup
 from aee_v2.diario_schedule_cutover import install_aee_v2_diario_schedule_cutover_setup
 from aee_v2.pdf_shadow import install_aee_v2_pdf_shadow_setup
+from aee_v2.pdf_schedule_cutover import install_aee_v2_pdf_schedule_cutover_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -82,6 +84,7 @@ install_aee_v2_delete_guard_setup(_aee_mod)
 install_aee_v2_diario_shadow_setup(_aee_mod)
 install_aee_v2_diario_schedule_cutover_setup(_aee_mod)
 install_aee_v2_pdf_shadow_setup(_aee_mod)
+install_aee_v2_pdf_schedule_cutover_setup(_aee_mod)
 
 
 def setup_grades_router(
