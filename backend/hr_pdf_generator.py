@@ -19,6 +19,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from xml.sax.saxutils import escape as xml_escape
+from utils.client_time import local_now, local_today
 
 MONTHS = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -280,7 +281,7 @@ def generate_espelho_individual_pdf(
     footer_s = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7,
         alignment=TA_CENTER, textColor=colors.HexColor('#999999'))
     elements.append(Paragraph(
-        f'Documento gerado em {datetime.now().strftime("%d/%m/%Y %H:%M")} - SIGESC',
+        f'Documento gerado em {local_now().strftime("%d/%m/%Y %H:%M")} - SIGESC',
         footer_s))
 
     doc.build(elements)
@@ -397,7 +398,7 @@ def generate_folha_escola_pdf(
     footer_s = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=6.5,
         alignment=TA_CENTER, textColor=colors.HexColor('#999999'))
     elements.append(Paragraph(
-        f'Documento gerado em {datetime.now().strftime("%d/%m/%Y %H:%M")} - SIGESC', footer_s))
+        f'Documento gerado em {local_now().strftime("%d/%m/%Y %H:%M")} - SIGESC', footer_s))
 
     doc.build(elements)
     buffer.seek(0)
@@ -487,7 +488,7 @@ def generate_consolidado_rede_pdf(
     footer_s = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=6.5,
         alignment=TA_CENTER, textColor=colors.HexColor('#999999'))
     elements.append(Paragraph(
-        f'Documento gerado em {datetime.now().strftime("%d/%m/%Y %H:%M")} - SIGESC', footer_s))
+        f'Documento gerado em {local_now().strftime("%d/%m/%Y %H:%M")} - SIGESC', footer_s))
 
     doc.build(elements)
     buffer.seek(0)
@@ -568,7 +569,7 @@ def generate_auditoria_pdf(
     footer_s = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=6.5,
         alignment=TA_CENTER, textColor=colors.HexColor('#999999'))
     elements.append(Paragraph(
-        f'Documento gerado em {datetime.now().strftime("%d/%m/%Y %H:%M")} - SIGESC', footer_s))
+        f'Documento gerado em {local_now().strftime("%d/%m/%Y %H:%M")} - SIGESC', footer_s))
 
     doc.build(elements)
     buffer.seek(0)

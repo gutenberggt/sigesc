@@ -30,6 +30,6 @@ export const normalizeLegacyUtcTodayDefault = (currentDate, now = new Date()) =>
   if (!currentDate) return currentDate;
 
   const localToday = browserLocalDateISO(now);
-  const utcToday = now.toISOString().slice(0, 10);
+  const utcToday = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())}`;
   return currentDate === utcToday && utcToday !== localToday ? localToday : currentDate;
 };

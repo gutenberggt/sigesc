@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from services.bulletin_renderer import _stamp_qr_overlay  # reusa overlay QR
 from services.document_files import store_pdf
 from services.history_consolidator import build_consolidated_history
+from utils.client_time import current_time_context
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ async def render_history_handler(job: dict, *, db, public_base_url: str) -> dict
     verification_id = str(uuid.uuid4())
     url = _verify_url(public_base_url, token)
     now = datetime.now(timezone.utc).isoformat()
+    time_ctx = current_time_context()
 
     summary = {
         "id": verification_id,
@@ -85,6 +87,9 @@ async def render_history_handler(job: dict, *, db, public_base_url: str) -> dict
         "pdf_hash_sha256": None,
         "file_id": None,
         "created_at": now,
+        "created_at_local": time_ctx["timestamp_local"],
+        "timezone": time_ctx["timezone"],
+        "utc_offset_minutes": time_ctx["utc_offset_minutes"],
         "revoked_at": None,
         "revoked_by": None,
         "issued_by_user_id": job.get("requested_by_user_id"),

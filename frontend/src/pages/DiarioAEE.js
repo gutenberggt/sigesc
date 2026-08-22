@@ -32,6 +32,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import PlanoAEEModal from '@/components/PlanoAEEModal';
 import DossieAEEV2Modal from '@/components/DossieAEEV2Modal';
 import SpellCheckTextarea from '@/components/SpellCheckTextarea';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -532,7 +533,7 @@ const DiarioAEE = () => {
     setAtendimentoForm({
       plano_aee_id: '',
       student_id: '',
-      data: new Date().toISOString().split('T')[0].split('-').reverse().join('/'),
+      data: browserLocalTodayISO().split('-').reverse().join('/'),
       horario_inicio: '',
       horario_fim: '',
       presente: true,

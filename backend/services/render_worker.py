@@ -20,6 +20,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
+from utils.client_time import use_time_context
 from utils.render_jobs import (
     MAX_RETRIES,
     compute_next_retry_at,
@@ -191,7 +192,13 @@ async def process_one_job(db) -> bool:
         return True
 
     try:
-        result = await handler(job) or {}
+        time_ctx = job.get("time_context") or {}
+        with use_time_context(
+            timezone_name=time_ctx.get("timezone"),
+            utc_offset_minutes=time_ctx.get("utc_offset_minutes"),
+            source="render_job",
+        ):
+            result = await handler(job) or {}
         if not isinstance(result, dict):
             result = {}
         await _mark_completed(db, job_id=job_id, result=result, started_at=job.get("started_at"))

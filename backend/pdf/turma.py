@@ -10,6 +10,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from xml.sax.saxutils import escape as xml_escape
 from pdf.utils import get_logo_image
+from utils.client_time import local_now, local_today
 
 def generate_class_details_pdf(
     class_info: Dict[str, Any],
@@ -51,7 +52,7 @@ def generate_class_details_pdf(
         canvas.saveState()
         canvas.setFont('Helvetica', 7)
         canvas.setFillColor(TEXT_MUTED)
-        today = datetime.now().strftime('%d/%m/%Y às %H:%M')
+        today = local_now().strftime('%d/%m/%Y às %H:%M')
         canvas.drawString(1.5*cm, 1*cm, f"Documento gerado em {today}")
         canvas.drawRightString(page_width - 1.5*cm, 1*cm, f"Página {doc.page}")
         # Linha fina no footer

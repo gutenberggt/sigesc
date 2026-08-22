@@ -3,6 +3,7 @@ import { UserCog, Calendar, Check, AlertTriangle, Plus, Minus, GraduationCap, Bo
 import { Button } from '@/components/ui/button';
 import { teacherAssignmentAPI, classesAPI } from '@/services/api';
 import { toast } from 'sonner';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 /**
  * Seção "+ Adicionar Nova Substituição".
@@ -38,7 +39,7 @@ export const SubstituicaoSection = ({
   const [currentTurma, setCurrentTurma] = useState('');
   const [currentComponente, setCurrentComponente] = useState('');
 
-  const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10));
+  const [dataInicio, setDataInicio] = useState(browserLocalTodayISO());
   const [dataFim, setDataFim] = useState('');
   const [cargaHorariaOverride, setCargaHorariaOverride] = useState('');
   const [saving, setSaving] = useState(false);
@@ -244,7 +245,7 @@ export const SubstituicaoSection = ({
       setSelectedTurmas([]);
       setSelectedComponentes([]);
       setCurrentTurma(''); setCurrentComponente('');
-      setDataInicio(new Date().toISOString().slice(0, 10));
+      setDataInicio(browserLocalTodayISO());
       setDataFim(''); setCargaHorariaOverride('');
       if (onSaved) onSaved();
     } finally {

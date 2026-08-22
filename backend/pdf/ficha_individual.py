@@ -15,6 +15,7 @@ from pdf.utils import (
     ordenar_componentes_por_nivel, criar_legenda_conceitos, inferir_nivel_ensino,
     NIVEL_ENSINO_LABELS
 )
+from utils.client_time import local_now, local_today
 
 def generate_ficha_individual_pdf(
     student: Dict[str, Any],
@@ -822,7 +823,7 @@ def generate_ficha_individual_pdf(
     
     # ===== RODAPÉ =====
     # Data e local - usar município da mantenedora
-    today = format_date_pt(date.today())
+    today = format_date_pt(local_today())
     city = mant_municipio  # Usar município da mantenedora
     state = mant_estado  # Usar estado da mantenedora
     

@@ -33,6 +33,7 @@ from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 
 from services.document_files import store_pdf
+from utils.client_time import current_time_context
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +240,7 @@ async def render_bulletin_handler(job: dict, *, db, public_base_url: str) -> dic
     verification_id = str(uuid.uuid4())
     verify_url = _build_verify_url(public_base_url, token)
     now = datetime.now(timezone.utc).isoformat()
+    time_ctx = current_time_context()
 
     verification_doc = {
         "id": verification_id,
@@ -249,6 +251,9 @@ async def render_bulletin_handler(job: dict, *, db, public_base_url: str) -> dic
         "verify_url": verify_url,
         "pdf_hash_sha256": None,  # preenchido após overlay
         "created_at": now,
+        "created_at_local": time_ctx["timestamp_local"],
+        "timezone": time_ctx["timezone"],
+        "utc_offset_minutes": time_ctx["utc_offset_minutes"],
         "revoked_at": None,
         "revoked_by": None,
         "issued_by_user_id": job.get("requested_by_user_id"),

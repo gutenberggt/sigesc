@@ -4,6 +4,7 @@ import { hasRole } from '@/utils/permissions';
 import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 import { INITIAL_STAFF_FORM, INITIAL_LOTACAO_FORM, INITIAL_ALOCACAO_FORM } from '@/components/staff/constants';
 import { normalizeForSearch } from '@/utils/searchUtils';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 // Função pura, sem dependência de state/props/hook — fica estável fora do componente.
 // Antes estava redefinida a cada render do hook, causando referência stale nos useCallback
@@ -649,7 +650,7 @@ export const useStaff = () => {
     setLotacaoForm({
       staff_id: staffId,
       funcao: staff?.cargo === 'professor' ? 'professor' : 'apoio',
-      data_inicio: new Date().toISOString().split('T')[0],
+      data_inicio: browserLocalTodayISO(),
       turno: '',
       status: 'ativo',
       academic_year: academicYear,
@@ -1018,7 +1019,7 @@ export const useStaff = () => {
     try {
       await schoolAssignmentAPI.update(lotacao.id, {
         status: 'encerrado',
-        data_fim: new Date().toISOString().split('T')[0]
+        data_fim: browserLocalTodayISO()
       });
       showAlertMessage('success', 'Lotação encerrada!');
       loadLotacoes();

@@ -34,6 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
 import { downloadBlob } from '@/utils/downloadBlob';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -221,7 +222,7 @@ export const AuditLogs = () => {
       if (filters.collection) params.append('collection', filters.collection);
       if (filters.search) params.append('search', filters.search);
       if (filters.user_id) params.append('user_id', filters.user_id);
-      const filename = `logs_auditoria_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const filename = `logs_auditoria_${browserLocalTodayISO()}.pdf`;
       await downloadBlob(`${API}/api/audit-logs/pdf?${params}`, filename, {
         Authorization: token ? `Bearer ${token}` : ''
       });
@@ -428,7 +429,7 @@ export const AuditLogs = () => {
                     return (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{formatDate(log.timestamp)}</div>
+                          <div className="text-sm text-gray-900">{formatDate(log.timestamp_local || log.timestamp)}</div>
                           <div className="text-xs text-gray-500">{log.ip_address}</div>
                         </td>
                         <td className="px-4 py-3 align-top">

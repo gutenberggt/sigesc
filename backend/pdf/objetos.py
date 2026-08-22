@@ -11,6 +11,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as canvas_module
 from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade, build_signature_table
+from utils.client_time import local_now, local_today
 
 def generate_learning_objects_pdf(
     school: Dict[str, Any],
@@ -331,7 +332,7 @@ def generate_learning_objects_pdf(
     elements.append(Spacer(1, 20))
     
     # === RODAPÉ: Local, data e assinaturas ===
-    today = datetime.now()
+    today = local_now()
     elements.append(Paragraph(
         f"{mant_municipio} - {mant_estado}, {format_date_pt(today.date())}",
         small_center

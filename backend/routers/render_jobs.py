@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope
+from utils.client_time import current_time_context
 from utils.render_jobs import (
     DOCUMENT_TYPES,
     JOB_STATUSES,
@@ -155,6 +156,7 @@ def setup_render_jobs_router(db, audit_service=None) -> APIRouter:
             "request_user_agent": request.headers.get("user-agent", "")[:512],
             "mantenedora_id": tenant,
             "school_id": payload.school_id,
+            "time_context": current_time_context(),
             "audit_trail": [
                 {"action": "queued", "at": now_s, "by_user_id": user.get("id")},
             ],

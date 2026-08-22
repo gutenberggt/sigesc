@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 const STATUS_LABELS = {
   'active': 'Ativa',
@@ -29,7 +30,7 @@ const initialFormData = {
   class_id: '',
   course_ids: [],
   academic_year: new Date().getFullYear(),
-  enrollment_date: new Date().toISOString().split('T')[0],
+  enrollment_date: browserLocalTodayISO(),
   enrollment_number: '',
   status: 'active',
   observations: ''

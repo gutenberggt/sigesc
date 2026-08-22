@@ -18,6 +18,7 @@ from services.teacher_grade_access import (
 )
 from tenant_scope import get_mantenedora_scope
 from utils.render_jobs import compute_idempotency_key, find_existing_job, now_iso
+from utils.client_time import current_time_context
 
 BULLETIN_TEMPLATE_VERSION = "boletim_v1.0.0"
 BULLETIN_RENDER_ENGINE_VERSION = "reportlab+qrcode-v1"
@@ -156,6 +157,7 @@ def setup_bulletin_pdf_router(db, audit_service=None):
             "request_user_agent": request.headers.get("user-agent", "")[:512],
             "mantenedora_id": tenant,
             "school_id": student.get("school_id"),
+            "time_context": current_time_context(),
             "audit_trail": [
                 {"action": "queued", "at": now_s, "by_user_id": user.get("id")},
             ],
@@ -245,6 +247,9 @@ def setup_bulletin_pdf_router(db, audit_service=None):
             "grade_level": v.get("grade_level"),
             "academic_year": v.get("academic_year"),
             "issued_at": v.get("created_at"),
+            "issued_at_local": v.get("created_at_local"),
+            "timezone": v.get("timezone"),
+            "utc_offset_minutes": v.get("utc_offset_minutes"),
             "pdf_sha256": v.get("pdf_hash_sha256"),
             "verification_id": v.get("id"),
             "note": (
