@@ -1,5 +1,6 @@
 import { Calendar, Info } from 'lucide-react';
 import { useAttendance } from '@/contexts/AttendanceContext';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 export const RegistrosTab = () => {
   const {
@@ -12,6 +13,7 @@ export const RegistrosTab = () => {
     dvdContext?.attendance_purpose === 'pdf_only'
     || dvdDiary?.capabilities?.attendance_purpose === 'pdf_only'
   );
+  const todayISO = browserLocalTodayISO();
 
   if (!selectedClass) {
     return (
@@ -137,7 +139,7 @@ export const RegistrosTab = () => {
                     const isOutOfYear = !isWithinBimestre(dateStr);
                     const isBlocked = isSunday || isHoliday || isOutOfYear || (isSaturday && !isSabLetivo);
                     const hasRecord = registrosAttDates.has(dateStr);
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+                    const isToday = dateStr === todayISO;
 
                     let bgClass = 'bg-white';
                     let textClass = 'text-gray-700';
