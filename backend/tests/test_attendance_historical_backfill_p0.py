@@ -25,8 +25,8 @@ from services.diary_assignment_contract import (
 
 
 # O guard unitário roda com dependências mínimas e não deve importar o pacote
-# routers/__init__.py inteiro. O módulo P0 usa apenas HTTPException como tipo de
-# erro em caminhos que estes testes não executam; um stub preserva o isolamento.
+# routers/__init__.py inteiro. O módulo P0/tenant_scope usam somente tipos básicos
+# do FastAPI nos caminhos que estes testes não executam; stubs preservam isolamento.
 if "fastapi" not in sys.modules:
     fastapi_stub = ModuleType("fastapi")
 
@@ -36,7 +36,11 @@ if "fastapi" not in sys.modules:
             self.status_code = status_code
             self.detail = detail
 
+    class Request:
+        pass
+
     fastapi_stub.HTTPException = HTTPException
+    fastapi_stub.Request = Request
     sys.modules["fastapi"] = fastapi_stub
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "routers" / "attendance_historical_backfill_dvd.py"
