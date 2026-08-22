@@ -25,6 +25,36 @@ jobs:
             | sed 's/^          //' > /tmp/apply-global-time.sh
           bash /tmp/apply-global-time.sh
 
+      - name: Normalize render worker time-context block
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/services/render_worker.py')
+          source = path.read_text(encoding='utf-8')
+          start = source.find("    try:\n        time_ctx = job.get('time_context') or {}")
+          if start < 0:
+              raise SystemExit('Generated render-worker time block not found')
+          end = source.find("\n    except Exception as e:", start)
+          if end < 0:
+              raise SystemExit('render-worker except anchor not found')
+          block = '''    try:
+        time_ctx = job.get("time_context") or {}
+        with use_time_context(
+            timezone_name=time_ctx.get("timezone"),
+            utc_offset_minutes=time_ctx.get("utc_offset_minutes"),
+            source="render_job",
+        ):
+            result = await handler(job) or {}
+        if not isinstance(result, dict):
+            result = {}
+        await _mark_completed(db, job_id=job_id, result=result, started_at=job.get("started_at"))
+        logger.info("[render_worker] job %s completed (type=%s)", job_id, document_type)'''
+          source = source[:start] + block + source[end:]
+          path.write_text(source, encoding='utf-8')
+          PY
+
       - name: Remove temporary workflows
         run: |
           git rm .github/workflows/one-shot-global-local-time-p0.yml
