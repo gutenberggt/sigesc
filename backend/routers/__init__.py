@@ -55,7 +55,9 @@ from .assessment_policy_admin import install_assessment_policy_admin_setup
 # Fase 6.0A impede apagar a âncora legada depois que o sidecar V2 existir;
 # Fase 6.2A anexa metadados da fonte efetiva ao Diário em Shadow Mode;
 # Fase 6.2B troca somente a grade semanal pela agenda efetiva, preservando
-# grade_horarios_legacy e bloqueando cutover parcial quando o shadow falhar.
+# grade_horarios_legacy e bloqueando cutover parcial quando o shadow falhar;
+# Fase 6.3A observa o PDF legado em paralelo e registra paridade/divergência
+# com a agenda efetiva, sem alterar bytes, layout ou resposta HTTP do PDF.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
 from .aee_v2_dossier import install_aee_v2_dossier_setup
@@ -63,6 +65,7 @@ from .aee_v2_persistence import install_aee_v2_persistence_setup
 from .aee_v2_delete_guard import install_aee_v2_delete_guard_setup
 from aee_v2.diario_shadow import install_aee_v2_diario_shadow_setup
 from aee_v2.diario_schedule_cutover import install_aee_v2_diario_schedule_cutover_setup
+from aee_v2.pdf_shadow import install_aee_v2_pdf_shadow_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -78,6 +81,7 @@ install_aee_v2_persistence_setup(_aee_mod)
 install_aee_v2_delete_guard_setup(_aee_mod)
 install_aee_v2_diario_shadow_setup(_aee_mod)
 install_aee_v2_diario_schedule_cutover_setup(_aee_mod)
+install_aee_v2_pdf_shadow_setup(_aee_mod)
 
 
 def setup_grades_router(
