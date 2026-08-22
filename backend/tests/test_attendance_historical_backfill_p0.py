@@ -5,16 +5,13 @@ Ivanilde Freire Batista da Silva → E M E I E F 22 de Abril → 3º/4º/5º ANO
 → Arte → 01/06/2026, com DVD iniciado em 18/08/2026.
 """
 
+import importlib.util
 from pathlib import Path
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from routers.attendance_historical_backfill_dvd import (
-    HISTORICAL_BACKFILL_FLAG,
-    HISTORICAL_BACKFILL_SOURCE,
-    _build_historical_resolver,
-)
 from services.attendance_assignment_scope import (
     AttendanceAssignmentContext,
     AttendanceAssignmentScopeError,
@@ -25,6 +22,33 @@ from services.diary_assignment_contract import (
     DiaryProfile,
     StudentScope,
 )
+
+
+# O guard unitário roda com dependências mínimas e não deve importar o pacote
+# routers/__init__.py inteiro. O módulo P0 usa apenas HTTPException como tipo de
+# erro em caminhos que estes testes não executam; um stub preserva o isolamento.
+if "fastapi" not in sys.modules:
+    fastapi_stub = ModuleType("fastapi")
+
+    class HTTPException(Exception):
+        def __init__(self, status_code=None, detail=None):
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
+
+    fastapi_stub.HTTPException = HTTPException
+    sys.modules["fastapi"] = fastapi_stub
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "routers" / "attendance_historical_backfill_dvd.py"
+SPEC = importlib.util.spec_from_file_location("attendance_historical_backfill_dvd_under_test", MODULE_PATH)
+assert SPEC and SPEC.loader
+BACKFILL = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = BACKFILL
+SPEC.loader.exec_module(BACKFILL)
+
+HISTORICAL_BACKFILL_FLAG = BACKFILL.HISTORICAL_BACKFILL_FLAG
+HISTORICAL_BACKFILL_SOURCE = BACKFILL.HISTORICAL_BACKFILL_SOURCE
+_build_historical_resolver = BACKFILL._build_historical_resolver
 
 
 IVANILDE_ASSIGNMENT_ID = "77fd25ee-5157-54d0-9806-81dae056d7b3"
