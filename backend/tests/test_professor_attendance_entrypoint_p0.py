@@ -8,6 +8,7 @@ ATTENDANCE_BRIDGE = REPO_ROOT / "frontend/src/services/attendanceDvdBridge.js"
 ATTENDANCE_LAUNCH = REPO_ROOT / "frontend/src/components/attendance/LancamentoTab.jsx"
 ATTENDANCE_RECORDS = REPO_ROOT / "frontend/src/components/attendance/RegistrosTab.jsx"
 BROWSER_LOCAL_DATE = REPO_ROOT / "frontend/src/utils/browserLocalDate.js"
+LEARNING_OBJECTS = REPO_ROOT / "frontend/src/pages/LearningObjects.js"
 
 
 def _read(path: Path) -> str:
@@ -60,3 +61,15 @@ def test_attendance_today_is_browser_local_and_not_utc_calendar_day():
     assert "const todayISO = browserLocalTodayISO();" in records
     assert "const isToday = dateStr === todayISO;" in records
     assert "new Date().toISOString().split('T')[0]" not in records
+
+
+
+def test_learning_objects_today_and_calendar_dates_use_browser_local_day():
+    source = _read(LEARNING_OBJECTS)
+
+    assert "browserLocalDateISO" in source
+    assert "browserLocalTodayISO" in source
+    assert "const isToday = dateStr === browserLocalTodayISO();" in source
+    assert "sabLetivos.add(browserLocalDateISO(d));" in source
+    assert "blocked.add(browserLocalDateISO(d));" in source
+    assert "new Date().toISOString().split('T')[0]" not in source
