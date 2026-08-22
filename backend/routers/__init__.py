@@ -59,7 +59,7 @@ from .aee_v2_p0 import install_aee_v2_p0_setup
 from .aee_v2_dossier import install_aee_v2_dossier_setup
 from .aee_v2_persistence import install_aee_v2_persistence_setup
 from .aee_v2_delete_guard import install_aee_v2_delete_guard_setup
-from .aee_v2_diario_shadow import install_aee_v2_diario_shadow_setup
+from aee_v2.diario_shadow import install_aee_v2_diario_shadow_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
