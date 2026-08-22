@@ -1,0 +1,45 @@
+name: One-shot Global Local Time PR
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/global-local-time-contract-p0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/global-local-time-contract-p0
+          fetch-depth: 0
+
+      - name: Run patch source from one-shot workflow
+        shell: bash
+        run: |
+          sed -n "/python - <<'PY'/,/^          PY$/p" .github/workflows/one-shot-global-local-time-p0.yml \
+            | sed 's/^          //' > /tmp/apply-global-time.sh
+          bash /tmp/apply-global-time.sh
+
+      - name: Remove temporary workflows
+        run: |
+          git rm .github/workflows/one-shot-global-local-time-p0.yml
+          git rm .github/workflows/one-shot-global-local-time-pr.yml
+
+      - name: Validate syntax and focused tests
+        run: |
+          python -m compileall -q backend/utils/client_time.py backend/audit_service.py backend/routers/audit_logs.py backend/services/render_worker.py backend/pdf
+          python -m pytest -q backend/tests/test_global_local_time_contract_p0.py backend/tests/test_professor_attendance_entrypoint_p0.py
+
+      - name: Commit generated global fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(time): aplicar fuso local global em UI auditoria e documentos"
+          git push origin HEAD:fix/global-local-time-contract-p0
