@@ -5,7 +5,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 from fastapi.routing import APIRoute
 
-from routers.aee_v2_delete_guard import (
+from aee_v2.delete_guard import (
     ensure_legacy_plan_delete_allowed,
     install_aee_v2_delete_guard,
 )
@@ -31,6 +31,10 @@ class FakeDB:
     def __getitem__(self, name):
         assert name == "aee_dossier_v2_heads"
         return self.heads
+
+
+async def allow_delete(_request):
+    return None
 
 
 def test_delete_guard_blocks_plan_with_v2_head():
@@ -93,7 +97,11 @@ def test_delete_guard_installer_targets_only_legacy_delete_and_is_idempotent():
     read_before = len(read_route.dependant.dependencies)
 
     db = FakeDB()
-    returned = install_aee_v2_delete_guard(router, db)
+    returned = install_aee_v2_delete_guard(
+        router,
+        db,
+        authorize_delete=allow_delete,
+    )
 
     assert returned is router
     assert len(delete_route.dependant.dependencies) == delete_before + 1
@@ -101,5 +109,41 @@ def test_delete_guard_installer_targets_only_legacy_delete_and_is_idempotent():
     assert delete_route.dependant.dependencies[0].call.__name__ == "protect_legacy_anchor"
 
     # Uma segunda instalação não pode duplicar a dependência.
-    install_aee_v2_delete_guard(router, db)
+    install_aee_v2_delete_guard(
+        router,
+        db,
+        authorize_delete=allow_delete,
+    )
     assert len(delete_route.dependant.dependencies) == delete_before + 1
+
+
+def test_installed_dependency_blocks_before_legacy_delete_executes():
+    async def scenario():
+        router = APIRouter(prefix="/aee")
+
+        @router.delete("/planos/{plano_id}")
+        async def delete_plan(plano_id: str):
+            return {"deleted": plano_id}
+
+        db = FakeDB([{"id": "head-2", "legacy_plano_id": "legacy-2"}])
+        install_aee_v2_delete_guard(
+            router,
+            db,
+            authorize_delete=allow_delete,
+        )
+
+        delete_route = next(
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and "DELETE" in (route.methods or set())
+        )
+        dependency_call = delete_route.dependant.dependencies[0].call
+
+        try:
+            await dependency_call(plano_id="legacy-2", request=None)
+        except HTTPException as exc:
+            assert exc.status_code == 409
+        else:
+            raise AssertionError("Dependência instalada deveria bloquear o DELETE")
+
+    asyncio.run(scenario())
