@@ -52,12 +52,14 @@ from .assessment_policy_admin import install_assessment_policy_admin_setup
 # AEE v2 — evolução incremental autorizada pelo proprietário em 21/08/2026.
 # O router legado bloqueado permanece intacto. P0 protege integridade/autoria;
 # Fase 1 projeta o Dossiê canônico; Fase 2 adiciona persistência sidecar versionada;
-# Fase 6.0A impede apagar a âncora legada depois que o sidecar V2 existir.
+# Fase 6.0A impede apagar a âncora legada depois que o sidecar V2 existir;
+# Fase 6.2A anexa metadados da fonte efetiva ao Diário em Shadow Mode, sem cutover.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
 from .aee_v2_dossier import install_aee_v2_dossier_setup
 from .aee_v2_persistence import install_aee_v2_persistence_setup
 from .aee_v2_delete_guard import install_aee_v2_delete_guard_setup
+from .aee_v2_diario_shadow import install_aee_v2_diario_shadow_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -71,6 +73,7 @@ install_aee_v2_p0_setup(_aee_mod)
 install_aee_v2_dossier_setup(_aee_mod)
 install_aee_v2_persistence_setup(_aee_mod)
 install_aee_v2_delete_guard_setup(_aee_mod)
+install_aee_v2_diario_shadow_setup(_aee_mod)
 
 
 def setup_grades_router(
