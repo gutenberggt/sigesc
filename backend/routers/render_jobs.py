@@ -23,8 +23,8 @@ from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope
-from utils.render_jobs import (
 from utils.client_time import current_time_context
+from utils.render_jobs import (
     DOCUMENT_TYPES,
     JOB_STATUSES,
     compute_idempotency_key,
