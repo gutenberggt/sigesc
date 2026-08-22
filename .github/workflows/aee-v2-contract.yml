@@ -27,10 +27,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install isolated dependencies
-        run: pip install pytest pydantic pymongo
+        run: pip install pytest pydantic pymongo fastapi
 
       - name: Compile canonical AEE v2 package
-        run: python -m compileall -q aee_v2 routers/aee_v2_dossier.py routers/aee_v2_persistence.py
+        run: python -m compileall -q aee_v2 routers/aee_v2_dossier.py routers/aee_v2_persistence.py routers/aee_v2_delete_guard.py
 
       - name: Run AEE v2 contract, persistence, legacy-preservation and UI tests
         run: |
@@ -39,4 +39,5 @@ jobs:
             tests/test_aee_v2_p0.py \
             tests/test_aee_v2_versioning.py \
             tests/test_aee_v2_bootstrap_recovery.py \
-            tests/test_aee_v2_fase3_ui_contract.py
+            tests/test_aee_v2_fase3_ui_contract.py \
+            tests/test_aee_v2_delete_guard.py
