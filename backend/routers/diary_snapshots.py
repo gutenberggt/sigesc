@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
 from services import diary_snapshot_service as svc
+from utils.client_time import current_time_context
 
 logger = logging.getLogger(__name__)
 
@@ -288,7 +289,8 @@ async def _enqueue_render_job(
         "request_user_agent": None,
         "mantenedora_id": mantenedora_id,
         "school_id": school_id,
-        "audit_trail": [{"action": "created", "at": now, "requested_by": user_id}],
+        "time_context": current_time_context(),
+            "audit_trail": [{"action": "created", "at": now, "requested_by": user_id}],
     }
     await db.document_render_jobs.insert_one(job.copy())
     job.pop("_id", None)

@@ -9,6 +9,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from pdf.utils import get_logo_image, format_date_pt, get_styles
+from utils.client_time import local_now, local_today
 
 
 # Mapeamento canônico de turnos (PT-BR + inglês legado)
@@ -195,7 +196,7 @@ def generate_declaracao_matricula_pdf(
     elements.append(Spacer(1, 50))
     
     # Data e local - usar município da mantenedora
-    today = format_date_pt(date.today())
+    today = format_date_pt(local_today())
     city = mant_municipio  # Usar município da mantenedora
     elements.append(Paragraph(f"{city}, {today}.", styles['CenterText']))
     elements.append(Spacer(1, 60))
@@ -379,7 +380,7 @@ def generate_declaracao_transferencia_pdf(
     elements.append(Spacer(1, 25))
     
     # Data e local
-    today = format_date_pt(date.today())
+    today = format_date_pt(local_today())
     city = mant_municipio
     elements.append(Paragraph(f"{city}, {today}.", styles['CenterText']))
     elements.append(Spacer(1, 40))
@@ -558,7 +559,7 @@ def generate_declaracao_frequencia_pdf(
     elements.append(Spacer(1, 25))
     
     # Data e local - usar município da mantenedora
-    today = format_date_pt(date.today())
+    today = format_date_pt(local_today())
     city = mant_municipio  # Usar município da mantenedora
     elements.append(Paragraph(f"{city}, {today}.", styles['CenterText']))
     elements.append(Spacer(1, 40))

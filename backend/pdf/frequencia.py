@@ -9,6 +9,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade, build_signature_table
+from utils.client_time import local_now, local_today
 
 def generate_relatorio_frequencia_bimestre_pdf(
     school: Dict[str, Any],
@@ -393,7 +394,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
     elements.append(Spacer(1, 9))
     
     # Rodapé
-    today = datetime.now()
+    today = local_now()
     local_data = f"{mant_municipio} - {mantenedora.get('estado', 'PA')}, {format_date_pt(today.date())}"
     elements.append(Paragraph(local_data, small_text))
     elements.append(Spacer(1, 20))

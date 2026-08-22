@@ -60,6 +60,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import SnapshotsDrawer from '@/components/diary/SnapshotsDrawer';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${API_URL}/api`;
@@ -180,8 +181,7 @@ const STATUS_ORDER_SEVERITY = [  'inconsistent',
 const WEEK_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 function todayISO() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return browserLocalTodayISO();
 }
 
 function isoToParts(iso) {

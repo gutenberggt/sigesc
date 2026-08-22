@@ -22,6 +22,8 @@ from typing import Optional, List, Literal
 from fastapi import Request
 import logging
 
+from utils.client_time import current_time_context, local_day_bounds_utc, local_now
+
 logger = logging.getLogger(__name__)
 
 # Coleções que devem ser auditadas
@@ -154,7 +156,9 @@ class AuditService:
                 ip_address = request.client.host if request.client else None
                 user_agent = request.headers.get('user-agent', '')[:200]  # Limita tamanho
             
-            # Monta o registro de auditoria
+            # UTC é o instante canônico; o snapshot local preserva a hora civil.
+            now_utc = datetime.now(timezone.utc)
+            time_ctx = current_time_context(now_utc)
             audit_record = {
                 'action': action,
                 'collection': collection,
@@ -165,14 +169,19 @@ class AuditService:
                 'user_name': user.get('full_name') or user.get('name'),
                 'school_id': school_id,
                 'school_name': school_name,
-                'academic_year': academic_year or datetime.now().year,
+                'academic_year': academic_year or local_now(now_utc).year,
                 'description': description,
                 'old_value': self._sanitize_value(old_value),
                 'new_value': self._sanitize_value(new_value),
                 'changes': changes,
                 'ip_address': ip_address,
                 'user_agent': user_agent,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'timestamp': now_utc.isoformat(),
+                'timestamp_utc': time_ctx['timestamp_utc'],
+                'timestamp_local': time_ctx['timestamp_local'],
+                'timezone': time_ctx['timezone'],
+                'utc_offset_minutes': time_ctx['utc_offset_minutes'],
+                'timezone_source': time_ctx['timezone_source'],
                 'severity': collection_config['severity'],
                 'category': collection_config['category'],
             }
@@ -281,13 +290,16 @@ class AuditService:
             if filters.get('academic_year'):
                 query['academic_year'] = filters['academic_year']
             
-            # Filtro de data
+            # Filtro por dia civil do dispositivo; converte limites para UTC.
             if filters.get('start_date') or filters.get('end_date'):
+                start_utc, end_utc = local_day_bounds_utc(
+                    filters.get('start_date'), filters.get('end_date')
+                )
                 query['timestamp'] = {}
-                if filters.get('start_date'):
-                    query['timestamp']['$gte'] = filters['start_date']
-                if filters.get('end_date'):
-                    query['timestamp']['$lte'] = filters['end_date'] + 'T23:59:59'
+                if start_utc:
+                    query['timestamp']['$gte'] = start_utc
+                if end_utc:
+                    query['timestamp']['$lte'] = end_utc
             
             # Busca por texto na descrição
             if filters.get('search'):

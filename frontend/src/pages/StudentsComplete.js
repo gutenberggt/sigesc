@@ -36,6 +36,7 @@ import {
 import { EMPTY_STUDENT_ADDRESS, buildStudentAddressDefaultsFromMantenedora, ibgeCodesFromViaCep, updateStudentAddressField } from '@/utils/ibgeAddress';
 import { mergeMissingIbgeCodesFromMantenedora } from '@/utils/studentIbgeBackfill';
 import { DIFFERENTIATED_LOCATION_OPTIONS, GEOGRAPHIC_LOCATION_OPTIONS } from '@/utils/studentLocation';
+import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 // Estados brasileiros
 const STATES = [
@@ -1011,7 +1012,7 @@ export function StudentsComplete() {
       notes: '',
       emitirHistorico: false,
       studentSeries: '',
-      actionDate: new Date().toISOString().split('T')[0]
+      actionDate: browserLocalTodayISO()
     });
     setShowActionModal(true);
   };
@@ -1056,7 +1057,7 @@ export function StudentsComplete() {
             class_id: actionData.targetClassId,
             status: 'active',
             academic_year: actionData.academicYear,
-            enrollment_date: actionData.actionDate || new Date().toISOString().split('T')[0]
+            enrollment_date: actionData.actionDate || browserLocalTodayISO()
           };
           
           // Adiciona informação da série na observação se for turma multisseriada

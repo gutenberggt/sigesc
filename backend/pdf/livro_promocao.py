@@ -18,6 +18,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from pdf.utils import get_logo_path, is_serie_conceitual_anos_iniciais, valor_para_conceito_fn, calcular_media_conceitual
 from grade_calculator import is_educacao_infantil as _is_educacao_infantil
+from utils.client_time import local_now, local_today
 
 PAGE_W, PAGE_H = landscape(A4)
 MX = 0.8 * cm
@@ -128,7 +129,7 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     mantenedora = mantenedora or {}
 
     # Dados para cabeçalho/rodapé
-    today = datetime.now()
+    today = local_now()
     meses = ['janeiro','fevereiro','março','abril','maio','junho',
              'julho','agosto','setembro','outubro','novembro','dezembro']
     mun = mantenedora.get('municipio', 'Floresta do Araguaia')

@@ -40,6 +40,7 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import { useAutoSaveDraft } from '@/hooks/useAutoSaveDraft';
 import { AttendanceContext } from '@/contexts/AttendanceContext';
+import { browserLocalDateISO, browserLocalTodayISO } from '@/utils/browserLocalDate';
 const LancamentoTab = lazy(() => import('@/components/attendance/LancamentoTab').then(m => ({ default: m.LancamentoTab })));
 const RegistrosTab = lazy(() => import('@/components/attendance/RegistrosTab').then(m => ({ default: m.RegistrosTab })));
 const InformacoesTab = lazy(() => import('@/components/attendance/InformacoesTab').then(m => ({ default: m.InformacoesTab })));
@@ -73,7 +74,7 @@ export const Attendance = () => {
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(browserLocalTodayISO());
   const [selectedPeriod, setSelectedPeriod] = useState('regular');
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
   
@@ -930,7 +931,7 @@ export const Attendance = () => {
   const navigateDate = useCallback((days) => {
     const date = new Date(selectedDate + 'T12:00:00');
     date.setDate(date.getDate() + days);
-    setSelectedDate(date.toISOString().split('T')[0]);
+    setSelectedDate(browserLocalDateISO(date));
   }, [selectedDate]);
   
   // Turma selecionada
@@ -979,7 +980,7 @@ export const Attendance = () => {
             let d = new Date(start + 'T12:00:00');
             const endD = new Date((end || start) + 'T12:00:00');
             while (d <= endD) {
-              if (d.getDay() === 6) sabLet.add(d.toISOString().split('T')[0]);
+              if (d.getDay() === 6) sabLet.add(browserLocalDateISO(d));
               d.setDate(d.getDate() + 1);
             }
           }
@@ -988,7 +989,7 @@ export const Attendance = () => {
               let d = new Date(start + 'T12:00:00');
               const endD = new Date((end || start) + 'T12:00:00');
               while (d <= endD) {
-                blocked.add(d.toISOString().split('T')[0]);
+                blocked.add(browserLocalDateISO(d));
                 d.setDate(d.getDate() + 1);
               }
             }

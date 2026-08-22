@@ -11,6 +11,7 @@ import tempfile
 import os
 import logging
 from pdf.utils import get_logo_image, format_date_pt
+from utils.client_time import local_now, local_today
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +223,7 @@ def generate_certificado_pdf(
     
     # ========== DATA ==========
     y_position -= 38  # +20 (mais 2 espaços)
-    today = format_date_pt(date.today())
+    today = format_date_pt(local_today())
     city = school.get('municipio', 'Floresta do Araguaia')
     state = school.get('estado', 'PA')
     

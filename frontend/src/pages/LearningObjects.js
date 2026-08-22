@@ -33,6 +33,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useDiaryPrefill } from '@/hooks/useDiaryPrefill';
 import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI, attendanceAPI, calendarAPI, curriculumAPI } from '@/services/api';
+import { browserLocalDateISO, browserLocalTodayISO } from '@/utils/browserLocalDate';
 
 
 // Infere o nível de ensino da turma a partir de education_level, nivel_ensino, grade_level ou name
@@ -332,7 +333,7 @@ export const LearningObjects = () => {
             let d = new Date(start + 'T12:00:00');
             const endDate = new Date((end || start) + 'T12:00:00');
             while (d <= endDate) {
-              if (d.getDay() === 6) sabLetivos.add(d.toISOString().split('T')[0]);
+              if (d.getDay() === 6) sabLetivos.add(browserLocalDateISO(d));
               d.setDate(d.getDate() + 1);
             }
           }
@@ -343,7 +344,7 @@ export const LearningObjects = () => {
               let d = new Date(start + 'T12:00:00');
               const endDate = new Date((end || start) + 'T12:00:00');
               while (d <= endDate) {
-                blocked.add(d.toISOString().split('T')[0]);
+                blocked.add(browserLocalDateISO(d));
                 d.setDate(d.getDate() + 1);
               }
             }
@@ -644,7 +645,7 @@ export const LearningObjects = () => {
       const isSunday = dayOfWeek === 0;
       const isSaturday = dayOfWeek === 6;
       const isWeekend = isSunday || isSaturday;
-      const isToday = dateStr === new Date().toISOString().split('T')[0];
+      const isToday = dateStr === browserLocalTodayISO();
       const isHoliday = blockedDates.has(dateStr);
       const isSabadoLetivo = saturdayLetivoDates.has(dateStr);
       // Fora dos períodos bimestrais = não letivo

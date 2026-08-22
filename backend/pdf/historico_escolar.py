@@ -10,6 +10,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import logging
+from utils.client_time import local_now, local_today
 
 logger = logging.getLogger(__name__)
 
@@ -522,7 +523,7 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     mant_uf = mantenedora.get('estado', mantenedora.get('uf', mantenedora.get('state', 'PA')))
 
     from datetime import datetime
-    now = datetime.now()
+    now = local_now()
     meses = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
              'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
     data_extenso = f"{mant_city} - {mant_uf}, {now.day} de {meses[now.month]} de {now.year}."

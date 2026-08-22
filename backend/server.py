@@ -127,6 +127,7 @@ from routers import text_improvement as text_improvement_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
+from utils.client_time import ClientTimeContextMiddleware
 from utils.academic_year import create_academic_year_validators
 
 ROOT_DIR = Path(__file__).parent
@@ -173,6 +174,7 @@ token_blacklist.set_db(db)
 
 # Create the main app
 app = FastAPI(title="SIGESC API", version="1.0.0")
+app.add_middleware(ClientTimeContextMiddleware)
 
 # Configurar rate limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -845,7 +847,7 @@ app.add_middleware(
     allow_origins=_allowed_origins,
     allow_origin_regex=_cors_regex,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With", "X-Mantenedora-Id"],
+    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With", "X-Mantenedora-Id", "X-SIGESC-Timezone", "X-SIGESC-UTC-Offset-Minutes", "X-SIGESC-Local-Date"],
 )
 
 @app.on_event("shutdown")

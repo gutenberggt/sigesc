@@ -10,6 +10,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as canvas_module
 from pdf.utils import get_logo_image, format_date_pt, get_styles, build_signature_table
+from utils.client_time import local_now, local_today
 
 def generate_grades_report_pdf(
     school: Dict[str, Any],
@@ -260,7 +261,7 @@ def generate_grades_report_pdf(
         elements.append(Spacer(1, 10))
 
     # === RODAPÉ ===
-    today = datetime.now()
+    today = local_now()
     elements.append(Paragraph(
         f"{mant_municipio} - {mant_estado}, {format_date_pt(today.date())}",
         ParagraphStyle('GRDate', fontSize=8, leading=10, alignment=1)

@@ -11,6 +11,7 @@ from io import BytesIO
 
 from models import *
 from auth_middleware import AuthMiddleware
+from utils.client_time import local_now
 
 
 router = APIRouter(tags=["Auditoria"])
@@ -131,9 +132,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             'calendario_letivo': 'Calendário',
         }
 
-        def _fmt_dt(ts):
+        def _fmt_dt(ts, *, event_local=False):
             try:
                 d = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+                if not event_local:
+                    d = local_now(d.astimezone(timezone.utc))
                 return d.strftime('%d/%m/%Y %H:%M')
             except Exception:
                 return str(ts or '-')
@@ -194,7 +197,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             acao = f"{action_labels.get(lg.get('action'), lg.get('action') or '-')}"
             colls = collection_labels.get(lg.get('collection'), lg.get('collection') or '')
             data.append([
-                Paragraph(_fmt_dt(lg.get('timestamp')), cell),
+                Paragraph(_fmt_dt(lg.get('timestamp_local') or lg.get('timestamp'), event_local=bool(lg.get('timestamp_local'))), cell),
                 Paragraph((lg.get('user_name') or lg.get('user_email') or '-'), cell),
                 Paragraph(f"{acao}<br/><font size=6 color='#888888'>{colls}</font>", cell),
                 Paragraph((lg.get('description') or '-'), cell),
@@ -236,7 +239,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             ('LINEAFTER', (0, 0), (0, 0), 0.8, colors.HexColor('#1e40af')) if logo else ('LINEBELOW', (0, 0), (-1, -1), 0, colors.white),
         ]))
 
-        gen_at = datetime.now(timezone.utc).astimezone().strftime('%d/%m/%Y %H:%M')
+        gen_at = local_now().strftime('%d/%m/%Y %H:%M')
         ctx_parts = []
         if escola_nome:
             ctx_parts.append(f'<b>Escola:</b> {escola_nome}')
@@ -276,7 +279,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         doc.build(elements)
         buf.seek(0)
 
-        filename = f"logs_auditoria_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        filename = f"logs_auditoria_{local_now().strftime('%Y%m%d_%H%M')}.pdf"
         return StreamingResponse(
             buf, media_type='application/pdf',
             headers={'Content-Disposition': f'attachment; filename="{filename}"'},
