@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import {
   Calendar,
   Users,
@@ -22,6 +22,10 @@ import { Input } from '@/components/ui/input';
 import { EDUCATION_LEVEL_LABELS, inferEducationLevel } from '@/utils/educationLevel';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { DraftRestoreBanner } from '@/components/session/DraftRestoreBanner';
+import {
+  browserLocalTodayISO,
+  normalizeLegacyUtcTodayDefault,
+} from '@/utils/browserLocalDate';
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -57,6 +61,17 @@ export const LancamentoTab = () => {
     dvdMode, dvdAssignmentId, dvdDiary, dvdContext, dvdError, dvdLoading,
     dvdSessionAula, setDvdSessionAula, dvdOnline,
   } = useAttendance();
+
+  // Compatibilidade com o default legado de Attendance.js, que ainda nasce em
+  // UTC. A correção ocorre antes da pintura da aba e somente enquanto nenhum
+  // dia foi carregado/validado, preservando qualquer data escolhida pelo usuário.
+  useLayoutEffect(() => {
+    if (dateCheck || attendanceData) return;
+    const normalized = normalizeLegacyUtcTodayDefault(selectedDate);
+    if (normalized && normalized !== selectedDate) {
+      setSelectedDate(normalized);
+    }
+  }, [attendanceData, dateCheck, selectedDate, setSelectedDate]);
 
   const dvdSessionSlots = dvdContext?.session_slots || [];
   const dvdNeedsSession = dvdMode
@@ -240,7 +255,7 @@ export const LancamentoTab = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+          onClick={() => setSelectedDate(browserLocalTodayISO())}
         >
           Hoje
         </Button>
