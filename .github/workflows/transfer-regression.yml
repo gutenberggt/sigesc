@@ -14,83 +14,11 @@ name: Gate - Transferência (Regressão)
 
 on:
   push:
-    branches: [main, fix/global-local-time-contract-p0-v2]
+    branches: [main]
   pull_request:
     branches: [main]
 
-permissions:
-  contents: write
-
 jobs:
-  materialize-global-time-contract:
-    name: P0 - Materializar contrato temporal global
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/fix/global-local-time-contract-p0-v2' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: fix/global-local-time-contract-p0-v2
-          fetch-depth: 0
-
-      - name: Aplicar patch global
-        shell: bash
-        run: |
-          sed -n "/python - <<'PY'/,/^          PY$/p" .github/workflows/one-shot-global-local-time-p0.yml \
-            | sed 's/^          //' > /tmp/apply-global-time.sh
-          bash /tmp/apply-global-time.sh
-
-      - name: Normalizar bloco temporal do render worker
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('backend/services/render_worker.py')
-          source = path.read_text(encoding='utf-8')
-          start = source.find("    try:\n        time_ctx = job.get('time_context') or {}")
-          if start < 0:
-              raise SystemExit('Generated render-worker time block not found')
-          end = source.find("\n    except Exception as e:", start)
-          if end < 0:
-              raise SystemExit('render-worker except anchor not found')
-          block = '''    try:
-        time_ctx = job.get("time_context") or {}
-        with use_time_context(
-            timezone_name=time_ctx.get("timezone"),
-            utc_offset_minutes=time_ctx.get("utc_offset_minutes"),
-            source="render_job",
-        ):
-            result = await handler(job) or {}
-        if not isinstance(result, dict):
-            result = {}
-        await _mark_completed(db, job_id=job_id, result=result, started_at=job.get("started_at"))
-        logger.info("[render_worker] job %s completed (type=%s)", job_id, document_type)'''
-          source = source[:start] + block + source[end:]
-          path.write_text(source, encoding='utf-8')
-          PY
-
-      - name: Restaurar workflows canônicos e remover automação temporária
-        run: |
-          git rm -f .github/workflows/one-shot-global-local-time-p0.yml
-          git rm -f .github/workflows/one-shot-global-local-time-pr.yml
-          git rm -f .github/workflows/one-shot-global-local-time-v2.yml
-          git checkout origin/main -- .github/workflows/ci.yml .github/workflows/transfer-regression.yml
-
-      - name: Validar contrato temporal focado
-        run: |
-          python -m compileall -q backend/utils/client_time.py backend/audit_service.py backend/routers/audit_logs.py backend/services/render_worker.py backend/services/bulletin_renderer.py backend/services/history_renderer.py backend/pdf
-          python -m pip install -q pytest fastapi starlette
-          PYTHONPATH=backend python -m pytest -q --noconftest backend/tests/test_global_local_time_contract_p0.py
-
-      - name: Commitar implementação materializada
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "fix(time): materializar contrato temporal global"
-          git push origin HEAD:fix/global-local-time-contract-p0-v2
-
   transfer-regression-gate:
     name: GATE - Regressão Transferência
     runs-on: ubuntu-latest
