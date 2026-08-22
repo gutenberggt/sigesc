@@ -61,6 +61,7 @@ from .assessment_policy_admin import install_assessment_policy_admin_setup
 # atômico e fail-closed, preservando o gerador ReportLab e o router legado;
 # Fase 6.4A observa a consulta individual do Plano, sem alterar seu JSON legado;
 # Fase 6.4B expõe Fonte Efetiva/Dossiê V2 de forma aditiva no mesmo GET;
+# Fase 6.5B usa a Fonte Efetiva no PDF individual, com fallback legado fail-closed;
 # P0 temporal rejeita novos horários AEE fora de 06:00–22:00 ou com fim <= início.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
@@ -74,6 +75,7 @@ from aee_v2.pdf_schedule_cutover import install_aee_v2_pdf_schedule_cutover_setu
 from aee_v2.time_integrity import install_aee_time_integrity_setup
 from aee_v2.plano_shadow import install_aee_v2_plano_shadow_setup
 from aee_v2.plano_effective_read import install_aee_v2_plano_effective_read_setup
+from aee_v2.plano_pdf_effective import install_aee_v2_plano_pdf_effective_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -94,6 +96,7 @@ install_aee_v2_pdf_schedule_cutover_setup(_aee_mod)
 install_aee_time_integrity_setup(_aee_mod)
 install_aee_v2_plano_shadow_setup(_aee_mod)
 install_aee_v2_plano_effective_read_setup(_aee_mod)
+install_aee_v2_plano_pdf_effective_setup(_aee_mod)
 
 
 def setup_grades_router(
