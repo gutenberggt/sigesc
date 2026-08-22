@@ -23,7 +23,6 @@ from . import attendance_dvd as _attendance_dvd_mod
 from .attendance_dvd import install_attendance_dvd_adapter
 from . import attendance_tabs_dvd as _attendance_tabs_dvd_mod
 from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
-from .attendance_historical_backfill_dvd import install_attendance_historical_backfill_dvd
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .calendar import router as calendar_router, setup_calendar_router
@@ -116,12 +115,6 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
     configured = _setup_attendance_router(db, audit_service, sandbox_db)
     configured = install_attendance_dvd_adapter(configured, db, audit_service, sandbox_db)
     configured = install_attendance_tabs_dvd_adapter(
-        configured,
-        db,
-        audit_service,
-        sandbox_db,
-    )
-    configured = install_attendance_historical_backfill_dvd(
         configured,
         db,
         audit_service,
