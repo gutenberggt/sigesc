@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from functools import wraps
 import inspect
 import re
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, get_type_hints
 
 from fastapi import HTTPException
 
@@ -168,6 +168,56 @@ def _route_for(base_router, path: str, method: str):
     return matches[0]
 
 
+def _resolved_endpoint_signature(endpoint) -> inspect.Signature:
+    """Materializa annotations adiadas antes do clone feito por include_router().
+
+    FastAPI 0.110.1 recria a APIRoute ao executar ``include_router``. Wrappers
+    criados em outro módulo mantêm, via ``@wraps``, annotations como strings,
+    mas o namespace do wrapper não contém necessariamente os modelos/Request do
+    endpoint original. Sem uma ``__signature__`` concreta, body e Request podem
+    ser reclassificados como query params na rota final.
+    """
+
+    signature = inspect.signature(endpoint)
+    source = inspect.unwrap(endpoint)
+    source_globals = getattr(source, "__globals__", {}) or {}
+
+    try:
+        hints = get_type_hints(source, globalns=source_globals, localns=source_globals)
+    except Exception as exc:
+        unresolved = [
+            name
+            for name, parameter in signature.parameters.items()
+            if isinstance(parameter.annotation, str)
+        ]
+        if unresolved:
+            raise RuntimeError(
+                "AEE Time Integrity não conseguiu resolver annotations da rota: "
+                + ", ".join(unresolved)
+            ) from exc
+        return signature
+
+    parameters = [
+        parameter.replace(annotation=hints.get(name, parameter.annotation))
+        for name, parameter in signature.parameters.items()
+    ]
+    resolved = signature.replace(
+        parameters=parameters,
+        return_annotation=hints.get("return", signature.return_annotation),
+    )
+    unresolved = [
+        name
+        for name, parameter in resolved.parameters.items()
+        if isinstance(parameter.annotation, str)
+    ]
+    if unresolved:
+        raise RuntimeError(
+            "AEE Time Integrity preservou annotations não resolvidas na rota: "
+            + ", ".join(unresolved)
+        )
+    return resolved
+
+
 def _payload_dict(value: Any) -> dict:
     if value is None:
         return {}
@@ -207,7 +257,7 @@ def _wrap_time_route(
 ):
     route = _route_for(base_router, path, method)
     current = route.endpoint
-    signature = inspect.signature(current)
+    signature = _resolved_endpoint_signature(current)
 
     @wraps(current)
     async def guarded(*args, **kwargs):
@@ -239,6 +289,7 @@ def _wrap_time_route(
 
         return await current(*args, **kwargs)
 
+    setattr(guarded, "__signature__", signature)
     route.endpoint = guarded
     route.dependant.call = guarded
 
