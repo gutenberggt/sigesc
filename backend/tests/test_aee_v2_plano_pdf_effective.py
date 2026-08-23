@@ -204,6 +204,27 @@ def test_project_active_snapshot_maps_pdf_fields_without_mutating_legacy():
     assert projected["data_revisao"] == "2026-09-14"
 
 
+def test_single_curricular_accessibility_preserves_legacy_pdf_semantics():
+    original = legacy_plan()
+    payload = dossier_payload()
+    payload["pei"]["acessibilidade_curricular"] = "Adequação curricular"
+    payload["pei"]["acessibilidade_didatico_pedagogica"] = None
+    payload["pei"]["acessibilidade_avaliativa"] = None
+
+    projected, metadata = project_effective_pdf_plan(
+        original,
+        {
+            "status": "effective",
+            "effective_source": "sidecar_active",
+            "dossier": payload,
+            "blockers": [],
+        },
+    )
+
+    assert metadata["status"] == "effective"
+    assert projected["adequacoes_curriculares"] == "Adequação curricular"
+
+
 def test_non_flattenable_schedule_blocks_and_returns_same_legacy_object():
     sessions = [
         {

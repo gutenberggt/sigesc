@@ -243,13 +243,22 @@ def _objectives(items: Any) -> list[dict[str, Any]]:
 
 
 def _combine_accessibility(pei: Mapping[str, Any]) -> Optional[str]:
+    curricular = _text(pei.get("acessibilidade_curricular"))
+    didatico = _text(pei.get("acessibilidade_didatico_pedagogica"))
+    avaliativa = _text(pei.get("acessibilidade_avaliativa"))
+
+    # Compatibilidade semântica com o PDF legado: quando o snapshot ativo só
+    # possui o campo curricular, não introduzir um rótulo que não existia no
+    # conteúdo original e que criaria divergência artificial no Shadow Mode.
+    if curricular and not didatico and not avaliativa:
+        return curricular
+
     parts: list[str] = []
-    for label, field in (
-        ("Curricular", "acessibilidade_curricular"),
-        ("Didático-pedagógica", "acessibilidade_didatico_pedagogica"),
-        ("Avaliativa", "acessibilidade_avaliativa"),
+    for label, value in (
+        ("Curricular", curricular),
+        ("Didático-pedagógica", didatico),
+        ("Avaliativa", avaliativa),
     ):
-        value = _text(pei.get(field))
         if value:
             parts.append(f"{label}: {value}")
     return "\n".join(parts) or None
