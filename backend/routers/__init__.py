@@ -68,6 +68,8 @@ from .assessment_policy_admin import install_assessment_policy_admin_setup
 # Fase 6.6B expôs o contrato aditivo da Fonte Efetiva e foi homologada;
 # Fase 6.6C substitui operacionalmente a 6.6B e torna status_filter, total,
 # paginação e leitura da listagem coerentes com a Fonte Efetiva, sem writes;
+# Fase 6.6D governa PUT/duplicate/DELETE legado: sem head mantém compatibilidade;
+# com head exige Dossiê V2 e protege a âncora histórica de forma fail-closed;
 # P0 temporal rejeita novos horários AEE fora de 06:00–22:00 ou com fim <= início.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
@@ -83,6 +85,7 @@ from aee_v2.plano_shadow import install_aee_v2_plano_shadow_setup
 from aee_v2.plano_effective_read import install_aee_v2_plano_effective_read_setup
 from aee_v2.plano_pdf_effective import install_aee_v2_plano_pdf_effective_setup
 from aee_v2.plan_list_effective_cutover import install_aee_v2_plan_list_effective_cutover_setup
+from aee_v2.plan_write_governance import install_aee_v2_plan_write_governance_setup
 
 
 # `server.py` importa attendance_ext somente depois deste pacote. Envolver o
@@ -105,6 +108,7 @@ install_aee_v2_plano_shadow_setup(_aee_mod)
 install_aee_v2_plano_effective_read_setup(_aee_mod)
 install_aee_v2_plano_pdf_effective_setup(_aee_mod)
 install_aee_v2_plan_list_effective_cutover_setup(_aee_mod)
+install_aee_v2_plan_write_governance_setup(_aee_mod)
 
 
 def setup_grades_router(
