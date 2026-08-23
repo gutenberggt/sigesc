@@ -76,16 +76,19 @@
 - [Fase 6.6A — Homologação em Produção](AEE_V2_FASE6_6A_HOMOLOGACAO_PRODUCAO_2026-08-23.md) ✅ **HOMOLOGADA EM PRODUÇÃO — 23/08/2026**
 - [Fase 6.6B — Plano Executivo do Contrato Aditivo da Listagem](AEE_V2_FASE6_6B_PLANO_EXECUTIVO_CONTRATO_ADITIVO_LISTAGEM.md) ✅ **IMPLEMENTADA**
 - [Fase 6.6B — Homologação em Produção](AEE_V2_FASE6_6B_HOMOLOGACAO_PRODUCAO_2026-08-23.md) ✅ **HOMOLOGADA EM PRODUÇÃO — 23/08/2026**
-- [Fase 6.6C — Plano Executivo do Cutover Controlado da Leitura/UX](AEE_V2_FASE6_6C_PLANO_EXECUTIVO_CUTOVER_LEITURA_UX.md) 🟡 **PLANO EXECUTIVO — SEM IMPLEMENTAÇÃO**
+- [Fase 6.6C — Plano Executivo do Cutover Controlado da Leitura/UX](AEE_V2_FASE6_6C_PLANO_EXECUTIVO_CUTOVER_LEITURA_UX.md) ✅ **IMPLEMENTADA**
+- [Fase 6.6C — Homologação em Produção](AEE_V2_FASE6_6C_HOMOLOGACAO_PRODUCAO_2026-08-23.md) ✅ **HOMOLOGADA EM PRODUÇÃO — 23/08/2026**
+- [Fase 6.6D — Plano Executivo da Governança de Escrita](AEE_V2_FASE6_6D_PLANO_EXECUTIVO_GOVERNANCA_ESCRITA.md) 🟡 **PLANO EXECUTIVO — SEM IMPLEMENTAÇÃO**
 
-> A 6.6B foi homologada em produção com 23 Planos AEE reais. O contrato HTTP
-> retornou 20 `legacy_allowed`, 2 casos `working_only` e 1 `sidecar_active`, com
-> zero erro de integridade e teto de uma query de heads + uma de snapshots.
-> O caso sentinela preservou `status=rascunho` no legado e expôs simultaneamente
-> `effective_source=sidecar_active` e situação efetiva `ativo`, enquanto a UI
-> permaneceu deliberadamente em `Em elaboração`. A 6.6C está planejada para fazer
-> o cutover atômico de status/dias, visualização e semântica de `status_filter`,
-> `total` e paginação, sem antecipar a governança de escrita da 6.6D.
+> A 6.6C foi homologada em produção com 23 Planos AEE reais, zero erro de
+> integridade e teto de uma query de heads + uma de snapshots. O cutover corrigiu
+> listagem, status visual, `status_filter`, total, paginação e visualização
+> individual. O caso sentinela preserva `legacy.status=rascunho`, mas é lido como
+> `sidecar_active/active`, aparece **Vigente** na lista, no viewer `v2.r2` e no PDF.
+> O filtro efetivo retornou `ativo=1` e `rascunho=22`. A 6.6D está planejada para
+> encerrar a dupla autoridade de edição: Planos sem head V2 permanecem no fluxo
+> legado; Planos com head V2 passam a exigir edição pelo Dossiê V2, com PUT,
+> duplicação e exclusão da âncora legado bloqueados de forma fail-closed.
 
 ## Como manter viva esta baseline
 Sempre que houver mudança estrutural relevante (novo módulo, nova coleção,
