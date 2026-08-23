@@ -52,4 +52,5 @@ jobs:
             tests/test_aee_time_integrity.py \
             tests/test_aee_v2_plano_shadow.py \
             tests/test_aee_v2_plano_effective_read.py \
-            tests/test_aee_v2_plano_pdf_effective.py
+            tests/test_aee_v2_plano_pdf_effective.py \
+            tests/test_aee_v2_plano_pdf_shadow.py
