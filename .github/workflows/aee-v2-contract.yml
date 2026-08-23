@@ -54,4 +54,5 @@ jobs:
             tests/test_aee_v2_plano_effective_read.py \
             tests/test_aee_v2_plano_pdf_effective.py \
             tests/test_aee_v2_plano_pdf_shadow.py \
-            tests/test_aee_v2_plan_list_shadow.py
+            tests/test_aee_v2_plan_list_shadow.py \
+            tests/test_aee_v2_plan_list_contract.py
