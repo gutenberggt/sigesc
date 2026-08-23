@@ -1,8 +1,7 @@
+import asyncio
 from copy import deepcopy
-from types import SimpleNamespace
 
 from fastapi import APIRouter, FastAPI
-import pytest
 
 from aee_v2.plano_pdf_shadow import (
     PDF_PLAN_FIELDS,
@@ -79,150 +78,158 @@ def test_compare_uses_only_rendered_semantics():
     assert result["divergent_fields"] == []
 
 
-@pytest.mark.asyncio
-async def test_sidecar_shadow_detects_field_names_without_mutating_legacy():
-    legacy = _legacy_plan()
-    db = _DB(legacy)
-    before = deepcopy(legacy)
+def test_sidecar_shadow_detects_field_names_without_mutating_legacy():
+    async def scenario():
+        legacy = _legacy_plan()
+        db = _DB(legacy)
+        before = deepcopy(legacy)
 
-    async def context_builder(db, plano_id):
-        return {
-            "status": "effective",
-            "effective_source": "sidecar_active",
-            "effective_version": {
-                "active_snapshot_id": "snap-1",
-                "document_version": 1,
-                "revision": 14,
-            },
-        }
+        async def context_builder(db, plano_id):
+            return {
+                "status": "effective",
+                "effective_source": "sidecar_active",
+                "effective_version": {
+                    "active_snapshot_id": "snap-1",
+                    "document_version": 1,
+                    "revision": 14,
+                },
+            }
 
-    def projector(plan, context):
-        candidate = deepcopy(plan)
-        candidate["status"] = "revisao"
-        candidate["horario_inicio"] = "10:00"
-        return candidate, {
-            "status": "effective",
-            "plan_source": "sidecar_active",
-            "blockers": [],
-        }
+        def projector(plan, context):
+            candidate = deepcopy(plan)
+            candidate["status"] = "revisao"
+            candidate["horario_inicio"] = "10:00"
+            return candidate, {
+                "status": "effective",
+                "plan_source": "sidecar_active",
+                "blockers": [],
+            }
 
-    diagnostic = await build_plano_pdf_shadow(
-        db,
-        "plan-1",
-        context_builder=context_builder,
-        projector=projector,
-    )
+        diagnostic = await build_plano_pdf_shadow(
+            db,
+            "plan-1",
+            context_builder=context_builder,
+            projector=projector,
+        )
 
-    assert legacy == before
-    assert diagnostic["status"] == "divergent"
-    assert diagnostic["effective_source"] == "sidecar_active"
-    assert diagnostic["divergent_fields"] == ["status", "horario_inicio"]
-    assert diagnostic["divergent_count"] == 2
-    assert "Fundamentação legado" not in repr(diagnostic)
+        assert legacy == before
+        assert diagnostic["status"] == "divergent"
+        assert diagnostic["effective_source"] == "sidecar_active"
+        assert diagnostic["divergent_fields"] == ["status", "horario_inicio"]
+        assert diagnostic["divergent_count"] == 2
+        assert "Fundamentação legado" not in repr(diagnostic)
 
-
-@pytest.mark.asyncio
-async def test_legacy_shadow_reports_full_parity():
-    legacy = _legacy_plan()
-    db = _DB(legacy)
-
-    async def context_builder(db, plano_id):
-        return {
-            "status": "legacy",
-            "effective_source": "legacy",
-            "effective_version": None,
-        }
-
-    def projector(plan, context):
-        return plan, {
-            "status": "legacy",
-            "plan_source": "legacy",
-            "blockers": [],
-        }
-
-    diagnostic = await build_plano_pdf_shadow(
-        db,
-        "plan-1",
-        context_builder=context_builder,
-        projector=projector,
-    )
-
-    assert diagnostic["status"] == "parity"
-    assert diagnostic["parity"] is True
-    assert diagnostic["equal_count"] == len(PDF_PLAN_FIELDS)
-    assert diagnostic["divergent_count"] == 0
+    asyncio.run(scenario())
 
 
-@pytest.mark.asyncio
-async def test_blocked_projection_is_explicit_and_fail_closed():
-    legacy = _legacy_plan()
-    db = _DB(legacy)
+def test_legacy_shadow_reports_full_parity():
+    async def scenario():
+        legacy = _legacy_plan()
+        db = _DB(legacy)
 
-    async def context_builder(db, plano_id):
-        return {
-            "status": "effective",
-            "effective_source": "sidecar_active",
-            "effective_version": {"document_version": 1, "revision": 14},
-        }
+        async def context_builder(db, plano_id):
+            return {
+                "status": "legacy",
+                "effective_source": "legacy",
+                "effective_version": None,
+            }
 
-    def projector(plan, context):
-        return plan, {
-            "status": "blocked",
-            "plan_source": "legacy",
-            "blockers": [{"code": "AEE_V2_PLANO_PDF_NOT_FLATTENABLE"}],
-        }
+        def projector(plan, context):
+            return plan, {
+                "status": "legacy",
+                "plan_source": "legacy",
+                "blockers": [],
+            }
 
-    diagnostic = await build_plano_pdf_shadow(
-        db,
-        "plan-1",
-        context_builder=context_builder,
-        projector=projector,
-    )
+        diagnostic = await build_plano_pdf_shadow(
+            db,
+            "plan-1",
+            context_builder=context_builder,
+            projector=projector,
+        )
 
-    assert diagnostic["status"] == "blocked"
-    assert diagnostic["parity"] is None
-    assert diagnostic["blockers"][0]["code"] == "AEE_V2_PLANO_PDF_NOT_FLATTENABLE"
+        assert diagnostic["status"] == "parity"
+        assert diagnostic["parity"] is True
+        assert diagnostic["equal_count"] == len(PDF_PLAN_FIELDS)
+        assert diagnostic["divergent_count"] == 0
+
+    asyncio.run(scenario())
 
 
-@pytest.mark.asyncio
-async def test_route_returns_exact_same_legacy_pdf_response_object():
-    router = APIRouter()
-    sentinel = object()
-    calls = []
+def test_blocked_projection_is_explicit_and_fail_closed():
+    async def scenario():
+        legacy = _legacy_plan()
+        db = _DB(legacy)
 
-    @router.get("/aee/planos/{plano_id}/pdf")
-    async def legacy_pdf(plano_id: str):
-        calls.append(("legacy", plano_id))
-        return sentinel
+        async def context_builder(db, plano_id):
+            return {
+                "status": "effective",
+                "effective_source": "sidecar_active",
+                "effective_version": {"document_version": 1, "revision": 14},
+            }
 
-    async def diagnostic_builder(db, plano_id):
-        calls.append(("shadow", plano_id))
-        return {
-            "phase": "6.5A",
-            "mode": "shadow_read_only",
-            "status": "parity",
-            "effective_source": "legacy",
-            "effective_version": None,
-            "fields_total": len(PDF_PLAN_FIELDS),
-            "equal_count": len(PDF_PLAN_FIELDS),
-            "divergent_count": 0,
-            "divergent_fields": [],
-            "parity": True,
-            "blockers": [],
-            "error": None,
-        }
+        def projector(plan, context):
+            return plan, {
+                "status": "blocked",
+                "plan_source": "legacy",
+                "blockers": [{"code": "AEE_V2_PLANO_PDF_NOT_FLATTENABLE"}],
+            }
 
-    install_aee_v2_plano_pdf_shadow(
-        router,
-        object(),
-        diagnostics_builder=diagnostic_builder,
-    )
+        diagnostic = await build_plano_pdf_shadow(
+            db,
+            "plan-1",
+            context_builder=context_builder,
+            projector=projector,
+        )
 
-    route = next(r for r in router.routes if r.path == "/aee/planos/{plano_id}/pdf")
-    result = await route.endpoint(plano_id="plan-1")
+        assert diagnostic["status"] == "blocked"
+        assert diagnostic["parity"] is None
+        assert diagnostic["blockers"][0]["code"] == "AEE_V2_PLANO_PDF_NOT_FLATTENABLE"
 
-    assert result is sentinel
-    assert calls == [("legacy", "plan-1"), ("shadow", "plan-1")]
+    asyncio.run(scenario())
+
+
+def test_route_returns_exact_same_legacy_pdf_response_object():
+    async def scenario():
+        router = APIRouter()
+        sentinel = object()
+        calls = []
+
+        @router.get("/aee/planos/{plano_id}/pdf")
+        async def legacy_pdf(plano_id: str):
+            calls.append(("legacy", plano_id))
+            return sentinel
+
+        async def diagnostic_builder(db, plano_id):
+            calls.append(("shadow", plano_id))
+            return {
+                "phase": "6.5A",
+                "mode": "shadow_read_only",
+                "status": "parity",
+                "effective_source": "legacy",
+                "effective_version": None,
+                "fields_total": len(PDF_PLAN_FIELDS),
+                "equal_count": len(PDF_PLAN_FIELDS),
+                "divergent_count": 0,
+                "divergent_fields": [],
+                "parity": True,
+                "blockers": [],
+                "error": None,
+            }
+
+        install_aee_v2_plano_pdf_shadow(
+            router,
+            object(),
+            diagnostics_builder=diagnostic_builder,
+        )
+
+        route = next(r for r in router.routes if r.path == "/aee/planos/{plano_id}/pdf")
+        result = await route.endpoint(plano_id="plan-1")
+
+        assert result is sentinel
+        assert calls == [("legacy", "plan-1"), ("shadow", "plan-1")]
+
+    asyncio.run(scenario())
 
 
 def test_install_is_idempotent_and_survives_fastapi_include_router():
