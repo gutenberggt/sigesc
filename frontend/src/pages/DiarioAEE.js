@@ -15,6 +15,9 @@
  * AEE v2 Fase 6.6C: cutover controlado da leitura/UX autorizado
  * explicitamente pelo proprietário em 23/08/2026.
  *
+ * AEE v2 Fase 6.6D: governança de escrita autorizada
+ * explicitamente pelo proprietário em 23/08/2026.
+ *
  * Regras para qualquer agente/desenvolvedor:
  *   1. Não refatore, não "limpe", não mude visual/UX, não renomeie campos,
  *      não modifique payload, modais, validações ou rotas.
@@ -140,6 +143,15 @@ const getPlanV2Badge = (plano) => {
   }
   if (version.working_snapshot_id) return 'Dossiê V2 · Em trabalho';
   return 'Dossiê V2';
+};
+
+// Fase 6.6D — policy da UI é somente orientação de UX.
+// O backend recalcula a governança imediatamente antes de toda mutação.
+const getPlanMutationPolicy = (plano) => {
+  if (plano?.mutation_policy) return plano.mutation_policy;
+  if (plano?.effective_error) return 'blocked_integrity';
+  if (plano?.v2_managed) return 'dossier_v2_required';
+  return 'legacy_allowed';
 };
 
 const DiarioAEE = () => {
@@ -364,7 +376,9 @@ const DiarioAEE = () => {
         if (Array.isArray(obj.detail)) {
           return obj.detail.map(d => d?.msg || JSON.stringify(d)).join(' · ');
         }
-        return typeof obj.detail === 'string' ? obj.detail : JSON.stringify(obj.detail);
+        if (typeof obj.detail === 'string') return obj.detail;
+        if (obj.detail?.message) return obj.detail.message;
+        return JSON.stringify(obj.detail);
       }
       return obj?.message || fallback;
     } catch {
@@ -416,6 +430,15 @@ const DiarioAEE = () => {
   };
 
   const handleEditPlano = (plano) => {
+    const policy = getPlanMutationPolicy(plano);
+    if (policy === 'blocked_integrity') {
+      showAlert('error', 'Verifique a integridade do Dossiê AEE V2 antes de alterar este Plano.');
+      return;
+    }
+    if (policy === 'dossier_v2_required') {
+      setDossiePlano(plano);
+      return;
+    }
     setEditingPlano(plano);
     setShowPlanoModal(true);
   };
@@ -443,6 +466,15 @@ const DiarioAEE = () => {
   };
 
   const handleDeletePlano = (plano) => {
+    const policy = getPlanMutationPolicy(plano);
+    if (policy === 'blocked_integrity') {
+      showAlert('error', 'Verifique a integridade do Dossiê AEE V2 antes de excluir este Plano.');
+      return;
+    }
+    if (policy !== 'legacy_allowed') {
+      showAlert('error', 'A âncora histórica deste Plano é protegida pelo Dossiê AEE V2 e não pode ser excluída pelo fluxo legado.');
+      return;
+    }
     setDeletingPlano(plano);
   };
 
@@ -500,6 +532,15 @@ const DiarioAEE = () => {
   const [duplicateMode, setDuplicateMode] = useState('same'); // 'same' | 'cross'
 
   const handleDuplicarPlano = (plano) => {
+    const policy = getPlanMutationPolicy(plano);
+    if (policy === 'blocked_integrity') {
+      showAlert('error', 'Verifique a integridade do Dossiê AEE V2 antes de duplicar este Plano.');
+      return;
+    }
+    if (policy !== 'legacy_allowed') {
+      showAlert('error', 'Este Plano é gerenciado pelo Dossiê AEE V2 e não pode ser duplicado pelo fluxo legado.');
+      return;
+    }
     setDuplicatingPlano(plano);
     setDuplicateMode('same');
     setDuplicateTargetStudentId('');
@@ -1095,8 +1136,9 @@ const DiarioAEE = () => {
                       </button>
                       <button
                         onClick={() => handleDuplicarPlano(plano)}
-                        className="p-1 text-purple-600 hover:bg-purple-50 rounded"
-                        title="Duplicar Plano AEE"
+                        disabled={getPlanMutationPolicy(plano) !== 'legacy_allowed'}
+                        className={`p-1 rounded ${getPlanMutationPolicy(plano) === 'legacy_allowed' ? 'text-purple-600 hover:bg-purple-50' : 'text-gray-300 cursor-not-allowed'}`}
+                        title={getPlanMutationPolicy(plano) === 'legacy_allowed' ? 'Duplicar Plano AEE' : 'Duplicação legado bloqueada pelo Dossiê V2'}
                         data-testid={`btn-duplicar-plano-${plano.id}`}
                       >
                         <Copy size={16} />
@@ -1112,8 +1154,9 @@ const DiarioAEE = () => {
                       {canDelete && (
                       <button
                         onClick={() => handleDeletePlano(plano)}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded"
-                        title="Excluir"
+                        disabled={getPlanMutationPolicy(plano) !== 'legacy_allowed'}
+                        className={`p-1 rounded ${getPlanMutationPolicy(plano) === 'legacy_allowed' ? 'text-red-600 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`}
+                        title={getPlanMutationPolicy(plano) === 'legacy_allowed' ? 'Excluir' : 'Exclusão legado bloqueada pelo Dossiê V2'}
                         data-testid={`btn-excluir-plano-${plano.id}`}
                       >
                         <Trash2 size={16} />
