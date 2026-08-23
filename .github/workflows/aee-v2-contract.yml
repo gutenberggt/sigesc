@@ -8,37 +8,7 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-
 jobs:
-  patch-6-6d-ui:
-    name: TEMP - aplicar patch autorizado 6.6D na UI
-    if: github.event_name == 'pull_request' && github.head_ref == 'feat/aee-v2-plan-write-governance-6-6d'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout implementation branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Apply minimal authorized DiarioAEE patch
-        run: python .github/scripts/_tmp_aee_6_6d_patch_diario.py
-
-      - name: Validate and push patch
-        run: |
-          git diff --check
-          git diff -- frontend/src/pages/DiarioAEE.js
-          if git diff --quiet -- frontend/src/pages/DiarioAEE.js; then
-            echo "Nenhuma alteração necessária."
-            exit 0
-          fi
-          git add frontend/src/pages/DiarioAEE.js
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "feat(aee): aplicar governança de escrita 6.6D na UI"
-          git push origin HEAD:${{ github.head_ref }}
-
   aee-v2-contract:
     name: AEE v2 - contrato, persistência, interface e preservação do legado
     runs-on: ubuntu-latest
