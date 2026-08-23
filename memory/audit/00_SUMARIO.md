@@ -71,13 +71,15 @@
 - [Fase 3 — Interface do Dossiê](AEE_V2_FASE3_INTERFACE_DOSSIE.md) ✅
 - [Fase 4 — Adequação Pedagógica](AEE_V2_FASE4_ADEQUACAO_PEDAGOGICA.md) ✅
 - [Fase 6.5B — Homologação em Produção do PDF pela Fonte Efetiva](AEE_V2_FASE6_5B_HOMOLOGACAO_PRODUCAO_2026-08-23.md) ✅ **HOMOLOGADA EM PRODUÇÃO — 23/08/2026**
-- [Fase 6.6 — Escopo Arquitetural de Coerência Operacional da Fonte Efetiva](AEE_V2_FASE6_6_ESCOPO_ARQUITETURAL_COERENCIA_FONTE_EFETIVA.md) 🟡 **PROPOSTA — SEM IMPLEMENTAÇÃO**
+- [Fase 6.6 — Escopo Arquitetural de Coerência Operacional da Fonte Efetiva](AEE_V2_FASE6_6_ESCOPO_ARQUITETURAL_COERENCIA_FONTE_EFETIVA.md) ✅ **APROVADA — SEM IMPLEMENTAÇÃO**
+- [Fase 6.6A — Plano Executivo da Listagem em Shadow Mode](AEE_V2_FASE6_6A_PLANO_EXECUTIVO_LISTAGEM_SHADOW.md) 🟡 **PLANO EXECUTIVO — SEM IMPLEMENTAÇÃO**
 
 > A 6.5B encerrou o cutover do PDF individual do Plano AEE para `sidecar_active`,
-> com fallback legado fail-closed e observabilidade operacional validada. A Fase
-> 6.6 propõe eliminar o split-brain remanescente entre listagem/visualização,
-> Fonte Efetiva e mutações legado, em quatro subfases independentes (6.6A–6.6D).
-> Nenhuma implementação da 6.6 está autorizada por este índice.
+> com fallback legado fail-closed e observabilidade operacional validada. O escopo
+> arquitetural da Fase 6.6 foi aprovado e mergeado no PR #106. A 6.6A possui agora
+> plano executivo para observar a listagem em Shadow Mode, sem alteração de resposta,
+> frontend, filtros, paginação, mutações ou dados. Implementação continua dependente
+> de autorização explícita separada.
 
 ## Como manter viva esta baseline
 Sempre que houver mudança estrutural relevante (novo módulo, nova coleção,
