@@ -257,8 +257,8 @@ def test_install_is_idempotent_and_survives_fastapi_include_router():
     assert hasattr(final.endpoint, "__wrapped__")
 
 
-def test_runtime_setup_keeps_6_5b_cutover_dormant():
+def test_runtime_setup_activates_6_5b_cutover_after_6_5a_homologation():
     source = open("routers/__init__.py", encoding="utf-8").read()
 
-    assert "install_aee_v2_plano_pdf_shadow_setup(_aee_mod)" in source
-    assert "install_aee_v2_plano_pdf_effective_setup(_aee_mod)" not in source
+    assert "install_aee_v2_plano_pdf_effective_setup(_aee_mod)" in source
+    assert "install_aee_v2_plano_pdf_shadow_setup(_aee_mod)" not in source
