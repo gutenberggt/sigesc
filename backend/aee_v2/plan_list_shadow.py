@@ -18,8 +18,6 @@ import logging
 from time import perf_counter
 from typing import Any, Awaitable, Callable, Optional
 
-from auth_middleware import AuthMiddleware
-
 from .plan_list_effective import resolve_plan_list_effective_batch
 
 
@@ -233,7 +231,14 @@ def _log_diagnostic(diagnostic: Mapping[str, Any]) -> None:
 async def _role_for_request(request: Any, user_getter: Optional[UserGetter]) -> Optional[str]:
     if request is None:
         return None
-    getter = user_getter or AuthMiddleware.get_current_user
+    if user_getter is None:
+        # Import lazy: o Contract Guard isolado testa o adapter sem carregar toda
+        # a pilha de autenticação (bcrypt/JWT). Em produção usa a fonte canônica.
+        from auth_middleware import AuthMiddleware
+
+        getter = AuthMiddleware.get_current_user
+    else:
+        getter = user_getter
     try:
         user = await getter(request)
     except Exception:
