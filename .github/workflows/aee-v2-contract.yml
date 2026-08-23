@@ -59,4 +59,5 @@ jobs:
             tests/test_aee_v2_plan_list_effective_cutover.py \
             tests/test_aee_v2_fase6_6c_ui_contract.py \
             tests/test_aee_v2_plan_write_governance.py \
+            tests/test_aee_v2_route_signature_contract.py \
             tests/test_aee_v2_fase6_6d_ui_contract.py

@@ -22,7 +22,7 @@ import inspect
 import json
 import logging
 from time import perf_counter
-from typing import Any, Optional
+from typing import Any, Optional, get_type_hints
 
 from fastapi import HTTPException, status
 from fastapi.routing import APIRoute
@@ -121,6 +121,56 @@ def _route_for(base_router, path: str, method: str) -> APIRoute:
             f"encontrou {len(matches)}."
         )
     return matches[0]
+
+
+def _resolved_endpoint_signature(endpoint) -> inspect.Signature:
+    """Preserva tipos concretos quando FastAPI 0.110.1 clona a APIRoute.
+
+    ``@wraps`` copia annotations adiadas como strings. Depois que o endpoint é
+    envolvido por outro módulo, essas strings passam a ser avaliadas no
+    namespace do wrapper, que pode não conter ``Request`` nem os modelos
+    Pydantic do endpoint original. A assinatura materializada evita que
+    ``include_router()`` reclassifique body/Request como query params.
+    """
+
+    signature = inspect.signature(endpoint)
+    source = inspect.unwrap(endpoint)
+    source_globals = getattr(source, "__globals__", {}) or {}
+
+    try:
+        hints = get_type_hints(source, globalns=source_globals, localns=source_globals)
+    except Exception as exc:
+        unresolved = [
+            name
+            for name, parameter in signature.parameters.items()
+            if isinstance(parameter.annotation, str)
+        ]
+        if unresolved:
+            raise RuntimeError(
+                "AEE v2 6.6D não conseguiu resolver annotations da rota: "
+                + ", ".join(unresolved)
+            ) from exc
+        return signature
+
+    parameters = [
+        parameter.replace(annotation=hints.get(name, parameter.annotation))
+        for name, parameter in signature.parameters.items()
+    ]
+    resolved = signature.replace(
+        parameters=parameters,
+        return_annotation=hints.get("return", signature.return_annotation),
+    )
+    unresolved = [
+        name
+        for name, parameter in resolved.parameters.items()
+        if isinstance(parameter.annotation, str)
+    ]
+    if unresolved:
+        raise RuntimeError(
+            "AEE v2 6.6D preservou annotations não resolvidas na rota: "
+            + ", ".join(unresolved)
+        )
+    return resolved
 
 
 def _collection(db: Any, name: str):
@@ -298,7 +348,7 @@ def _build_governed_endpoint(
     batch_resolver: BatchResolver,
     user_getter: Optional[UserGetter],
 ):
-    signature = inspect.signature(original_endpoint)
+    signature = _resolved_endpoint_signature(original_endpoint)
 
     @wraps(original_endpoint)
     async def governed_endpoint(*args, **kwargs):
@@ -398,6 +448,7 @@ def _build_governed_endpoint(
             detail=detail,
         )
 
+    setattr(governed_endpoint, "__signature__", signature)
     return governed_endpoint
 
 
