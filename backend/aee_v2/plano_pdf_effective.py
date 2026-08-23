@@ -479,7 +479,13 @@ def _log_cutover(context: Mapping[str, Any]) -> None:
         "sessions_total": applied.get("sessions_total"),
         "blockers": len(applied.get("blockers") or context.get("blockers") or []),
     }
-    logger.info(
+    level = (
+        logging.WARNING
+        if payload["effective_source"] == "sidecar_active" or payload["blockers"] > 0
+        else logging.INFO
+    )
+    logger.log(
+        level,
         "AEE_V2_PLANO_PDF_EFFECTIVE %s",
         json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True),
     )
