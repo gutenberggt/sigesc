@@ -55,4 +55,6 @@ jobs:
             tests/test_aee_v2_plano_pdf_effective.py \
             tests/test_aee_v2_plano_pdf_shadow.py \
             tests/test_aee_v2_plan_list_shadow.py \
-            tests/test_aee_v2_plan_list_contract.py
+            tests/test_aee_v2_plan_list_contract.py \
+            tests/test_aee_v2_plan_list_effective_cutover.py \
+            tests/test_aee_v2_fase6_6c_ui_contract.py

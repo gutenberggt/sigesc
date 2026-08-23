@@ -12,6 +12,9 @@
  * AEE v2 Fase 3: interface do Dossiê Individual AEE V2 autorizada
  * explicitamente pelo proprietário em 21/08/2026.
  *
+ * AEE v2 Fase 6.6C: cutover controlado da leitura/UX autorizado
+ * explicitamente pelo proprietário em 23/08/2026.
+ *
  * Regras para qualquer agente/desenvolvedor:
  *   1. Não refatore, não "limpe", não mude visual/UX, não renomeie campos,
  *      não modifique payload, modais, validações ou rotas.
@@ -31,6 +34,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import PlanoAEEModal from '@/components/PlanoAEEModal';
 import DossieAEEV2Modal from '@/components/DossieAEEV2Modal';
+import PlanoAEEEffectiveViewer from '@/components/PlanoAEEEffectiveViewer';
 import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 import { browserLocalTodayISO } from '@/utils/browserLocalDate';
 
@@ -92,7 +96,50 @@ const STATUS_PLANO_LABELS = {
   'rascunho': 'Em elaboração',
   'ativo': 'Vigente',
   'revisao': 'Em revisão',
-  'encerrado': 'Encerrado'
+  'encerrado': 'Encerrado',
+  'cancelado': 'Cancelado'
+};
+
+// Fase 6.6C — helpers de apresentação da Fonte Efetiva.
+// O legado só é fallback quando o contrato aditivo ainda não existe (rollback/deploy antigo).
+const getPlanEffectiveStatus = (plano) => {
+  if (plano?.effective_error) return null;
+  const summary = plano?.effective_summary;
+  if (summary && Object.prototype.hasOwnProperty.call(summary, 'legacy_compatible_status')) {
+    return summary.legacy_compatible_status || null;
+  }
+  const hasEffectiveContract = plano && (
+    Object.prototype.hasOwnProperty.call(plano, 'effective_summary') ||
+    Object.prototype.hasOwnProperty.call(plano, 'effective_error')
+  );
+  return hasEffectiveContract ? null : (plano?.status || null);
+};
+
+const getPlanEffectiveDays = (plano) => {
+  if (plano?.effective_error) return null;
+  const schedule = plano?.effective_summary?.schedule_summary;
+  if (schedule && Object.prototype.hasOwnProperty.call(schedule, 'days')) {
+    return Array.isArray(schedule.days) ? schedule.days : null;
+  }
+  const hasEffectiveContract = plano && (
+    Object.prototype.hasOwnProperty.call(plano, 'effective_summary') ||
+    Object.prototype.hasOwnProperty.call(plano, 'effective_error')
+  );
+  return hasEffectiveContract ? null : (Array.isArray(plano?.dias_atendimento) ? plano.dias_atendimento : []);
+};
+
+const getPlanV2Badge = (plano) => {
+  if (!plano?.v2_managed) return null;
+  if (plano.effective_error) return 'Dossiê V2 · Verificar integridade';
+  const version = plano.effective_version || {};
+  if (version.active_snapshot_id) {
+    const versionLabel = version.document_version != null && version.revision != null
+      ? `v${version.document_version}.r${version.revision}`
+      : 'Vigente';
+    return `Dossiê V2 · ${versionLabel}`;
+  }
+  if (version.working_snapshot_id) return 'Dossiê V2 · Em trabalho';
+  return 'Dossiê V2';
 };
 
 const DiarioAEE = () => {
@@ -377,8 +424,22 @@ const DiarioAEE = () => {
   const [viewingPlano, setViewingPlano] = useState(null);
   const [deletingPlano, setDeletingPlano] = useState(null);
 
-  const handleVisualizarPlano = (plano) => {
-    setViewingPlano(plano);
+  const handleVisualizarPlano = async (plano) => {
+    // 6.6C: o objeto da listagem deixa de ser autoridade da visualização.
+    // Usa apenas o id e resolve o GET individual 6.4B já homologado.
+    try {
+      const response = await fetch(
+        `${API_URL}/api/aee/planos/${plano.id}`,
+        { headers: { 'Authorization': `Bearer ${tokenRef.current}` } }
+      );
+      if (!response.ok) {
+        throw new Error(await parseResponseError(response, 'Erro ao carregar a Fonte Efetiva do Plano'));
+      }
+      const effectivePlan = await response.json();
+      setViewingPlano(effectivePlan);
+    } catch (error) {
+      showAlert('error', error.message);
+    }
   };
 
   const handleDeletePlano = (plano) => {
@@ -963,16 +1024,45 @@ const DiarioAEE = () => {
                   <td className="px-4 py-3 text-sm text-gray-600">{PUBLICO_ALVO_LABELS[plano.publico_alvo]}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{MODALIDADE_LABELS[plano.modalidade]}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {plano.dias_atendimento?.map(d => DIAS_SEMANA[d]?.charAt(0)).join(', ')}
+                    {(() => {
+                      const effectiveDays = getPlanEffectiveDays(plano);
+                      if (effectiveDays === null) {
+                        return <span className="text-amber-700">Indisponível</span>;
+                      }
+                      return (
+                        <div>
+                          <span>{effectiveDays.map(d => DIAS_SEMANA[d]?.charAt(0) || d?.charAt?.(0)).join(', ') || '-'}</span>
+                          {plano?.effective_summary?.schedule_summary?.shape === 'heterogeneous' && (
+                            <div className="text-[10px] text-amber-700 mt-1">Agenda variável</div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      plano.status === 'ativo' ? 'bg-green-100 text-green-700' :
-                      plano.status === 'rascunho' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {STATUS_PLANO_LABELS[plano.status] || plano.status}
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                      {plano.effective_error ? (
+                        <span className="px-2 py-1 rounded text-xs bg-amber-100 text-amber-800" data-testid={`plano-integridade-${plano.id}`}>
+                          Integridade pendente
+                        </span>
+                      ) : (() => {
+                        const effectiveStatus = getPlanEffectiveStatus(plano);
+                        return (
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            effectiveStatus === 'ativo' ? 'bg-green-100 text-green-700' :
+                            effectiveStatus === 'rascunho' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`} data-testid={`plano-status-efetivo-${plano.id}`}>
+                            {STATUS_PLANO_LABELS[effectiveStatus] || effectiveStatus || 'Indisponível'}
+                          </span>
+                        );
+                      })()}
+                      {getPlanV2Badge(plano) && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200" data-testid={`plano-v2-badge-${plano.id}`}>
+                          {getPlanV2Badge(plano)}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-1">
@@ -1640,77 +1730,13 @@ const DiarioAEE = () => {
         canEdit={canEdit}
       />
 
-      {/* Modal de Visualização do Plano AEE (Feb 2026) */}
+      {/* Fase 6.6C — visualização oficial pela Fonte Efetiva individual. */}
       {viewingPlano && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewingPlano(null)}>
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="view-plano-modal">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">Visualização do Plano AEE</h3>
-              <button onClick={() => setViewingPlano(null)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-4">
-                <div><span className="font-semibold text-gray-600">Estudante:</span> {estudantes.find(e => e.student_id === viewingPlano.student_id)?.full_name || '-'}</div>
-                <div><span className="font-semibold text-gray-600">Ano Letivo:</span> {viewingPlano.academic_year}</div>
-                <div><span className="font-semibold text-gray-600">Público-alvo:</span> {viewingPlano.publico_alvo?.replace(/_/g, ' ')}</div>
-                <div><span className="font-semibold text-gray-600">Situação:</span> {STATUS_PLANO_LABELS[viewingPlano.status] || viewingPlano.status}</div>
-                <div><span className="font-semibold text-gray-600">Modalidade:</span> <span className="capitalize">{viewingPlano.modalidade || '-'}</span></div>
-                <div><span className="font-semibold text-gray-600">Carga Horária:</span> {viewingPlano.carga_horaria_semanal || '-'}</div>
-                <div><span className="font-semibold text-gray-600">Data Elaboração:</span> {viewingPlano.data_elaboracao || '-'}</div>
-                <div><span className="font-semibold text-gray-600">Período Vigência:</span> {viewingPlano.periodo_vigencia || '-'}</div>
-              </div>
-              {viewingPlano.linha_base_situacao_atual && (
-                <div><span className="font-semibold text-gray-600 block">Linha de Base - Situação Atual:</span> <div className="whitespace-pre-wrap">{viewingPlano.linha_base_situacao_atual}</div></div>
-              )}
-              {viewingPlano.linha_base_potencialidades && (
-                <div><span className="font-semibold text-gray-600 block">Potencialidades:</span> <div className="whitespace-pre-wrap">{viewingPlano.linha_base_potencialidades}</div></div>
-              )}
-              {Array.isArray(viewingPlano.barreiras) && viewingPlano.barreiras.length > 0 && (
-                <div><span className="font-semibold text-gray-600 block mb-1">Barreiras Identificadas:</span>
-                  <ul className="list-disc list-inside space-y-1">
-                    {viewingPlano.barreiras.map((b, i) => (
-                      <li key={b._key || `b-${i}`}>{typeof b === 'string' ? b : `[${(b.tipo || '').replace(/^./, c => c.toUpperCase())}] ${b.descricao || ''}`}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {Array.isArray(viewingPlano.objetivos) && viewingPlano.objetivos.length > 0 && (
-                <div><span className="font-semibold text-gray-600 block mb-1">Objetivos:</span>
-                  <ul className="list-disc list-inside space-y-1">
-                    {viewingPlano.objetivos.map((o, i) => (
-                      <li key={o._key || `o-${i}`}>{typeof o === 'string' ? o : `${o.descricao || ''}${o.prazo ? ` (${o.prazo})` : ''}`}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {Array.isArray(viewingPlano.recursos_acessibilidade) && viewingPlano.recursos_acessibilidade.length > 0 && (
-                <div><span className="font-semibold text-gray-600 block mb-1">Recursos de Acessibilidade:</span>
-                  <ul className="list-disc list-inside space-y-1">
-                    {viewingPlano.recursos_acessibilidade.map((r, i) => (
-                      <li key={r._key || `r-${i}`}>{typeof r === 'string' ? r : `[${(r.tipo || '').replace(/^./, c => c.toUpperCase())}] ${r.descricao || ''}`}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-3 flex justify-end gap-2">
-              <button
-                onClick={() => setViewingPlano(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >Fechar</button>
-              <button
-                onClick={() => handleGerarPDFPlano(viewingPlano)}
-                data-testid="btn-gerar-pdf-plano"
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 inline-flex items-center gap-2"
-              >
-                <Download size={14} />
-                Gerar PDF (Imprimir / Salvar)
-              </button>
-            </div>
-          </div>
-        </div>
+        <PlanoAEEEffectiveViewer
+          payload={viewingPlano}
+          onClose={() => setViewingPlano(null)}
+          onGeneratePdf={handleGerarPDFPlano}
+        />
       )}
 
       {/* Modal de Confirmação de Exclusão (Feb 2026) */}
