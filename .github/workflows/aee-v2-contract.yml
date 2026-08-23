@@ -33,7 +33,7 @@ jobs:
         run: pip install pytest pydantic pymongo 'fastapi==0.110.1'
 
       - name: Compile canonical AEE v2 package
-        run: python -m compileall -q aee_v2 routers/aee_v2_dossier.py routers/aee_v2_persistence.py routers/aee_v2_delete_guard.py scripts/audit_aee_time_integrity_2026.py
+        run: python -m compileall -q aee_v2 routers/aee_v2_dossier.py routers/aee_v2_persistence.py routers/aee_v2_delete_guard.py scripts/audit_aee_time_integrity_2026.py scripts/audit_aee_v2_plan_list_6_6a.py
 
       - name: Run AEE v2 contract, persistence, legacy-preservation and UI tests
         run: |
@@ -53,4 +53,5 @@ jobs:
             tests/test_aee_v2_plano_shadow.py \
             tests/test_aee_v2_plano_effective_read.py \
             tests/test_aee_v2_plano_pdf_effective.py \
-            tests/test_aee_v2_plano_pdf_shadow.py
+            tests/test_aee_v2_plano_pdf_shadow.py \
+            tests/test_aee_v2_plan_list_shadow.py
