@@ -23,6 +23,7 @@ from aee_v2.versioning import make_snapshot
 
 
 DB_SENTINEL = object()
+_UNSET = object()
 
 
 BASE_PLAN = {
@@ -55,7 +56,7 @@ def _summary(
     source="legacy",
     lifecycle="draft",
     effective_status="rascunho",
-    days=None,
+    days=_UNSET,
     shape="legacy_projection",
     integrity_error=None,
     working_error=None,
@@ -79,7 +80,7 @@ def _summary(
         "effective_lifecycle_status": lifecycle,
         "effective_legacy_status": effective_status,
         "legacy_days": ["segunda"],
-        "effective_days": ["segunda"] if days is None else days,
+        "effective_days": ["segunda"] if days is _UNSET else days,
         "schedule_shape": shape,
         "status_parity": effective_status == "rascunho",
         "days_parity": True,
@@ -255,7 +256,9 @@ def test_schedule_contract_represents_all_supported_shapes_without_flattening():
         ("heterogeneous", ["terça", "quinta"]),
         (None, None),
     ):
-        source = None if shape is None else ("legacy" if shape == "legacy_projection" else "sidecar_active")
+        source = None if shape is None else (
+            "legacy" if shape == "legacy_projection" else "sidecar_active"
+        )
         error = (
             {"code": "AEE_V2_TEST", "message": "indisponível"}
             if source is None
@@ -642,4 +645,7 @@ def test_query_budget_is_constant_for_0_1_10_and_100_items():
         assert result["performance"]["snapshot_queries"] == 1
         assert len(db[AEEV2Repository.HEADS].find_calls) == 1
         assert len(db[AEEV2Repository.SNAPSHOTS].find_calls) == 1
-        assert all(item["effective_source"] == "sidecar_active" for item in result["items"])
+        assert all(
+            item["effective_source"] == "sidecar_active"
+            for item in result["items"]
+        )
