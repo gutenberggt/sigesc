@@ -14,8 +14,6 @@ import json
 import os
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorClient
-
 from aee_v2.plan_list_effective import (
     V2_TO_LEGACY_STATUS,
     resolve_plan_list_effective_batch,
@@ -182,6 +180,10 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
     if not mongo_url:
         raise SystemExit("MONGO_URL não configurado")
     db_name = os.environ.get("DB_NAME", "sigesc_db")
+
+    # Import lazy: as funções puras do auditor permanecem testáveis no Contract
+    # Guard isolado, que não precisa instalar o driver Motor.
+    from motor.motor_asyncio import AsyncIOMotorClient
 
     client = AsyncIOMotorClient(mongo_url)
     try:
