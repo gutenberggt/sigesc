@@ -74,15 +74,18 @@
 - [Fase 6.6 — Escopo Arquitetural de Coerência Operacional da Fonte Efetiva](AEE_V2_FASE6_6_ESCOPO_ARQUITETURAL_COERENCIA_FONTE_EFETIVA.md) ✅ **APROVADA**
 - [Fase 6.6A — Plano Executivo da Listagem em Shadow Mode](AEE_V2_FASE6_6A_PLANO_EXECUTIVO_LISTAGEM_SHADOW.md) ✅ **IMPLEMENTADA**
 - [Fase 6.6A — Homologação em Produção](AEE_V2_FASE6_6A_HOMOLOGACAO_PRODUCAO_2026-08-23.md) ✅ **HOMOLOGADA EM PRODUÇÃO — 23/08/2026**
-- [Fase 6.6B — Plano Executivo do Contrato Aditivo da Listagem](AEE_V2_FASE6_6B_PLANO_EXECUTIVO_CONTRATO_ADITIVO_LISTAGEM.md) 🟡 **PLANO EXECUTIVO — SEM IMPLEMENTAÇÃO**
+- [Fase 6.6B — Plano Executivo do Contrato Aditivo da Listagem](AEE_V2_FASE6_6B_PLANO_EXECUTIVO_CONTRATO_ADITIVO_LISTAGEM.md) ✅ **IMPLEMENTADA**
+- [Fase 6.6B — Homologação em Produção](AEE_V2_FASE6_6B_HOMOLOGACAO_PRODUCAO_2026-08-23.md) ✅ **HOMOLOGADA EM PRODUÇÃO — 23/08/2026**
+- [Fase 6.6C — Plano Executivo do Cutover Controlado da Leitura/UX](AEE_V2_FASE6_6C_PLANO_EXECUTIVO_CUTOVER_LEITURA_UX.md) 🟡 **PLANO EXECUTIVO — SEM IMPLEMENTAÇÃO**
 
-> A 6.6A foi homologada em produção com 23 Planos AEE reais, incluindo um caso
-> `sidecar_active` com transição `rascunho -> ativo`, dois casos `working_only`,
-> zero erro de integridade e teto de uma query de heads + uma de snapshots por lote.
-> A 6.6B está planejada para expor um contrato HTTP estritamente aditivo da Fonte
-> Efetiva, preservando os campos legado e sem alterar frontend, `status_filter`, total,
-> paginação ou mutações. A implementação da 6.6B depende de autorização explícita
-> separada após validação e merge deste plano documental.
+> A 6.6B foi homologada em produção com 23 Planos AEE reais. O contrato HTTP
+> retornou 20 `legacy_allowed`, 2 casos `working_only` e 1 `sidecar_active`, com
+> zero erro de integridade e teto de uma query de heads + uma de snapshots.
+> O caso sentinela preservou `status=rascunho` no legado e expôs simultaneamente
+> `effective_source=sidecar_active` e situação efetiva `ativo`, enquanto a UI
+> permaneceu deliberadamente em `Em elaboração`. A 6.6C está planejada para fazer
+> o cutover atômico de status/dias, visualização e semântica de `status_filter`,
+> `total` e paginação, sem antecipar a governança de escrita da 6.6D.
 
 ## Como manter viva esta baseline
 Sempre que houver mudança estrutural relevante (novo módulo, nova coleção,
