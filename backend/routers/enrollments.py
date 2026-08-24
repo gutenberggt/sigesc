@@ -1,7 +1,7 @@
 """
 Router de Matrículas - SIGESC.
 
-Desde Ago/2026, ``enrollments`` é a fonte canônica do vínculo aluno↔turma↔ano.
+Desde Ago/2026, ``enrollments`` é a fonte canônica do vínculo estudante↔turma↔ano.
 O router delega invariáveis de criação/cancelamento ao serviço de domínio e
 mantém ``students.*`` apenas como projeção da matrícula REGULAR ativa.
 """
@@ -107,7 +107,7 @@ def setup_router(db, audit_service):
             request=request,
             document_id=doc["id"],
             description=(
-                f"Criou matrícula do aluno "
+                f"Criou matrícula do estudante "
                 f"{student_doc.get('full_name', 'N/A') if student_doc else 'N/A'}"
             ),
             school_id=enrollment_data.school_id,
@@ -196,7 +196,7 @@ def setup_router(db, audit_service):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    "Uma matrícula ativa não pode trocar aluno/escola/turma/ano por edição. "
+                    "Uma matrícula ativa não pode trocar estudante/escola/turma/ano por edição. "
                     "Use o fluxo de remanejamento, transferência, progressão ou rematrícula."
                 ),
             )
@@ -262,7 +262,7 @@ def setup_router(db, audit_service):
             request=request,
             document_id=enrollment_id,
             description=(
-                f"Atualizou matrícula do aluno "
+                f"Atualizou matrícula do estudante "
                 f"{student_doc.get('full_name', 'N/A') if student_doc else 'N/A'}"
             ),
             school_id=update_data.get('school_id') or existing.get('school_id'),
@@ -327,7 +327,7 @@ def setup_router(db, audit_service):
             request=request,
             document_id=enrollment_id,
             description=(
-                f"EXCLUIU matrícula do aluno "
+                f"EXCLUIU matrícula do estudante "
                 f"{student_doc.get('full_name', 'N/A') if student_doc else 'N/A'}"
             ),
             school_id=existing.get('school_id'),
@@ -383,7 +383,7 @@ def setup_router(db, audit_service):
             request=request,
             document_id=enrollment['id'],
             description=(
-                f"CANCELOU vínculo do aluno {student_name} com a turma {class_name}. "
+                f"CANCELOU vínculo do estudante {student_name} com a turma {class_name}. "
                 f"Motivo: {reason}"
             ),
             school_id=enrollment.get('school_id'),
@@ -402,7 +402,7 @@ def setup_router(db, audit_service):
 
         return {
             "message": (
-                f"Vínculo do aluno {student_name} com a turma {class_name} "
+                f"Vínculo do estudante {student_name} com a turma {class_name} "
                 "cancelado com sucesso."
             )
         }
