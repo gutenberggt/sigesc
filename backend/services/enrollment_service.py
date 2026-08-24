@@ -119,8 +119,8 @@ def _resolve_tenant_id(
     student: dict,
     school: dict,
     class_doc: dict,
-) -> Optional[str]:
-    """Resolve tenant e falha se referências discordarem entre si."""
+) -> str:
+    """Resolve tenant e falha se referências discordarem ou estiverem ausentes."""
     candidates = {
         str(v).strip()
         for v in (
@@ -135,7 +135,12 @@ def _resolve_tenant_id(
         raise EnrollmentValidationError(
             "Inconsistência de mantenedora entre estudante, escola, turma e contexto da matrícula."
         )
-    return next(iter(candidates), None)
+    if not candidates:
+        raise EnrollmentValidationError(
+            "Não foi possível determinar a mantenedora da matrícula. "
+            "Saneie estudante/escola/turma antes de efetivar o vínculo."
+        )
+    return next(iter(candidates))
 
 
 async def _active_enrollments_for_year(db, student_id: str, academic_year: int) -> list[dict]:
@@ -217,14 +222,32 @@ async def rebuild_student_home_projection(
             update["enrollment_number"] = primary.get("enrollment_number")
         if primary.get("mantenedora_id"):
             update["mantenedora_id"] = primary.get("mantenedora_id")
-        await db.students.update_one({"id": student_id}, {"$set": update})
+        result = await db.students.update_one({"id": student_id}, {"$set": update})
+        if getattr(result, "matched_count", 1) == 0:
+            raise EnrollmentNotFoundError(
+                "Estudante deixou de existir durante a reconstrução da projeção de matrícula."
+            )
         return primary
 
     update = {"class_id": None}
     if no_primary_status:
         update["status"] = no_primary_status
-    await db.students.update_one({"id": student_id}, {"$set": update})
+    result = await db.students.update_one({"id": student_id}, {"$set": update})
+    if getattr(result, "matched_count", 1) == 0:
+        raise EnrollmentNotFoundError(
+            "Estudante deixou de existir durante a reconstrução da projeção de matrícula."
+        )
     return None
+
+
+async def _rollback_created_enrollment(db, enrollment_id: str) -> None:
+    """Compensação best-effort quando a projeção do estudante falha."""
+    try:
+        await db.enrollments.delete_one({"id": enrollment_id})
+    except Exception:
+        # Preserva a exceção original. O auditor canônico detectará eventual
+        # resíduo caso o próprio rollback encontre indisponibilidade do banco.
+        pass
 
 
 async def create_active_enrollment(
@@ -248,11 +271,12 @@ async def create_active_enrollment(
     Regras:
     1. estudante, escola e turma precisam existir e ser coerentes;
     2. a turma deve pertencer à escola informada;
-    3. tenant divergente é erro bloqueante;
+    3. tenant ausente/divergente é erro bloqueante;
     4. não há duas matrículas ativas na mesma turma/ano;
     5. só pode haver uma matrícula REGULAR ativa no mesmo ano;
     6. matrícula especial requer matrícula regular ativa (por padrão);
-    7. somente matrícula REGULAR atualiza a projeção ``students.class_id``.
+    7. somente matrícula REGULAR atualiza a projeção ``students.class_id``;
+    8. falha na projeção regular compensa o insert de ``enrollments``.
     """
     if not student_id or not school_id or not class_id:
         raise EnrollmentValidationError("student_id, school_id e class_id são obrigatórios.")
@@ -293,12 +317,15 @@ async def create_active_enrollment(
             {"id": existing.get("class_id")},
             {"_id": 0, "id": 1, "name": 1, "atendimento_programa": 1},
         )
-        # Turma ausente é tratada como vínculo potencialmente regular (fail-closed):
-        # não criamos outra matrícula regular por cima de dado inconsistente.
-        if not existing_class or not is_special_class(existing_class):
+        if not existing_class:
+            raise EnrollmentConflictError(
+                "Existe matrícula ativa do estudante apontando para turma inexistente. "
+                "Saneie o vínculo antes de criar outra matrícula."
+            )
+        if not is_special_class(existing_class):
             primary_regular = existing
             if not special:
-                name = (existing_class or {}).get("name") or existing.get("class_id") or "N/A"
+                name = existing_class.get("name") or existing.get("class_id") or "N/A"
                 raise EnrollmentConflictError(
                     f"O estudante já possui matrícula regular ativa na turma '{name}' "
                     f"no ano letivo {year}."
@@ -340,18 +367,25 @@ async def create_active_enrollment(
             "A matrícula viola uma regra de unicidade (turma ativa ou número de matrícula)."
         ) from exc
 
-    # students.* é projeção da matrícula REGULAR. AEE/reforço/recomposição não
-    # podem trocar a home class do estudante.
     if not special:
         projection = {
             "school_id": school_id,
             "class_id": class_id,
             "status": "active",
             "enrollment_number": number,
+            "mantenedora_id": resolved_tenant,
         }
-        if resolved_tenant:
-            projection["mantenedora_id"] = resolved_tenant
-        await db.students.update_one({"id": student_id}, {"$set": projection})
+        try:
+            projection_result = await db.students.update_one(
+                {"id": student_id}, {"$set": projection}
+            )
+            if getattr(projection_result, "matched_count", 1) == 0:
+                raise EnrollmentNotFoundError(
+                    "Estudante deixou de existir durante a efetivação da matrícula."
+                )
+        except Exception:
+            await _rollback_created_enrollment(db, doc["id"])
+            raise
 
     return {
         "enrollment": doc,
@@ -368,10 +402,15 @@ async def cancel_active_enrollment(
     reason: str = "",
     cancelled_by: Optional[str] = None,
 ) -> dict:
-    """Cancela vínculo ativo preservando histórico e reconstruindo a projeção regular."""
+    """Cancela o vínculo ativo mais recente e reconstrói a projeção regular."""
     enrollment = await db.enrollments.find_one(
         {"student_id": student_id, "class_id": class_id, "status": "active"},
         {"_id": 0},
+        sort=[
+            ("academic_year", -1),
+            ("enrollment_date", -1),
+            ("created_at", -1),
+        ],
     )
     if not enrollment:
         raise EnrollmentNotFoundError(
@@ -392,12 +431,30 @@ async def cancel_active_enrollment(
     )
 
     if not special:
-        await rebuild_student_home_projection(
-            db,
-            student_id,
-            academic_year=enrollment.get("academic_year"),
-            no_primary_status="inactive",
-        )
+        try:
+            # Reconstrói contra TODOS os anos para não deixar um cancelamento
+            # histórico sobrescrever uma matrícula regular ativa mais recente.
+            await rebuild_student_home_projection(
+                db,
+                student_id,
+                no_primary_status="cancelled",
+            )
+        except Exception:
+            # Compensação: volta a matrícula ao estado ativo se a projeção falhar.
+            try:
+                await db.enrollments.update_one(
+                    {"id": enrollment["id"]},
+                    {
+                        "$set": {"status": "active"},
+                        "$unset": {
+                            "cancellation_reason": "",
+                            "cancellation_date": "",
+                            "cancelled_by": "",
+                        },
+                    },
+                )
+            finally:
+                raise
 
     return {
         "enrollment": enrollment,
