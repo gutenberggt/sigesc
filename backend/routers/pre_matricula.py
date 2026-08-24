@@ -37,7 +37,6 @@ def _raise_enrollment_http(exc: EnrollmentDomainError):
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     """Configura o router com dependências."""
 
-    # Helper para obter DB correto (produção ou sandbox)
     def get_db_for_user(user: dict):
         if user.get('is_sandbox'):
             return sandbox_db if sandbox_db else db
@@ -50,7 +49,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             {"id": pre_matricula.school_id, "pre_matricula_ativa": True, "status": "active"},
             {"_id": 0},
         )
-
         if not school:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -60,8 +58,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         pre_matricula_obj = PreMatricula(**pre_matricula.model_dump())
         doc = pre_matricula_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
-        # A pré-matrícula já nasce no tenant correto. Não dependemos do self-heal
-        # do startup para descobrir a mantenedora depois.
         if school.get("mantenedora_id"):
             doc["mantenedora_id"] = school.get("mantenedora_id")
 
@@ -78,13 +74,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ):
         """Lista pré-matrículas (apenas admin, secretário, diretor)."""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
-
         query = {}
         if school_id:
             query['school_id'] = school_id
         elif current_user['role'] not in ['admin']:
             query['school_id'] = {"$in": current_user['school_ids']}
-
         if status_filter:
             query['status'] = status_filter
 
@@ -96,7 +90,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def get_pre_matricula(pre_matricula_id: str, request: Request):
         """Busca pré-matrícula por ID."""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
-
         pre_matricula = await db.pre_matriculas.find_one(
             {"id": pre_matricula_id}, {"_id": 0}
         )
@@ -105,7 +98,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Pré-matrícula não encontrada",
             )
-
         if current_user['role'] not in ['admin']:
             if pre_matricula['school_id'] not in current_user['school_ids']:
                 raise HTTPException(
@@ -123,7 +115,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ):
         """Atualiza status da pré-matrícula."""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
-
         if new_status not in ['analisando', 'aprovada', 'rejeitada']:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -180,8 +171,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if pre_matricula.get('converted_student_id'):
             raise HTTPException(status_code=409, detail="Esta pré-matrícula já foi convertida em estudante")
 
-        # A conversão é uma efetivação de matrícula; turma é obrigatória e deve
-        # pertencer à escola escolhida na pré-matrícula.
         school = await current_db.schools.find_one(
             {"id": pre_matricula['school_id']}, {"_id": 0}
         )
@@ -218,14 +207,18 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         student_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
 
-        # Claim otimista: impede dois cliques/processos de converterem a mesma
-        # pré-matrícula simultaneamente.
+        # Claim otimista contra cliques/processos concorrentes. O modelo legado
+        # persiste converted_student_id=None, portanto não usamos $exists=False
+        # nesse campo. O pré-check acima garante que ele ainda não foi convertido.
         claim = await db.pre_matriculas.update_one(
             {
                 "id": pre_matricula_id,
                 "status": "aprovada",
-                "converted_student_id": {"$exists": False},
-                "conversion_lock_id": {"$exists": False},
+                "$or": [
+                    {"conversion_lock_id": {"$exists": False}},
+                    {"conversion_lock_id": None},
+                    {"conversion_lock_id": ""},
+                ],
             },
             {"$set": {
                 "conversion_lock_id": student_id,
@@ -318,9 +311,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
             raise
 
-        # Histórico e auditoria são efeitos posteriores ao commit lógico. Se um
-        # deles falhar, não desfazemos a matrícula válida; registramos o erro para
-        # correção administrativa.
         history_doc = {
             "id": str(uuid.uuid4()),
             "student_id": student_id,
@@ -398,28 +388,18 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         user_role = user.get('role', '')
         user_school_links = user.get('school_links', [])
         user_school_ids = [link['school_id'] for link in user_school_links]
-
         recipient_type = recipient.get('type', '')
 
         if user_role in ('admin', 'admin_teste', 'super_admin', 'gerente'):
             return True
-
         if user_role in ['secretario', 'diretor', 'coordenador', 'auxiliar_secretaria']:
             if recipient_type == 'school':
                 target_schools = recipient.get('school_ids', [])
                 return all(s in user_school_ids for s in target_schools)
-            elif recipient_type == 'class':
+            elif recipient_type in ['class', 'individual', 'role']:
                 return True
-            elif recipient_type == 'individual':
-                return True
-            elif recipient_type == 'role':
-                return True
-
         if user_role == 'professor':
-            if recipient_type in ['class', 'individual']:
-                return True
-            return False
-
+            return recipient_type in ['class', 'individual']
         return False
 
     async def get_announcement_target_users(db, recipient: dict, sender: dict) -> List[str]:
@@ -431,7 +411,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         if recipient_type == 'individual':
             target_user_ids = recipient.get('user_ids', [])
-
         elif recipient_type == 'role':
             target_roles = recipient.get('target_roles', [])
             query = {'role': {'$in': target_roles}, 'status': 'active'}
@@ -439,7 +418,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 query['school_links.school_id'] = {'$in': sender_school_ids}
             users = await db.users.find(query, {'_id': 0, 'id': 1}).to_list(10000)
             target_user_ids = [u['id'] for u in users]
-
         elif recipient_type == 'school':
             school_ids = recipient.get('school_ids', [])
             users = await db.users.find(
@@ -447,20 +425,17 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 {'_id': 0, 'id': 1},
             ).to_list(10000)
             target_user_ids = [u['id'] for u in users]
-
         elif recipient_type == 'class':
             class_ids = recipient.get('class_ids', [])
             enrollments = await db.enrollments.find(
                 {'class_id': {'$in': class_ids}, 'status': 'active'},
                 {'_id': 0, 'student_id': 1},
             ).to_list(10000)
-
             student_ids = [e['student_id'] for e in enrollments]
             students = await db.students.find(
                 {'id': {'$in': student_ids}},
                 {'_id': 0, 'user_id': 1, 'guardian_id': 1},
             ).to_list(10000)
-
             for student in students:
                 if student.get('user_id'):
                     target_user_ids.append(student['user_id'])
