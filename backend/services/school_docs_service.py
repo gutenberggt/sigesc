@@ -1,20 +1,20 @@
 """Orquestrador de emissão de declarações escolares (G1.7 — Fev/2026).
 
 Fluxo:
-  1. Busca dados do aluno + matrícula canônica + escola + turma
+  1. Busca dados do estudante + matrícula canônica + escola + turma
   2. Cria SNAPSHOT imutável (payload congelado: quem emitiu, o quê, pra quem, pra quê)
   3. Cria verifiable_document com validade custom por tipo
   4. Registra log em school_documents_log (auditoria, IP, user)
   5. Retorna bytes do PDF pronto para download
 
-Desde Ago/2026, ``enrollments`` é a fonte primária do vínculo aluno↔turma.
+Desde Ago/2026, ``enrollments`` é a fonte primária do vínculo estudante↔turma.
 ``students.class_id`` existe apenas como fallback temporário de leitura para o
 passivo legado e emite WARNING. ``class_students`` não participa mais deste fluxo.
 
 LGPD:
-  - No snapshot: dados mínimos do aluno (nome, nascimento, escola, turma, ano)
+  - No snapshot: dados mínimos do estudante (nome, nascimento, escola, turma, ano)
   - No PDF: mesmos dados mínimos + finalidade
-  - No portal público: ZERO dados do aluno, apenas tipo/data/emissor/escopo
+  - No portal público: ZERO dados do estudante, apenas tipo/data/emissor/escopo
 """
 from __future__ import annotations
 
