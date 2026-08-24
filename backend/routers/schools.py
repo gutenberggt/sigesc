@@ -65,11 +65,46 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         # Escopo do tenant para esta request
         tenant_id = get_mantenedora_scope(current_user, request)
+
+        # P0 AEE 24/08/2026: alguns perfis de professor legados não possuem
+        # ``user.school_ids`` apesar de terem lotações docentes ativas. Nesse caso,
+        # resolve o escopo efetivo pelas teacher_assignments do ano corrente, que é
+        # a mesma fonte canônica usada por /api/professor/turmas. Não grava dados.
+        effective_school_ids = sorted(current_user.get('school_ids') or [])
+        if current_user['role'] == 'professor' and not effective_school_ids:
+            staff = await current_db.staff.find_one(
+                {"user_id": current_user['id']}, {"_id": 0, "id": 1}
+            )
+            if not staff and current_user.get('email'):
+                staff = await current_db.staff.find_one(
+                    {"email": current_user['email']}, {"_id": 0, "id": 1}
+                )
+
+            if staff:
+                assignments = await current_db.teacher_assignments.find(
+                    {
+                        "staff_id": staff['id'],
+                        "status": "ativo",
+                        "academic_year": datetime.now().year,
+                    },
+                    {"_id": 0, "class_id": 1},
+                ).to_list(1000)
+                class_ids = list({a.get('class_id') for a in assignments if a.get('class_id')})
+                if class_ids:
+                    assigned_classes = await current_db.classes.find(
+                        {"id": {"$in": class_ids}},
+                        {"_id": 0, "school_id": 1},
+                    ).to_list(1000)
+                    effective_school_ids = sorted({
+                        c.get('school_id') for c in assigned_classes if c.get('school_id')
+                    })
         
-        # Cache key baseada no papel, escolas do usuário e tenant ativo
+        # Cache key baseada no papel, escolas efetivamente resolvidas e tenant ativo.
+        # Usar o escopo efetivo evita colisão de cache entre professores legados
+        # que possuam ``school_ids`` ausente/nulo, mas lotações distintas.
         cache_params = {
             'role': current_user['role'],
-            'school_ids': sorted(current_user.get('school_ids', [])),
+            'school_ids': effective_school_ids,
             'tenant': tenant_id or 'ALL',
             'skip': skip, 'limit': limit, 'include_student_count': include_student_count
         }
@@ -85,7 +120,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         base_filter = {}
         if current_user['role'] not in wide_roles:
-            base_filter = {"id": {"$in": current_user.get('school_ids', [])}}
+            base_filter = {"id": {"$in": effective_school_ids}}
         
         # Aplica filtro multi-tenant (respeita super_admin cross-tenant quando sem seleção)
         query = apply_tenant_filter(base_filter, current_user, request)
