@@ -248,7 +248,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 pre_matricula.get('responsavel_parentesco', ''), 'other'
             ),
             "observations": (
-                "Aluno criado a partir da pré-matrícula. "
+                "Estudante criado a partir da pré-matrícula. "
                 f"Email do responsável: {pre_matricula.get('responsavel_email', 'N/A')}"
             ),
             "status": "inactive",
@@ -351,7 +351,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "school_id": pre_matricula['school_id'],
                 "school_name": school.get('name'),
                 "description": (
-                    f"Aluno '{pre_matricula.get('aluno_nome')}' e matrícula canônica "
+                    f"Estudante '{pre_matricula.get('aluno_nome')}' e matrícula canônica "
                     "criados a partir de pré-matrícula online"
                 ),
                 "new_value": {
