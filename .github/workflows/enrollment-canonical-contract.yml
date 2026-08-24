@@ -1,0 +1,56 @@
+name: Enrollment Canonical Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/services/enrollment_service.py'
+      - 'backend/services/school_docs_service.py'
+      - 'backend/routers/enrollments.py'
+      - 'backend/routers/pre_matricula.py'
+      - 'backend/scripts/audit_enrollment_canonical.py'
+      - 'backend/tests/test_enrollment_canonical_contract.py'
+      - '.github/workflows/enrollment-canonical-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/services/enrollment_service.py'
+      - 'backend/services/school_docs_service.py'
+      - 'backend/routers/enrollments.py'
+      - 'backend/routers/pre_matricula.py'
+      - 'backend/scripts/audit_enrollment_canonical.py'
+      - 'backend/tests/test_enrollment_canonical_contract.py'
+      - '.github/workflows/enrollment-canonical-contract.yml'
+
+jobs:
+  canonical-enrollment-contract:
+    name: Backend - Matrícula canônica
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install contract dependencies
+        run: pip install pytest pytest-asyncio pymongo motor
+
+      - name: Compile changed enrollment modules
+        run: |
+          python -m py_compile \
+            services/enrollment_service.py \
+            services/school_docs_service.py \
+            routers/enrollments.py \
+            routers/pre_matricula.py \
+            scripts/audit_enrollment_canonical.py \
+            tests/test_enrollment_canonical_contract.py
+
+      - name: Run canonical enrollment guards
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_enrollment_canonical_contract.py
