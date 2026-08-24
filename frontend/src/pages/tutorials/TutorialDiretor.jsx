@@ -1,10 +1,10 @@
 import { ClipboardCheck, Route, ShieldCheck, Target, UserCog } from 'lucide-react';
 import TutorialRoleGuide from './TutorialRoleGuide';
 import {
-  directorTutorialBySlug,
   directorTutorialCategories,
   directorTutorials,
 } from './directorTutorials';
+import { enhanceDirectorTutorials } from './directorTutorialEnhancements';
 
 const categoryStyles = {
   'Comece aqui': {
@@ -43,21 +43,26 @@ const theme = {
   navHover: 'hover:border-blue-500/30',
 };
 
+const didacticDirectorTutorials = enhanceDirectorTutorials(directorTutorials);
+const didacticDirectorTutorialBySlug = Object.fromEntries(
+  didacticDirectorTutorials.map((tutorial) => [tutorial.slug, tutorial])
+);
+
 export default function TutorialDiretor({ slug }) {
   return (
     <TutorialRoleGuide
       slug={slug}
-      tutorials={directorTutorials}
-      tutorialBySlug={directorTutorialBySlug}
+      tutorials={didacticDirectorTutorials}
+      tutorialBySlug={didacticDirectorTutorialBySlug}
       categories={directorTutorialCategories}
       categoryStyles={categoryStyles}
       queryParam="diretor"
       roleBreadcrumb="Diretores"
-      trailTitle="Trilha do Diretor"
-      trailDescription="Siga a trilha como uma rotina de gestão: primeiro compreenda a escola, depois acompanhe as evidências, organize intervenções e conclua com conferência institucional."
-      headerSubtitle="Trilha do Diretor"
-      mindsetTitle="Como pensar como diretor no SIGESC"
-      mindsetText="Comece pelo panorama da escola, confirme a evidência e o contexto, distribua responsabilidades e acompanhe o retorno. O diretor não precisa executar tudo: sua função é garantir que processos pedagógicos, administrativos e documentais tenham responsáveis, prazos e coerência institucional."
+      trailTitle="Guia do Diretor"
+      trailDescription="Use esta trilha como companhia para a rotina de gestão. Você pode seguir na ordem ou abrir apenas o assunto de que precisa hoje. Cada guia explica o que observar, como agir com segurança e apresenta exemplos próximos da realidade escolar."
+      headerSubtitle="Guia do Diretor"
+      mindsetTitle="Uma forma tranquila de usar o SIGESC na direção"
+      mindsetText="Você não precisa resolver tudo sozinho nem dominar todas as telas. Comece pela pergunta que precisa responder, confirme os dados, converse com a equipe responsável e acompanhe o retorno. O SIGESC organiza evidências; a decisão continua sendo humana, contextualizada e construída com a equipe escolar."
       theme={theme}
     />
   );
