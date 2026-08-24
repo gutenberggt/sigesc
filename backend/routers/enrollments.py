@@ -94,7 +94,6 @@ def setup_router(db, audit_service):
             )
             doc.update(optional_fields)
 
-        # Auditoria de criação de matrícula.
         student_doc = await db.students.find_one(
             {"id": enrollment_data.student_id}, {"_id": 0, "full_name": 1}
         )
@@ -245,10 +244,11 @@ def setup_router(db, audit_service):
                 "completed": "inactive",
                 "relocated": "inactive",
             }.get(update_data["status"], "inactive")
+            # A projeção deve sempre refletir a matrícula REGULAR ativa mais
+            # recente, independentemente do ano do vínculo que acabou de encerrar.
             await rebuild_student_home_projection(
                 db,
                 existing["student_id"],
-                academic_year=existing.get("academic_year"),
                 no_primary_status=status_when_none,
             )
 
@@ -309,10 +309,11 @@ def setup_router(db, audit_service):
             )
 
         if was_active_regular:
+            # Mesma regra: uma exclusão histórica não pode apagar a projeção de
+            # uma matrícula regular mais recente que continue ativa.
             await rebuild_student_home_projection(
                 db,
                 existing["student_id"],
-                academic_year=existing.get("academic_year"),
                 no_primary_status="inactive",
             )
 
