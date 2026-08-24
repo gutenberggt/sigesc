@@ -44,7 +44,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install contract dependencies
-        run: pip install pytest pytest-asyncio pymongo motor
+        run: pip install pytest pytest-asyncio pymongo motor python-dotenv
 
       - name: Compile changed enrollment modules
         run: |
