@@ -50,8 +50,9 @@ def _normalize_user_school_links(user_doc: Dict[str, Any], active_role: str) -> 
         if not raw_roles and raw.get("role"):
             raw_roles = [raw.get("role")]
 
-        # If the link explicitly declares roles, keep only links valid for the
-        # active role. Legacy links without role metadata remain compatible.
+        # Legacy school_links may still carry role metadata. Keep the historical
+        # behavior here; canonical active school_assignments below are independent
+        # from `funcao` and therefore do not couple permissions to HR function.
         if raw_roles and active_role not in raw_roles:
             continue
 
@@ -74,16 +75,25 @@ async def resolve_role_context(
 ) -> Dict[str, Any]:
     """Resolve school scope for one active role.
 
-    Active school assignments are the authoritative source when a canonical
-    staff record and assignments exist for the current academic year. If there
-    are no assignments at all, user.school_links remains the legacy fallback.
+    Authorization and school scope are intentionally independent:
+
+    * `users.role` + `users.roles` define which roles the user may exercise;
+    * active `school_assignments` define in which schools the user works;
+    * `school_assignments.funcao` is an HR/functional attribute and MUST NOT
+      grant, reduce or block application permissions.
+
+    Active school assignments are the authoritative school-scope source when a
+    canonical staff record and assignments exist for the current academic year.
+    If there are no assignments at all, user.school_links remains the legacy
+    fallback.
 
     Returns:
-      school_links: SchoolLink-compatible dictionaries
+      school_links: SchoolLink-compatible dictionaries projected to active_role
       school_ids: deduplicated ids
       source: "lotacoes" or "user_school_links"
       has_active_assignments: whether the staff member has any active lotação
-      has_role_assignment: whether at least one active lotação matches role
+      has_role_assignment: compatibility flag; true when active lotações exist.
+        It no longer means that `lotacao.funcao == active_role`.
     """
     if academic_year is None:
         academic_year = datetime.now().year
@@ -132,7 +142,7 @@ async def resolve_role_context(
             "status": "ativo",
             "academic_year": academic_year,
         },
-        {"_id": 0, "school_id": 1, "funcao": 1},
+        {"_id": 0, "school_id": 1},
     ).to_list(200)
 
     if not lotacoes:
@@ -144,12 +154,14 @@ async def resolve_role_context(
             "has_role_assignment": bool(fallback_links),
         }
 
+    # Regra institucional: a lotação define ONDE o usuário atua; o papel
+    # cadastrado no usuário define O QUE ele pode fazer. Portanto, todas as
+    # escolas de lotações ativas entram no escopo, independentemente de `funcao`.
     links: List[Dict[str, Any]] = []
     seen = set()
     for lotacao in lotacoes:
-        funcao = str(lotacao.get("funcao") or "").strip().lower()
         school_id = lotacao.get("school_id")
-        if funcao != active_role or not school_id or school_id in seen:
+        if not school_id or school_id in seen:
             continue
         links.append({
             "school_id": school_id,
@@ -163,5 +175,7 @@ async def resolve_role_context(
         "school_ids": [link["school_id"] for link in links],
         "source": "lotacoes",
         "has_active_assignments": True,
-        "has_role_assignment": bool(links),
+        # Compatibilidade com /users/switch-role: a existência de lotação ativa
+        # nunca deve bloquear um papel já autorizado em users.role/users.roles.
+        "has_role_assignment": True,
     }
