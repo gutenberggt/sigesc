@@ -1,7 +1,7 @@
 """Serviço canônico de matrículas do SIGESC.
 
 Contrato arquitetural (Ago/2026):
-- ``enrollments`` é a fonte canônica do vínculo aluno↔turma↔ano.
+- ``enrollments`` é a fonte canônica do vínculo estudante↔turma↔ano.
 - ``students.class_id/school_id/status/enrollment_number`` são apenas uma projeção
   conveniente da MATRÍCULA REGULAR ativa (home class), nunca a fonte do vínculo.
 - Matrículas especiais (AEE, recomposição e reforço) coexistem com a regular e
