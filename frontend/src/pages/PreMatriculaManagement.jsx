@@ -22,6 +22,11 @@ import { toast } from 'sonner';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const SPECIAL_ENROLLMENT_PROGRAMS = new Set([
+  'aee',
+  'recomposicao_aprendizagem',
+  'reforco_escolar',
+]);
 
 // Status possíveis e suas cores
 const STATUS_CONFIG = {
@@ -134,7 +139,11 @@ export default function PreMatriculaManagement() {
       const response = await axios.get(`${API_URL}/api/classes?school_id=${schoolId}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      setClasses(response.data || []);
+      const regularClasses = (response.data || []).filter((cls) => {
+        const program = String(cls.atendimento_programa || '').trim().toLowerCase();
+        return !SPECIAL_ENROLLMENT_PROGRAMS.has(program);
+      });
+      setClasses(regularClasses);
     } catch (error) {
       console.error('Erro ao carregar turmas:', error);
       setClasses([]);
@@ -211,16 +220,17 @@ export default function PreMatriculaManagement() {
     setConvertModalOpen(true);
   };
 
-  // Converte pré-matrícula em aluno
+  // Converte a pré-matrícula em estudante com matrícula regular canônica
   const handleConvert = async () => {
     if (!selectedPreMatricula) return;
+    if (!selectedClassId) {
+      toast.error('Selecione uma turma regular para efetivar a matrícula.');
+      return;
+    }
     
     setConverting(true);
     try {
-      let url = `${API_URL}/api/pre-matriculas/${selectedPreMatricula.id}/convert`;
-      if (selectedClassId) {
-        url += `?class_id=${selectedClassId}`;
-      }
+      const url = `${API_URL}/api/pre-matriculas/${selectedPreMatricula.id}/convert?class_id=${encodeURIComponent(selectedClassId)}`;
       
       const response = await axios.post(url, {}, {
         headers: { Authorization: `Bearer ${accessToken}` }
@@ -230,7 +240,7 @@ export default function PreMatriculaManagement() {
       
       toast.success(
         <div className="space-y-2">
-          <p className="font-medium">Estudante criado com sucesso!</p>
+          <p className="font-medium">Estudante e matrícula criados com sucesso!</p>
           <p className="text-sm">Matrícula: {response.data.enrollment_number}</p>
           <button
             onClick={() => navigate(`/admin/students?highlight=${studentId}`)}
@@ -488,7 +498,7 @@ export default function PreMatriculaManagement() {
                             data-testid={`convert-btn-${pm.id}`}
                           >
                             <GraduationCap className="w-4 h-4 mr-1" />
-                            Converter em Estudante
+                            Converter e Matricular
                           </Button>
                         )}
                         {pm.status === 'convertida' && pm.converted_student_id && (
@@ -579,8 +589,7 @@ export default function PreMatriculaManagement() {
                               <dt className="text-gray-500">E-mail</dt>
                               <dd className="flex items-center gap-1">
                                 <Mail className="w-3 h-3" />
-                                {pm.responsavel_email || '-'}
-                              </dd>
+                                {pm.responsavel_email || '-'}</dd>
                             </div>
                           </dl>
                         </div>
@@ -664,7 +673,7 @@ export default function PreMatriculaManagement() {
                           </h4>
                           <div className="flex items-center justify-between bg-purple-50 p-3 rounded border border-purple-200">
                             <p className="text-sm text-purple-600">
-                              Esta pré-matrícula foi convertida em estudante com sucesso.
+                              Esta pré-matrícula foi convertida e matriculada com sucesso.
                             </p>
                             <Button
                               size="sm"
@@ -692,10 +701,10 @@ export default function PreMatriculaManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-purple-600" />
-              Converter em Estudante
+              Converter e Matricular
             </DialogTitle>
             <DialogDescription>
-              Crie um novo estudante a partir dos dados da pré-matrícula de <strong>{selectedPreMatricula?.aluno_nome}</strong>.
+              Crie o estudante e efetive sua matrícula regular a partir dos dados da pré-matrícula de <strong>{selectedPreMatricula?.aluno_nome}</strong>.
             </DialogDescription>
           </DialogHeader>
           
@@ -712,15 +721,16 @@ export default function PreMatriculaManagement() {
             
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-2">
-                Turma (opcional)
+                Turma regular <span className="text-red-600">*</span>
               </label>
               <select
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm"
                 data-testid="class-select-modal"
+                required
               >
-                <option value="">Selecionar turma depois</option>
+                <option value="">Selecione uma turma regular</option>
                 {classes.map(cls => (
                   <option key={cls.id} value={cls.id}>
                     {cls.name} - {cls.grade_level} ({cls.shift === 'morning' ? 'Manhã' : cls.shift === 'afternoon' ? 'Tarde' : cls.shift === 'evening' ? 'Noite' : 'Integral'})
@@ -728,7 +738,7 @@ export default function PreMatriculaManagement() {
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Você pode vincular o estudante a uma turma agora ou fazer isso posteriormente.
+                A conversão só é concluída quando a matrícula regular é efetivada no SIGESC.
               </p>
             </div>
           </div>
@@ -743,7 +753,7 @@ export default function PreMatriculaManagement() {
             </Button>
             <Button 
               onClick={handleConvert}
-              disabled={converting}
+              disabled={converting || !selectedClassId}
               className="bg-purple-600 hover:bg-purple-700"
               data-testid="confirm-convert-btn"
             >

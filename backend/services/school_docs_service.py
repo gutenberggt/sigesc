@@ -1,16 +1,20 @@
 """Orquestrador de emissão de declarações escolares (G1.7 — Fev/2026).
 
 Fluxo:
-  1. Busca dados do aluno + escola + turma
+  1. Busca dados do estudante + matrícula canônica + escola + turma
   2. Cria SNAPSHOT imutável (payload congelado: quem emitiu, o quê, pra quem, pra quê)
   3. Cria verifiable_document com validade custom por tipo
   4. Registra log em school_documents_log (auditoria, IP, user)
   5. Retorna bytes do PDF pronto para download
 
+Desde Ago/2026, ``enrollments`` é a fonte primária do vínculo estudante↔turma.
+``students.class_id`` existe apenas como fallback temporário de leitura para o
+passivo legado e emite WARNING. ``class_students`` não participa mais deste fluxo.
+
 LGPD:
-  - No snapshot: dados mínimos do aluno (nome, nascimento, escola, turma, ano)
+  - No snapshot: dados mínimos do estudante (nome, nascimento, escola, turma, ano)
   - No PDF: mesmos dados mínimos + finalidade
-  - No portal público: ZERO dados do aluno, apenas tipo/data/emissor/escopo
+  - No portal público: ZERO dados do estudante, apenas tipo/data/emissor/escopo
 """
 from __future__ import annotations
 
@@ -22,16 +26,16 @@ from typing import Optional, Literal
 from fastapi import HTTPException
 
 from services import snapshot_service as snap_svc
-from services import verifiable_docs_service as vsvc
+from services.enrollment_service import find_primary_active_enrollment
 from services.school_doc_templates import (
-    build_school_document_pdf, DOC_TITLES,
+    build_school_document_pdf,
+    DOC_TITLES,
 )
 
 logger = logging.getLogger(__name__)
 
 DocType = Literal["matricula", "frequencia", "escolaridade"]
 
-# Validade default por tipo (opção 5d do usuário)
 DEFAULT_VALIDITY_DAYS = {
     "matricula": 90,
     "frequencia": 30,
@@ -70,7 +74,6 @@ async def _load_tenant_branding(db, mantenedora_id: Optional[str]) -> dict:
         {"mantenedora_id": mantenedora_id}, {"_id": 0}
     )
     if not doc:
-        # fallback: nome da mantenedora se houver
         m = await db.mantenedoras.find_one(
             {"id": mantenedora_id}, {"_id": 0, "name": 1, "city": 1, "state": 1}
         )
@@ -79,16 +82,82 @@ async def _load_tenant_branding(db, mantenedora_id: Optional[str]) -> dict:
 
 
 def _lgpd_safe_student_payload(student: dict) -> dict:
-    """Extrai APENAS campos permitidos pelo escopo LGPD do MVP.
-
-    Sem CPF, RG, endereço, telefone, responsáveis, dados de raça/cor etc.
-    """
+    """Extrai APENAS campos permitidos pelo escopo LGPD do MVP."""
     return {
         "id": student.get("id"),
         "full_name": student.get("full_name"),
         "birth_date": student.get("birth_date"),
         "enrollment_number": student.get("enrollment_number"),
     }
+
+
+async def _resolve_school_class_enrollment(
+    db,
+    *,
+    student: dict,
+    class_id: Optional[str],
+    doc_type: DocType,
+) -> tuple[dict, dict, Optional[dict], str]:
+    """Resolve turma/escola priorizando exclusivamente ``enrollments``.
+
+    ``students.class_id`` é mantido como fallback de compatibilidade até a Fase 2
+    de reconciliação do passivo. O fallback é observável por log e pelo snapshot.
+    """
+    student_id = student.get("id")
+    enrollment = None
+    source = "enrollments"
+
+    if class_id:
+        cls = await _load_class(db, class_id)
+        if not cls:
+            raise HTTPException(404, "Turma informada não encontrada")
+
+        # Declarações de matrícula/frequência precisam comprovar vínculo ativo
+        # com a turma explicitamente solicitada.
+        if doc_type in {"matricula", "frequencia"}:
+            enrollment = await db.enrollments.find_one(
+                {
+                    "student_id": student_id,
+                    "class_id": class_id,
+                    "status": "active",
+                },
+                {"_id": 0},
+            )
+            if not enrollment:
+                raise HTTPException(
+                    409,
+                    "O estudante não possui matrícula ativa na turma informada.",
+                )
+    else:
+        enrollment = await find_primary_active_enrollment(db, student_id)
+        if enrollment:
+            cls = await _load_class(db, enrollment.get("class_id"))
+        else:
+            cls = {}
+            legacy_class_id = student.get("class_id")
+            if legacy_class_id:
+                source = "students.class_id_legacy_fallback"
+                logger.warning(
+                    "[ENROLLMENT_LEGACY_FALLBACK] student_id=%s sem matrícula regular ativa; "
+                    "usando students.class_id=%s temporariamente",
+                    student_id,
+                    legacy_class_id,
+                )
+                cls = await _load_class(db, legacy_class_id)
+
+    if doc_type in {"matricula", "frequencia"} and not cls:
+        raise HTTPException(
+            409,
+            "O estudante não possui matrícula regular ativa suficiente para emitir este documento.",
+        )
+
+    school_id = (
+        (enrollment or {}).get("school_id")
+        or cls.get("school_id")
+        or student.get("school_id")
+    )
+    school = await _load_school(db, school_id)
+    return school, cls, enrollment, source
 
 
 async def build_context(
@@ -103,12 +172,8 @@ async def build_context(
     user: dict,
     extra: Optional[dict] = None,
 ) -> dict:
-    """Monta o dict de contexto usado tanto pelo PDF quanto pelo payload_snapshot.
-
-    Dados mínimos — LGPD compliant (opção 4a).
-    """
+    """Monta o dict de contexto usado tanto pelo PDF quanto pelo payload_snapshot."""
     extra = extra or {}
-    # Fallback: se mantenedora não tiver branding, usa defaults genéricos
     secretariat = (
         branding.get("secretariat_name")
         or branding.get("secretaria_nome")
@@ -122,12 +187,10 @@ async def build_context(
         "doc_type": doc_type,
         "doc_title": DOC_TITLES.get(doc_type, "DECLARAÇÃO"),
         "purpose": purpose or "",
-        # Aluno (LGPD-mínimo)
         "student_id": student.get("id"),
         "student_name": student.get("full_name"),
         "student_birth_date": student.get("birth_date"),
         "enrollment_number": student.get("enrollment_number"),
-        # Escola / turma
         "school_id": school.get("id"),
         "school_name": school.get("name"),
         "class_id": cls.get("id"),
@@ -135,11 +198,9 @@ async def build_context(
         "grade_level": cls.get("grade_level"),
         "academic_year": cls.get("academic_year") or datetime.now().year,
         "shift": cls.get("shift") or "",
-        # Institucional
         "secretariat_name": secretariat,
         "city": city,
         "state": state,
-        # Assinatura
         "issuer_name": user.get("full_name") or user.get("email") or "Secretaria",
         "issuer_role": {
             "secretario": "Secretário(a) Escolar",
@@ -149,10 +210,8 @@ async def build_context(
             "super_admin": "Administrador(a) do Sistema",
             "diretor": "Diretor(a) Escolar",
         }.get(user.get("role"), "Responsável pela Emissão"),
-        # Emissão
         "issued_at": datetime.now(timezone.utc).isoformat(),
     }
-    # Campos específicos
     if doc_type == "frequencia":
         ctx["frequencia_pct"] = extra.get("frequencia_pct")
         ctx["bimestre"] = extra.get("bimestre")
@@ -173,57 +232,60 @@ async def issue_school_document(
     validity_days: Optional[int] = None,
     extra: Optional[dict] = None,
 ) -> dict:
-    """Emite uma declaração escolar verificável.
-
-    Retorna: {code, pdf_bytes, valid_until, snapshot_id, public_hash}
-    """
+    """Emite uma declaração escolar verificável."""
     if doc_type not in ALLOWED_TYPES:
         raise HTTPException(400, f"Tipo inválido. Use: {ALLOWED_TYPES}")
 
-    # 1. Carrega dados
     student = await _load_student(db, student_id)
-    # Escola do aluno (pode ser sobrescrita por class_id informado)
-    school_id = student.get("school_id")
-    cls = {}
-    if class_id:
-        cls = await _load_class(db, class_id)
-    else:
-        # Pega turma atual do aluno (mais recente) se não informado
-        cls_doc = await db.class_students.find_one(
-            {"student_id": student_id, "active": {"$ne": False}},
-            {"_id": 0, "class_id": 1},
-            sort=[("enrolled_at", -1)],
-        )
-        if cls_doc:
-            cls = await _load_class(db, cls_doc.get("class_id"))
-    # Usa school da turma se disponível
-    if cls.get("school_id"):
-        school_id = cls["school_id"]
-    school = await _load_school(db, school_id)
-
-    mantenedora_id = user.get("mantenedora_id")
-    branding = await _load_tenant_branding(db, mantenedora_id)
-
-    # 2. Monta contexto
-    ctx = await build_context(
+    school, cls, enrollment, enrollment_source = await _resolve_school_class_enrollment(
         db,
-        student=student, school=school, cls=cls, branding=branding,
-        doc_type=doc_type, purpose=purpose, user=user, extra=extra,
+        student=student,
+        class_id=class_id,
+        doc_type=doc_type,
     )
 
-    # 3. Snapshot imutável (LGPD-safe payload)
+    # Quando a matrícula canônica possui número, ela prevalece sobre o espelho
+    # em students para o documento e para o snapshot.
+    effective_student = dict(student)
+    if enrollment and enrollment.get("enrollment_number"):
+        effective_student["enrollment_number"] = enrollment["enrollment_number"]
+
+    mantenedora_id = (
+        (enrollment or {}).get("mantenedora_id")
+        or school.get("mantenedora_id")
+        or user.get("mantenedora_id")
+    )
+    branding = await _load_tenant_branding(db, mantenedora_id)
+
+    ctx = await build_context(
+        db,
+        student=effective_student,
+        school=school,
+        cls=cls,
+        branding=branding,
+        doc_type=doc_type,
+        purpose=purpose,
+        user=user,
+        extra=extra,
+    )
+
     validity = int(validity_days) if validity_days else DEFAULT_VALIDITY_DAYS[doc_type]
     valid_until = datetime.now(timezone.utc) + timedelta(days=validity)
     snapshot_payload = {
         "doc_type": doc_type,
         "purpose": purpose,
-        "student": _lgpd_safe_student_payload(student),
+        "student": _lgpd_safe_student_payload(effective_student),
         "school": {"id": school.get("id"), "name": school.get("name")},
         "class": {
-            "id": cls.get("id"), "name": cls.get("name"),
+            "id": cls.get("id"),
+            "name": cls.get("name"),
             "grade_level": cls.get("grade_level"),
             "academic_year": cls.get("academic_year"),
             "shift": cls.get("shift"),
+        },
+        "enrollment": {
+            "id": (enrollment or {}).get("id"),
+            "source": enrollment_source,
         },
         "municipality": {"city": ctx.get("city"), "state": ctx.get("state")},
         "validity_days": validity,
@@ -242,38 +304,35 @@ async def issue_school_document(
         mantenedora_id=mantenedora_id,
         entity_type="estudante",
         entity_id=student_id,
-        analysis_type=doc_type,  # "matricula" | "frequencia" | "escolaridade"
+        analysis_type=doc_type,
         payload_snapshot=snapshot_payload,
-        ai_output=snapshot_output,  # não é IA; é output oficial
+        ai_output=snapshot_output,
         model="sigesc/emissao-direta",
         user=user,
     )
 
-    # 4. Override expires_at em verifiable_documents conforme validade do tipo.
-    # (create_snapshot já criou um verifiable_document com TTL padrão; reescrevemos
-    # expires_at para respeitar a validade OFICIAL do documento escolar)
     if snap.get("verification_code"):
         await db.verifiable_documents.update_one(
             {"code": snap["verification_code"]},
             {"$set": {
                 "expires_at": valid_until.isoformat(),
                 "public_metadata.valido_ate": valid_until.date().isoformat(),
-            }}
+            }},
         )
 
-    # 5. Gera PDF com código + QR + validade
     ctx["code"] = snap.get("verification_code")
     ctx["valid_until"] = valid_until.isoformat()
     ctx["snapshot_id"] = snap["id"]
     pdf_bytes = build_school_document_pdf(doc_type, ctx)
 
-    # 6. Log de emissão (auditoria)
     await db.school_documents_log.insert_one({
         "id": str(uuid.uuid4()),
         "student_id": student_id,
         "student_name": student.get("full_name"),
         "school_id": school.get("id"),
         "class_id": cls.get("id"),
+        "enrollment_id": (enrollment or {}).get("id"),
+        "enrollment_source": enrollment_source,
         "doc_type": doc_type,
         "purpose": purpose,
         "code": snap.get("verification_code"),
