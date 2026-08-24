@@ -83,7 +83,7 @@ def test_authorized_roles_preserve_principal_and_additional_roles():
 
 
 @pytest.mark.asyncio
-async def test_role_context_is_scoped_to_selected_lotacao_role():
+async def test_role_context_school_scope_is_independent_of_lotacao_funcao():
     year = datetime.now().year
     db = _DB(
         staff=[{"id": "staff-1", "user_id": "user-1"}],
@@ -108,17 +108,19 @@ async def test_role_context_is_scoped_to_selected_lotacao_role():
     professor = await resolve_role_context(db, _user_doc(), "professor", academic_year=year)
     coordenador = await resolve_role_context(db, _user_doc(), "coordenador", academic_year=year)
 
+    expected_schools = ["school-professor", "school-coordenador"]
+
     assert professor["source"] == "lotacoes"
-    assert professor["school_ids"] == ["school-professor"]
-    assert professor["school_links"][0]["roles"] == ["professor"]
+    assert professor["school_ids"] == expected_schools
+    assert all(link["roles"] == ["professor"] for link in professor["school_links"])
 
     assert coordenador["source"] == "lotacoes"
-    assert coordenador["school_ids"] == ["school-coordenador"]
-    assert coordenador["school_links"][0]["roles"] == ["coordenador"]
+    assert coordenador["school_ids"] == expected_schools
+    assert all(link["roles"] == ["coordenador"] for link in coordenador["school_links"])
 
 
 @pytest.mark.asyncio
-async def test_role_context_fails_closed_when_lotacoes_exist_but_role_does_not():
+async def test_authorized_role_keeps_school_scope_when_lotacao_funcao_differs():
     year = datetime.now().year
     db = _DB(
         staff=[{"id": "staff-1", "user_id": "user-1"}],
@@ -137,8 +139,53 @@ async def test_role_context_fails_closed_when_lotacoes_exist_but_role_does_not()
 
     assert professor["source"] == "lotacoes"
     assert professor["has_active_assignments"] is True
-    assert professor["has_role_assignment"] is False
-    assert professor["school_ids"] == []
+    assert professor["has_role_assignment"] is True
+    assert professor["school_ids"] == ["school-coordenador"]
+    assert professor["school_links"] == [
+        {
+            "school_id": "school-coordenador",
+            "roles": ["professor"],
+            "class_ids": [],
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_secretario_permission_uses_active_school_even_when_lotado_as_apoio():
+    year = datetime.now().year
+    user = {
+        "id": "secretario-user",
+        "email": "secretario@sigesc.com",
+        "role": "secretario",
+        "roles": ["secretario"],
+        "school_links": [],
+    }
+    db = _DB(
+        staff=[{"id": "staff-secretario", "user_id": "secretario-user"}],
+        assignments=[
+            {
+                "staff_id": "staff-secretario",
+                "school_id": "school-apoio",
+                "funcao": "apoio",
+                "status": "ativo",
+                "academic_year": year,
+            }
+        ],
+    )
+
+    context = await resolve_role_context(db, user, "secretario", academic_year=year)
+
+    assert context["source"] == "lotacoes"
+    assert context["school_ids"] == ["school-apoio"]
+    assert context["has_active_assignments"] is True
+    assert context["has_role_assignment"] is True
+    assert context["school_links"] == [
+        {
+            "school_id": "school-apoio",
+            "roles": ["secretario"],
+            "class_ids": [],
+        }
+    ]
 
 
 def test_switch_role_never_mutates_principal_role_in_database():
