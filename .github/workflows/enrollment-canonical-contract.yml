@@ -10,6 +10,8 @@ on:
       - 'backend/routers/pre_matricula.py'
       - 'backend/scripts/audit_enrollment_canonical.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
+      - 'backend/tests/test_enrollment_canonical_resilience.py'
+      - 'frontend/src/pages/PreMatriculaManagement.jsx'
       - '.github/workflows/enrollment-canonical-contract.yml'
   push:
     branches: [main]
@@ -20,6 +22,8 @@ on:
       - 'backend/routers/pre_matricula.py'
       - 'backend/scripts/audit_enrollment_canonical.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
+      - 'backend/tests/test_enrollment_canonical_resilience.py'
+      - 'frontend/src/pages/PreMatriculaManagement.jsx'
       - '.github/workflows/enrollment-canonical-contract.yml'
 
 jobs:
@@ -50,7 +54,11 @@ jobs:
             routers/enrollments.py \
             routers/pre_matricula.py \
             scripts/audit_enrollment_canonical.py \
-            tests/test_enrollment_canonical_contract.py
+            tests/test_enrollment_canonical_contract.py \
+            tests/test_enrollment_canonical_resilience.py
 
       - name: Run canonical enrollment guards
-        run: PYTHONPATH=. pytest -q --noconftest tests/test_enrollment_canonical_contract.py
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_enrollment_canonical_contract.py \
+            tests/test_enrollment_canonical_resilience.py
