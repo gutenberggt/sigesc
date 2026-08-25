@@ -14,6 +14,7 @@ O reparo NÃO cria enrollment novo. Para cada caso ele:
 - exige enrollment de destino exatamente `relocated` e com o número legado esperado;
 - exige que o número vigente em `students.enrollment_number` seja exclusivo;
 - exige ausência de outra matrícula regular ativa em 2026;
+- exige mantenedora presente e idêntica em estudante, turma origem e turma destino;
 - revalida imediatamente antes de escrever;
 - altera somente o enrollment de destino: status -> active, enrollment_number -> número vigente,
   previous_enrollment_number -> número legado do destino, source/proveniência e updated_at;
@@ -136,16 +137,12 @@ def assess_snapshot(
         if _norm(origin_class.get("school_id")) != case["school_id"]:
             blockers.append("ORIGIN_CLASS_SCHOOL_MISMATCH")
 
-    tenants = {
-        _norm(v)
-        for v in (
-            student.get("mantenedora_id"),
-            (destination_class or {}).get("mantenedora_id"),
-            (origin_class or {}).get("mantenedora_id"),
-        )
-        if _norm(v)
-    }
-    if len(tenants) != 1:
+    tenant_values = [
+        _norm(student.get("mantenedora_id")),
+        _norm((destination_class or {}).get("mantenedora_id")),
+        _norm((origin_class or {}).get("mantenedora_id")),
+    ]
+    if any(not value for value in tenant_values) or len(set(tenant_values)) != 1:
         blockers.append("TENANT_MISMATCH_OR_MISSING")
 
     if not origin:
@@ -206,7 +203,6 @@ def assess_snapshot(
         )
 
     if already:
-        # Após o reparo, o número legado deve ter sido liberado do campo principal.
         if same_legacy_number_enrollments:
             blockers.append("LEGACY_DESTINATION_NUMBER_STILL_ACTIVE_AS_PRIMARY")
         return ("ALREADY_CANONICAL" if not blockers else "BLOCKED", sorted(set(blockers)))
@@ -381,10 +377,21 @@ async def run(args: argparse.Namespace) -> int:
                     "academic_year": {"$in": [YEAR, str(YEAR)]},
                     "status": "relocated",
                     "enrollment_number": case["destination_legacy_number"],
-                    "$or": [
-                        {"previous_enrollment_number": {"$exists": False}},
-                        {"previous_enrollment_number": None},
-                        {"previous_enrollment_number": ""},
+                    "$and": [
+                        {
+                            "$or": [
+                                {"previous_enrollment_number": {"$exists": False}},
+                                {"previous_enrollment_number": None},
+                                {"previous_enrollment_number": ""},
+                            ]
+                        },
+                        {
+                            "$or": [
+                                {"source": {"$exists": False}},
+                                {"source": None},
+                                {"source": ""},
+                            ]
+                        },
                     ],
                 },
                 {
