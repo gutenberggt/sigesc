@@ -7,10 +7,15 @@ comportamento padrão.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 import sys
 from typing import Sequence
 
-from scripts import apply_dvd_second_wave_2c as implementation
+SCRIPT_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = SCRIPT_DIR.parent
+sys.path.insert(0, str(BACKEND_DIR))
+
+from scripts import apply_dvd_second_wave_2c as implementation  # noqa: E402
 
 _ALLOWED_FLAGS = {"--apply", "--rollback"}
 
@@ -45,7 +50,7 @@ def validate_runtime_args(args: Sequence[str]) -> list[str]:
 
 
 def build_locked_argv(runtime_args: Sequence[str]) -> list[str]:
-    return [sys.argv[0], *validate_runtime_args(runtime_args)]
+    return [str(Path(__file__)), *validate_runtime_args(runtime_args)]
 
 
 async def main() -> None:
