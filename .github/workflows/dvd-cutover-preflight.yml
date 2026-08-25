@@ -66,6 +66,10 @@ jobs:
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2a_apply.py
 
+      - name: Run Segunda Onda 2A persistent seal guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2a_persistent_seal.py
+
       - name: Guard volume persistente de backup DVD no Coolify
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_coolify_dvd_backup_volume_p0.py
