@@ -22,6 +22,8 @@ def _matches(doc, query):
         if isinstance(expected, dict):
             if "$lt" in expected and not (value is not None and value < expected["$lt"]):
                 return False
+            if "$lte" in expected and not (value is not None and value <= expected["$lte"]):
+                return False
             if "$gte" in expected and not (value is not None and value >= expected["$gte"]):
                 return False
             continue
@@ -125,7 +127,7 @@ async def test_merge_preserva_legado_e_canonico_com_backfill_na_fronteira(author
     ids = [item["id"] for item in result["items"]]
     assert "canonical-before" in ids
     assert "legacy-before" not in ids  # backfill canônico prevalece
-    assert "legacy-boundary" not in ids
+    assert "legacy-boundary" not in ids  # canônico da própria data de corte prevalece
     assert "legacy-after" not in ids
     assert "canonical-boundary" in ids
     assert "canonical-after" in ids
@@ -226,7 +228,7 @@ async def test_data_exata_anterior_sem_backfill_retorna_legado(authorized):
 
 
 @pytest.mark.asyncio
-async def test_data_exata_no_cutover_retorna_somente_canonico(authorized):
+async def test_data_exata_no_cutover_prefere_canonico_quando_ambos_existirem(authorized):
     db = FakeDb(
         canonical=[_canonical(date="2026-08-18")],
         legacy=[_legacy(date="2026-08-18")],
@@ -241,6 +243,39 @@ async def test_data_exata_no_cutover_retorna_somente_canonico(authorized):
     )
     assert [item["id"] for item in result["items"]] == ["canonical-1"]
     assert result["items"][0]["historical_backfill"] is False
+
+
+@pytest.mark.asyncio
+async def test_data_exata_no_cutover_sem_canonico_retorna_legado_como_fallback(authorized):
+    db = FakeDb(legacy=[_legacy(date="2026-08-18")])
+    result = await bridge.list_assignment_content_history(
+        db,
+        {"id": "teacher-1"},
+        assignment_id="assignment-1",
+        class_id="class-1",
+        component_id="math",
+        date="2026-08-18",
+    )
+
+    assert [item["id"] for item in result["items"]] == ["legacy-1"]
+    item = result["items"][0]
+    assert item["source"] == "learning_objects"
+    assert item["read_only"] is True
+    assert item["assignment_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_data_posterior_ao_cutover_nao_retorna_legado(authorized):
+    db = FakeDb(legacy=[_legacy(date="2026-08-19")])
+    result = await bridge.list_assignment_content_history(
+        db,
+        {"id": "teacher-1"},
+        assignment_id="assignment-1",
+        class_id="class-1",
+        component_id="math",
+        date="2026-08-19",
+    )
+    assert result["items"] == []
 
 
 @pytest.mark.asyncio

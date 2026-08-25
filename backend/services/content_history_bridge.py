@@ -72,7 +72,7 @@ def _sort_items(items: list[dict]) -> list[dict]:
 
 
 def _semantic_key(item: Mapping[str, Any]) -> tuple[str, str, str, str]:
-    """Chave defensiva para não duplicar legado quando já existe backfill canônico."""
+    """Chave defensiva para não duplicar legado quando já existe canônico equivalente."""
     return (
         str(item.get("class_id") or ""),
         str(item.get("component_id") or item.get("course_id") or ""),
@@ -99,11 +99,12 @@ async def list_assignment_content_history(
     - autoriza o vínculo vivo para VIEW usando a política central DVD;
     - ``content_entries`` do próprio assignment são visíveis em qualquer data;
     - entry anterior a ``valid_from`` é classificada como ``historical_backfill``;
-    - ``learning_objects`` anterior ao cutover continua visível e read-only pelo
-      escopo autorizado de turma/componente, preservando ``recorded_by`` apenas
-      como proveniência histórica e não como filtro adicional de visibilidade;
-    - se houver backfill canônico para a mesma turma/componente/professor/data,
-      ele prevalece sobre o registro legado equivalente;
+    - ``learning_objects`` anterior ou exatamente na data de corte continua
+      visível e read-only como fallback pelo escopo autorizado de turma/componente;
+    - na data de corte, se houver canônico equivalente, ele prevalece sobre o
+      legado para evitar duplicidade;
+    - ``recorded_by`` é preservado apenas como proveniência histórica e não como
+      filtro adicional de visibilidade;
     - nenhuma operação de escrita é executada.
     """
     try:
@@ -172,7 +173,10 @@ async def list_assignment_content_history(
     ]
 
     legacy_items: list[dict] = []
-    legacy_date_allowed = not date or str(date) < str(valid_from)
+    # A data de corte é inclusiva para leitura de fallback: durante o próprio
+    # dia do cutover ainda podem existir learning_objects sem equivalente em
+    # content_entries. Datas posteriores continuam exclusivamente canônicas.
+    legacy_date_allowed = not date or str(date) <= str(valid_from)
     if legacy_date_allowed:
         # No contrato legado, a linha do tempo pedagógica era da turma/componente;
         # ``recorded_by`` identificava quem efetuou a gravação, mas não restringia
@@ -187,24 +191,24 @@ async def list_assignment_content_history(
         if date:
             legacy_query["date"] = date
         else:
-            legacy_query["date"] = {"$lt": valid_from}
+            legacy_query["date"] = {"$lte": valid_from}
 
         legacy_candidates = await db.learning_objects.find(
             legacy_query, {"_id": 0}
         ).to_list(5000)
         legacy_items = [_legacy_public(item) for item in legacy_candidates]
 
-    # Backfill canônico prevalece sobre o legado equivalente. Isso evita duas
-    # linhas para a mesma data quando um lançamento histórico foi reconstruído
-    # pelo motor novo.
-    canonical_historical_keys = {
+    # Para qualquer sobreposição legado↔canônico até a data de corte, o canônico
+    # prevalece. Isso mantém o fallback de 18/08 sem duplicar registros quando o
+    # lançamento já foi persistido no motor novo.
+    canonical_precedence_keys = {
         _semantic_key(item)
         for item in canonical_items
-        if item.get("historical_backfill") is True
+        if item.get("date") and str(item.get("date")) <= str(valid_from)
     }
     legacy_items = [
         item for item in legacy_items
-        if _semantic_key(item) not in canonical_historical_keys
+        if _semantic_key(item) not in canonical_precedence_keys
     ]
 
     # Deduplicação por origem+id continua como proteção adicional.
