@@ -159,6 +159,41 @@ async def test_legado_e_explicitamente_read_only_sem_assignment_retroativo(autho
 
 
 @pytest.mark.asyncio
+async def test_legado_da_turma_componente_nao_depende_de_quem_gravou(authorized):
+    db = FakeDb(
+        legacy=[
+            _legacy("legacy-teacher", "2026-06-16", recorded_by="teacher-1"),
+            _legacy("legacy-admin", "2026-06-17", recorded_by="admin-1"),
+            _legacy(
+                "legacy-other-component",
+                "2026-06-18",
+                recorded_by="admin-1",
+                course_id="history",
+            ),
+        ]
+    )
+
+    result = await bridge.list_assignment_content_history(
+        db,
+        {"id": "teacher-1"},
+        assignment_id="assignment-1",
+        class_id="class-1",
+        component_id="math",
+    )
+
+    ids = [item["id"] for item in result["items"]]
+    assert "legacy-teacher" in ids
+    assert "legacy-admin" in ids
+    assert "legacy-other-component" not in ids
+
+    admin_entry = next(item for item in result["items"] if item["id"] == "legacy-admin")
+    assert admin_entry["recorded_by"] == "admin-1"
+    assert admin_entry["teacher_id"] == "admin-1"
+    assert admin_entry["read_only"] is True
+    assert admin_entry["assignment_id"] is None
+
+
+@pytest.mark.asyncio
 async def test_data_exata_anterior_prefere_backfill_canonico(authorized):
     db = FakeDb(
         canonical=[_canonical(date="2026-08-17")],
