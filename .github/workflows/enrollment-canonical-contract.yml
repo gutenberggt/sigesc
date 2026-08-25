@@ -9,12 +9,14 @@ on:
       - 'backend/routers/enrollments.py'
       - 'backend/routers/pre_matricula.py'
       - 'backend/scripts/audit_enrollment_canonical.py'
+      - 'backend/scripts/audit_enrollment_orphans_forensic.py'
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
       - 'backend/tests/test_enrollment_canonical_resilience.py'
+      - 'backend/tests/test_audit_enrollment_orphans_forensic.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
@@ -30,12 +32,14 @@ on:
       - 'backend/routers/enrollments.py'
       - 'backend/routers/pre_matricula.py'
       - 'backend/scripts/audit_enrollment_canonical.py'
+      - 'backend/scripts/audit_enrollment_orphans_forensic.py'
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
       - 'backend/tests/test_enrollment_canonical_resilience.py'
+      - 'backend/tests/test_audit_enrollment_orphans_forensic.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
@@ -72,26 +76,31 @@ jobs:
             routers/enrollments.py \
             routers/pre_matricula.py \
             scripts/audit_enrollment_canonical.py \
+            scripts/audit_enrollment_orphans_forensic.py \
             scripts/reconcile_enrollment_p0_2026.py \
             scripts/reconcile_enrollment_p0_confirmed_date_2026.py \
             scripts/reconcile_enrollment_p0_legacy_relocation_2026.py \
             scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py \
             tests/test_enrollment_canonical_contract.py \
             tests/test_enrollment_canonical_resilience.py \
+            tests/test_audit_enrollment_orphans_forensic.py \
             tests/test_reconcile_enrollment_p0_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_manifest.py \
             tests/test_reconcile_enrollment_p0_legacy_relocation_2026.py
 
-      - name: Smoke direct execution of historical-school wrapper
-        run: python scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py --help >/dev/null
+      - name: Smoke direct execution of enrollment audit scripts
+        run: |
+          python scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py --help >/dev/null
+          python scripts/audit_enrollment_orphans_forensic.py --help >/dev/null
 
       - name: Run canonical enrollment guards
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_enrollment_canonical_contract.py \
             tests/test_enrollment_canonical_resilience.py \
+            tests/test_audit_enrollment_orphans_forensic.py \
             tests/test_reconcile_enrollment_p0_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py \
