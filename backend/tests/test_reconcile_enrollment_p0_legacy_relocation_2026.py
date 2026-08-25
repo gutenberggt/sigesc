@@ -3,6 +3,11 @@ from scripts.reconcile_enrollment_p0_legacy_relocation_2026 import (
     SOURCE,
     assess_snapshot,
 )
+from scripts.reconcile_enrollment_p0_legacy_relocation_historical_school_2026 import (
+    MOVEMENT_AT_BY_STUDENT,
+    assess_snapshot as assess_snapshot_historical,
+    class_belongs_to_school_at,
+)
 
 
 def case():
@@ -161,3 +166,88 @@ def test_blocks_if_any_tenant_is_missing():
     disposition, blockers = assess(destination_class=destination_class)
     assert disposition == "BLOCKED"
     assert "TENANT_MISMATCH_OR_MISSING" in blockers
+
+
+def test_historical_school_membership_accepts_interval_covering_movement():
+    c = dict(CASES[1])
+    origin_class = cls(c["origin_class_id"], "school-current-after-transfer")
+    origin_class["school_history"] = [
+        {
+            "school_id": c["school_id"],
+            "start_date": "2026-03-19T14:04:43.538906+00:00",
+            "end_date": "2026-08-05T11:50:09.114042+00:00",
+        },
+        {
+            "school_id": "school-current-after-transfer",
+            "start_date": "2026-08-05T11:50:09.114042+00:00",
+            "end_date": None,
+        },
+    ]
+    assert class_belongs_to_school_at(
+        origin_class,
+        c["school_id"],
+        MOVEMENT_AT_BY_STUDENT[c["student_id"]],
+    )
+
+
+def test_historical_school_membership_rejects_interval_not_covering_movement():
+    c = dict(CASES[1])
+    origin_class = cls(c["origin_class_id"], "school-current-after-transfer")
+    origin_class["school_history"] = [
+        {
+            "school_id": c["school_id"],
+            "start_date": "2026-06-02T00:00:00+00:00",
+            "end_date": "2026-08-05T11:50:09.114042+00:00",
+        }
+    ]
+    assert not class_belongs_to_school_at(
+        origin_class,
+        c["school_id"],
+        MOVEMENT_AT_BY_STUDENT[c["student_id"]],
+    )
+
+
+def _assess_ana_historical(origin_school_history):
+    c = dict(CASES[1])
+    origin_class = cls(c["origin_class_id"], "7883abfb-035c-464a-bf49-a24e0068f260")
+    origin_class["school_history"] = origin_school_history
+    return assess_snapshot_historical(
+        case=c,
+        student=student(c),
+        destination=destination_ready(c),
+        origin=origin(c),
+        destination_class=cls(c["destination_class_id"], c["school_id"]),
+        origin_class=origin_class,
+        same_student_number_students=[{"id": c["student_id"]}],
+        same_student_number_enrollments=[],
+        same_legacy_number_enrollments=[
+            {"id": c["destination_enrollment_id"], "student_id": c["student_id"]}
+        ],
+        other_active_regular=[],
+    )
+
+
+def test_ana_snapshot_ready_when_school_history_proves_origin_at_movement():
+    c = dict(CASES[1])
+    disposition, blockers = _assess_ana_historical(
+        [
+            {
+                "school_id": c["school_id"],
+                "start_date": "2026-03-19T14:04:43.538906+00:00",
+                "end_date": "2026-08-05T11:50:09.114042+00:00",
+            },
+            {
+                "school_id": "7883abfb-035c-464a-bf49-a24e0068f260",
+                "start_date": "2026-08-05T11:50:09.114042+00:00",
+                "end_date": None,
+            },
+        ]
+    )
+    assert disposition == "READY"
+    assert blockers == []
+
+
+def test_ana_snapshot_stays_blocked_without_temporal_school_proof():
+    disposition, blockers = _assess_ana_historical([])
+    assert disposition == "BLOCKED"
+    assert "ORIGIN_CLASS_SCHOOL_MISMATCH" in blockers
