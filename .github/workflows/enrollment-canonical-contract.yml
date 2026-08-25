@@ -12,6 +12,7 @@ on:
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_2026.py'
+      - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
       - 'backend/tests/test_enrollment_canonical_resilience.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
@@ -32,6 +33,7 @@ on:
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_2026.py'
+      - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
       - 'backend/tests/test_enrollment_canonical_resilience.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
@@ -73,6 +75,7 @@ jobs:
             scripts/reconcile_enrollment_p0_2026.py \
             scripts/reconcile_enrollment_p0_confirmed_date_2026.py \
             scripts/reconcile_enrollment_p0_legacy_relocation_2026.py \
+            scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py \
             tests/test_enrollment_canonical_contract.py \
             tests/test_enrollment_canonical_resilience.py \
             tests/test_reconcile_enrollment_p0_2026.py \
@@ -80,6 +83,9 @@ jobs:
             tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_manifest.py \
             tests/test_reconcile_enrollment_p0_legacy_relocation_2026.py
+
+      - name: Smoke direct execution of historical-school wrapper
+        run: python scripts/reconcile_enrollment_p0_legacy_relocation_historical_school_2026.py --help >/dev/null
 
       - name: Run canonical enrollment guards
         run: |
