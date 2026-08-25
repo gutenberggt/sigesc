@@ -12,6 +12,7 @@ on:
       - 'backend/scripts/audit_enrollment_orphans_forensic.py'
       - 'backend/scripts/audit_enrollment_orphans_forensic_phase_b.py'
       - 'backend/scripts/audit_enrollment_orphans_forensic_phase_c.py'
+      - 'backend/scripts/audit_enrollment_orphans_forensic_phase_d.py'
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_2026.py'
@@ -21,6 +22,7 @@ on:
       - 'backend/tests/test_audit_enrollment_orphans_forensic.py'
       - 'backend/tests/test_audit_enrollment_orphans_forensic_phase_b.py'
       - 'backend/tests/test_audit_enrollment_orphans_forensic_phase_c.py'
+      - 'backend/tests/test_audit_enrollment_orphans_forensic_phase_d.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
@@ -39,6 +41,7 @@ on:
       - 'backend/scripts/audit_enrollment_orphans_forensic.py'
       - 'backend/scripts/audit_enrollment_orphans_forensic_phase_b.py'
       - 'backend/scripts/audit_enrollment_orphans_forensic_phase_c.py'
+      - 'backend/scripts/audit_enrollment_orphans_forensic_phase_d.py'
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/scripts/reconcile_enrollment_p0_legacy_relocation_2026.py'
@@ -48,6 +51,7 @@ on:
       - 'backend/tests/test_audit_enrollment_orphans_forensic.py'
       - 'backend/tests/test_audit_enrollment_orphans_forensic_phase_b.py'
       - 'backend/tests/test_audit_enrollment_orphans_forensic_phase_c.py'
+      - 'backend/tests/test_audit_enrollment_orphans_forensic_phase_d.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
@@ -87,6 +91,7 @@ jobs:
             scripts/audit_enrollment_orphans_forensic.py \
             scripts/audit_enrollment_orphans_forensic_phase_b.py \
             scripts/audit_enrollment_orphans_forensic_phase_c.py \
+            scripts/audit_enrollment_orphans_forensic_phase_d.py \
             scripts/reconcile_enrollment_p0_2026.py \
             scripts/reconcile_enrollment_p0_confirmed_date_2026.py \
             scripts/reconcile_enrollment_p0_legacy_relocation_2026.py \
@@ -96,6 +101,7 @@ jobs:
             tests/test_audit_enrollment_orphans_forensic.py \
             tests/test_audit_enrollment_orphans_forensic_phase_b.py \
             tests/test_audit_enrollment_orphans_forensic_phase_c.py \
+            tests/test_audit_enrollment_orphans_forensic_phase_d.py \
             tests/test_reconcile_enrollment_p0_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py \
@@ -108,6 +114,7 @@ jobs:
           python scripts/audit_enrollment_orphans_forensic.py --help >/dev/null
           python scripts/audit_enrollment_orphans_forensic_phase_b.py --help >/dev/null
           python scripts/audit_enrollment_orphans_forensic_phase_c.py --help >/dev/null
+          python scripts/audit_enrollment_orphans_forensic_phase_d.py --help >/dev/null
 
       - name: Run canonical enrollment guards
         run: |
@@ -117,6 +124,7 @@ jobs:
             tests/test_audit_enrollment_orphans_forensic.py \
             tests/test_audit_enrollment_orphans_forensic_phase_b.py \
             tests/test_audit_enrollment_orphans_forensic_phase_c.py \
+            tests/test_audit_enrollment_orphans_forensic_phase_d.py \
             tests/test_reconcile_enrollment_p0_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py \
