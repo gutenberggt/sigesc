@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -99,3 +102,27 @@ def test_script_is_read_only_and_has_no_apply_tokens():
     assert "--rollback" not in src
     assert "legacy_migration" in src
     assert "collect_backup_bundle" in src
+
+
+def test_persistent_entrypoint_executes_as_production_script_without_pythonpath():
+    backend_dir = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/prepare_dvd_second_wave_2d_j_migration_aware_persistent.py",
+            "--help",
+        ],
+        cwd=backend_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    combined = result.stdout + result.stderr
+    assert result.returncode == 0
+    assert "ModuleNotFoundError" not in combined
+    assert "--backup-dir" in combined
