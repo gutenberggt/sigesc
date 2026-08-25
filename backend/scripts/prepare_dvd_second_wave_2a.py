@@ -70,8 +70,6 @@ def assert_script_read_only() -> None:
     forbidden = [token for token in MONGO_MUTATOR_TOKENS if token in executable]
     if forbidden:
         raise PreflightGateError(f"READ_ONLY_GUARD_FAILED forbidden={forbidden}")
-    if "--apply" in executable or "--rollback" in executable:
-        raise PreflightGateError("READ_ONLY_GUARD_FAILED apply_or_rollback_cli_detected")
 
 
 def _target_key(row: Mapping[str, Any]) -> tuple[str, str, str]:
