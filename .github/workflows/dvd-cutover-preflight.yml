@@ -140,6 +140,18 @@ jobs:
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2d_j_apply.py
 
+      - name: Run Segunda Onda 2D-A forensic read-only guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2d_a_forensics.py
+
+      - name: Static Segunda Onda 2D-A forensic read-only assertion
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          from scripts.audit_dvd_second_wave_2d_a_forensics import assert_script_read_only
+          assert_script_read_only()
+          print('Segunda Onda 2D-A forensic read-only guard PASS')
+          PY
+
       - name: Guard volume persistente de backup DVD no Coolify
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_coolify_dvd_backup_volume_p0.py
