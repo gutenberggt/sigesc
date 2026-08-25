@@ -42,6 +42,8 @@ services:
       - RESEND_SENDER_EMAIL=${RESEND_SENDER_EMAIL:-}
       - RESEND_SENDER_NAME=${RESEND_SENDER_NAME:-SIGESC}
       - APP_FRONTEND_URL=${APP_FRONTEND_URL:-}
+    volumes:
+      - sigesc-dvd-backups:/data/sigesc-dvd-backups
     restart: unless-stopped
     depends_on:
       mongo:
@@ -85,6 +87,7 @@ services:
 
 volumes:
   sigesc-mongo-data:
+  sigesc-dvd-backups:
 
 # ============================================================
 # REDE: Usa a rede que o Coolify criou para este projeto.
