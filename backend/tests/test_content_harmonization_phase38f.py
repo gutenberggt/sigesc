@@ -65,6 +65,8 @@ def test_learning_objects_page_installs_bridge_through_existing_prefill_hook():
 def test_active_dvd_content_button_is_enabled_and_assignment_aware():
     src = DASHBOARD.read_text(encoding="utf-8")
     assert "open-content-disabled" not in src
-    assert "data-testid={`open-content-${diary.assignment_id}`}" in src
+    assert "const inheritedClassWide = Boolean(module.classWideDiary && !component.diary);" in src
+    assert "data-testid={`open-content-${diary.assignment_id}" in src
+    assert "inheritedClassWide ? `-${component.id}` : ''" in src
     assert "buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext)" in src
     assert "assignmentId: diary.assignment_id" in src
