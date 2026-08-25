@@ -112,6 +112,18 @@ jobs:
           print('Segunda Onda 2D-J read-only static guard PASS')
           PY
 
+      - name: Run Segunda Onda 2D-J migration-aware guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2d_j_migration_aware.py
+
+      - name: Static Segunda Onda 2D-J migration-aware read-only assertion
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          from scripts.prepare_dvd_second_wave_2d_j_migration_aware import assert_script_read_only
+          assert_script_read_only()
+          print('Segunda Onda 2D-J migration-aware read-only guard PASS')
+          PY
+
       - name: Guard volume persistente de backup DVD no Coolify
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_coolify_dvd_backup_volume_p0.py
