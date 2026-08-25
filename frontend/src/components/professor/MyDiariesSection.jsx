@@ -27,6 +27,11 @@ const usesAttendanceByComponent = (classInfo) => (
   ATTENDANCE_BY_COMPONENT_LEVELS.has(inferEducationLevel(classInfo))
 );
 
+const getEffectiveComponent = (component, module) => {
+  if (!component || component.diary || !module?.classWideDiary) return component;
+  return { ...component, diary: module.classWideDiary };
+};
+
 const getComponentOperationalState = (component) => {
   if (!component?.diary) {
     return {
@@ -108,9 +113,9 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
 
   const diaries = useMemo(() => data?.items || [], [data]);
 
-  // Um único módulo por turma. Os componentes do fluxo legado são a base da
-  // lotação do professor; quando existe DVD para o mesmo turma/componente, o
-  // vínculo DVD sobrepõe apenas as capacidades/assignment daquele componente.
+  // Um único módulo por turma. Os componentes da lotação continuam sendo a
+  // superfície visual. Um vínculo DVD class-wide (component_id=null) autoriza
+  // esses componentes por trás da interface, sem virar componente curricular.
   const classModules = useMemo(() => {
     const modules = new Map();
 
@@ -124,6 +129,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
           school_name: seed.school_name || 'Escola não informada',
           classInfo: { ...seed },
           components: new Map(),
+          classWideDiaries: [],
           profiles: new Set(),
         });
       }
@@ -170,14 +176,17 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
 
       if (diary.profile) module.profiles.add(diary.profile);
 
-      const key = diary.component_id
-        ? String(diary.component_id)
-        : `assignment:${diary.assignment_id}`;
+      if (!diary.component_id) {
+        module.classWideDiaries.push(diary);
+        return;
+      }
+
+      const key = String(diary.component_id);
       const existing = module.components.get(key);
 
       module.components.set(key, {
-        id: diary.component_id || existing?.id || '',
-        name: diary.component_name || existing?.name || 'Regência / vínculo da turma',
+        id: diary.component_id,
+        name: diary.component_name || existing?.name || 'Componente sem nome',
         academicYear: diary.academic_year || existing?.academicYear || academicYear,
         schoolId: diary.school_id || existing?.schoolId || module.school_id,
         legacyAssignmentId: existing?.legacyAssignmentId || '',
@@ -186,11 +195,36 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
     });
 
     return Array.from(modules.values())
-      .map((module) => ({
-        ...module,
-        components: Array.from(module.components.values()).sort(sortByComponentName),
-        profiles: Array.from(module.profiles),
-      }))
+      .map((module) => {
+        const components = Array.from(module.components.values());
+        const classWideDiaries = module.classWideDiaries || [];
+        const classWideDiary = classWideDiaries.length === 1 && components.length > 0
+          ? classWideDiaries[0]
+          : null;
+
+        // Sem componentes reais, preserva a representação histórica para que o
+        // vínculo continue acessível. Em ambiguidade (>1 class-wide), não escolhe
+        // um assignment arbitrariamente: mantém os vínculos explícitos/fail-closed.
+        if (components.length === 0 || classWideDiaries.length > 1) {
+          classWideDiaries.forEach((diary) => {
+            components.push({
+              id: '',
+              name: diary.component_name || 'Regência / vínculo da turma',
+              academicYear: diary.academic_year || academicYear,
+              schoolId: diary.school_id || module.school_id,
+              legacyAssignmentId: '',
+              diary,
+            });
+          });
+        }
+
+        return {
+          ...module,
+          classWideDiary,
+          components: components.sort(sortByComponentName),
+          profiles: Array.from(module.profiles),
+        };
+      })
       .sort((left, right) => {
         const schoolCompare = (left.school_name || '').localeCompare(right.school_name || '', 'pt-BR');
         return schoolCompare !== 0
@@ -265,12 +299,15 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4" data-testid="diarios-compactos">
           {classModules.map((module) => {
             const attendancePerComponent = usesAttendanceByComponent(module.classInfo);
+            const effectiveComponents = module.components.map((component) => (
+              getEffectiveComponent(component, module)
+            ));
             const topAttendanceComponent = !attendancePerComponent
               ? (
-                module.components.find((component) => (
-                  component.diary && getComponentOperationalState(component).canAttendance
+                effectiveComponents.find((component) => (
+                  component?.diary && getComponentOperationalState(component).canAttendance
                 ))
-                || module.components.find((component) => getComponentOperationalState(component).canAttendance)
+                || effectiveComponents.find((component) => getComponentOperationalState(component).canAttendance)
               )
               : null;
 
@@ -340,16 +377,20 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                 <CardContent className="px-3 pt-0 pb-2">
                   <div className="divide-y divide-slate-100">
                     {module.components.map((component) => {
-                      const diary = component.diary;
-                      const ops = getComponentOperationalState(component);
-                      const actionContext = buildComponentContext(component, module, academicYear);
+                      const effectiveComponent = getEffectiveComponent(component, module);
+                      const diary = effectiveComponent?.diary;
+                      const inheritedClassWide = Boolean(module.classWideDiary && !component.diary);
+                      const ops = getComponentOperationalState(effectiveComponent);
+                      const actionContext = buildComponentContext(effectiveComponent, module, academicYear);
 
                       return (
                         <div
-                          key={diary?.assignment_id || component.id || component.name}
+                          key={component.id || diary?.assignment_id || component.name}
                           className="py-2 first:pt-1 last:pb-1"
                           data-testid={diary?.assignment_id
-                            ? `diario-card-${diary.assignment_id}`
+                            ? (inheritedClassWide
+                              ? `diario-card-${diary.assignment_id}-${component.id}`
+                              : `diario-card-${diary.assignment_id}`)
                             : `legacy-component-${module.class_id}-${component.id}`}
                         >
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -393,7 +434,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                                   onClick={() => navigate(buildDiaryActionUrl('/professor/notas', actionContext))}
                                   className="h-8 px-2 text-xs"
                                   data-testid={diary
-                                    ? `open-grades-${diary.assignment_id}`
+                                    ? `open-grades-${diary.assignment_id}${inheritedClassWide ? `-${component.id}` : ''}`
                                     : `legacy-grades-${module.class_id}-${component.id}`}
                                 >
                                   <ClipboardList size={14} className="mr-1.5" />
@@ -408,7 +449,7 @@ export default function MyDiariesSection({ legacyClasses = [] }) {
                                   variant="outline"
                                   onClick={() => navigate(buildDiaryActionUrl('/professor/objetos-conhecimento', actionContext))}
                                   className="h-8 px-2 text-xs"
-                                  data-testid={`open-content-${diary.assignment_id}`}
+                                  data-testid={`open-content-${diary.assignment_id}${inheritedClassWide ? `-${component.id}` : ''}`}
                                 >
                                   <BookOpen size={14} className="mr-1.5" />
                                   Conteúdos
