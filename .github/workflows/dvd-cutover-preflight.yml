@@ -38,8 +38,6 @@ jobs:
               '.replace_one(', '.delete_one(', '.delete_many(', '.bulk_write(',
               '.find_one_and_update(', '.find_one_and_delete(', '.find_one_and_replace(',
           ]
-          # Tokens são declarados como strings no próprio guard; rejeita apenas usos
-          # fora da declaração do tuple MONGO_MUTATOR_TOKENS.
           lines = src.splitlines()
           executable = '\n'.join(
               line for line in lines
@@ -85,6 +83,18 @@ jobs:
       - name: Run Segunda Onda 2B apply + persistent seal guards
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2b_apply.py
+
+      - name: Run Segunda Onda 2C preflight guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2c_preflight.py
+
+      - name: Static Segunda Onda 2C read-only assertion
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          from scripts.prepare_dvd_second_wave_2c import assert_script_read_only
+          assert_script_read_only()
+          print('Segunda Onda 2C read-only static guard PASS')
+          PY
 
       - name: Guard volume persistente de backup DVD no Coolify
         run: |
