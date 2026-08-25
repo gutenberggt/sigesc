@@ -10,9 +10,12 @@ on:
       - 'backend/routers/pre_matricula.py'
       - 'backend/scripts/audit_enrollment_canonical.py'
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
+      - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
       - 'backend/tests/test_enrollment_canonical_resilience.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
+      - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
+      - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
       - 'frontend/src/pages/PreMatriculaManagement.jsx'
       - '.github/workflows/enrollment-canonical-contract.yml'
   push:
@@ -24,9 +27,12 @@ on:
       - 'backend/routers/pre_matricula.py'
       - 'backend/scripts/audit_enrollment_canonical.py'
       - 'backend/scripts/reconcile_enrollment_p0_2026.py'
+      - 'backend/scripts/reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_enrollment_canonical_contract.py'
       - 'backend/tests/test_enrollment_canonical_resilience.py'
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
+      - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
+      - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
       - 'frontend/src/pages/PreMatriculaManagement.jsx'
       - '.github/workflows/enrollment-canonical-contract.yml'
 
@@ -59,13 +65,18 @@ jobs:
             routers/pre_matricula.py \
             scripts/audit_enrollment_canonical.py \
             scripts/reconcile_enrollment_p0_2026.py \
+            scripts/reconcile_enrollment_p0_confirmed_date_2026.py \
             tests/test_enrollment_canonical_contract.py \
             tests/test_enrollment_canonical_resilience.py \
-            tests/test_reconcile_enrollment_p0_2026.py
+            tests/test_reconcile_enrollment_p0_2026.py \
+            tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
+            tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py
 
       - name: Run canonical enrollment guards
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_enrollment_canonical_contract.py \
             tests/test_enrollment_canonical_resilience.py \
-            tests/test_reconcile_enrollment_p0_2026.py
+            tests/test_reconcile_enrollment_p0_2026.py \
+            tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
+            tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py
