@@ -82,6 +82,10 @@ jobs:
           print('Segunda Onda 2B read-only static guard PASS')
           PY
 
+      - name: Run Segunda Onda 2B apply + persistent seal guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2b_apply.py
+
       - name: Guard volume persistente de backup DVD no Coolify
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_coolify_dvd_backup_volume_p0.py
