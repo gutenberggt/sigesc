@@ -1,4 +1,7 @@
 from pathlib import Path
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -232,6 +235,30 @@ def test_persistent_entrypoint_defaults_to_dry_run_and_forwards_only_mode():
     )[0] == "--rollback"
 
 
+def test_persistent_entrypoint_executes_as_production_script_without_pythonpath():
+    backend_dir = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/apply_dvd_second_wave_2c_persistent.py",
+            "--entrypoint-import-regression-probe",
+        ],
+        cwd=backend_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    combined = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "ModuleNotFoundError" not in combined
+    assert "SEALED_ARGUMENT_OVERRIDE_NOT_ALLOWED" in combined
+
+
 @pytest.mark.parametrize(
     "args",
     [
@@ -284,4 +311,5 @@ def test_scripts_are_dry_run_by_default_and_delegate_mutation_to_shared_base():
     )
     assert not any(token in apply_src for token in forbidden)
     assert not any(token in wrapper_src for token in forbidden)
+    assert "sys.path.insert(0, str(BACKEND_DIR))" in wrapper_src
     assert "await implementation.main()" in wrapper_src
