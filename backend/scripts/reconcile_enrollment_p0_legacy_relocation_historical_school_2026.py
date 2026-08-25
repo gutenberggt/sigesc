@@ -13,8 +13,14 @@ revalidação otimista e pós-condição são herdados integralmente do reparado
 from __future__ import annotations
 
 import asyncio
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from scripts import reconcile_enrollment_p0_legacy_relocation_2026 as base
 
