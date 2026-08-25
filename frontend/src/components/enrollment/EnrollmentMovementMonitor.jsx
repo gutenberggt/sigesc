@@ -92,8 +92,8 @@ const parseStudentName = (log) => {
   if (direct) return direct;
   const description = compact(log?.description);
   const patterns = [
-    /(?:cadastrou|atualizou|excluiu)\s+aluno:\s*(.+?)(?:\s+-\s+|\s+\(CPF:|$)/i,
-    /(?:aluno|estudante)\s+(.+?)(?:\s+-\s+|$)/i,
+    /(?:cadastrou|atualizou|excluiu)\s+aluno:\s*(.+?)(?:\s+-\s+|\s+\(CPF:|$)/i, // nomenclature-allow: leitura de logs históricos legados
+    /(?:aluno|estudante)\s+(.+?)(?:\s+-\s+|$)/i, // nomenclature-allow: leitura de logs históricos legados
   ];
   for (const pattern of patterns) {
     const match = description.match(pattern);
