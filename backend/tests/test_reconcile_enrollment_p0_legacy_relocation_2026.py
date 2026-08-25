@@ -152,3 +152,12 @@ def test_blocks_if_destination_number_has_changed():
     disposition, blockers = assess(destination=changed)
     assert disposition == "BLOCKED"
     assert "DESTINATION_NUMBER_CHANGED" in blockers
+
+
+def test_blocks_if_any_tenant_is_missing():
+    c = case()
+    destination_class = cls(c["destination_class_id"], c["school_id"])
+    destination_class["mantenedora_id"] = None
+    disposition, blockers = assess(destination_class=destination_class)
+    assert disposition == "BLOCKED"
+    assert "TENANT_MISMATCH_OR_MISSING" in blockers
