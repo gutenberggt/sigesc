@@ -99,7 +99,9 @@ async def list_assignment_content_history(
     - autoriza o vínculo vivo para VIEW usando a política central DVD;
     - ``content_entries`` do próprio assignment são visíveis em qualquer data;
     - entry anterior a ``valid_from`` é classificada como ``historical_backfill``;
-    - ``learning_objects`` anterior ao cutover continua visível e read-only;
+    - ``learning_objects`` anterior ao cutover continua visível e read-only pelo
+      escopo autorizado de turma/componente, preservando ``recorded_by`` apenas
+      como proveniência histórica e não como filtro adicional de visibilidade;
     - se houver backfill canônico para a mesma turma/componente/professor/data,
       ele prevalece sobre o registro legado equivalente;
     - nenhuma operação de escrita é executada.
@@ -171,10 +173,14 @@ async def list_assignment_content_history(
 
     legacy_items: list[dict] = []
     legacy_date_allowed = not date or str(date) < str(valid_from)
-    if legacy_date_allowed and owner_teacher_id:
+    if legacy_date_allowed:
+        # No contrato legado, a linha do tempo pedagógica era da turma/componente;
+        # ``recorded_by`` identificava quem efetuou a gravação, mas não restringia
+        # a leitura. O DVD já prova o acesso à turma/componente pelo assignment.
+        # Reaplicar recorded_by aqui escondia registros legítimos feitos por
+        # coordenação, administração, conta anterior ou outro responsável histórico.
         legacy_query: dict[str, Any] = {
             "class_id": resolved_class_id,
-            "recorded_by": owner_teacher_id,
         }
         if resolved_component_id:
             legacy_query["course_id"] = resolved_component_id
