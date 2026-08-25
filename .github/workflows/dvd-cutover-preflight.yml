@@ -70,6 +70,18 @@ jobs:
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2a_persistent_seal.py
 
+      - name: Run Segunda Onda 2B preflight guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2b_preflight.py
+
+      - name: Static Segunda Onda 2B read-only assertion
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          from scripts.prepare_dvd_second_wave_2b import assert_script_read_only
+          assert_script_read_only()
+          print('Segunda Onda 2B read-only static guard PASS')
+          PY
+
       - name: Guard volume persistente de backup DVD no Coolify
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_coolify_dvd_backup_volume_p0.py
