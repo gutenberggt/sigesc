@@ -50,7 +50,7 @@ jobs:
           print('38G-A read-only static guard PASS')
           PY
 
-      - name: Run Segunda Onda 2A guards
+      - name: Run Segunda Onda 2A preflight guards
         run: |
           PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2a_preflight.py
 
@@ -61,3 +61,7 @@ jobs:
           assert_script_read_only()
           print('Segunda Onda 2A read-only static guard PASS')
           PY
+
+      - name: Run Segunda Onda 2A apply guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2a_apply.py
