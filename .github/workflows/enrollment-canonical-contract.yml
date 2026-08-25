@@ -16,6 +16,7 @@ on:
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
+      - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_manifest.py'
       - 'frontend/src/pages/PreMatriculaManagement.jsx'
       - '.github/workflows/enrollment-canonical-contract.yml'
   push:
@@ -33,6 +34,7 @@ on:
       - 'backend/tests/test_reconcile_enrollment_p0_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_2026.py'
       - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py'
+      - 'backend/tests/test_reconcile_enrollment_p0_confirmed_date_manifest.py'
       - 'frontend/src/pages/PreMatriculaManagement.jsx'
       - '.github/workflows/enrollment-canonical-contract.yml'
 
@@ -70,7 +72,8 @@ jobs:
             tests/test_enrollment_canonical_resilience.py \
             tests/test_reconcile_enrollment_p0_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
-            tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py
+            tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py \
+            tests/test_reconcile_enrollment_p0_confirmed_date_manifest.py
 
       - name: Run canonical enrollment guards
         run: |
@@ -79,4 +82,5 @@ jobs:
             tests/test_enrollment_canonical_resilience.py \
             tests/test_reconcile_enrollment_p0_2026.py \
             tests/test_reconcile_enrollment_p0_confirmed_date_2026.py \
-            tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py
+            tests/test_reconcile_enrollment_p0_confirmed_date_assessment.py \
+            tests/test_reconcile_enrollment_p0_confirmed_date_manifest.py
