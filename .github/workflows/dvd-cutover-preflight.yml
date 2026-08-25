@@ -49,3 +49,15 @@ jobs:
           assert not hits, f'Mutadores Mongo proibidos no preflight: {hits}'
           print('38G-A read-only static guard PASS')
           PY
+
+      - name: Run Segunda Onda 2A guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest tests/test_dvd_second_wave_2a_preflight.py
+
+      - name: Static Segunda Onda 2A read-only assertion
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          from scripts.prepare_dvd_second_wave_2a import assert_script_read_only
+          assert_script_read_only()
+          print('Segunda Onda 2A read-only static guard PASS')
+          PY
