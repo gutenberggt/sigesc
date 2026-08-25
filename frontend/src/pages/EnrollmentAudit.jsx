@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { EnrollmentMovementMonitor } from '@/components/enrollment/EnrollmentMovementMonitor';
 import { useAuth } from '@/contexts/AuthContext';
 import { studentsAPI } from '@/services/api';
 import { toast } from 'sonner';
@@ -190,7 +191,7 @@ export const EnrollmentAudit = () => {
               Auditoria de Matrículas
             </h1>
             <p className="text-slate-500 mt-1 text-sm">
-              Acompanhe matrículas ausentes e duplicadas em tempo real. Use “Corrigir” para numerar automaticamente estudantes sem matrícula.
+              Monitore movimentações de estudantes e acompanhe a saúde estrutural das matrículas em tempo real.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -228,6 +229,8 @@ export const EnrollmentAudit = () => {
             <AlertTriangle className="w-5 h-5" /> {error}
           </div>
         )}
+
+        <EnrollmentMovementMonitor token={token} />
 
         {loading && !data ? (
           <div className="flex items-center justify-center py-20 text-slate-400" data-testid="audit-loading">
