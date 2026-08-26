@@ -1,0 +1,1 @@
+Inventário global read-only para normalização dos horários de 1º ao 5º ano em 2026. Esta etapa não autoriza escrita em produção.
