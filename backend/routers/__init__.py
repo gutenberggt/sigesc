@@ -7,6 +7,7 @@ PATCH 4.x: Refatoração gradual do server.py para routers modulares.
 
 from .auth import router as auth_router, setup_router as _setup_auth_router
 from .auth_impersonation import install_auth_impersonation
+from services.impersonation_audit_policy import install_impersonation_request_audit_policy
 from .users import router as users_router, setup_router as setup_users_router
 from .schools import router as schools_router, setup_router as setup_schools_router
 from .courses import router as courses_router, setup_router as setup_courses_router
@@ -31,7 +32,7 @@ from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_generalization
-from .calendar import router as calendar_router, setup_calendar_router
+from .calendar import router as calendar_router, setup_router as setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
 from .analytics import router as analytics_router, setup_analytics_router
@@ -128,7 +129,9 @@ install_aee_v2_plan_write_governance_setup(_aee_mod)
 def setup_auth_router(db, audit_service):
     """Configura Auth + impersonação segura do Super Administrador."""
     configured = _setup_auth_router(db, audit_service)
-    return install_auth_impersonation(configured, db, audit_service)
+    configured = install_auth_impersonation(configured, db, audit_service)
+    install_impersonation_request_audit_policy(audit_service)
+    return configured
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
