@@ -5,7 +5,8 @@ Organização modular dos endpoints da API.
 PATCH 4.x: Refatoração gradual do server.py para routers modulares.
 """
 
-from .auth import router as auth_router, setup_router as setup_auth_router
+from .auth import router as auth_router, setup_router as _setup_auth_router
+from .auth_impersonation import install_auth_impersonation
 from .users import router as users_router, setup_router as setup_users_router
 from .schools import router as schools_router, setup_router as setup_schools_router
 from .courses import router as courses_router, setup_router as setup_courses_router
@@ -122,6 +123,12 @@ install_aee_v2_plano_effective_read_setup(_aee_mod)
 install_aee_v2_plano_pdf_effective_setup(_aee_mod)
 install_aee_v2_plan_list_effective_cutover_setup(_aee_mod)
 install_aee_v2_plan_write_governance_setup(_aee_mod)
+
+
+def setup_auth_router(db, audit_service):
+    """Configura Auth + impersonação segura do Super Administrador."""
+    configured = _setup_auth_router(db, audit_service)
+    return install_auth_impersonation(configured, db, audit_service)
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
