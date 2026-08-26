@@ -1,0 +1,50 @@
+name: Auth - Super Admin Impersonation Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/routers/auth.py'
+      - 'backend/routers/auth_impersonation.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_super_admin_impersonation_p0.py'
+      - 'frontend/src/contexts/AuthContext.js'
+      - 'frontend/src/contexts/AuthContextLegacy.js'
+      - 'frontend/src/pages/Users.js'
+      - 'frontend/src/pages/UsersLegacy.js'
+      - 'frontend/src/components/Layout.js'
+      - 'frontend/src/components/LayoutLegacy.js'
+      - 'frontend/src/services/impersonationSession.js'
+      - '.github/workflows/auth-impersonation-guard.yml'
+
+jobs:
+  auth-impersonation-guard:
+    name: Backend - Auth impersonation guards
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      JWT_SECRET_KEY: ci-only-impersonation-guard-secret-key
+      COOKIE_SECURE: 'false'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install isolated auth test dependencies
+        run: pip install pytest pytest-asyncio fastapi 'python-jose[cryptography]' bcrypt python-dotenv motor email-validator
+
+      - name: Compile impersonation runtime
+        run: python -m py_compile routers/auth_impersonation.py routers/__init__.py
+
+      - name: Run impersonation security guards
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_super_admin_impersonation_p0.py
