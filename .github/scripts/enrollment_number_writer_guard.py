@@ -28,6 +28,7 @@ WRITE_METHODS = {
     "find_one_and_replace",
     "bulk_write",
 }
+TAINT_PRESERVING_CALLS = {"normalize_input_fields"}
 EXCLUDED_PREFIXES = ("backend/tests/", "backend/__pycache__/")
 
 
@@ -263,6 +264,8 @@ def _uses_tainted_whole(node: ast.AST | None, tainted: set[str]) -> bool:
     """Verdadeiro quando um payload tainted é usado como objeto inteiro.
 
     `{"$set": update_data}` conta; `update_data["student_series"]` não conta.
+    Transformadores explicitamente conhecidos por preservar o mesmo payload
+    propagam o taint do primeiro argumento.
     """
     if node is None:
         return False
@@ -280,6 +283,8 @@ def _uses_tainted_whole(node: ast.AST | None, tainted: set[str]) -> bool:
             func_name = node.func.id
         elif isinstance(node.func, ast.Attribute):
             func_name = node.func.attr
+        if func_name in TAINT_PRESERVING_CALLS:
+            return bool(node.args) and _uses_tainted_whole(node.args[0], tainted)
         if func_name not in {"dict", "UpdateOne", "ReplaceOne", "InsertOne"}:
             return False
         return any(_uses_tainted_whole(arg, tainted) for arg in node.args) or any(
@@ -474,6 +479,11 @@ async def writer(db):
     payload["enrollment_number"] = "202600001"
     await db.enrollments.update_one({"id": "x"}, {"$set": payload})
 
+async def normalized_writer(db):
+    payload = {"enrollment_number": "202600001", "observations": "TESTE"}
+    payload = normalize_input_fields(payload, "enrollments")
+    await db.enrollments.insert_one(payload)
+
 async def reset(db):
     payload = {"enrollment_number": "202600001"}
     await db.enrollments.update_one({"id": "x"}, {"$set": payload})
@@ -502,6 +512,18 @@ async def null_seed(db):
     )
     writer_taint = _tainted_before(writer_nodes, writer_call.lineno, writer_call.col_offset)
     assert _payload_writes_field(_mutation_payload(writer_call, "update_one"), writer_taint)
+
+    normalized_nodes = list(LocalNodeWalker.walk(funcs["normalized_writer"].body))
+    normalized_call = next(
+        n for n in normalized_nodes
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "insert_one"
+    )
+    normalized_taint = _tainted_before(
+        normalized_nodes, normalized_call.lineno, normalized_call.col_offset
+    )
+    assert _payload_writes_field(
+        _mutation_payload(normalized_call, "insert_one"), normalized_taint
+    )
 
     reset_nodes = list(LocalNodeWalker.walk(funcs["reset"].body))
     reset_calls = [
