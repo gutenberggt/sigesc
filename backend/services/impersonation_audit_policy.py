@@ -59,6 +59,15 @@ def _subject_meta(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _merge_impersonation_extra(current: Any, payload: Mapping[str, Any]) -> dict[str, Any]:
+    extra = dict(current) if isinstance(current, Mapping) else {}
+    prior = extra.get("impersonation")
+    merged = dict(prior) if isinstance(prior, Mapping) else {}
+    merged.update(_subject_meta(payload))
+    extra["impersonation"] = merged
+    return extra
+
+
 def install_impersonation_request_audit_policy(audit_service) -> None:
     """Garante ator real por request, mesmo se a rota reconstruir ``user``.
 
@@ -78,31 +87,36 @@ def install_impersonation_request_audit_policy(audit_service) -> None:
 
         payload = _request_access_payload(request)
         if payload:
+            mutable_args = list(args)
             actor = _actor_from_payload(payload)
 
             if "user" in kwargs:
                 kwargs["user"] = actor
-            elif len(args) >= 3:
-                mutable_args = list(args)
+            elif len(mutable_args) >= 3:
                 mutable_args[2] = actor
-                args = tuple(mutable_args)
             else:
                 kwargs["user"] = actor
 
-            # extra_data é normalmente keyword no SIGESC. Evita conflito apenas
-            # no caso excepcional de uma chamada totalmente posicional que já
-            # tenha preenchido esse argumento.
-            if len(args) < 13:
-                extra = dict(kwargs.get("extra_data") or {})
-                prior = extra.get("impersonation")
-                merged = dict(prior) if isinstance(prior, Mapping) else {}
-                merged.update(_subject_meta(payload))
-                extra["impersonation"] = merged
-                kwargs["extra_data"] = extra
+            # AuditService.log possui 12 argumentos após self; extra_data é o
+            # 12º (índice 11) quando a chamada é totalmente posicional.
+            if len(mutable_args) >= 12:
+                mutable_args[11] = _merge_impersonation_extra(mutable_args[11], payload)
+            else:
+                kwargs["extra_data"] = _merge_impersonation_extra(
+                    kwargs.get("extra_data"),
+                    payload,
+                )
 
-            description = kwargs.get("description")
-            if description and not str(description).startswith("[IMPERSONAÇÃO]"):
-                kwargs["description"] = f"[IMPERSONAÇÃO] {description}"
+            if "description" in kwargs:
+                description = kwargs.get("description")
+                if description and not str(description).startswith("[IMPERSONAÇÃO]"):
+                    kwargs["description"] = f"[IMPERSONAÇÃO] {description}"
+            elif len(mutable_args) >= 6:
+                description = mutable_args[5]
+                if description and not str(description).startswith("[IMPERSONAÇÃO]"):
+                    mutable_args[5] = f"[IMPERSONAÇÃO] {description}"
+
+            args = tuple(mutable_args)
 
         return await original_log(*args, **kwargs)
 
