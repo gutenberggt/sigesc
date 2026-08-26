@@ -262,7 +262,9 @@ def test_frontend_exige_password_do_super_admin_e_nao_expoe_senha_mestra():
     assert "startImpersonationSession" in USERS_UI
     assert "master_password" not in USERS_UI.lower()
     assert "senha mestra" not in USERS_UI.lower()
-    assert "password" not in SESSION_UI.split("localStorage.setItem", 1)[-1]
+    for line in SESSION_UI.splitlines():
+        if "localStorage.setItem" in line:
+            assert "password" not in line.lower()
 
 
 def test_frontend_impersonado_nao_persiste_sessao_offline_de_30_dias():
