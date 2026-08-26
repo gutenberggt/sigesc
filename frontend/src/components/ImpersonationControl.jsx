@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Shield } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Search, Shield } from 'lucide-react';
 
 import { Modal } from '@/components/Modal';
 import { useAuth } from '@/contexts/AuthContext';
-import { usersAPI } from '@/services/api';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import {
+  searchImpersonationUsers,
   startImpersonationSession,
   stopImpersonationSession,
 } from '@/services/impersonationSession';
@@ -38,30 +38,19 @@ export const ImpersonationControl = () => {
   const canStart = user?.role === 'super_admin' && !impersonation;
 
   const [open, setOpen] = useState(false);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [targetUserId, setTargetUserId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [target, setTarget] = useState(null);
   const [activeRole, setActiveRole] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState('');
 
-  const eligibleUsers = useMemo(
-    () => users.filter((item) => {
-      const roles = new Set([item?.role, ...(item?.roles || [])]);
-      return (
-        item?.status === 'active'
-        && item?.id !== user?.id
-        && !roles.has('super_admin')
-      );
-    }),
-    [users, user?.id],
-  );
-
-  const target = eligibleUsers.find((item) => item.id === targetUserId) || null;
   const targetRoles = target
-    ? Array.from(new Set([target.role, ...(target.roles || [])])).filter((role) => role !== 'super_admin')
+    ? Array.from(new Set([target.role, ...(target.roles || [])]))
+      .filter((role) => role && role !== 'super_admin')
     : [];
 
   const stopTest = async () => {
@@ -96,32 +85,73 @@ export const ImpersonationControl = () => {
     return () => document.removeEventListener('click', captureLogout, true);
   }, [impersonation, stopping]);
 
-  const openDialog = async () => {
+  // Busca server-side global. Não reutiliza GET /users, pois esse endpoint segue
+  // o tenant ativo da gestão administrativa e pode omitir contas de outros escopos.
+  useEffect(() => {
+    if (!open || target) return undefined;
+
+    const term = searchTerm.trim();
+    if (term.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setSearching(true);
+      setError('');
+      try {
+        const results = await searchImpersonationUsers(term, 20);
+        if (!cancelled) setSearchResults(Array.isArray(results) ? results : []);
+      } catch (err) {
+        if (!cancelled) {
+          setSearchResults([]);
+          setError(extractErrorMessage(err, 'Não foi possível pesquisar usuários.'));
+        }
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [open, searchTerm, target]);
+
+  const openDialog = () => {
     setOpen(true);
     setError('');
     setPassword('');
-    setTargetUserId('');
+    setSearchTerm('');
+    setSearchResults([]);
+    setTarget(null);
     setActiveRole('');
-    setLoadingUsers(true);
-    try {
-      const data = await usersAPI.getAll();
-      setUsers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Não foi possível carregar os usuários.'));
-    } finally {
-      setLoadingUsers(false);
-    }
+    setSearching(false);
   };
 
-  const selectTarget = (id) => {
-    setTargetUserId(id);
-    const selected = eligibleUsers.find((item) => item.id === id);
-    setActiveRole(selected?.role || '');
+  const changeSearchTerm = (value) => {
+    setSearchTerm(value);
+    setTarget(null);
+    setActiveRole('');
+    setSearchResults([]);
+    setError('');
+  };
+
+  const selectTarget = (selected) => {
+    const roles = Array.from(new Set([selected?.role, ...(selected?.roles || [])]))
+      .filter((role) => role && role !== 'super_admin');
+    setTarget(selected);
+    setActiveRole(roles.includes(selected?.role) ? selected.role : (roles[0] || ''));
+    setSearchTerm(selected?.full_name || selected?.email || '');
+    setSearchResults([]);
+    setError('');
   };
 
   const startTest = async (event) => {
     event.preventDefault();
-    if (!targetUserId || !activeRole || !password) {
+    if (!target?.id || !activeRole || !password) {
       setError('Selecione o usuário, o perfil e confirme sua senha de Super Administrador.');
       return;
     }
@@ -129,7 +159,11 @@ export const ImpersonationControl = () => {
     setSubmitting(true);
     setError('');
     try {
-      await startImpersonationSession({ targetUserId, activeRole, password });
+      await startImpersonationSession({
+        targetUserId: target.id,
+        activeRole,
+        password,
+      });
     } catch (err) {
       setError(extractErrorMessage(err, 'Não foi possível iniciar o modo de teste.'));
       setSubmitting(false);
@@ -184,25 +218,73 @@ export const ImpersonationControl = () => {
       >
         <form onSubmit={startTest} className="space-y-4">
           <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
-            Sessão temporária para testes. O usuário mantém sua senha original e as ações ficam atribuídas ao Super Administrador, com o usuário testado registrado na trilha de auditoria.
+            Sessão temporária para testes. Pesquise qualquer usuário ativo do SIGESC por nome ou e-mail. A senha original do usuário é preservada e as ações ficam atribuídas ao Super Administrador.
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">Usuário a testar *</label>
-            <select
-              value={targetUserId}
-              onChange={(event) => selectTarget(event.target.value)}
-              disabled={loadingUsers || submitting}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
-              data-testid="impersonation-target-select"
-            >
-              <option value="">{loadingUsers ? 'Carregando...' : 'Selecione um usuário'}</option>
-              {eligibleUsers.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.full_name} — {roleLabel(item.role)} — {item.email}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <Search
+                size={18}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => changeSearchTerm(event.target.value)}
+                disabled={submitting}
+                placeholder="Digite o nome ou e-mail do usuário"
+                autoComplete="off"
+                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3"
+                data-testid="impersonation-user-search"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Digite pelo menos 2 caracteres. A busca é global e não se limita a professores ou à mantenedora selecionada.
+            </p>
+
+            {!target && searchTerm.trim().length >= 2 && (
+              <div
+                className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm"
+                data-testid="impersonation-search-results"
+              >
+                {searching && (
+                  <div className="px-3 py-3 text-sm text-gray-500">Pesquisando...</div>
+                )}
+                {!searching && searchResults.length === 0 && (
+                  <div className="px-3 py-3 text-sm text-gray-500">Nenhum usuário encontrado.</div>
+                )}
+                {!searching && searchResults.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => selectTarget(item)}
+                    className="block w-full border-b border-gray-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-indigo-50"
+                    data-testid={`impersonation-result-${item.id}`}
+                  >
+                    <div className="font-medium text-gray-900">{item.full_name || item.email}</div>
+                    <div className="mt-0.5 text-xs text-gray-500">
+                      {item.email || 'Sem e-mail'} · {(item.roles || [item.role]).filter(Boolean).map(roleLabel).join(', ')}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {target && (
+              <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3" data-testid="impersonation-selected-user">
+                <div className="text-sm font-semibold text-emerald-950">{target.full_name || target.email}</div>
+                <div className="mt-0.5 text-xs text-emerald-800">{target.email || 'Sem e-mail'}</div>
+                <button
+                  type="button"
+                  onClick={() => changeSearchTerm('')}
+                  disabled={submitting}
+                  className="mt-2 text-xs font-medium text-emerald-900 underline"
+                >
+                  Escolher outro usuário
+                </button>
+              </div>
+            )}
           </div>
 
           {target && (
@@ -255,7 +337,7 @@ export const ImpersonationControl = () => {
             </button>
             <button
               type="submit"
-              disabled={submitting || loadingUsers}
+              disabled={submitting || !target}
               className="rounded-lg bg-indigo-700 px-4 py-2 font-medium text-white hover:bg-indigo-800 disabled:bg-gray-400"
               data-testid="start-impersonation-button"
             >
