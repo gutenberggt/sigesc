@@ -287,3 +287,16 @@ def test_script_is_strictly_read_only():
             ".replace_one(", ".delete_one(", ".delete_many(", ".bulk_write(",
         )
         assert not any(token in src for token in forbidden)
+
+
+def test_v2_direct_entrypoint_bootstraps_backend_parent_on_sys_path():
+    src = Path("scripts/inventory_initial_years_schedule_normalization_v2.py").read_text(
+        encoding="utf-8"
+    )
+    assert "import sys" in src
+    assert "SCRIPT_DIR = Path(__file__).resolve().parent" in src
+    assert "BACKEND_DIR = SCRIPT_DIR.parent" in src
+    assert "sys.path.insert(0, str(BACKEND_DIR))" in src
+    assert src.index("sys.path.insert(0, str(BACKEND_DIR))") < src.index(
+        "from scripts import inventory_initial_years_schedule_normalization as base"
+    )

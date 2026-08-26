@@ -18,7 +18,16 @@ import json
 import os
 from pathlib import Path
 import re
+import sys
 from typing import Any, Mapping
+
+# Quando este arquivo é executado diretamente como `python scripts/...`,
+# Python coloca /app/scripts (e não /app) em sys.path. Adicionamos o diretório
+# do backend explicitamente para que o pacote `scripts` seja resolvido tanto
+# em produção quanto nos imports usados pelos testes.
+SCRIPT_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = SCRIPT_DIR.parent
+sys.path.insert(0, str(BACKEND_DIR))
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
