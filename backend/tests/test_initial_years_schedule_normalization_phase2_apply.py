@@ -209,3 +209,45 @@ def test_apply_source_has_no_destructive_collection_mutators():
     assert src.count(".update_one(") == 2
     assert '"$setOnInsert": doc' in src
     assert '"schedule_slots": deepcopy(current.get("schedule_slots") or [])' in src
+
+
+def test_scope_snapshot_bundle_changes_with_generated_at_without_scope_drift():
+    scope_core = {
+        "academic_year": 2026,
+        "source_inventory_sha256": "source",
+        "regular_target_count": 84,
+    }
+    scope_hash = preflight._sha256(scope_core)
+    snapshot_a = {
+        "meta": {"mode": "READ_ONLY", "mutates_database": False, "generated_at": "2026-08-26T01:00:00+00:00"},
+        "scope_v2_sha256": scope_hash,
+        "scope": scope_core,
+    }
+    snapshot_b = {
+        "meta": {"mode": "READ_ONLY", "mutates_database": False, "generated_at": "2026-08-26T02:00:00+00:00"},
+        "scope_v2_sha256": scope_hash,
+        "scope": scope_core,
+    }
+
+    assert snapshot_a["scope_v2_sha256"] == snapshot_b["scope_v2_sha256"]
+    assert snapshot_a["scope"] == snapshot_b["scope"]
+    assert preflight._sha256(snapshot_a) != preflight._sha256(snapshot_b)
+
+
+def test_persistent_reseal_changes_only_backup_bundle_authority():
+    from scripts import apply_initial_years_schedule_normalization_phase2_persistent_reseal as reseal
+
+    original_bundle = apply2.APPROVED_BACKUP_BUNDLE_SHA256
+    original_manifest = apply2.APPROVED_MANIFEST_SHA256
+    original_scope = apply2.APPROVED_SCOPE_V2_SHA256
+    original_dir = apply2.APPROVED_BACKUP_DIR
+    try:
+        assert original_bundle == reseal.PREVIOUS_EPHEMERAL_BACKUP_BUNDLE_SHA256
+        reseal.activate_reseal()
+        assert apply2.APPROVED_BACKUP_BUNDLE_SHA256 == reseal.RESEALED_PERSISTENT_BACKUP_BUNDLE_SHA256
+        assert apply2.APPROVED_MANIFEST_SHA256 == original_manifest
+        assert apply2.APPROVED_SCOPE_V2_SHA256 == original_scope
+        assert apply2.APPROVED_BACKUP_DIR == original_dir
+        reseal.activate_reseal()
+    finally:
+        apply2.APPROVED_BACKUP_BUNDLE_SHA256 = original_bundle
