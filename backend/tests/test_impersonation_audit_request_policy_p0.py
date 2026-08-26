@@ -17,39 +17,73 @@ class FakeAudit:
 
 def fake_request():
     return SimpleNamespace(
-        cookies={"sigesc_access": "signed-token"},
+        cookies={"sigesc_access": "signed-token-nao-usado-pela-politica"},
         headers={},
         query_params={},
+        state=SimpleNamespace(),
     )
 
 
-def impersonation_payload():
+def effective_impersonated_user():
     return {
-        "type": "access",
-        "sub": "target-1",
+        "id": "target-1",
         "email": "target@example.org",
         "role": "professor",
+        "full_name": "Usuário Fixture",
         "impersonation": True,
         "impersonation_session_id": "session-1",
-        "impersonation_actor_id": "super-1",
-        "impersonation_actor_email": "super@example.org",
-        "impersonation_actor_name": "Super Admin Fixture",
-        "impersonation_subject_name": "Usuário Fixture",
+        "actor_id": "super-1",
+        "actor_email": "super@example.org",
+        "actor_name": "Super Admin Fixture",
+        "subject_name": "Usuário Fixture",
     }
 
 
 @pytest.mark.asyncio
-async def test_request_assinado_forca_super_admin_mesmo_com_user_reconstruido(monkeypatch):
-    monkeypatch.setattr(policy, "decode_token", lambda token: impersonation_payload())
+async def test_primeira_auditoria_autenticada_fixa_contexto_no_request_state():
     audit = FakeAudit()
     policy.install_impersonation_request_audit_policy(audit)
+    request = fake_request()
 
-    # Simula uma rota que descartou os metadados de impersonação e reconstruiu user.
+    await audit.log(
+        action="access",
+        collection="impersonation",
+        user=effective_impersonated_user(),
+        request=request,
+        description="Acesso autenticado",
+    )
+
+    context = getattr(request.state, policy.REQUEST_STATE_KEY)
+    assert context["actor_id"] == "super-1"
+    assert context["subject_user_id"] == "target-1"
+
+    _, kwargs = audit.calls[-1]
+    assert kwargs["user"]["id"] == "super-1"
+    assert kwargs["user"]["role"] == "super_admin"
+    assert kwargs["extra_data"]["impersonation"]["subject_role"] == "professor"
+
+
+@pytest.mark.asyncio
+async def test_user_reconstruido_continua_atribuido_ao_super_admin_na_mesma_request():
+    audit = FakeAudit()
+    policy.install_impersonation_request_audit_policy(audit)
+    request = fake_request()
+
+    # Primeira passagem corresponde ao contexto enriquecido pelo AuthMiddleware.
+    await audit.log(
+        action="access",
+        collection="impersonation",
+        user=effective_impersonated_user(),
+        request=request,
+        description="Acesso autenticado",
+    )
+
+    # Depois, uma rota pode reconstruir/encolher `user`; request.state é a SSoT.
     await audit.log(
         action="update",
         collection="grades",
         user={"id": "target-1", "email": "target@example.org", "role": "professor"},
-        request=fake_request(),
+        request=request,
         description="Alterou nota",
     )
 
@@ -68,16 +102,24 @@ async def test_request_assinado_forca_super_admin_mesmo_com_user_reconstruido(mo
 
 
 @pytest.mark.asyncio
-async def test_request_totalmente_posicional_tambem_forca_ator_e_subject(monkeypatch):
-    monkeypatch.setattr(policy, "decode_token", lambda token: impersonation_payload())
+async def test_request_totalmente_posicional_reutiliza_contexto_autenticado():
     audit = FakeAudit()
     policy.install_impersonation_request_audit_policy(audit)
+    request = fake_request()
+
+    await audit.log(
+        action="access",
+        collection="impersonation",
+        user=effective_impersonated_user(),
+        request=request,
+        description="Acesso autenticado",
+    )
 
     await audit.log(
         "update",
         "grades",
         {"id": "target-1", "email": "target@example.org", "role": "professor"},
-        fake_request(),
+        request,
         "grade-1",
         "Alterou nota",
         {"b1": 7.0},
@@ -98,12 +140,28 @@ async def test_request_totalmente_posicional_tambem_forca_ator_e_subject(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_request_normal_nao_altera_autoria(monkeypatch):
-    monkeypatch.setattr(
-        policy,
-        "decode_token",
-        lambda token: {"type": "access", "sub": "user-1", "role": "professor"},
+async def test_token_bruto_sem_contexto_autenticado_nao_promove_autoria():
+    audit = FakeAudit()
+    policy.install_impersonation_request_audit_policy(audit)
+    request = fake_request()
+    original_user = {"id": "public-user", "email": "public@example.org", "role": "unknown"}
+
+    await audit.log(
+        action="access",
+        collection="public-resource",
+        user=original_user,
+        request=request,
+        description="Acesso público",
     )
+
+    _, kwargs = audit.calls[-1]
+    assert kwargs["user"] == original_user
+    assert kwargs.get("extra_data") is None
+    assert not hasattr(request.state, policy.REQUEST_STATE_KEY)
+
+
+@pytest.mark.asyncio
+async def test_request_normal_nao_altera_autoria():
     audit = FakeAudit()
     policy.install_impersonation_request_audit_policy(audit)
     original_user = {"id": "user-1", "email": "user@example.org", "role": "professor"}
@@ -123,8 +181,7 @@ async def test_request_normal_nao_altera_autoria(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_chamada_sem_request_mantem_compatibilidade(monkeypatch):
-    monkeypatch.setattr(policy, "decode_token", lambda token: impersonation_payload())
+async def test_chamada_sem_request_mantem_compatibilidade():
     audit = FakeAudit()
     policy.install_impersonation_request_audit_policy(audit)
     original_user = {"id": "user-1", "role": "professor"}
