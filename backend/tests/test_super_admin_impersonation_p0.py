@@ -1,22 +1,31 @@
 """P0 Auth — impersonação segura pelo Super Administrador."""
 
 from datetime import datetime, timedelta, timezone
+import importlib.util
 from pathlib import Path
+import sys
 
 import pytest
 from fastapi import HTTPException
 
-from routers import auth_impersonation as imp
-
 
 BACKEND = Path(__file__).resolve().parents[1]
 REPO = BACKEND.parent
+MODULE_PATH = BACKEND / "routers" / "auth_impersonation.py"
+SPEC = importlib.util.spec_from_file_location("auth_impersonation_under_test", MODULE_PATH)
+assert SPEC and SPEC.loader
+imp = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = imp
+SPEC.loader.exec_module(imp)
+
 AUTH_SOURCE = (BACKEND / "routers" / "auth.py").read_text(encoding="utf-8")
-IMP_SOURCE = (BACKEND / "routers" / "auth_impersonation.py").read_text(encoding="utf-8")
+IMP_SOURCE = MODULE_PATH.read_text(encoding="utf-8")
 AUTH_CONTEXT = (REPO / "frontend" / "src" / "contexts" / "AuthContext.js").read_text(encoding="utf-8")
-USERS_UI = (REPO / "frontend" / "src" / "pages" / "Users.js").read_text(encoding="utf-8")
+CONTROL_UI = (REPO / "frontend" / "src" / "components" / "ImpersonationControl.jsx").read_text(encoding="utf-8")
 LAYOUT_UI = (REPO / "frontend" / "src" / "components" / "Layout.js").read_text(encoding="utf-8")
 SESSION_UI = (REPO / "frontend" / "src" / "services" / "impersonationSession.js").read_text(encoding="utf-8")
+OFFLINE_GUARD = (REPO / "frontend" / "src" / "utils" / "impersonationOfflineGuard.js").read_text(encoding="utf-8")
+INDEX_UI = (REPO / "frontend" / "src" / "index.js").read_text(encoding="utf-8")
 
 
 class FakeCollection:
@@ -177,7 +186,11 @@ async def test_step_up_rejeita_papel_que_nao_pertence_ao_usuario(monkeypatch):
 @pytest.mark.asyncio
 async def test_step_up_valido_preserva_contexto_do_usuario_alvo(monkeypatch):
     db = FakeDb([actor_doc(), target_doc()])
-    monkeypatch.setattr(imp, "verify_password", lambda plain, hashed: plain == "secret" and hashed == "fixture-hash")
+    monkeypatch.setattr(
+        imp,
+        "verify_password",
+        lambda plain, hashed: plain == "secret" and hashed == "fixture-hash",
+    )
 
     actor, target, role, context = await imp._validated_actor_and_subject(
         db,
@@ -258,24 +271,34 @@ def test_operacoes_de_conta_e_sessao_ficam_bloqueadas_no_modo_de_teste():
 
 
 def test_frontend_exige_password_do_super_admin_e_nao_expoe_senha_mestra():
-    assert "impersonation-superadmin-password" in USERS_UI
-    assert "startImpersonationSession" in USERS_UI
-    assert "master_password" not in USERS_UI.lower()
-    assert "senha mestra" not in USERS_UI.lower()
+    assert "impersonation-superadmin-password" in CONTROL_UI
+    assert "startImpersonationSession" in CONTROL_UI
+    assert "master_password" not in CONTROL_UI.lower()
+    assert "senha mestra" not in CONTROL_UI.lower()
     for line in SESSION_UI.splitlines():
         if "localStorage.setItem" in line:
             assert "password" not in line.lower()
 
 
+def test_auth_context_canônico_permanece_no_arquivo_original():
+    # Guard acumulado multi-role depende deste contrato no arquivo canônico.
+    assert "access_token: newAccessToken" in AUTH_CONTEXT
+    assert "switchRole" in AUTH_CONTEXT
+    assert "MAX_OFFLINE_SESSION" in AUTH_CONTEXT
+    assert "AuthContextLegacy" not in AUTH_CONTEXT
+
+
 def test_frontend_impersonado_nao_persiste_sessao_offline_de_30_dias():
-    assert "AuthContextLegacy" in AUTH_CONTEXT
-    assert "impersonation?.active" in AUTH_CONTEXT
-    assert "originalRemoveItem.call(this, USER_DATA_KEY)" in AUTH_CONTEXT
-    assert "originalRemoveItem.call(this, LAST_LOGIN_KEY)" in AUTH_CONTEXT
+    assert "impersonation?.active" in OFFLINE_GUARD
+    assert "originalRemoveItem.call(this, USER_DATA_KEY)" in OFFLINE_GUARD
+    assert "originalRemoveItem.call(this, LAST_LOGIN_KEY)" in OFFLINE_GUARD
+    assert "installImpersonationOfflineGuard" in INDEX_UI
 
 
-def test_banner_global_identifica_ator_subject_e_permita_encerrar():
-    assert "impersonation-banner" in LAYOUT_UI
-    assert "stopImpersonationSession" in LAYOUT_UI
-    assert "ator real" in LAYOUT_UI
-    assert "stop-impersonation-button" in LAYOUT_UI
+def test_controle_global_identifica_ator_subject_e_intercepta_logout():
+    assert "ImpersonationControl" in LAYOUT_UI
+    assert "impersonation-banner" in CONTROL_UI
+    assert "stopImpersonationSession" in CONTROL_UI
+    assert "ator real" in CONTROL_UI
+    assert "logout-button" in CONTROL_UI
+    assert "stop-impersonation-button" in CONTROL_UI
