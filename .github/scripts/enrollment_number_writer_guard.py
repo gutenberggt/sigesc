@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Guard global dos escritores de ``enrollment_number`` do SIGESC.
 
-Falha quando a superfície de código capaz de gravar ``enrollment_number`` em
-``students`` ou ``enrollments`` diverge do inventário revisado abaixo.
+Falha quando a superfície de código capaz de gravar um número de matrícula real
+em ``students`` ou ``enrollments`` diverge do inventário revisado abaixo.
 
-A detecção usa AST e taint estrutural de payloads. Filtros de leitura contendo
-``enrollment_number`` não são tratados como escritores.
+A detecção usa AST + taint conservador de payloads. Consultas por número,
+``enrollment_number=None`` de pré-cadastro e leituras de outros campos de um
+payload não são tratadas como escritores da identidade.
 """
 from __future__ import annotations
 
@@ -87,7 +88,7 @@ EXPECTED_WRITERS = Counter(
             "update_one",
         ): 1,
 
-        # Legado CONGELADO. Estes itens não autorizam novos fluxos em students.py.
+        # Legado CONGELADO em students.py. Não autoriza novos fluxos.
         WriterKey(
             "backend/routers/students.py",
             "setup_students_router.create_student",
@@ -143,6 +144,20 @@ EXPECTED_WRITERS = Counter(
             "insert_one",
         ): 1,
 
+        # Legado write-on-read de documentos: dívida explícita e congelada.
+        WriterKey(
+            "backend/routers/documents.py",
+            "_ensure_enrollment_number",
+            "enrollments",
+            "update_one",
+        ): 1,
+        WriterKey(
+            "backend/routers/documents.py",
+            "_ensure_enrollment_number",
+            "students",
+            "update_one",
+        ): 1,
+
         # Reconciliação nominal governada: read-only por padrão + confirmação forte.
         WriterKey(
             "backend/scripts/reconcile_enrollment_p0_legacy_relocation_2026.py",
@@ -167,7 +182,8 @@ EXPECTED_WRITERS = Counter(
     }
 )
 
-LEGACY_KEYS = {key for key in EXPECTED_WRITERS if key.path == "backend/routers/students.py"}
+LEGACY_PATHS = {"backend/routers/students.py", "backend/routers/documents.py"}
+LEGACY_KEYS = {key for key in EXPECTED_WRITERS if key.path in LEGACY_PATHS}
 
 
 class LocalNodeWalker:
@@ -178,14 +194,14 @@ class LocalNodeWalker:
         stack: list[ast.AST] = list(reversed(statements))
         while stack:
             node = stack.pop()
+            # Funções/classes aninhadas terão inventário próprio via _iter_functions.
+            if isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda),
+            ):
+                continue
             yield node
-            for child in reversed(list(ast.iter_child_nodes(node))):
-                if isinstance(
-                    child,
-                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda),
-                ):
-                    continue
-                stack.append(child)
+            stack.extend(reversed(list(ast.iter_child_nodes(node))))
 
 
 def _subscript_key(node: ast.Subscript) -> str | None:
@@ -204,24 +220,22 @@ def _base_name(node: ast.AST) -> str | None:
     return None
 
 
-def _names_in(node: ast.AST | None) -> set[str]:
-    if node is None:
-        return set()
-    return {item.id for item in ast.walk(node) if isinstance(item, ast.Name)}
+def _field_value_is_real(value: ast.AST) -> bool:
+    """`None` é ausência explícita de identidade, não escrita de um número."""
+    return not (isinstance(value, ast.Constant) and value.value is None)
 
 
 def _structurally_contains_field(node: ast.AST | None) -> bool:
-    """Detecta o campo em estruturas de PAYLOAD, não em chamadas arbitrárias.
-
-    Isto evita marcar `find_one({"enrollment_number": ...})` como taint. Chamadas
-    reconhecidas como construtores de mutação (dict/UpdateOne/ReplaceOne/InsertOne)
-    são inspecionadas recursivamente para suportar bulk_write.
-    """
+    """Detecta o campo em estruturas de PAYLOAD, sem inspecionar calls de leitura."""
     if node is None:
         return False
     if isinstance(node, ast.Dict):
         for key, value in zip(node.keys, node.values):
-            if isinstance(key, ast.Constant) and key.value == "enrollment_number":
+            if (
+                isinstance(key, ast.Constant)
+                and key.value == "enrollment_number"
+                and _field_value_is_real(value)
+            ):
                 return True
             if _structurally_contains_field(value):
                 return True
@@ -236,47 +250,74 @@ def _structurally_contains_field(node: ast.AST | None) -> bool:
             func_name = node.func.attr
         if func_name not in {"dict", "UpdateOne", "ReplaceOne", "InsertOne"}:
             return False
-        if any(kw.arg == "enrollment_number" for kw in node.keywords):
-            return True
+        for kw in node.keywords:
+            if kw.arg == "enrollment_number" and _field_value_is_real(kw.value):
+                return True
         return any(_structurally_contains_field(arg) for arg in node.args) or any(
             _structurally_contains_field(kw.value) for kw in node.keywords
         )
     return False
 
 
-def _collect_tainted_names(nodes: list[ast.AST]) -> set[str]:
+def _uses_tainted_whole(node: ast.AST | None, tainted: set[str]) -> bool:
+    """Verdadeiro quando um payload tainted é usado como objeto inteiro.
+
+    `{"$set": update_data}` conta; `update_data["student_series"]` não conta.
+    """
+    if node is None:
+        return False
+    if isinstance(node, ast.Name):
+        return node.id in tainted
+    if isinstance(node, (ast.Subscript, ast.Attribute)):
+        return False
+    if isinstance(node, ast.Dict):
+        return any(_uses_tainted_whole(value, tainted) for value in node.values)
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return any(_uses_tainted_whole(item, tainted) for item in node.elts)
+    if isinstance(node, ast.Call):
+        func_name = None
+        if isinstance(node.func, ast.Name):
+            func_name = node.func.id
+        elif isinstance(node.func, ast.Attribute):
+            func_name = node.func.attr
+        if func_name not in {"dict", "UpdateOne", "ReplaceOne", "InsertOne"}:
+            return False
+        return any(_uses_tainted_whole(arg, tainted) for arg in node.args) or any(
+            _uses_tainted_whole(kw.value, tainted) for kw in node.keywords
+        )
+    return False
+
+
+def _tainted_before(nodes: list[ast.AST], line: int, col: int) -> set[str]:
+    """Taint por ordem fonte; nova atribuição limpa substitui taint anterior."""
     tainted: set[str] = set()
+    assignments = [
+        node
+        for node in nodes
+        if isinstance(node, (ast.Assign, ast.AnnAssign))
+        and (getattr(node, "lineno", 0), getattr(node, "col_offset", 0)) <= (line, col)
+    ]
+    assignments.sort(key=lambda n: (getattr(n, "lineno", 0), getattr(n, "col_offset", 0)))
 
-    # payload["enrollment_number"] = ...
-    for node in nodes:
-        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-            continue
+    for node in assignments:
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        value = node.value
+        value_tainted = _structurally_contains_field(value) or _uses_tainted_whole(
+            value, tainted
+        )
         for target in targets:
-            if isinstance(target, ast.Subscript) and _subscript_key(target) == "enrollment_number":
-                base = _base_name(target.value)
-                if base:
-                    tainted.add(base)
-
-    # Propaga estruturas de payload e aliases, mas nunca o conteúdo de chamadas
-    # comuns de leitura como find_one/find.
-    changed = True
-    while changed:
-        changed = False
-        for node in nodes:
-            if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-                continue
-            value = node.value
-            value_tainted = _structurally_contains_field(value) or bool(
-                _names_in(value) & tainted
-            )
-            if not value_tainted:
-                continue
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            for target in targets:
-                if isinstance(target, ast.Name) and target.id not in tainted:
+            if isinstance(target, ast.Name):
+                if value_tainted:
                     tainted.add(target.id)
-                    changed = True
+                else:
+                    tainted.discard(target.id)
+            elif (
+                isinstance(target, ast.Subscript)
+                and _subscript_key(target) == "enrollment_number"
+            ):
+                base = _base_name(target.value)
+                if base and _field_value_is_real(value):
+                    tainted.add(base)
     return tainted
 
 
@@ -334,7 +375,7 @@ def _mutation_payload(call: ast.Call, method: str) -> ast.AST | None:
 
 
 def _payload_writes_field(payload: ast.AST | None, tainted: set[str]) -> bool:
-    return _structurally_contains_field(payload) or bool(_names_in(payload) & tainted)
+    return _structurally_contains_field(payload) or _uses_tainted_whole(payload, tainted)
 
 
 def _iter_functions(tree: ast.AST):
@@ -358,7 +399,6 @@ def scan_file(path: Path) -> list[WriterSite]:
 
     for qualname, fn in _iter_functions(tree):
         nodes = list(LocalNodeWalker.walk(fn.body))
-        tainted = _collect_tainted_names(nodes)
         aliases = _collection_aliases(nodes)
         for node in nodes:
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
@@ -370,6 +410,11 @@ def scan_file(path: Path) -> list[WriterSite]:
             if collection not in TARGET_COLLECTIONS:
                 continue
             payload = _mutation_payload(node, method)
+            tainted = _tainted_before(
+                nodes,
+                getattr(node, "lineno", 0),
+                getattr(node, "col_offset", 0),
+            )
             if not _payload_writes_field(payload, tainted):
                 continue
             sites.append(
@@ -429,32 +474,60 @@ async def writer(db):
     payload["enrollment_number"] = "202600001"
     await db.enrollments.update_one({"id": "x"}, {"$set": payload})
 
-async def direct(db):
-    await db.students.update_one({"id": "x"}, {"$set": {"enrollment_number": "202600001"}})
+async def reset(db):
+    payload = {"enrollment_number": "202600001"}
+    await db.enrollments.update_one({"id": "x"}, {"$set": payload})
+    payload = {"status": "active"}
+    await db.enrollments.update_one({"id": "x"}, {"$set": payload})
 
 async def reader(db):
     row = await db.enrollments.find_one({"enrollment_number": "202600001"})
-    await db.enrollments.update_one({"id": row["id"]}, {"$set": {"status": "active"}})
+    update_data = {"enrollment_number": "202600001"}
+    await db.enrollments.update_one(
+        {"id": row["id"]},
+        {"$set": {"student_series": update_data["student_series"]}},
+    )
+
+async def null_seed(db):
+    doc = {"id": "x", "enrollment_number": None}
+    await db.students.insert_one(doc)
 '''
     )
-    functions = dict(_iter_functions(sample))
+    funcs = dict(_iter_functions(sample))
 
-    writer_nodes = list(LocalNodeWalker.walk(functions["writer"].body))
-    writer_taint = _collect_tainted_names(writer_nodes)
-    assert "payload" in writer_taint
-
-    reader_nodes = list(LocalNodeWalker.walk(functions["reader"].body))
-    assert not _collect_tainted_names(reader_nodes)
-
-    direct_nodes = list(LocalNodeWalker.walk(functions["direct"].body))
-    direct_call = next(
-        node
-        for node in direct_nodes
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "update_one"
+    writer_nodes = list(LocalNodeWalker.walk(funcs["writer"].body))
+    writer_call = next(
+        n for n in writer_nodes
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "update_one"
     )
-    assert _payload_writes_field(_mutation_payload(direct_call, "update_one"), set())
+    writer_taint = _tainted_before(writer_nodes, writer_call.lineno, writer_call.col_offset)
+    assert _payload_writes_field(_mutation_payload(writer_call, "update_one"), writer_taint)
+
+    reset_nodes = list(LocalNodeWalker.walk(funcs["reset"].body))
+    reset_calls = [
+        n for n in reset_nodes
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "update_one"
+    ]
+    first_taint = _tainted_before(reset_nodes, reset_calls[0].lineno, reset_calls[0].col_offset)
+    second_taint = _tainted_before(reset_nodes, reset_calls[1].lineno, reset_calls[1].col_offset)
+    assert _payload_writes_field(_mutation_payload(reset_calls[0], "update_one"), first_taint)
+    assert not _payload_writes_field(_mutation_payload(reset_calls[1], "update_one"), second_taint)
+
+    reader_nodes = list(LocalNodeWalker.walk(funcs["reader"].body))
+    reader_call = next(
+        n for n in reader_nodes
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "update_one"
+    )
+    reader_taint = _tainted_before(reader_nodes, reader_call.lineno, reader_call.col_offset)
+    assert not _payload_writes_field(_mutation_payload(reader_call, "update_one"), reader_taint)
+
+    null_nodes = list(LocalNodeWalker.walk(funcs["null_seed"].body))
+    null_call = next(
+        n for n in null_nodes
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "insert_one"
+    )
+    null_taint = _tainted_before(null_nodes, null_call.lineno, null_call.col_offset)
+    assert not _payload_writes_field(_mutation_payload(null_call, "insert_one"), null_taint)
 
 
 def emit(actual: Counter[WriterKey], sites: list[WriterSite]) -> int:
@@ -503,7 +576,7 @@ def emit(actual: Counter[WriterKey], sites: list[WriterSite]) -> int:
     print(f"Enrollment writer guard: OK — {sum(actual.values())} escrita(s) inventariada(s).")
     print(
         f"Enrollment writer guard: LEGACY FROZEN — {sum(EXPECTED_WRITERS[k] for k in LEGACY_KEYS)} "
-        "escrita(s) em students.py permanecem explicitamente congeladas."
+        "escrita(s) legadas permanecem explicitamente congeladas em students.py/documents.py."
     )
     return 0
 
