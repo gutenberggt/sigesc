@@ -15,6 +15,7 @@ from .enrollments import router as enrollments_router, setup_router as setup_enr
 from .students import router as students_router, setup_students_router as _setup_students_router
 from .student_enrollment_identity_guard import install_student_enrollment_identity_guard
 from .student_enrollment_identity_continuity import install_student_enrollment_identity_continuity
+from .student_enrollment_audit_semantics import install_student_enrollment_audit_semantics
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
@@ -27,7 +28,7 @@ from . import attendance_tabs_dvd as _attendance_tabs_dvd_mod
 from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
-from .calendar import router as calendar_router, setup_calendar_router
+from .calendar import router as calendar_router, setup_router as setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
 from .analytics import router as analytics_router, setup_analytics_router
@@ -114,10 +115,11 @@ install_aee_v2_plan_write_governance_setup(_aee_mod)
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
-    """Configura Estudantes + P0/P1 da identidade numérica institucional."""
+    """Configura Estudantes + identidade numérica + semântica segura da auditoria."""
     configured = _setup_students_router(db, audit_service, sandbox_db)
     configured = install_student_enrollment_identity_guard(configured)
-    return install_student_enrollment_identity_continuity(configured, db, audit_service)
+    configured = install_student_enrollment_identity_continuity(configured, db, audit_service)
+    return install_student_enrollment_audit_semantics(configured, db, sandbox_db)
 
 
 def setup_grades_router(
