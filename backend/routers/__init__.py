@@ -113,7 +113,7 @@ install_aee_v2_plan_write_governance_setup(_aee_mod)
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
-    """Configura Alunos + P0 da identidade numérica derivada da matrícula."""
+    """Configura Estudantes + P0 da identidade numérica derivada da matrícula."""
     configured = _setup_students_router(db, audit_service, sandbox_db)
     return install_student_enrollment_identity_guard(configured)
 
