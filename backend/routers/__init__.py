@@ -12,7 +12,8 @@ from .courses import router as courses_router, setup_router as setup_courses_rou
 from .classes import router as classes_router, setup_router as setup_classes_router
 from .guardians import router as guardians_router, setup_router as setup_guardians_router
 from .enrollments import router as enrollments_router, setup_router as setup_enrollments_router
-from .students import router as students_router, setup_students_router
+from .students import router as students_router, setup_students_router as _setup_students_router
+from .student_enrollment_identity_guard import install_student_enrollment_identity_guard
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
@@ -109,6 +110,12 @@ install_aee_v2_plano_effective_read_setup(_aee_mod)
 install_aee_v2_plano_pdf_effective_setup(_aee_mod)
 install_aee_v2_plan_list_effective_cutover_setup(_aee_mod)
 install_aee_v2_plan_write_governance_setup(_aee_mod)
+
+
+def setup_students_router(db, audit_service, sandbox_db=None):
+    """Configura Alunos + P0 da identidade numérica derivada da matrícula."""
+    configured = _setup_students_router(db, audit_service, sandbox_db)
+    return install_student_enrollment_identity_guard(configured)
 
 
 def setup_grades_router(
