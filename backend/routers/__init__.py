@@ -14,6 +14,7 @@ from .guardians import router as guardians_router, setup_router as setup_guardia
 from .enrollments import router as enrollments_router, setup_router as setup_enrollments_router
 from .students import router as students_router, setup_students_router as _setup_students_router
 from .student_enrollment_identity_guard import install_student_enrollment_identity_guard
+from .student_enrollment_identity_continuity import install_student_enrollment_identity_continuity
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
@@ -113,9 +114,10 @@ install_aee_v2_plan_write_governance_setup(_aee_mod)
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
-    """Configura Estudantes + P0 da identidade numérica derivada da matrícula."""
+    """Configura Estudantes + P0/P1 da identidade numérica institucional."""
     configured = _setup_students_router(db, audit_service, sandbox_db)
-    return install_student_enrollment_identity_guard(configured)
+    configured = install_student_enrollment_identity_guard(configured)
+    return install_student_enrollment_identity_continuity(configured, db, audit_service)
 
 
 def setup_grades_router(
@@ -131,7 +133,7 @@ def setup_grades_router(
         audit_service,
         verify_academic_year_open_or_raise,
         verify_bimestre_edit_deadline_or_raise,
-        sandbox_db,
+        sandbox_db=sandbox_db,
     )
     configured = install_grades_dvd_adapter(
         configured,
@@ -166,7 +168,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         configured,
         db,
         audit_service,
-        sandbox_db,
+        sandbox_db=sandbox_db,
     )
     return install_attendance_pdf_dvd_parity(
         configured,
