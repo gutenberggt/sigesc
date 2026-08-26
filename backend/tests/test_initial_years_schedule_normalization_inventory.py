@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from scripts.inventory_initial_years_schedule_normalization import (
     ACADEMIC_YEAR,
     SCHEDULE_POLICY,
@@ -18,6 +20,14 @@ from scripts.inventory_initial_years_schedule_normalization_v2 import (
     build_scope_v2,
     exclusion_reason,
     review_group,
+)
+from scripts.prepare_initial_years_schedule_normalization_phase1 import (
+    EXPECTED_SCOPE_V2_SHA256,
+    Phase1PreflightError,
+    assert_script_read_only as assert_phase1_read_only,
+    build_manifest,
+    deterministic_schedule_id,
+    validate_persistent_backup_path,
 )
 
 
@@ -274,12 +284,113 @@ def test_v2_recalculates_scope_without_silently_dropping_exclusions():
     assert scope["summary"]["review_groups"] == {"FULL_TIME_POLICY_REQUIRED": 1}
 
 
+def test_phase1_scope_hash_is_pinned_to_homologated_v2():
+    assert EXPECTED_SCOPE_V2_SHA256 == "1815d025770d24f2bb109cb5598bc990f2f0ca4ce361095dc1446cbbb2de9b7d"
+
+
+def test_phase1_deterministic_create_id_is_stable_and_per_class():
+    a1 = deterministic_schedule_id("class-a")
+    a2 = deterministic_schedule_id("class-a")
+    b = deterministic_schedule_id("class-b")
+    assert a1 == a2
+    assert a1 != b
+
+
+def test_phase1_manifest_creates_missing_and_preserves_existing_schedule_slots():
+    morning = proposed_slot_times("morning")
+    afternoon = proposed_slot_times("afternoon")
+    ready = [
+        {
+            "class_id": "class-create",
+            "class_name": "1º ANO A",
+            "school_id": "school-1",
+            "school_name": "Escola",
+            "shift": "morning",
+            "grade_evidence": {"combined_numbers": [1], "is_multi_grade": False},
+            "schedule_count": 0,
+            "schedule_shape": {"schedule_id": None},
+            "proposed_slot_times": morning,
+        },
+        {
+            "class_id": "class-update",
+            "class_name": "4º E 5º ANO",
+            "school_id": "school-1",
+            "school_name": "Escola",
+            "shift": "afternoon",
+            "grade_evidence": {"combined_numbers": [4, 5], "is_multi_grade": True},
+            "schedule_count": 1,
+            "schedule_shape": {"schedule_id": "schedule-existing"},
+            "proposed_slot_times": afternoon,
+        },
+    ]
+    schedule_slots = [
+        {"day": "segunda", "slot_number": 1, "course_id": "course-a"},
+        {"day": "segunda", "slot_number": 2, "course_id": "course-b"},
+    ]
+    existing = [{
+        "id": "schedule-existing",
+        "class_id": "class-update",
+        "school_id": "school-1",
+        "academic_year": 2026,
+        "shift": "afternoon",
+        "slots_per_day": 4,
+        "slot_times": {"1": {"start": "13:00", "end": "14:00"}},
+        "schedule_slots": schedule_slots,
+        "updated_at": "2026-01-01T00:00:00+00:00",
+    }]
+    result = build_manifest(ready, existing, [])
+    manifest = result["manifest"]
+    assert manifest["target_count"] == 2
+    assert manifest["create_target_count"] == 1
+    assert manifest["existing_target_count"] == 1
+    create = next(row for row in manifest["targets"] if row["mode"] == "CREATE_TIME_GRID")
+    update = next(row for row in manifest["targets"] if row["mode"] == "UPDATE_TIME_GRID")
+    assert create["proposed_schedule_slots"] == []
+    assert create["write_required"] is True
+    assert update["preserve_schedule_slots"] is True
+    assert update["schedule_slots_count"] == 2
+    assert update["write_required"] is True
+    assert update["proposed_slot_times"] == afternoon
+
+
+def test_phase1_manifest_fails_on_deterministic_id_collision():
+    morning = proposed_slot_times("morning")
+    ready = [{
+        "class_id": "class-create",
+        "class_name": "1º ANO A",
+        "school_id": "school-1",
+        "school_name": "Escola",
+        "shift": "morning",
+        "grade_evidence": {"combined_numbers": [1], "is_multi_grade": False},
+        "schedule_count": 0,
+        "schedule_shape": {"schedule_id": None},
+        "proposed_slot_times": morning,
+    }]
+    proposed_id = deterministic_schedule_id("class-create")
+    with pytest.raises(Phase1PreflightError, match="DETERMINISTIC_ID_COLLISION"):
+        build_manifest(
+            ready,
+            [],
+            [{"id": proposed_id, "class_id": "other-class"}],
+        )
+
+
+def test_phase1_backup_path_must_be_persistent_data_volume():
+    assert validate_persistent_backup_path(Path("/data/sigesc-schedule-backups/test")) == Path(
+        "/data/sigesc-schedule-backups/test"
+    )
+    with pytest.raises(Phase1PreflightError, match="BACKUP_PATH_MUST_BE_UNDER_DATA"):
+        validate_persistent_backup_path(Path("/tmp/not-persistent"))
+
+
 def test_script_is_strictly_read_only():
     assert_script_read_only()
     assert_v2_read_only()
+    assert_phase1_read_only()
     for path in (
         "scripts/inventory_initial_years_schedule_normalization.py",
         "scripts/inventory_initial_years_schedule_normalization_v2.py",
+        "scripts/prepare_initial_years_schedule_normalization_phase1.py",
     ):
         src = Path(path).read_text(encoding="utf-8")
         forbidden = (
@@ -299,4 +410,16 @@ def test_v2_direct_entrypoint_bootstraps_backend_parent_on_sys_path():
     assert "sys.path.insert(0, str(BACKEND_DIR))" in src
     assert src.index("sys.path.insert(0, str(BACKEND_DIR))") < src.index(
         "from scripts import inventory_initial_years_schedule_normalization as base"
+    )
+
+
+def test_phase1_direct_entrypoint_bootstraps_backend_parent_on_sys_path():
+    src = Path("scripts/prepare_initial_years_schedule_normalization_phase1.py").read_text(
+        encoding="utf-8"
+    )
+    assert "SCRIPT_DIR = Path(__file__).resolve().parent" in src
+    assert "BACKEND_DIR = SCRIPT_DIR.parent" in src
+    assert "sys.path.insert(0, str(BACKEND_DIR))" in src
+    assert src.index("sys.path.insert(0, str(BACKEND_DIR))") < src.index(
+        "from scripts import inventory_initial_years_schedule_normalization as inventory_v1"
     )
