@@ -111,19 +111,34 @@ def test_conflicting_historical_pattern_is_not_current_consistent():
     assert analysis["conflicts"][0]["slot"] == 1
 
 
-def test_donor_patterns_preserve_ambiguity_and_zero_conflict_count():
+def test_donor_patterns_use_target_required_slots_and_preserve_ambiguity():
     current = _target_schedule(slot3=None)
     consensus = schedule_time_consensus(current)
 
-    donor_1 = _target_schedule(slot3=("09:30", "10:30"))
-    donor_1["class_id"] = "donor-1"
-
-    donor_2 = _target_schedule(slot3=("09:20", "10:20"))
-    donor_2["class_id"] = "donor-2"
+    # Donors não precisam ter o componente nos mesmos números de aula da turma alvo.
+    donor_1 = {
+        "class_id": "donor-1",
+        "schedule_slots": [
+            {"slot_number": 1, "course_id": "other", "start_time": "07:08", "end_time": "08:00"},
+            {"slot_number": 2, "course_id": "other", "start_time": "08:00", "end_time": "09:00"},
+            {"slot_number": 3, "course_id": "other", "start_time": "09:30", "end_time": "10:30"},
+            {"slot_number": 4, "course_id": "other", "start_time": "10:30", "end_time": "11:15"},
+        ],
+    }
+    donor_2 = {
+        "class_id": "donor-2",
+        "schedule_slots": [
+            {"slot_number": 1, "course_id": "other", "start_time": "07:08", "end_time": "08:00"},
+            {"slot_number": 2, "course_id": "other", "start_time": "08:00", "end_time": "09:00"},
+            {"slot_number": 3, "course_id": "other", "start_time": "09:20", "end_time": "10:20"},
+            {"slot_number": 4, "course_id": "other", "start_time": "10:30", "end_time": "11:15"},
+        ],
+    }
 
     groups = group_donor_patterns(
         [donor_1, donor_2],
         component_id="component",
+        required_slots={1, 2, 3, 4},
         current_consensus=consensus,
         class_by_id={
             "donor-1": {"name": "4º A"},
