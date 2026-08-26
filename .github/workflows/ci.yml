@@ -97,6 +97,9 @@ jobs:
       - name: Compile check
         run: python -m compileall -q .
 
+      - name: Enrollment number writer guard
+        run: python ../.github/scripts/enrollment_number_writer_guard.py
+
   diary-assignment-contract:
     name: Backend - Diário por Vínculo guards
     runs-on: ubuntu-latest

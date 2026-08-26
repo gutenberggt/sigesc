@@ -184,6 +184,9 @@ def setup_router(db, audit_service):
         assert_same_tenant(existing, current_user, request)
 
         update_data = enrollment_update.model_dump(exclude_unset=True)
+        # Identidade institucional é imutável por edição genérica. O modelo ainda
+        # aceita o campo por compatibilidade de payload, mas ele nunca chega ao Mongo.
+        update_data.pop("enrollment_number", None)
         if not update_data:
             return Enrollment(**existing)
 
