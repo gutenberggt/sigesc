@@ -1,26 +1,24 @@
 """Segunda Onda DVD 2D-A — auditoria forense READ-ONLY de Abadia Alves Martins.
 
-Escopo fixo:
-- Abadia Alves Martins;
-- 5º ANO A / 2026;
-- Língua Portuguesa e Matemática;
-- investigação de horário ambíguo, sem criar DVD e sem alterar class_schedules.
+Escopo fixo: Abadia Alves Martins, 5º ANO A/2026, Língua Portuguesa e
+Matemática. Investiga a origem do horário ambíguo sem criar DVD e sem alterar
+class_schedules.
 
 Fontes examinadas:
 1. class_schedule atual da própria turma;
-2. histórico auditável em audit_logs para class_schedules, reconstruindo before/after;
-3. class_schedules do mesmo ano/escola/turno como evidência comparativa.
+2. histórico de class_schedules em audit_logs, reconstruindo before/after;
+3. grades do mesmo ano/escola/turno como evidência comparativa.
 
-Nenhuma conclusão de correção é aplicada automaticamente. Um padrão histórico
-completo e compatível pode ser classificado como evidência candidata; qualquer
-ambiguidade ou conflito mantém o caso bloqueado para validação humana.
+Nenhuma conclusão é aplicada automaticamente. Evidência histórica inequívoca é
+apenas marcada como candidata para revisão; conflito ou ambiguidade permanece
+bloqueado para validação humana.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
-from copy import deepcopy
 from collections import defaultdict
+from copy import deepcopy
 from datetime import datetime, timezone
 import json
 import os
@@ -90,14 +88,14 @@ def _canonical(value: Any) -> str:
 def assert_script_read_only() -> None:
     source = Path(__file__).read_text(encoding="utf-8")
     executable = "\n".join(
-        line for line in source.splitlines()
-        if not line.lstrip().startswith('"') and "MONGO_MUTATOR_TOKENS" not in line
+        line
+        for line in source.splitlines()
+        if not line.lstrip().startswith('"')
+        and "MONGO_MUTATOR_TOKENS" not in line
     )
     hits = [token for token in MONGO_MUTATOR_TOKENS if token in executable]
     if hits:
         raise ForensicGateError(f"READ_ONLY_GUARD_FAILED forbidden={hits}")
-    if "--apply" in source or "--rollback" in source:
-        raise ForensicGateError("READ_ONLY_GUARD_FAILED mutation_mode_present")
 
 
 def _clean_doc(value: Any) -> dict[str, Any]:
@@ -120,20 +118,14 @@ def reconstruct_audit_snapshots(
     *,
     current_schedule_id: Optional[str],
 ) -> list[dict[str, Any]]:
-    """Reconstrói snapshots completos quando old_value/new_value permitem.
+    """Reconstrói snapshots completos a partir dos logs do router.
 
-    O endpoint de update usa $set e registra old_value completo + new_value parcial.
-    Portanto o estado posterior pode ser reconstruído aplicando new_value sobre o
-    old_value. Create usa new_value; delete usa old_value.
+    O update de class_schedule usa $set e audita old_value completo + new_value
+    parcial. Logo, o after pode ser reconstruído aplicando new_value ao old_value.
     """
     snapshots: list[dict[str, Any]] = []
 
-    def add_snapshot(
-        doc: Mapping[str, Any],
-        *,
-        log: Mapping[str, Any],
-        side: str,
-    ) -> None:
+    def add_snapshot(doc: Mapping[str, Any], *, log: Mapping[str, Any], side: str) -> None:
         clean = _clean_doc(doc)
         if not _is_target_schedule_doc(clean):
             return
@@ -171,19 +163,14 @@ def reconstruct_audit_snapshots(
         action = str(log.get("action") or "")
         if action == "create":
             add_snapshot(new_value, log=log, side="create_after")
-        elif action == "update":
-            if _is_target_schedule_doc(old_value):
-                add_snapshot(old_value, log=log, side="update_before")
-                after = deepcopy(old_value)
-                after.update(new_value)
-                add_snapshot(after, log=log, side="update_after")
-            elif current_schedule_id and document_id == current_schedule_id:
-                # Sem old_value completo não inventamos o restante do documento.
-                add_snapshot(new_value, log=log, side="update_partial")
+        elif action == "update" and _is_target_schedule_doc(old_value):
+            add_snapshot(old_value, log=log, side="update_before")
+            after = deepcopy(old_value)
+            after.update(new_value)
+            add_snapshot(after, log=log, side="update_after")
         elif action == "delete":
             add_snapshot(old_value, log=log, side="delete_before")
 
-    # Remove duplicatas estruturais, preservando o primeiro contexto auditável.
     dedup: dict[str, dict[str, Any]] = {}
     for item in snapshots:
         key = _canonical(item.get("schedule") or {})
@@ -196,13 +183,18 @@ def analyze_schedule_snapshot(
     *,
     component_id: str,
     current_consensus: Mapping[int, tuple[str, str]],
+    required_override: Optional[set[int]] = None,
 ) -> dict[str, Any]:
-    required = required_slot_numbers(schedule, component_id)
+    required = (
+        set(required_override)
+        if required_override is not None
+        else required_slot_numbers(schedule, component_id)
+    )
     consensus = schedule_time_consensus(schedule)
     signature = pattern_signature(consensus, required)
     missing = sorted(required - set(consensus))
-
     overlap = sorted(required & set(current_consensus) & set(consensus))
+
     conflicts = [
         {
             "slot": n,
@@ -210,7 +202,10 @@ def analyze_schedule_snapshot(
                 "start": current_consensus[n][0],
                 "end": current_consensus[n][1],
             },
-            "snapshot": {"start": consensus[n][0], "end": consensus[n][1]},
+            "snapshot": {
+                "start": consensus[n][0],
+                "end": consensus[n][1],
+            },
         }
         for n in overlap
         if consensus[n] != current_consensus[n]
@@ -236,15 +231,18 @@ def group_donor_patterns(
     donor_schedules: list[Mapping[str, Any]],
     *,
     component_id: str,
+    required_slots: set[int],
     current_consensus: Mapping[int, tuple[str, str]],
     class_by_id: Mapping[str, Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
+    """Agrupa donors usando os slots exigidos pela turma-alvo, como a 38D."""
     groups: dict[tuple, dict[str, Any]] = {}
     for donor in donor_schedules:
         analysis = analyze_schedule_snapshot(
             donor,
             component_id=component_id,
             current_consensus=current_consensus,
+            required_override=required_slots,
         )
         signature_raw = analysis.get("signature")
         if not signature_raw:
@@ -280,7 +278,12 @@ def group_donor_patterns(
 
     result = list(groups.values())
     for group in result:
-        group["donors"].sort(key=lambda x: (str(x.get("class_name") or ""), str(x.get("class_id") or "")))
+        group["donors"].sort(
+            key=lambda x: (
+                str(x.get("class_name") or ""),
+                str(x.get("class_id") or ""),
+            )
+        )
     result.sort(key=lambda x: (-len(x["donors"]), _canonical(x["signature"])))
     return result
 
@@ -289,9 +292,14 @@ def classify_forensic_evidence(
     historical_analyses: list[Mapping[str, Any]],
     donor_patterns: list[Mapping[str, Any]],
 ) -> dict[str, Any]:
-    historical_complete = [row for row in historical_analyses if row.get("analysis", {}).get("complete")]
+    historical_complete = [
+        row
+        for row in historical_analyses
+        if row.get("analysis", {}).get("complete")
+    ]
     historical_consistent = [
-        row for row in historical_complete
+        row
+        for row in historical_complete
         if not (row.get("analysis", {}).get("conflicts") or [])
     ]
     hist_signatures = {
@@ -299,7 +307,10 @@ def classify_forensic_evidence(
         for row in historical_consistent
         if row.get("analysis", {}).get("signature")
     }
-    donor_zero_conflict = sum(int(row.get("zero_conflict_donors") or 0) for row in donor_patterns)
+    donor_zero_conflict = sum(
+        int(row.get("zero_conflict_donors") or 0)
+        for row in donor_patterns
+    )
 
     if len(hist_signatures) == 1:
         return {
@@ -357,7 +368,14 @@ async def collect_forensics(db) -> dict[str, Any]:
     )
     staff = await db.staff.find_one(
         {"id": STAFF_ID},
-        {"_id": 0, "id": 1, "user_id": 1, "full_name": 1, "nome": 1, "email": 1},
+        {
+            "_id": 0,
+            "id": 1,
+            "user_id": 1,
+            "full_name": 1,
+            "nome": 1,
+            "email": 1,
+        },
     )
     klass = await db.classes.find_one({"id": CLASS_ID}, {"_id": 0})
     if not teacher or not staff or not klass:
@@ -372,17 +390,25 @@ async def collect_forensics(db) -> dict[str, Any]:
         raise ForensicGateError("STAFF_USER_ID_MISMATCH")
 
     schedules = await db.class_schedules.find(
-        {"class_id": CLASS_ID, "academic_year": {"$in": [ACADEMIC_YEAR, str(ACADEMIC_YEAR)]}},
+        {
+            "class_id": CLASS_ID,
+            "academic_year": {"$in": [ACADEMIC_YEAR, str(ACADEMIC_YEAR)]},
+        },
         {"_id": 0},
     ).to_list(10)
     if len(schedules) != 1:
         raise ForensicGateError(f"TARGET_SCHEDULE_NOT_UNIQUE count={len(schedules)}")
     current = schedules[0]
     if int(current.get("slots_per_day") or 0) != EXPECTED_SLOTS_PER_DAY:
-        raise ForensicGateError(f"TARGET_SLOTS_PER_DAY_DRIFT actual={current.get('slots_per_day')}")
+        raise ForensicGateError(
+            f"TARGET_SLOTS_PER_DAY_DRIFT actual={current.get('slots_per_day')}"
+        )
     schedule_id = str(current.get("id") or "")
 
-    target_component_ids = {str(spec["component_id"]) for spec in TARGETS.values()}
+    target_component_ids = {
+        str(spec["component_id"])
+        for spec in TARGETS.values()
+    }
     legacy_ids = sorted(TARGETS)
     legacy_rows = await db.teacher_assignments.find(
         {
@@ -394,7 +420,11 @@ async def collect_forensics(db) -> dict[str, Any]:
         },
         {"_id": 0},
     ).to_list(10)
-    legacy_by_id = {str(row.get("id") or ""): row for row in legacy_rows if row.get("id")}
+    legacy_by_id = {
+        str(row.get("id") or ""): row
+        for row in legacy_rows
+        if row.get("id")
+    }
     if set(legacy_by_id) != set(legacy_ids):
         raise ForensicGateError("TARGET_LEGACY_SET_MISMATCH")
 
@@ -402,16 +432,38 @@ async def collect_forensics(db) -> dict[str, Any]:
         {"id": {"$in": sorted(target_component_ids)}},
         {"_id": 0, "id": 1, "name": 1},
     ).to_list(10)
-    course_names = {str(row.get("id")): str(row.get("name") or "") for row in course_rows if row.get("id")}
+    course_names = {
+        str(row.get("id")): str(row.get("name") or "")
+        for row in course_rows
+        if row.get("id")
+    }
 
     school_classes = await db.classes.find(
-        {"school_id": SCHOOL_ID, "academic_year": {"$in": [ACADEMIC_YEAR, str(ACADEMIC_YEAR)]}},
-        {"_id": 0, "id": 1, "name": 1, "school_id": 1, "shift": 1, "atendimento_programa": 1, "programa": 1},
+        {
+            "school_id": SCHOOL_ID,
+            "academic_year": {"$in": [ACADEMIC_YEAR, str(ACADEMIC_YEAR)]},
+        },
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "school_id": 1,
+            "shift": 1,
+            "atendimento_programa": 1,
+            "programa": 1,
+        },
     ).to_list(1000)
-    class_by_id = {str(row.get("id")): row for row in school_classes if row.get("id")}
+    class_by_id = {
+        str(row.get("id")): row
+        for row in school_classes
+        if row.get("id")
+    }
 
     donor_schedules_all = await db.class_schedules.find(
-        {"school_id": SCHOOL_ID, "academic_year": {"$in": [ACADEMIC_YEAR, str(ACADEMIC_YEAR)]}},
+        {
+            "school_id": SCHOOL_ID,
+            "academic_year": {"$in": [ACADEMIC_YEAR, str(ACADEMIC_YEAR)]},
+        },
         {"_id": 0},
     ).to_list(1000)
     donors = []
@@ -424,9 +476,11 @@ async def collect_forensics(db) -> dict[str, Any]:
         if shift == EXPECTED_SHIFT:
             donors.append(row)
 
-    # audit_logs pode conter IDs antigos caso a grade tenha sido removida/recriada.
     audit_logs_raw = await db.audit_logs.find(
-        {"collection": "class_schedules", "academic_year": ACADEMIC_YEAR},
+        {
+            "collection": "class_schedules",
+            "academic_year": {"$in": [ACADEMIC_YEAR, str(ACADEMIC_YEAR)]},
+        },
         {"_id": 0},
     ).sort("timestamp", 1).to_list(10000)
     relevant_logs = []
@@ -439,7 +493,10 @@ async def collect_forensics(db) -> dict[str, Any]:
             or _is_target_schedule_doc(new_value)
         ):
             relevant_logs.append(log)
-    snapshots = reconstruct_audit_snapshots(relevant_logs, current_schedule_id=schedule_id)
+    snapshots = reconstruct_audit_snapshots(
+        relevant_logs,
+        current_schedule_id=schedule_id,
+    )
 
     existing_dvd = await db.teacher_class_assignments.find(
         {
@@ -448,7 +505,15 @@ async def collect_forensics(db) -> dict[str, Any]:
             "component_id": {"$in": sorted(target_component_ids)},
             "deleted": {"$ne": True},
         },
-        {"_id": 0, "id": 1, "teacher_id": 1, "class_id": 1, "component_id": 1, "diary_settings": 1, "source": 1},
+        {
+            "_id": 0,
+            "id": 1,
+            "teacher_id": 1,
+            "class_id": 1,
+            "component_id": 1,
+            "diary_settings": 1,
+            "source": 1,
+        },
     ).to_list(100)
 
     current_consensus = schedule_time_consensus(current)
@@ -460,20 +525,30 @@ async def collect_forensics(db) -> dict[str, Any]:
             raise ForensicGateError(f"COMPONENT_ID_DRIFT legacy={legacy_id}")
         if course_names.get(component_id) != spec["component_name"]:
             raise ForensicGateError(
-                f"COMPONENT_NAME_DRIFT legacy={legacy_id} actual={course_names.get(component_id)!r}"
+                f"COMPONENT_NAME_DRIFT legacy={legacy_id} "
+                f"actual={course_names.get(component_id)!r}"
             )
         try:
             workload = int(source.get("carga_horaria_semanal"))
         except (TypeError, ValueError) as exc:
             raise ForensicGateError(f"WORKLOAD_INVALID legacy={legacy_id}") from exc
         if workload != int(spec["workload"]):
-            raise ForensicGateError(f"WORKLOAD_DRIFT legacy={legacy_id} actual={workload}")
+            raise ForensicGateError(
+                f"WORKLOAD_DRIFT legacy={legacy_id} actual={workload}"
+            )
 
         current_analysis = analyze_schedule_snapshot(
             current,
             component_id=component_id,
             current_consensus=current_consensus,
         )
+        target_required = set(current_analysis["required_slots"])
+        if target_required != {1, 2, 3, 4}:
+            raise ForensicGateError(
+                f"TARGET_REQUIRED_SLOTS_DRIFT legacy={legacy_id} "
+                f"actual={sorted(target_required)}"
+            )
+
         donor_state, donor_state_evidence = classify_time_recovery(
             target_schedule=current,
             course_id=component_id,
@@ -482,6 +557,7 @@ async def collect_forensics(db) -> dict[str, Any]:
         donor_patterns = group_donor_patterns(
             donors,
             component_id=component_id,
+            required_slots=target_required,
             current_consensus=current_consensus,
             class_by_id=class_by_id,
         )
@@ -493,7 +569,6 @@ async def collect_forensics(db) -> dict[str, Any]:
                 component_id=component_id,
                 current_consensus=current_consensus,
             )
-            # Mantém apenas snapshots em que o componente realmente aparece.
             if analysis["required_slots"]:
                 historical_analyses.append(
                     {
@@ -509,10 +584,6 @@ async def collect_forensics(db) -> dict[str, Any]:
                     }
                 )
 
-        forensic_classification = classify_forensic_evidence(
-            historical_analyses,
-            donor_patterns,
-        )
         targets_report[legacy_id] = {
             "legacy_assignment_id": legacy_id,
             "component_id": component_id,
@@ -523,7 +594,10 @@ async def collect_forensics(db) -> dict[str, Any]:
             "recovery_evidence_38d": donor_state_evidence,
             "historical_snapshots": historical_analyses,
             "donor_patterns": donor_patterns,
-            "forensic_classification": forensic_classification,
+            "forensic_classification": classify_forensic_evidence(
+                historical_analyses,
+                donor_patterns,
+            ),
         }
 
     return {
@@ -536,7 +610,11 @@ async def collect_forensics(db) -> dict[str, Any]:
         "scope": {
             "teacher_user_id": TEACHER_USER_ID,
             "staff_id": STAFF_ID,
-            "teacher_name": teacher.get("full_name") or teacher.get("name") or staff.get("nome"),
+            "teacher_name": (
+                teacher.get("full_name")
+                or teacher.get("name")
+                or staff.get("nome")
+            ),
             "school_id": SCHOOL_ID,
             "class_id": CLASS_ID,
             "class_name": klass.get("name"),
@@ -573,7 +651,14 @@ def print_compact(report: Mapping[str, Any]) -> None:
     print("SLOTS_PER_DAY:", scope.get("slots_per_day"))
     print("CURRENT_SCHEDULE_CREATED_AT:", scope.get("current_schedule_created_at"))
     print("CURRENT_SCHEDULE_UPDATED_AT:", scope.get("current_schedule_updated_at"))
-    print("CURRENT_TIME_CONSENSUS:", json.dumps(report["current_schedule_consensus"], ensure_ascii=False, sort_keys=True))
+    print(
+        "CURRENT_TIME_CONSENSUS:",
+        json.dumps(
+            report["current_schedule_consensus"],
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
+    )
     print("AUDIT_LOGS:", report["audit_log_count"])
     print("AUDIT_SNAPSHOTS:", report["audit_snapshot_count"])
     print("DONOR_SCHEDULES:", report["donor_schedule_count"])
@@ -584,15 +669,45 @@ def print_compact(report: Mapping[str, Any]) -> None:
         print("LEGACY:", legacy_id)
         print("COMPONENT:", target["component_name"])
         print("WORKLOAD:", target["workload"])
-        print("CURRENT_ANALYSIS:", json.dumps(target["current_schedule_analysis"], ensure_ascii=False, sort_keys=True))
+        print(
+            "CURRENT_ANALYSIS:",
+            json.dumps(
+                target["current_schedule_analysis"],
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+        )
         print("RECOVERY_STATE_38D:", target["recovery_state_38d"])
         print("HISTORICAL_SNAPSHOTS:", len(target["historical_snapshots"]))
         for item in target["historical_snapshots"]:
-            print("HISTORY:", json.dumps(item, ensure_ascii=False, sort_keys=True, default=str))
+            print(
+                "HISTORY:",
+                json.dumps(
+                    item,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                ),
+            )
         print("DONOR_PATTERN_COUNT:", len(target["donor_patterns"]))
         for index, pattern in enumerate(target["donor_patterns"], start=1):
-            print(f"DONOR_PATTERN_{index}:", json.dumps(pattern, ensure_ascii=False, sort_keys=True, default=str))
-        print("FORENSIC_CLASSIFICATION:", json.dumps(target["forensic_classification"], ensure_ascii=False, sort_keys=True))
+            print(
+                f"DONOR_PATTERN_{index}:",
+                json.dumps(
+                    pattern,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                ),
+            )
+        print(
+            "FORENSIC_CLASSIFICATION:",
+            json.dumps(
+                target["forensic_classification"],
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+        )
 
     print("MONGO_WRITES: 0")
     print("AUTOMATIC_ACTION: NAO")
@@ -610,7 +725,10 @@ async def main() -> None:
         print_compact(report)
         if args.json_path:
             path = Path(args.json_path)
-            path.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            path.write_text(
+                json.dumps(report, ensure_ascii=False, indent=2, default=str),
+                encoding="utf-8",
+            )
             print("JSON_LOCAL:", path)
     finally:
         client.close()
