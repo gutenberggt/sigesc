@@ -7,6 +7,7 @@ from routers.student_enrollment_audit_semantics import (
     HISTORICAL_PRESERVED_COND,
     HISTORICAL_STATUSES,
     classify_empty_enrollment,
+    resolve_semantic_empty_count,
 )
 
 
@@ -62,6 +63,26 @@ def test_known_historical_status_contract_contains_relocation():
     assert "relocated" in HISTORICAL_STATUSES
     assert "transferred" in HISTORICAL_STATUSES
     assert "progressed" in HISTORICAL_STATUSES
+
+
+def test_semantic_partition_hides_only_preserved_history_when_exact():
+    effective, ok = resolve_semantic_empty_count(
+        raw_empty=1,
+        actionable=0,
+        preserved=1,
+    )
+    assert ok is True
+    assert effective == 0
+
+
+def test_semantic_partition_keeps_raw_count_when_partition_does_not_close():
+    effective, ok = resolve_semantic_empty_count(
+        raw_empty=3,
+        actionable=1,
+        preserved=1,
+    )
+    assert ok is False
+    assert effective == 3
 
 
 def test_mongo_conditions_keep_active_empty_out_of_preserved_partition():
