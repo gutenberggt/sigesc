@@ -5,7 +5,10 @@ Organização modular dos endpoints da API.
 PATCH 4.x: Refatoração gradual do server.py para routers modulares.
 """
 
-from .auth import router as auth_router, setup_router as setup_auth_router
+from .auth import router as auth_router, setup_router as _setup_auth_router
+from .auth_impersonation import install_auth_impersonation
+from .auth_impersonation_search import install_auth_impersonation_search
+from services.impersonation_audit_policy import install_impersonation_request_audit_policy
 from .users import router as users_router, setup_router as setup_users_router
 from .schools import router as schools_router, setup_router as setup_schools_router
 from .courses import router as courses_router, setup_router as setup_courses_router
@@ -19,6 +22,7 @@ from .student_enrollment_audit_semantics import install_student_enrollment_audit
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
+from . import grades_dvd_parity as _grades_dvd_parity_mod
 from .grades_dvd_parity import install_grades_dvd_parity
 from .grades_dvd_student_scope import install_grades_dvd_student_scope
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
@@ -28,6 +32,7 @@ from . import attendance_tabs_dvd as _attendance_tabs_dvd_mod
 from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
+from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_generalization
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
@@ -37,6 +42,14 @@ from .analytics import router as analytics_router, setup_analytics_router
 # declara a função. O adaptador de abas registra o mesmo payload Pydantic da
 # Fase 4 dinamicamente; expor este alias evita ForwardRef dependente de closure.
 _attendance_tabs_dvd_mod.dvd_mod = _attendance_dvd_mod
+
+# P0 DVD histórico — Frequência e Notas usam a mesma validação fail-closed da
+# proveniência de cutovers ativados. A instalação só troca o helper de leitura;
+# não altera valid_from, não migra documentos e não adiciona autoria retroativa.
+install_dvd_historical_bridge_generalization(
+    _attendance_tabs_dvd_mod,
+    _grades_dvd_parity_mod,
+)
 
 # P0 DVD Conteúdos — instala os adaptadores antes de server.py importar
 # setup_content_entries_router/learning_objects. Os routers originais permanecem
@@ -112,6 +125,15 @@ install_aee_v2_plano_effective_read_setup(_aee_mod)
 install_aee_v2_plano_pdf_effective_setup(_aee_mod)
 install_aee_v2_plan_list_effective_cutover_setup(_aee_mod)
 install_aee_v2_plan_write_governance_setup(_aee_mod)
+
+
+def setup_auth_router(db, audit_service):
+    """Configura Auth + Modo de Teste seguro do Super Administrador."""
+    configured = _setup_auth_router(db, audit_service)
+    configured = install_auth_impersonation(configured, db, audit_service)
+    configured = install_auth_impersonation_search(configured, db)
+    install_impersonation_request_audit_policy(audit_service)
+    return configured
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
