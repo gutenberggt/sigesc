@@ -1,52 +1,60 @@
-"""Regressão da lógica de backfill/dedup de matrículas (scripts/backfill_dedup_enrollment.py).
+"""Regressão: escritores legados de enrollment_number permanecem aposentados."""
 
-Testa as peças puras (sem efeitos no banco):
-  - _sort_key: escolhe o registro MAIS ANTIGO.
-  - NumberFactory (modo dry-run): gera números únicos sequenciais que não
-    colidem com os já existentes.
-"""
-import asyncio
+from __future__ import annotations
+
 import importlib.util
-import os
-
-SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "backfill_dedup_enrollment.py")
-spec = importlib.util.spec_from_file_location("backfill_dedup_enrollment", SCRIPT)
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
+from pathlib import Path
 
 
-def test_sort_key_picks_oldest():
-    older = {"created_at": "2024-01-01T00:00:00", "enrollment_date": "2024-02-01"}
-    newer = {"created_at": "2026-05-01T00:00:00", "enrollment_date": "2026-05-01"}
-    no_date = {}
-    ordered = sorted([newer, no_date, older], key=mod._sort_key)
-    assert ordered[0] is older
-    assert ordered[-1] is no_date  # sem data vai por último
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BACKFILL = REPO_ROOT / "backend" / "scripts" / "backfill_dedup_enrollment.py"
+DIRECT_GENERATOR = REPO_ROOT / "generate_enrollment_numbers.py"
+
+FORBIDDEN_WRITE_MARKERS = (
+    "AsyncIOMotorClient",
+    ".update_one(",
+    ".update_many(",
+    ".insert_one(",
+    ".insert_many(",
+    ".delete_one(",
+    ".delete_many(",
+    ".find_one_and_update(",
+    ".replace_one(",
+    ".bulk_write(",
+    ".create_index(",
+    "generate_enrollment_number(",
+)
 
 
-def test_number_factory_dry_run_is_unique_and_sequential():
-    existing = {"202600005", "202600006"}
-    factory = mod.NumberFactory(db=None, year=2026, apply=False, start_seq=10, existing=existing)
-    nums = asyncio.get_event_loop().run_until_complete(_collect(factory, 5))
-    # Únicos
-    assert len(set(nums)) == 5
-    # Não colidem com existentes
-    assert not (set(nums) & existing)
-    # Formato ano + 5 dígitos
-    for n in nums:
-        assert n.startswith("2026") and len(n) == 9
-    # Sequenciais a partir de start_seq+1
-    assert nums[0] == "202600011"
+def _load(path: Path, module_name: str):
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def test_number_factory_skips_existing_collisions():
-    # start_seq=4 -> próximo seria 202600005 (existente) e 202600006 (existente),
-    # então deve pular para 202600007.
-    existing = {"202600005", "202600006"}
-    factory = mod.NumberFactory(db=None, year=2026, apply=False, start_seq=4, existing=existing)
-    first = asyncio.get_event_loop().run_until_complete(factory.next())
-    assert first == "202600007"
+def test_legacy_backfill_is_fail_closed_tombstone():
+    mod = _load(BACKFILL, "retired_backfill_dedup_enrollment")
+    assert mod.RETIREMENT_CODE == "LEGACY_ENROLLMENT_BACKFILL_RETIRED"
+    assert mod.main() == 2
 
 
-async def _collect(factory, n):
-    return [await factory.next() for _ in range(n)]
+def test_direct_student_number_generator_is_fail_closed_tombstone():
+    mod = _load(DIRECT_GENERATOR, "retired_generate_enrollment_numbers")
+    assert mod.RETIREMENT_CODE == "LEGACY_ENROLLMENT_NUMBER_WRITER_RETIRED"
+    assert mod.main() == 2
+
+
+def test_retired_scripts_have_no_database_or_number_generation_write_path():
+    for path in (BACKFILL, DIRECT_GENERATOR):
+        source = path.read_text(encoding="utf-8")
+        for marker in FORBIDDEN_WRITE_MARKERS:
+            assert marker not in source, f"{path}: marcador proibido ainda presente: {marker}"
+
+
+def test_retirement_message_requires_governed_reconciliation():
+    for path in (BACKFILL, DIRECT_GENERATOR):
+        source = path.read_text(encoding="utf-8").lower()
+        assert "reconciliação governada" in source
+        assert "tombstone" in source
