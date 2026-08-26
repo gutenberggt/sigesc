@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - 'backend/server.py'
       - 'backend/routers/auth.py'
       - 'backend/routers/auth_impersonation.py'
       - 'backend/routers/auth_impersonation_search.py'
@@ -13,6 +14,7 @@ on:
       - 'backend/tests/test_super_admin_impersonation_p0.py'
       - 'backend/tests/test_super_admin_global_user_search_p0.py'
       - 'backend/tests/test_impersonation_audit_request_policy_p0.py'
+      - 'backend/tests/test_auth_bootstrap_runtime_p0.py'
       - 'frontend/src/contexts/AuthContext.js'
       - 'frontend/src/components/Layout.js'
       - 'frontend/src/components/ImpersonationControl.jsx'
@@ -47,7 +49,7 @@ jobs:
         run: pip install pytest pytest-asyncio fastapi 'python-jose[cryptography]' bcrypt python-dotenv motor email-validator
 
       - name: Compile impersonation runtime
-        run: python -m py_compile routers/auth_impersonation.py routers/auth_impersonation_search.py services/impersonation_audit_policy.py routers/__init__.py
+        run: python -m py_compile server.py routers/auth_impersonation.py routers/auth_impersonation_search.py services/impersonation_audit_policy.py routers/__init__.py
 
       - name: Run impersonation security guards
         run: >-
@@ -55,3 +57,4 @@ jobs:
           tests/test_super_admin_impersonation_p0.py
           tests/test_super_admin_global_user_search_p0.py
           tests/test_impersonation_audit_request_policy_p0.py
+          tests/test_auth_bootstrap_runtime_p0.py
