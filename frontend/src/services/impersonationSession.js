@@ -18,6 +18,13 @@ const installSessionPayload = (payload) => {
   if (csrf_token) setCsrfToken(csrf_token);
 };
 
+export const searchImpersonationUsers = async (query, limit = 20) => {
+  const response = await axios.get(`${API}/auth/impersonation/users/search`, {
+    params: { q: query, limit },
+  });
+  return response.data?.items || [];
+};
+
 export const startImpersonationSession = async ({ targetUserId, password, activeRole }) => {
   const response = await axios.post(`${API}/auth/impersonation/start`, {
     target_user_id: targetUserId,

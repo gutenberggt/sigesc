@@ -7,6 +7,7 @@ PATCH 4.x: Refatoração gradual do server.py para routers modulares.
 
 from .auth import router as auth_router, setup_router as _setup_auth_router
 from .auth_impersonation import install_auth_impersonation
+from .auth_impersonation_search import install_auth_impersonation_search
 from services.impersonation_audit_policy import install_impersonation_request_audit_policy
 from .users import router as users_router, setup_router as setup_users_router
 from .schools import router as schools_router, setup_router as setup_schools_router
@@ -127,9 +128,10 @@ install_aee_v2_plan_write_governance_setup(_aee_mod)
 
 
 def setup_auth_router(db, audit_service):
-    """Configura Auth + impersonação segura do Super Administrador."""
+    """Configura Auth + Modo de Teste seguro do Super Administrador."""
     configured = _setup_auth_router(db, audit_service)
     configured = install_auth_impersonation(configured, db, audit_service)
+    configured = install_auth_impersonation_search(configured, db)
     install_impersonation_request_audit_policy(audit_service)
     return configured
 
