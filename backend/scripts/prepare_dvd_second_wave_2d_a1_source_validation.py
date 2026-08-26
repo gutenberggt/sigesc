@@ -1,7 +1,7 @@
 """Segunda Onda DVD 2D-A.1 — pacote de validação humana da fonte de horário.
 
 Etapa estritamente READ-ONLY no MongoDB. Não corrige class_schedules, não cria DVD,
-não aceita decisão humana por argumento e não possui apply/rollback.
+não aceita decisão humana por argumento e não possui modo de mutação.
 
 Objetivo: transformar a auditoria forense 2D-A em um snapshot estável, com hash de
 evidência e uma única pergunta institucional sobre o 3º horário do 5º ANO A.
@@ -50,10 +50,13 @@ RESPONSE_OPTIONS = (
     "OUTRO_HORARIO",
 )
 
-MONGO_MUTATOR_TOKENS = (
-    ".insert_one(", ".insert_many(", ".update_one(", ".update_many(",
-    ".replace_one(", ".delete_one(", ".delete_many(", ".bulk_write(",
-    ".find_one_and_update(", ".find_one_and_delete(", ".find_one_and_replace(",
+MONGO_MUTATOR_TOKENS = tuple(
+    "." + name + "("
+    for name in (
+        "insert_one", "insert_many", "update_one", "update_many",
+        "replace_one", "delete_one", "delete_many", "bulk_write",
+        "find_one_and_update", "find_one_and_delete", "find_one_and_replace",
+    )
 )
 
 
@@ -77,13 +80,7 @@ def _sha256_value(value: Any) -> str:
 
 def assert_script_read_only() -> None:
     source = Path(__file__).read_text(encoding="utf-8")
-    executable = "\n".join(
-        line
-        for line in source.splitlines()
-        if not line.lstrip().startswith('"')
-        and "MONGO_MUTATOR_TOKENS" not in line
-    )
-    hits = [token for token in MONGO_MUTATOR_TOKENS if token in executable]
+    hits = [token for token in MONGO_MUTATOR_TOKENS if token in source]
     if hits:
         raise SourceValidationGateError(
             f"READ_ONLY_GUARD_FAILED forbidden={hits}"
