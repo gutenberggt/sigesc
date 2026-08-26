@@ -10,12 +10,11 @@ on:
       - 'backend/routers/__init__.py'
       - 'backend/tests/test_super_admin_impersonation_p0.py'
       - 'frontend/src/contexts/AuthContext.js'
-      - 'frontend/src/contexts/AuthContextLegacy.js'
-      - 'frontend/src/pages/Users.js'
-      - 'frontend/src/pages/UsersLegacy.js'
       - 'frontend/src/components/Layout.js'
-      - 'frontend/src/components/LayoutLegacy.js'
+      - 'frontend/src/components/ImpersonationControl.jsx'
       - 'frontend/src/services/impersonationSession.js'
+      - 'frontend/src/utils/impersonationOfflineGuard.js'
+      - 'frontend/src/index.js'
       - '.github/workflows/auth-impersonation-guard.yml'
 
 jobs:
