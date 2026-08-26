@@ -20,6 +20,7 @@ from sandbox_service import sandbox_service
 
 # Import routers
 from routers import (
+    setup_auth_router,
     setup_users_router,
     setup_schools_router,
     setup_courses_router,
@@ -70,7 +71,6 @@ from routers.dependency_completions import (
     ensure_indexes as _ensure_completions_indexes,
 )
 from routers.aee import setup_aee_router
-from routers.auth import setup_router as setup_auth_router
 from routers.mantenedoras import create_mantenedoras_router
 from routers.admin_observability import setup_admin_observability_router
 
@@ -822,7 +822,7 @@ for _o in list(_env_origins):
 _env_origins.update(_derived_origins)
 
 # Regex opcional para múltiplos subdomínios em produção.
-# Ex.: CORS_ORIGIN_REGEX="https://.*\.aprenderdigital\.top"
+# Ex.: CORS_ORIGIN_REGEX="https://.*\\.aprenderdigital\\.top"
 _cors_regex = (os.environ.get('CORS_ORIGIN_REGEX') or '').strip() or None
 
 if _env_origins or _cors_regex:
