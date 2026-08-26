@@ -68,6 +68,36 @@ async def test_request_assinado_forca_super_admin_mesmo_com_user_reconstruido(mo
 
 
 @pytest.mark.asyncio
+async def test_request_totalmente_posicional_tambem_forca_ator_e_subject(monkeypatch):
+    monkeypatch.setattr(policy, "decode_token", lambda token: impersonation_payload())
+    audit = FakeAudit()
+    policy.install_impersonation_request_audit_policy(audit)
+
+    await audit.log(
+        "update",
+        "grades",
+        {"id": "target-1", "email": "target@example.org", "role": "professor"},
+        fake_request(),
+        "grade-1",
+        "Alterou nota",
+        {"b1": 7.0},
+        {"b1": 8.0},
+        "school-1",
+        "Escola Fixture",
+        2026,
+        {"origin": "fixture"},
+    )
+
+    args, kwargs = audit.calls[-1]
+    assert kwargs == {}
+    assert args[2]["id"] == "super-1"
+    assert args[2]["role"] == "super_admin"
+    assert args[5].startswith("[IMPERSONAÇÃO]")
+    assert args[11]["origin"] == "fixture"
+    assert args[11]["impersonation"]["subject_user_id"] == "target-1"
+
+
+@pytest.mark.asyncio
 async def test_request_normal_nao_altera_autoria(monkeypatch):
     monkeypatch.setattr(
         policy,
