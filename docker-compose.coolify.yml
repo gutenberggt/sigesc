@@ -44,6 +44,7 @@ services:
       - APP_FRONTEND_URL=${APP_FRONTEND_URL:-}
     volumes:
       - sigesc-dvd-backups:/data/sigesc-dvd-backups
+      - sigesc-schedule-backups:/data/sigesc-schedule-backups
     restart: unless-stopped
     depends_on:
       mongo:
@@ -88,6 +89,7 @@ services:
 volumes:
   sigesc-mongo-data:
   sigesc-dvd-backups:
+  sigesc-schedule-backups:
 
 # ============================================================
 # REDE: Usa a rede que o Coolify criou para este projeto.
