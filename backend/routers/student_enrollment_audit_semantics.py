@@ -96,6 +96,24 @@ def classify_empty_enrollment(doc: dict) -> str:
     return "actionable_empty"
 
 
+def resolve_semantic_empty_count(
+    raw_empty: int,
+    actionable: int,
+    preserved: int,
+) -> tuple[int, bool]:
+    """Resolve a contagem exibida sem esconder divergências de classificação.
+
+    A reclassificação só é aceita quando toda a população vazia legada pode ser
+    particionada exatamente entre ``actionable`` e ``historical_preserved``.
+    Qualquer diferença mantém ``raw_empty`` visível (fail-closed).
+    """
+    raw_empty = int(raw_empty)
+    actionable = int(actionable)
+    preserved = int(preserved)
+    partition_ok = raw_empty == actionable + preserved
+    return (actionable if partition_ok else raw_empty), partition_ok
+
+
 def _remove_route(base_router: Any, path: str, method: str):
     for route in list(base_router.routes):
         if (
@@ -164,7 +182,11 @@ def install_student_enrollment_audit_semantics(
 
         raw_empty = int((result.get("enrollments") or {}).get("empty", 0))
         actionable, preserved = await _semantic_counts(current_db, base)
-        partition_ok = raw_empty == actionable + preserved
+        effective_empty, partition_ok = resolve_semantic_empty_count(
+            raw_empty,
+            actionable,
+            preserved,
+        )
 
         enrollment_block = result.setdefault("enrollments", {})
         enrollment_block["empty_raw"] = raw_empty
@@ -173,7 +195,7 @@ def install_student_enrollment_audit_semantics(
         enrollment_block["semantics_version"] = "historical-previous-v1"
 
         # Fail-closed: se a partição não fechar, NÃO escondemos nenhum vazio.
-        enrollment_block["empty"] = actionable if partition_ok else raw_empty
+        enrollment_block["empty"] = effective_empty
 
         result["repair_policy"] = {
             "enabled": False,
