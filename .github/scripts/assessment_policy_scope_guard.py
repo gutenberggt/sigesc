@@ -1,9 +1,9 @@
 """Scope Creep Guard — Assessment Policy v1.
 
-Cada sprint possui manifesto explícito. O guard falha se a PR alterar arquivos
-fora do domínio/entregáveis aprovados para aquela fase. Isso evita ampliar
-silenciosamente o escopo entre Foundation, Resolver, Calculator, Outcome,
-Shadow, Shadow Runner, Assisted Config, Operational Binding e fases futuras.
+Cada sprint possui manifesto explícito. O guard falha se uma PR de Assessment
+Policy alterar arquivos fora do domínio/entregáveis aprovados para aquela fase.
+Arquivos compartilhados de integração podem, porém, ser alterados por PRs de
+outros domínios sem transformar essas PRs em uma sprint de Assessment Policy.
 """
 
 from __future__ import annotations
@@ -110,6 +110,23 @@ PREFIX_BY_PHASE = {
     "unknown": (),
 }
 
+# Arquivos que pertencem inequivocamente ao domínio Assessment Policy. Arquivos
+# compartilhados de integração (routers/__init__.py, server.py, Mantenedora.js,
+# services/api.js) ficam de fora: eles podem disparar os testes de regressão do
+# módulo sem obrigar uma PR de outro domínio a adotar o nome de uma sprint AP.
+ASSESSMENT_OWNED_EXACT = {
+    ".github/scripts/assessment_policy_scope_guard.py",
+    "backend/routers/assessment_policy_admin.py",
+}
+
+ASSESSMENT_OWNED_PREFIXES = (
+    ".github/workflows/assessment-policy-",
+    "backend/assessment_policy/",
+    "backend/tests/test_assessment_policy_",
+    "frontend/src/components/assessment-policy/",
+    "memory/audit/ASSESSMENT_POLICY_V1_",
+)
+
 
 def _run(*args: str) -> str:
     result = subprocess.run(
@@ -183,6 +200,12 @@ def _is_allowed(
     return any(path.startswith(prefix) for prefix in prefix_allowed)
 
 
+def _is_assessment_owned(path: str) -> bool:
+    if path in ASSESSMENT_OWNED_EXACT:
+        return True
+    return any(path.startswith(prefix) for prefix in ASSESSMENT_OWNED_PREFIXES)
+
+
 def main() -> int:
     if not Path(".git").exists():
         print("ASSESSMENT_POLICY_SCOPE_GUARD=SKIP_NO_GIT")
@@ -190,11 +213,6 @@ def main() -> int:
 
     phase, exact_allowed, prefix_allowed = _manifest()
     changed = _changed_files()
-    unexpected = sorted(
-        path
-        for path in changed
-        if not _is_allowed(path, exact_allowed, prefix_allowed)
-    )
 
     print(f"ASSESSMENT_POLICY_SCOPE_GUARD_PHASE={phase}")
     print("ASSESSMENT_POLICY_SCOPE_GUARD_FILES=")
@@ -206,10 +224,28 @@ def main() -> int:
         )
         print(f"  [{marker}] {path}")
 
+    # Uma PR alheia ao Assessment Policy pode alterar arquivos compartilhados
+    # que também são pontos de integração do módulo. Nessa situação o workflow
+    # deve executar seus testes de regressão, mas o scope guard da sprint não
+    # pode falhar apenas porque a branch pertence a outro domínio. Se houver
+    # qualquer arquivo inequivocamente próprio do Assessment Policy, mantemos o
+    # fail-closed e exigimos uma branch/fase reconhecida.
     if phase == "unknown":
-        print("ASSESSMENT_POLICY_SCOPE_GUARD=FAIL_UNKNOWN_PHASE")
-        return 1
+        owned = sorted(path for path in changed if _is_assessment_owned(path))
+        if owned:
+            print("ASSESSMENT_POLICY_SCOPE_GUARD=FAIL_UNKNOWN_PHASE")
+            print("Arquivos próprios de Assessment Policy em branch sem fase reconhecida:")
+            for path in owned:
+                print(f"  - {path}")
+            return 1
+        print("ASSESSMENT_POLICY_SCOPE_GUARD=SKIP_SHARED_INTEGRATION_ONLY")
+        return 0
 
+    unexpected = sorted(
+        path
+        for path in changed
+        if not _is_allowed(path, exact_allowed, prefix_allowed)
+    )
     if unexpected:
         print("ASSESSMENT_POLICY_SCOPE_GUARD=FAIL")
         print(f"Arquivos fora do escopo da sprint {phase}:")
