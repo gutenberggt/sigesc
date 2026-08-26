@@ -11,6 +11,14 @@ from scripts.inventory_initial_years_schedule_normalization import (
     proposed_slot_times,
     schedule_shape,
 )
+from scripts.inventory_initial_years_schedule_normalization_v2 import (
+    EXCLUSION_AEE,
+    EXCLUSION_EJA,
+    assert_script_read_only as assert_v2_read_only,
+    build_scope_v2,
+    exclusion_reason,
+    review_group,
+)
 
 
 def test_policy_is_exactly_pinned_for_morning_and_afternoon():
@@ -156,13 +164,126 @@ def test_multiple_schedules_for_same_class_are_fail_closed():
     assert "MULTIPLE_CLASS_SCHEDULES:2" in blockers
 
 
+def test_v2_excludes_aee_even_when_series_are_1_to_5():
+    row = {
+        "class_name": "AEE-A",
+        "atendimento_programa": "aee",
+        "grade_evidence": {
+            "education_level": "fundamental_anos_iniciais",
+            "combined_numbers": [1, 2],
+        },
+    }
+    assert exclusion_reason(row) == EXCLUSION_AEE
+
+
+def test_v2_excludes_eja_and_etapa_by_level_or_legacy_name():
+    assert exclusion_reason({
+        "class_name": "EJA 1º E 2º ETAPA",
+        "grade_evidence": {"education_level": "eja", "combined_numbers": [1, 2]},
+    }) == EXCLUSION_EJA
+    assert exclusion_reason({
+        "class_name": "MULTI 3º E 4º ETAPA",
+        "grade_evidence": {"education_level": None, "combined_numbers": [3, 4]},
+    }) == EXCLUSION_EJA
+
+
+def test_v2_keeps_regular_multigrade_and_groups_real_blockers():
+    regular = {
+        "class_name": "3º, 4º E 5º ANO MULTI",
+        "atendimento_programa": "regular",
+        "grade_evidence": {
+            "education_level": "fundamental_anos_iniciais",
+            "combined_numbers": [3, 4, 5],
+        },
+        "blockers": [],
+    }
+    assert exclusion_reason(regular) is None
+    assert review_group({"blockers": ["SHIFT_WITHOUT_POLICY:full_time"]}) == "FULL_TIME_POLICY_REQUIRED"
+    assert review_group({"blockers": ["EXTRA_SLOTS_ABOVE_4:5"]}) == "EXTRA_SLOTS_REVIEW"
+    assert review_group({"blockers": ["CLASS_SCHEDULE_SHIFT_MISMATCH:morning!=afternoon"]}) == "SHIFT_MISMATCH_REVIEW"
+
+
+def test_v2_recalculates_scope_without_silently_dropping_exclusions():
+    source = {
+        "meta": {"mutates_database": False},
+        "inventory_sha256": "source-hash",
+        "inventory": {
+            "policy": SCHEDULE_POLICY,
+            "rows": [
+                {
+                    "class_id": "regular-1",
+                    "class_name": "1º ANO A",
+                    "school_id": "s1",
+                    "school_name": "Escola",
+                    "shift": "morning",
+                    "atendimento_programa": "regular",
+                    "grade_evidence": {"education_level": "fundamental_anos_iniciais", "combined_numbers": [1], "is_multi_grade": False},
+                    "schedule_count": 0,
+                    "schedule_shape": {"extra_slot_numbers": []},
+                    "status": "READY_NORMALIZE",
+                    "blockers": [],
+                },
+                {
+                    "class_id": "aee-1",
+                    "class_name": "AEE-A",
+                    "school_id": "s1",
+                    "school_name": "Escola",
+                    "shift": "morning",
+                    "atendimento_programa": "aee",
+                    "grade_evidence": {"education_level": "fundamental_anos_iniciais", "combined_numbers": [1, 2], "is_multi_grade": True},
+                    "schedule_count": 0,
+                    "status": "READY_NORMALIZE",
+                    "blockers": [],
+                },
+                {
+                    "class_id": "eja-1",
+                    "class_name": "EJA 1º E 2º ETAPA",
+                    "school_id": "s1",
+                    "school_name": "Escola",
+                    "shift": "evening",
+                    "atendimento_programa": "regular",
+                    "grade_evidence": {"education_level": "eja", "combined_numbers": [1, 2], "is_multi_grade": True},
+                    "schedule_count": 0,
+                    "status": "BLOCKED_REQUIRES_REVIEW",
+                    "blockers": ["SHIFT_WITHOUT_POLICY:evening"],
+                },
+                {
+                    "class_id": "full-1",
+                    "class_name": "4º ANO",
+                    "school_id": "s1",
+                    "school_name": "Escola",
+                    "shift": "full_time",
+                    "atendimento_programa": "regular",
+                    "grade_evidence": {"education_level": "fundamental_anos_iniciais", "combined_numbers": [4], "is_multi_grade": False},
+                    "schedule_count": 0,
+                    "status": "BLOCKED_REQUIRES_REVIEW",
+                    "blockers": ["SHIFT_WITHOUT_POLICY:full_time"],
+                },
+            ],
+        },
+    }
+    report = build_scope_v2(source)
+    scope = report["scope"]
+    assert scope["regular_target_count"] == 2
+    assert scope["excluded_non_regular_count"] == 2
+    assert scope["excluded_counts"] == {EXCLUSION_AEE: 1, EXCLUSION_EJA: 1}
+    assert scope["summary"]["status"] == {
+        "BLOCKED_REQUIRES_REVIEW": 1,
+        "READY_NORMALIZE": 1,
+    }
+    assert scope["summary"]["review_groups"] == {"FULL_TIME_POLICY_REQUIRED": 1}
+
+
 def test_script_is_strictly_read_only():
     assert_script_read_only()
-    src = Path("scripts/inventory_initial_years_schedule_normalization.py").read_text(
-        encoding="utf-8"
-    )
-    forbidden = (
-        ".insert_one(", ".insert_many(", ".update_one(", ".update_many(",
-        ".replace_one(", ".delete_one(", ".delete_many(", ".bulk_write(",
-    )
-    assert not any(token in src for token in forbidden)
+    assert_v2_read_only()
+    for path in (
+        "scripts/inventory_initial_years_schedule_normalization.py",
+        "scripts/inventory_initial_years_schedule_normalization_v2.py",
+    ):
+        src = Path(path).read_text(encoding="utf-8")
+        forbidden = (
+            ".insert_one(", ".insert_many(", ".update_one(", ".update_many(",
+            ".replace_one(", ".delete_one(", ".delete_many(", ".bulk_write(",
+        )
+        assert not any(token in src for token in forbidden)
