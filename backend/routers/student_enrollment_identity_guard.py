@@ -1,4 +1,4 @@
-"""P0 — protege a identidade numérica da matrícula na edição genérica de aluno.
+"""P0 — protege a identidade numérica da matrícula na edição genérica de estudante.
 
 Contrato:
 - ``enrollments`` é a fonte canônica da matrícula regular ativa;
