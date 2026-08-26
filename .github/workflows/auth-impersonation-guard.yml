@@ -7,9 +7,11 @@ on:
     paths:
       - 'backend/routers/auth.py'
       - 'backend/routers/auth_impersonation.py'
+      - 'backend/routers/auth_impersonation_search.py'
       - 'backend/routers/__init__.py'
       - 'backend/services/impersonation_audit_policy.py'
       - 'backend/tests/test_super_admin_impersonation_p0.py'
+      - 'backend/tests/test_super_admin_global_user_search_p0.py'
       - 'backend/tests/test_impersonation_audit_request_policy_p0.py'
       - 'frontend/src/contexts/AuthContext.js'
       - 'frontend/src/components/Layout.js'
@@ -45,10 +47,11 @@ jobs:
         run: pip install pytest pytest-asyncio fastapi 'python-jose[cryptography]' bcrypt python-dotenv motor email-validator
 
       - name: Compile impersonation runtime
-        run: python -m py_compile routers/auth_impersonation.py services/impersonation_audit_policy.py routers/__init__.py
+        run: python -m py_compile routers/auth_impersonation.py routers/auth_impersonation_search.py services/impersonation_audit_policy.py routers/__init__.py
 
       - name: Run impersonation security guards
         run: >-
           PYTHONPATH=. pytest -q --noconftest
           tests/test_super_admin_impersonation_p0.py
+          tests/test_super_admin_global_user_search_p0.py
           tests/test_impersonation_audit_request_policy_p0.py
