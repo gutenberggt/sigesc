@@ -133,7 +133,7 @@ def setup_grades_router(
         audit_service,
         verify_academic_year_open_or_raise,
         verify_bimestre_edit_deadline_or_raise,
-        sandbox_db=sandbox_db,
+        sandbox_db,
     )
     configured = install_grades_dvd_adapter(
         configured,
@@ -168,7 +168,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         configured,
         db,
         audit_service,
-        sandbox_db=sandbox_db,
+        sandbox_db,
     )
     return install_attendance_pdf_dvd_parity(
         configured,
