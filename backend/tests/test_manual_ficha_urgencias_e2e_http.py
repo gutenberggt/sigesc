@@ -65,7 +65,7 @@ FIXTURE_IDS = {
 
 # PNG 1x1 local para impedir dependência de rede na geração do PDF.
 _PNG_1X1 = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2iVQAAAAASUVORK5CYII="
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC"
 )
 _LOGO_PATH = Path("/tmp/sigesc-urgencias-ci-logo.png")
 
