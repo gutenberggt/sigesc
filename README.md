@@ -124,6 +124,7 @@ auth/permissions, geração de relatórios HR, multi-tenant scope.
 - [`/app/docs/pdf-performance.md`](docs/pdf-performance.md) — Otimizações de PDFs
 - [`/app/docs/NOMENCLATURA_INSTITUCIONAL.md`](docs/NOMENCLATURA_INSTITUCIONAL.md) — Nomenclatura institucional e guard de terminologia
 - [`/app/docs/governance/KNOWLEDGE_AND_CONVERSATION_GOVERNANCE.md`](docs/governance/KNOWLEDGE_AND_CONVERSATION_GOVERNANCE.md) — Governança de conhecimento, memória conversacional e fontes persistentes de verdade
+- [`/app/docs/governance/PROJECT_STATE_BASELINE_2026-08-27.md`](docs/governance/PROJECT_STATE_BASELINE_2026-08-27.md) — Baseline estratégico para continuidade sem dependência de conversas históricas
 
 ## Deploy
 
