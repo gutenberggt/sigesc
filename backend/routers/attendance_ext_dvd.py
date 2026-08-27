@@ -28,7 +28,7 @@ from services.attendance_utils import (
     compute_monthly_valid_absences,
     fetch_medical_days_for_student,
 )
-from tenant_scope import apply_tenant_filter
+from tenant_scope import apply_tenant_filter, assert_same_tenant
 
 
 _SOCIAL_FREQUENCY_ROLES = ["admin", "admin_teste", "ass_social", "ass_social_2"]
@@ -321,17 +321,22 @@ def install_attendance_ext_dvd_setup() -> None:
                     if item.get("date")
                 }
 
-                # medical_certificates é coleção legado sem mantenedora_id.
-                # A consulta é segura porque `student_id` já foi resolvido dentro
-                # do tenant autorizado e o UUID do aluno é a chave institucional.
+                # Fail-closed: somente atestados do tenant ativo participam da
+                # leitura social. Registros legados sem mantenedora_id não entram.
                 certificates = await current_db.medical_certificates.find(
-                    {
-                        "student_id": student_id,
-                        "start_date": {"$lte": today},
-                        "end_date": {"$gte": school_year_start},
-                    },
-                    {"_id": 0, "start_date": 1, "end_date": 1},
+                    apply_tenant_filter(
+                        {
+                            "student_id": student_id,
+                            "start_date": {"$lte": today},
+                            "end_date": {"$gte": school_year_start},
+                        },
+                        user,
+                        request,
+                    ),
+                    {"_id": 0, "start_date": 1, "end_date": 1, "mantenedora_id": 1},
                 ).to_list(None)
+                for certificate in certificates:
+                    assert_same_tenant(certificate, user, request)
                 medical_days = fetch_medical_days_for_student(certificates, attendance_dates)
 
                 absences_by_month = compute_monthly_valid_absences(
