@@ -131,6 +131,8 @@ const HistoryReconstruction = lazy(() => import('@/pages/HistoryReconstruction')
 const PmeAnosFinais = lazy(() => import('@/pages/PmeAnosFinais'));
 const PmeExternalIndicators = lazy(() => import('@/pages/PmeExternalIndicators'));
 const SchoolTransferWizard = lazy(() => import('@/pages/SchoolTransferWizard'));
+const Urgencias = lazy(() => import('@/pages/Urgencias'));
+const UrgenciaFichaIndividual = lazy(() => import('@/pages/UrgenciaFichaIndividual'));
 
 // Loading fallback
 function PageLoader() {
@@ -391,6 +393,24 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3']}>
                 <Students />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Urgências — emissão documental de contingência */}
+          <Route
+            path="/admin/urgencias"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'secretario', 'diretor', 'auxiliar_secretaria']}>
+                <Urgencias />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/urgencias/ficha-individual"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'secretario', 'diretor', 'auxiliar_secretaria']}>
+                <UrgenciaFichaIndividual />
               </ProtectedRoute>
             }
           />
