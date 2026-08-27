@@ -1,4 +1,4 @@
-"""Guards DVD para superfícies estendidas de Frequência.
+"""Guards/adapters para superfícies estendidas de Frequência.
 
 O PDF e os alertas legados permanecem disponíveis para gestão/consolidação.
 Professor em turma DVD usa `assignment_id`, evitando exposição de dados de
@@ -7,18 +7,37 @@ outros vínculos e reutilizando o relatório canônico autorizado do próprio DV
 A camada também normaliza o escopo documental do PDF legado: Educação Infantil,
 Anos Iniciais e EJA inicial usam frequência diária por turma. Nesses níveis, um
 `course_id` residual da navegação não pode filtrar a frequência e zerar o PDF.
+
+P0 27/08/2026: a consulta individual usada pela Assistência Social deixa de
+usar a leitura antiga e passa a operar com autorização explícita, escopo por
+tenant, calendário letivo real e consolidação diária compatível com o motor do
+Bolsa Família. A rota é somente leitura e não altera documentos acadêmicos.
 """
 
 from __future__ import annotations
 
 import inspect
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException, Query, Request
 
 from auth_middleware import AuthMiddleware
+from services.attendance_utils import (
+    compute_monthly_valid_absences,
+    fetch_medical_days_for_student,
+)
+from tenant_scope import apply_tenant_filter
+
+
+_SOCIAL_FREQUENCY_ROLES = ["admin", "admin_teste", "ass_social", "ass_social_2"]
+_NON_SCHOOL_EVENT_TYPES = {
+    "feriado_nacional",
+    "feriado_estadual",
+    "feriado_municipal",
+    "recesso_escolar",
+}
 
 
 def _remove_route(router, path: str, method: str):
@@ -85,6 +104,122 @@ def _uses_component_attendance(class_info: dict) -> bool:
     return False
 
 
+def _parse_date(value):
+    raw = str(value or "")[:10]
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _normalize_social_attendance_docs(attendances: list[dict], student_id: str) -> list[dict]:
+    """Normaliza legado multi-aula para a engine diária já usada pelo BF.
+
+    Um status `P|F|P` representa três registros do mesmo aluno/dia. A expansão
+    permite que `compute_monthly_valid_absences` aplique a mesma regra de 50%
+    usada para frequência por componente, sem inventar uma segunda fórmula.
+    """
+    normalized = []
+    for attendance in attendances or []:
+        records = []
+        for record in attendance.get("records") or []:
+            if record.get("student_id") != student_id:
+                continue
+            raw_status = str(record.get("status") or "").strip()
+            statuses = [part.strip() for part in raw_status.split("|")] if "|" in raw_status else [raw_status]
+            for status_value in statuses:
+                clone = dict(record)
+                clone["status"] = status_value
+                records.append(clone)
+        if records:
+            clone_doc = dict(attendance)
+            clone_doc["records"] = records
+            normalized.append(clone_doc)
+    return normalized
+
+
+async def _social_school_days_until_today(current_db, user: dict, request: Request, academic_year: int, today: str):
+    """Conta dias letivos do calendário oficial do tenant até `today`.
+
+    O início vem do primeiro bimestre cadastrado. Só usa 01/02 como fallback
+    quando o calendário não possui início válido. Eventos inválidos são
+    ignorados de forma fail-safe; `end_date` ausente equivale a evento de um dia.
+    """
+    calendar_query = apply_tenant_filter(
+        {"ano_letivo": academic_year, "school_id": None},
+        user,
+        request,
+    )
+    calendar_doc = await current_db.calendario_letivo.find_one(calendar_query, {"_id": 0})
+    if not calendar_doc:
+        calendar_doc = await current_db.calendario_letivo.find_one(
+            apply_tenant_filter({"ano_letivo": academic_year}, user, request),
+            {"_id": 0},
+        )
+
+    starts = []
+    if calendar_doc:
+        for index in range(1, 5):
+            parsed = _parse_date(calendar_doc.get(f"bimestre_{index}_inicio"))
+            if parsed:
+                starts.append(parsed)
+    start_date = min(starts) if starts else _parse_date(f"{academic_year}-02-01")
+    end_date = _parse_date(today)
+    if start_date is None or end_date is None or end_date < start_date:
+        return 0, f"{academic_year}-02-01"
+
+    if calendar_doc:
+        official_end = _parse_date(calendar_doc.get("bimestre_4_fim"))
+        if official_end and official_end < end_date:
+            end_date = official_end
+
+    events = await current_db.calendar_events.find(
+        apply_tenant_filter(
+            {
+                "academic_year": academic_year,
+                "start_date": {"$lte": today},
+            },
+            user,
+            request,
+        ),
+        {"_id": 0, "event_type": 1, "is_school_day": 1, "start_date": 1, "end_date": 1},
+    ).to_list(5000)
+
+    non_school_dates = set()
+    saturday_school_dates = set()
+    for event in events:
+        event_start = _parse_date(event.get("start_date"))
+        event_end = _parse_date(event.get("end_date") or event.get("start_date"))
+        if not event_start or not event_end or event_end < event_start:
+            continue
+        if event_start > end_date:
+            continue
+        if event_end > end_date:
+            event_end = end_date
+
+        current = event_start
+        while current <= event_end:
+            event_type = event.get("event_type")
+            if event_type in _NON_SCHOOL_EVENT_TYPES:
+                non_school_dates.add(current)
+            elif event_type == "sabado_letivo" or (event.get("is_school_day") and current.weekday() == 5):
+                saturday_school_dates.add(current)
+            current += timedelta(days=1)
+
+    school_days = 0
+    current = start_date
+    while current <= end_date:
+        if current in saturday_school_dates:
+            school_days += 1
+        elif current.weekday() < 5 and current not in non_school_dates:
+            school_days += 1
+        current += timedelta(days=1)
+
+    return school_days, start_date.isoformat()
+
+
 def install_attendance_ext_dvd_setup() -> None:
     from routers import attendance_ext as attendance_ext_mod
 
@@ -98,6 +233,11 @@ def install_attendance_ext_dvd_setup() -> None:
         if getattr(attendance_ext_mod.router, "_dvd_phase4_ext_guard", False):
             return result
 
+        legacy_social_frequency = _remove_route(
+            attendance_ext_mod.router,
+            "/attendance/frequency/student/{student_id}",
+            "GET",
+        )
         legacy_pdf = _remove_route(
             attendance_ext_mod.router,
             "/attendance/pdf/bimestre/{class_id}",
@@ -108,6 +248,139 @@ def install_attendance_ext_dvd_setup() -> None:
             "/attendance/alerts",
             "GET",
         )
+
+        if legacy_social_frequency is not None:
+            @attendance_ext_mod.router.get("/attendance/frequency/student/{student_id}")
+            async def social_frequency_p0(
+                student_id: str,
+                request: Request,
+                academic_year: Optional[int] = None,
+            ):
+                user = await AuthMiddleware.require_roles(_SOCIAL_FREQUENCY_ROLES)(request)
+                current_db = (
+                    sandbox_db
+                    if user.get("is_sandbox") and sandbox_db is not None
+                    else db
+                )
+                year = academic_year or datetime.now().year
+                today = datetime.now().strftime("%Y-%m-%d")
+
+                student = await current_db.students.find_one(
+                    apply_tenant_filter({"id": student_id}, user, request),
+                    {"_id": 0},
+                )
+                if not student:
+                    raise HTTPException(status_code=404, detail="Estudante não encontrado")
+
+                school_id = student.get("school_id")
+                if school_id:
+                    await AuthMiddleware.verify_school_access(request, school_id)
+
+                class_id = student.get("class_id")
+                if not class_id:
+                    enrollment = await current_db.enrollments.find_one(
+                        apply_tenant_filter(
+                            {
+                                "student_id": student_id,
+                                "status": "active",
+                                "academic_year": year,
+                            },
+                            user,
+                            request,
+                        ),
+                        {"_id": 0, "class_id": 1},
+                    )
+                    if enrollment:
+                        class_id = enrollment.get("class_id")
+
+                school_days, school_year_start = await _social_school_days_until_today(
+                    current_db,
+                    user,
+                    request,
+                    year,
+                    today,
+                )
+
+                attendances = await current_db.attendance.find(
+                    apply_tenant_filter(
+                        {
+                            "academic_year": year,
+                            "records.student_id": student_id,
+                            "date": {"$gte": school_year_start, "$lte": today},
+                        },
+                        user,
+                        request,
+                    ),
+                    {"_id": 0, "date": 1, "records": 1},
+                ).to_list(10000)
+
+                normalized = _normalize_social_attendance_docs(attendances, student_id)
+                attendance_dates = {
+                    str(item.get("date") or "")[:10]
+                    for item in normalized
+                    if item.get("date")
+                }
+
+                # medical_certificates é coleção legado sem mantenedora_id.
+                # A consulta é segura porque `student_id` já foi resolvido dentro
+                # do tenant autorizado e o UUID do aluno é a chave institucional.
+                certificates = await current_db.medical_certificates.find(
+                    {
+                        "student_id": student_id,
+                        "start_date": {"$lte": today},
+                        "end_date": {"$gte": school_year_start},
+                    },
+                    {"_id": 0, "start_date": 1, "end_date": 1},
+                ).to_list(None)
+                medical_days = fetch_medical_days_for_student(certificates, attendance_dates)
+
+                absences_by_month = compute_monthly_valid_absences(
+                    normalized,
+                    {student_id: medical_days},
+                    {student_id},
+                )
+                absences = sum((absences_by_month.get(student_id) or {}).values())
+
+                justified_dates = set()
+                for attendance in normalized:
+                    date_value = str(attendance.get("date") or "")[:10]
+                    if not date_value or date_value in medical_days:
+                        continue
+                    if any(
+                        str(record.get("status") or "").strip() in {"J", "justified"}
+                        for record in attendance.get("records") or []
+                    ):
+                        justified_dates.add(date_value)
+
+                medical = len(medical_days)
+                justified = len(justified_dates)
+                presences = max(0, len(attendance_dates) - absences - medical - justified)
+
+                if school_days > 0:
+                    attendance_percentage = ((school_days - absences) / school_days) * 100
+                else:
+                    attendance_percentage = 100.0
+                attendance_percentage = max(0.0, min(100.0, attendance_percentage))
+                percentage = round(attendance_percentage, 1)
+
+                return {
+                    "student_id": student_id,
+                    "student_name": student.get("full_name"),
+                    "academic_year": year,
+                    "class_id": class_id,
+                    "calculation_date": today,
+                    "summary": {
+                        "school_days_until_today": school_days,
+                        "absences": absences,
+                        "presences": presences,
+                        "justified": justified,
+                        "medical": medical,
+                        "attendance_percentage": percentage,
+                        "status": "regular" if percentage >= 75 else "alerta",
+                    },
+                    "formula": f"(({school_days} - {absences}) / {school_days}) × 100 = {percentage}%",
+                    "calculation_version": "social_daily_canonical_v2",
+                }
 
         if legacy_pdf is not None:
             @attendance_ext_mod.router.get("/attendance/pdf/bimestre/{class_id}")
