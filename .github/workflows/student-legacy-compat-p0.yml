@@ -42,8 +42,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install isolated test dependencies
-        run: pip install pytest pytest-asyncio fastapi 'python-jose[cryptography]' bcrypt python-dotenv motor pymongo email-validator
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
 
       - name: Compile compatibility runtime
         run: python -m py_compile routers/student_legacy_compat.py routers/__init__.py tests/test_student_legacy_compat.py
