@@ -117,7 +117,7 @@ jobs:
           echo "Backend não subiu. Logs:"; tail -n 120 /tmp/backend-urgencias.log; exit 1
 
       - name: Run functional homologation
-        run: pytest -q tests/test_manual_ficha_urgencias_e2e_http.py
+        run: python -m pytest -q tests/test_manual_ficha_urgencias_e2e_http.py
 
       - name: Homologation gate summary
         if: success()
