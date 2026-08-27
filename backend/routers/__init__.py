@@ -19,6 +19,7 @@ from .students import router as students_router, setup_students_router as _setup
 from .student_enrollment_identity_guard import install_student_enrollment_identity_guard
 from .student_enrollment_identity_continuity import install_student_enrollment_identity_continuity
 from .student_enrollment_audit_semantics import install_student_enrollment_audit_semantics
+from .student_transfer_destination_access import install_student_transfer_destination_access
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
@@ -141,7 +142,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
     configured = _setup_students_router(db, audit_service, sandbox_db)
     configured = install_student_enrollment_identity_guard(configured)
     configured = install_student_enrollment_identity_continuity(configured, db, audit_service)
-    return install_student_enrollment_audit_semantics(configured, db, sandbox_db)
+    configured = install_student_enrollment_audit_semantics(configured, db, sandbox_db)
+    return install_student_transfer_destination_access(configured, db, sandbox_db)
 
 
 def setup_grades_router(
