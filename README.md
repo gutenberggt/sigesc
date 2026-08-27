@@ -123,6 +123,7 @@ auth/permissions, geração de relatórios HR, multi-tenant scope.
 - [`/app/memory/test_credentials.md`](memory/test_credentials.md) — Credenciais de teste
 - [`/app/docs/pdf-performance.md`](docs/pdf-performance.md) — Otimizações de PDFs
 - [`/app/docs/NOMENCLATURA_INSTITUCIONAL.md`](docs/NOMENCLATURA_INSTITUCIONAL.md) — Nomenclatura institucional e guard de terminologia
+- [`/app/docs/governance/KNOWLEDGE_AND_CONVERSATION_GOVERNANCE.md`](docs/governance/KNOWLEDGE_AND_CONVERSATION_GOVERNANCE.md) — Governança de conhecimento, memória conversacional e fontes persistentes de verdade
 
 ## Deploy
 
