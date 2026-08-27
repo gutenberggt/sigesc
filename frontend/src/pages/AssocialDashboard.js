@@ -52,10 +52,10 @@ export default function AssocialDashboard() {
         : null;
 
       if (studentResult.status === 'rejected') {
-        console.error('Erro ao carregar cadastro completo do aluno:', studentResult.reason);
+        console.error('Erro ao carregar cadastro completo do Estudante:', studentResult.reason);
       }
       if (frequencyResult.status === 'rejected') {
-        console.error('Erro ao consultar frequência do aluno:', frequencyResult.reason);
+        console.error('Erro ao consultar frequência do Estudante:', frequencyResult.reason);
         setFrequencyError('Não foi possível consultar a frequência neste momento. Tente novamente.');
       }
       
