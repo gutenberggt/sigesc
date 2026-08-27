@@ -145,7 +145,7 @@ def _concept_options(nivel_ensino: str, grade_level: str) -> list[dict[str, str]
 def _is_conceptual(nivel_ensino: str, grade_level: str) -> bool:
     return (
         nivel_ensino == "educacao_infantil"
-        or is_serie_conceitual_anos_iniciais(grade_level)
+        or is_serie_conceitual_anos_inICIAIS(grade_level)
     )
 
 
@@ -604,6 +604,127 @@ def _convert_manual_grades(
 
 
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
+    @router.get("/documents/ficha-individual-manual/students")
+    async def list_manual_ficha_students(
+        school_id: str,
+        class_id: str,
+        request: Request,
+        student_series: Optional[str] = None,
+    ):
+        user = await AuthMiddleware.get_current_user(request)
+        active_db = (
+            sandbox_db
+            if user.get("is_sandbox") and sandbox_db is not None
+            else db
+        )
+        _ensure_role_and_school(user, school_id)
+
+        school = await active_db.schools.find_one(
+            apply_tenant_filter({"id": school_id}, user, request), {"_id": 0}
+        )
+        if not school:
+            raise HTTPException(status_code=404, detail="Escola não encontrada")
+        assert_same_tenant(school, user, request)
+
+        class_info = await active_db.classes.find_one(
+            apply_tenant_filter({"id": class_id}, user, request), {"_id": 0}
+        )
+        if not class_info:
+            raise HTTPException(status_code=404, detail="Turma não encontrada")
+        assert_same_tenant(class_info, user, request)
+        if str(class_info.get("school_id")) != str(school_id):
+            raise HTTPException(
+                status_code=400,
+                detail="A turma selecionada não pertence à escola informada",
+            )
+
+        is_multigrade = _is_multigrade(class_info)
+        normalized_series = (student_series or "").strip()
+        if is_multigrade and not normalized_series:
+            return {"items": [], "requires_student_series": True}
+
+        academic_year = int(class_info.get("academic_year") or datetime.now().year)
+        enrollments = await active_db.enrollments.find(
+            apply_tenant_filter(
+                {
+                    "school_id": school_id,
+                    "class_id": class_id,
+                    "academic_year": {"$in": [academic_year, str(academic_year)]},
+                    "status": {"$in": ["active", "relocated", "transferred"]},
+                },
+                user,
+                request,
+            ),
+            {
+                "_id": 0,
+                "student_id": 1,
+                "student_series": 1,
+                "status": 1,
+                "mantenedora_id": 1,
+            },
+        ).to_list(2000)
+
+        priority = {"active": 0, "relocated": 1, "transferred": 2}
+        selected: dict[str, dict[str, Any]] = {}
+        for enrollment in enrollments:
+            assert_same_tenant(enrollment, user, request)
+            sid = enrollment.get("student_id")
+            if not sid:
+                continue
+            enrollment_series = (enrollment.get("student_series") or "").strip()
+            if is_multigrade:
+                if not enrollment_series:
+                    continue
+                if enrollment_series.casefold() != normalized_series.casefold():
+                    continue
+            current = selected.get(sid)
+            if current is None or priority.get(enrollment.get("status"), 99) < priority.get(
+                current.get("status"), 99
+            ):
+                selected[sid] = enrollment
+
+        student_ids = list(selected)
+        if not student_ids:
+            return {"items": [], "requires_student_series": is_multigrade}
+
+        student_docs = await active_db.students.find(
+            apply_tenant_filter({"id": {"$in": student_ids}}, user, request),
+            {
+                "_id": 0,
+                "id": 1,
+                "full_name": 1,
+                "birth_date": 1,
+                "mantenedora_id": 1,
+            },
+        ).to_list(len(student_ids))
+        for student in student_docs:
+            assert_same_tenant(student, user, request)
+
+        students_by_id = {student.get("id"): student for student in student_docs}
+        items = []
+        for sid, enrollment in selected.items():
+            student = students_by_id.get(sid)
+            if not student:
+                continue
+            items.append(
+                {
+                    "id": sid,
+                    "full_name": student.get("full_name"),
+                    "birth_date": student.get("birth_date"),
+                    "student_series": (
+                        enrollment.get("student_series")
+                        or class_info.get("grade_level")
+                    ),
+                    "enrollment_status": enrollment.get("status"),
+                }
+            )
+        items.sort(key=lambda item: (item.get("full_name") or "").casefold())
+        return {
+            "items": items,
+            "academic_year": academic_year,
+            "requires_student_series": is_multigrade,
+        }
+
     @router.get("/documents/ficha-individual-manual/preview")
     async def preview_manual_ficha(
         school_id: str,
