@@ -1,6 +1,10 @@
+from pathlib import Path
+
+import pytest
 from fastapi import APIRouter, Request
 from pydantic import ValidationError
 
+from auth_middleware import AuthMiddleware
 from models import Student, StudentUpdate
 from routers.student_legacy_compat import (
     build_compatible_student,
@@ -8,6 +12,15 @@ from routers.student_legacy_compat import (
     is_legacy_compat_validation_error,
     normalize_legacy_student_doc,
 )
+
+
+def _route(router, path, method):
+    return next(
+        route
+        for route in router.routes
+        if getattr(route, "path", None) == path
+        and method in (getattr(route, "methods", set()) or set())
+    )
 
 
 def test_legacy_address_is_reassembled_without_mutating_source():
@@ -176,3 +189,138 @@ def test_installer_wraps_expected_routes_and_is_idempotent():
     assert actual == expected
 
     assert install_student_legacy_compat(router, db=object()) is router
+
+
+@pytest.mark.asyncio
+async def test_get_route_fallback_reloads_and_projects_legacy_document(monkeypatch):
+    legacy_doc = {
+        "id": "student-legacy",
+        "full_name": "Estudante Legado",
+        "address": "VILA TABULEIRO",
+        "city": "FLORESTA DO ARAGUAIA",
+        "state": "PA",
+        "civil_certificate_type": "NASCIMENTO",
+        "comunidade_tradicional": "",
+    }
+
+    class FakeStudents:
+        def __init__(self):
+            self.find_calls = 0
+
+        async def find_one(self, query, projection):
+            self.find_calls += 1
+            assert query == {"id": "student-legacy"}
+            assert projection == {"_id": 0}
+            return dict(legacy_doc)
+
+    class FakeDB:
+        def __init__(self):
+            self.students = FakeStudents()
+
+    async def fake_current_user(request):
+        return {"id": "secretary-1", "role": "secretario", "is_sandbox": False}
+
+    monkeypatch.setattr(AuthMiddleware, "get_current_user", fake_current_user)
+
+    router = APIRouter(prefix="/students")
+
+    @router.get("/{student_id}", response_model=Student)
+    async def get_student(student_id: str, request: Request):
+        assert student_id == "student-legacy"
+        # Reproduz o ponto real do endpoint legado que explode ao serializar.
+        return Student.model_validate(legacy_doc)
+
+    @router.put("/{student_id}", response_model=Student)
+    async def update_student(
+        student_id: str,
+        student_update: StudentUpdate,
+        request: Request,
+    ):  # pragma: no cover
+        raise NotImplementedError
+
+    @router.post("/{student_id}/cancel-transfer")
+    async def cancel_transfer(student_id: str, request: Request):  # pragma: no cover
+        raise NotImplementedError
+
+    db = FakeDB()
+    install_student_legacy_compat(router, db=db)
+
+    result = await _route(
+        router, "/students/{student_id}", "GET"
+    ).endpoint("student-legacy", None)
+
+    assert isinstance(result, Student)
+    assert result.address.street == "VILA TABULEIRO"
+    assert result.address.city == "FLORESTA DO ARAGUAIA"
+    assert result.civil_certificate_type == "nascimento"
+    assert result.comunidade_tradicional is None
+    assert db.students.find_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_nonlegacy_validation_error_is_not_swallowed(monkeypatch):
+    class NeverReadStudents:
+        async def find_one(self, query, projection):  # pragma: no cover
+            raise AssertionError("Fallback não deveria consultar o banco")
+
+    class FakeDB:
+        students = NeverReadStudents()
+
+    async def fake_current_user(request):  # pragma: no cover
+        raise AssertionError("Auth não deve ser reexecutada para erro não legado")
+
+    monkeypatch.setattr(AuthMiddleware, "get_current_user", fake_current_user)
+
+    router = APIRouter(prefix="/students")
+
+    @router.get("/{student_id}", response_model=Student)
+    async def get_student(student_id: str, request: Request):
+        return Student.model_validate({
+            "id": student_id,
+            "full_name": "Erro não legado",
+            "sex": "valor-invalido",
+        })
+
+    @router.put("/{student_id}", response_model=Student)
+    async def update_student(
+        student_id: str,
+        student_update: StudentUpdate,
+        request: Request,
+    ):  # pragma: no cover
+        raise NotImplementedError
+
+    @router.post("/{student_id}/cancel-transfer")
+    async def cancel_transfer(student_id: str, request: Request):  # pragma: no cover
+        raise NotImplementedError
+
+    install_student_legacy_compat(router, db=FakeDB())
+
+    with pytest.raises(ValidationError) as caught:
+        await _route(
+            router, "/students/{student_id}", "GET"
+        ).endpoint("student-invalid", None)
+
+    roots = {str(error["loc"][0]) for error in caught.value.errors()}
+    assert roots == {"sex"}
+
+
+def test_compat_adapter_has_no_mongo_write_primitives():
+    backend = Path(__file__).resolve().parents[1]
+    source = (
+        backend / "routers" / "student_legacy_compat.py"
+    ).read_text(encoding="utf-8")
+
+    for primitive in (
+        ".insert_one(",
+        ".insert_many(",
+        ".update_one(",
+        ".update_many(",
+        ".replace_one(",
+        ".delete_one(",
+        ".delete_many(",
+        ".bulk_write(",
+        ".find_one_and_update(",
+        ".find_one_and_delete(",
+        ".find_one_and_replace(",
+    ):
+        assert primitive not in source
