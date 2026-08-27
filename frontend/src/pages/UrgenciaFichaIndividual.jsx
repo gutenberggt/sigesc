@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { schoolsAPI, classesAPI, studentsAPI } from '@/services/api';
+import { schoolsAPI, classesAPI } from '@/services/api';
 import { browserLocalDateISO } from '@/utils/browserLocalDate';
 import { toast } from 'sonner';
 import { ArrowLeft, FileText, Home, Loader2, ShieldAlert } from 'lucide-react';
@@ -26,11 +26,6 @@ const RESULTADOS = [
   'DESISTENTE',
   'FALECIDO',
 ];
-
-function normalizeList(data) {
-  if (Array.isArray(data)) return data;
-  return data?.students || data?.items || data?.data || [];
-}
 
 function todayIso() {
   return browserLocalDateISO();
@@ -134,34 +129,37 @@ export default function UrgenciaFichaIndividual() {
     if (!isMultiGrade) {
       setStudentSeries(selectedClass?.grade_level || selectedClass?.series_name || '');
     }
-
-    let active = true;
-    setLoadingStudents(true);
-    studentsAPI.getAll({ school_id: schoolId, class_id: classId, page: 1, page_size: 500 })
-      .then((data) => {
-        if (!active) return;
-        const list = normalizeList(data).filter((s) => !s.class_id || s.class_id === classId);
-        setStudents(list);
-      })
-      .catch(() => toast.error('Não foi possível carregar os estudantes da turma.'))
-      .finally(() => active && setLoadingStudents(false));
-
-    return () => { active = false; };
   }, [classId, schoolId, isMultiGrade, selectedClass]);
 
   useEffect(() => {
     setStudentId('');
+    setStudents([]);
     setPreview(null);
     setManualGrades({});
-  }, [studentSeries]);
 
-  const visibleStudents = useMemo(() => {
-    if (!isMultiGrade || !studentSeries) return students;
-    return students.filter((student) => {
-      const series = student.student_series || student.grade_level || student.series;
-      return !series || series === studentSeries;
-    });
-  }, [students, isMultiGrade, studentSeries]);
+    if (!classId || !schoolId || (isMultiGrade && !studentSeries)) return;
+
+    let active = true;
+    setLoadingStudents(true);
+    axios.get(`${API}/documents/ficha-individual-manual/students`, {
+      params: {
+        school_id: schoolId,
+        class_id: classId,
+        student_series: isMultiGrade ? studentSeries : undefined,
+      },
+    })
+      .then((response) => {
+        if (active) setStudents(response.data?.items || []);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setStudents([]);
+        toast.error(error.response?.data?.detail || 'Não foi possível carregar os estudantes da turma.');
+      })
+      .finally(() => active && setLoadingStudents(false));
+
+    return () => { active = false; };
+  }, [classId, schoolId, isMultiGrade, studentSeries]);
 
   useEffect(() => {
     if (!studentId || !classId || !schoolId || (isMultiGrade && !studentSeries)) {
@@ -353,7 +351,7 @@ export default function UrgenciaFichaIndividual() {
               <Field label="Estudante *">
                 <select className="w-full h-10 rounded-md border border-gray-300 px-3 bg-white" value={studentId} onChange={(e) => setStudentId(e.target.value)} disabled={!classId || (isMultiGrade && !studentSeries) || loadingStudents} data-testid="urgencia-student">
                   <option value="">Selecione...</option>
-                  {visibleStudents.map((student) => <option key={student.id} value={student.id}>{student.full_name}</option>)}
+                  {students.map((student) => <option key={student.id} value={student.id}>{student.full_name}</option>)}
                 </select>
               </Field>
 
