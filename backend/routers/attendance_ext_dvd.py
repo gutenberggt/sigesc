@@ -117,7 +117,7 @@ def _parse_date(value):
 def _normalize_social_attendance_docs(attendances: list[dict], student_id: str) -> list[dict]:
     """Normaliza legado multi-aula para a engine diária já usada pelo BF.
 
-    Um status `P|F|P` representa três registros do mesmo aluno/dia. A expansão
+    Um status `P|F|P` representa três registros do mesmo Estudante/dia. A expansão
     permite que `compute_monthly_valid_absences` aplique a mesma regra de 50%
     usada para frequência por componente, sem inventar uma segunda fórmula.
     """
