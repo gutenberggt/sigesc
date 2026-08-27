@@ -1,0 +1,52 @@
+name: Students - Legacy Compatibility P0
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/routers/student_legacy_compat.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/models.py'
+      - 'backend/tests/test_student_legacy_compat.py'
+      - '.github/workflows/student-legacy-compat-p0.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/routers/student_legacy_compat.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/models.py'
+      - 'backend/tests/test_student_legacy_compat.py'
+      - '.github/workflows/student-legacy-compat-p0.yml'
+
+jobs:
+  student-legacy-compat-p0:
+    name: Backend - Compatibilidade legado de estudantes
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      JWT_SECRET_KEY: ci-only-student-legacy-compat-secret-key
+      COOKIE_SECURE: 'false'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install isolated test dependencies
+        run: pip install pytest pytest-asyncio fastapi 'python-jose[cryptography]' bcrypt python-dotenv motor pymongo email-validator
+
+      - name: Compile compatibility runtime
+        run: python -m py_compile routers/student_legacy_compat.py routers/__init__.py tests/test_student_legacy_compat.py
+
+      - name: Run legacy compatibility guards
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py
