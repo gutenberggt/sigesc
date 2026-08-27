@@ -23,6 +23,9 @@ jobs:
   social-frequency-contract:
     name: GATE - Contrato P0 Assistência Social
     runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: sigesc_contract_unused
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,7 +36,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install contract dependencies
-        run: python -m pip install pytest pymongo
+        run: python -m pip install pytest pymongo python-dotenv
 
       - name: Run architecture contract
         working-directory: backend
