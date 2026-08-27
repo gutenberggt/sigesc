@@ -5,6 +5,7 @@ import { Layout } from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { schoolsAPI, classesAPI, studentsAPI } from '@/services/api';
+import { browserLocalDateISO } from '@/utils/browserLocalDate';
 import { toast } from 'sonner';
 import { ArrowLeft, FileText, Home, Loader2, ShieldAlert } from 'lucide-react';
 
@@ -32,7 +33,7 @@ function normalizeList(data) {
 }
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return browserLocalDateISO();
 }
 
 function emptyGrade(courseId) {
