@@ -30,7 +30,7 @@ O sistema possui, entre outros, os seguintes domínios funcionais:
 
 - escolas e mantenedoras;
 - turmas e séries;
-- alunos e matrículas;
+- estudantes e matrículas;
 - professores/staff e alocações;
 - currículo e componentes;
 - frequência e diário de classe;
@@ -152,7 +152,7 @@ Nunca promover para GitHub:
 - chaves privadas;
 - `.env` de produção;
 - dumps de banco contendo dados pessoais;
-- arquivos de alunos/professores não anonimizados;
+- arquivos de estudantes/professores não anonimizados;
 - credenciais SSH.
 
 Logs e evidências persistidos devem ser sanitizados.
