@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: P1 - autorização da escola de destino para estudante transferido
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_transfer_destination_access.py
+
       - name: Wait for MongoDB
         run: |
           for i in $(seq 1 30); do
