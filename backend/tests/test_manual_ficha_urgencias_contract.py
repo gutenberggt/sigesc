@@ -6,6 +6,7 @@ Não importa FastAPI/ReportLab/Mongo. O objetivo é impedir regressões arquitet
 - o gerador oficial deve ser reutilizado por overrides explícitos;
 - FunctionType, __globals__ e monkeypatch do gerador oficial são proibidos;
 - todas as leituras acadêmicas sensíveis devem respeitar o escopo multi-tenant;
+- a seleção de estudantes deve usar enrollments como vínculo canônico;
 - o router deve ser registrado explicitamente em server.py;
 - frontend, Dashboard e aviso de não-mutação devem permanecer presentes.
 """
@@ -148,10 +149,35 @@ def test_manual_router_enforces_tenant_scope_on_primary_entities():
     assert "apply_tenant_filter(" in source
 
 
+def test_student_selection_uses_canonical_enrollments_not_student_projection():
+    router = _source(BACKEND_ROUTER)
+    form = _source(FORM)
+
+    assert '@router.get("/documents/ficha-individual-manual/students")' in router
+    students_route = router.split(
+        '@router.get("/documents/ficha-individual-manual/students")', 1
+    )[1].split('@router.get("/documents/ficha-individual-manual/preview")', 1)[0]
+
+    assert "active_db.enrollments.find(" in students_route
+    assert '"school_id": school_id,' in students_route
+    assert '"class_id": class_id,' in students_route
+    assert '"academic_year": {"$in": [academic_year, str(academic_year)]},' in students_route
+    assert '"status": {"$in": ["active", "relocated", "transferred"]},' in students_route
+    assert 'enrollment.get("student_series")' in students_route
+    assert 'apply_tenant_filter({"id": {"$in": student_ids}}, user, request)' in students_route
+
+    # A UI não pode voltar a selecionar vínculo pela projeção students.class_id.
+    assert "studentsAPI.getAll" not in form
+    assert "/documents/ficha-individual-manual/students" in form
+    assert ".filter((s) => !s.class_id || s.class_id === classId)" not in form
+    assert "student.student_series || student.grade_level || student.series" not in form
+
+
 def test_manual_routes_are_registered_explicitly_in_server():
     router_source = _source(BACKEND_ROUTER)
     server_source = _source(SERVER)
 
+    assert '@router.get("/documents/ficha-individual-manual/students")' in router_source
     assert '@router.get("/documents/ficha-individual-manual/preview")' in router_source
     assert '@router.post("/documents/ficha-individual-manual")' in router_source
     assert "manual_ficha_individual as manual_ficha_individual_mod" in server_source
