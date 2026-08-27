@@ -1,8 +1,8 @@
 """P1 — autorização correta para rematrícula de estudante transferido.
 
 Contrato institucional:
-- aluno ATIVO continua restrito à escola vinculada ao secretário;
-- aluno TRANSFERIDO pode ser consultado por secretário de outra escola da MESMA
+- estudante ATIVO continua restrito à escola vinculada ao secretário;
+- estudante TRANSFERIDO pode ser consultado por secretário de outra escola da MESMA
   mantenedora para viabilizar a matrícula de entrada;
 - consultar um transferido não concede permissão sobre a escola de origem;
 - qualquer mudança de escola ou reativação feita por secretário exige que a
@@ -11,7 +11,7 @@ Contrato institucional:
   preservar histórico e aplicar as demais regras de domínio.
 
 A camada é deliberadamente pequena e fail-closed. Ela não grava diretamente no
-MongoDB e não altera lotações, JWTs ou regras de alunos ativos.
+MongoDB e não altera lotações, JWTs ou regras de estudantes ativos.
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ async def _assert_secretary_destination_access(
     student_doc: dict,
     student_update: StudentUpdate,
 ) -> None:
-    """Protege a escola FINAL quando o secretário movimenta/reactiva o aluno."""
+    """Protege a escola FINAL quando o secretário movimenta/reactiva o estudante."""
     if current_user.get("role") != "secretario":
         return
 
@@ -91,7 +91,7 @@ async def _assert_secretary_destination_access(
     school_is_changing = "school_id" in payload and target_school_id != old_school_id
     becoming_active = "status" in payload and _norm(payload.get("status")) in ACTIVE_STATUSES
 
-    # Edição meramente cadastral de aluno não ativo continua possível sem exigir
+    # Edição meramente cadastral de estudante não ativo continua possível sem exigir
     # vínculo com a escola histórica. A autorização de destino só entra quando a
     # operação efetivamente muda escola ou reativa o estudante.
     if not school_is_changing and not becoming_active:
@@ -143,7 +143,7 @@ def install_student_transfer_destination_access(
             return await current_get(student_id, request)
 
         if _norm(student_doc.get("status")) not in TRANSFERRED_STATUSES:
-            # Aluno ativo (ou qualquer outro status) continua sujeito ao vínculo
+            # Estudante ativo (ou qualquer outro status) continua sujeito ao vínculo
             # com sua escola atual, exatamente como antes.
             return await current_get(student_id, request)
 
