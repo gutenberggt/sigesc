@@ -24,6 +24,7 @@ REGRAS CRÍTICAS:
   - Determinístico (mesmo input → mesma saída).
   - Não esconde inconsistência: warnings sempre emitidos.
   - PDF + Boletim Online + render_jobs DEVEM consumir esta mesma resolução.
+  - Quando a turma possui `mantenedora_id`, TODA leitura interna fica presa ao tenant.
 """
 from __future__ import annotations
 
@@ -47,6 +48,19 @@ def _norm_name(name: str) -> str:
         if not unicodedata.combining(c)
     )
     return " ".join(s.casefold().strip().split())
+
+
+def _tenant_query(query: dict, tenant_id: Optional[str]) -> dict:
+    """Aplica isolamento de mantenedora sem acoplar o resolver ao FastAPI.
+
+    O resolver é compartilhado por vários consumidores. O tenant é derivado da
+    própria turma já carregada/validada; quando ausente (dados/consumidores
+    legados), o comportamento histórico é preservado.
+    """
+    scoped = dict(query)
+    if tenant_id:
+        scoped["mantenedora_id"] = tenant_id
+    return scoped
 
 
 def _infer_nivel_ensino(grade_level: str) -> Optional[str]:
@@ -89,7 +103,6 @@ def _apply_atendimento_filter(
         return components
     ap = atendimento_filter.lower().strip()
     if ap in ("atendimento_integral", "integral"):
-        # Turma integral: manter regulares + integrais, excluir AEE
         return [
             c for c in components
             if (c.get("atendimento_programa") or "") in ("", "regular", "atendimento_integral")
@@ -99,7 +112,6 @@ def _apply_atendimento_filter(
             c for c in components
             if (c.get("atendimento_programa") or "").lower() == "aee"
         ]
-    # Turma regular: excluir integral e AEE
     return [
         c for c in components
         if (c.get("atendimento_programa") or "") in ("", "regular")
@@ -107,18 +119,26 @@ def _apply_atendimento_filter(
 
 
 async def _collect_evidence(
-    db, *, student_id: str, class_id: str, academic_year: int
+    db,
+    *,
+    student_id: str,
+    class_id: str,
+    academic_year: int,
+    tenant_id: Optional[str] = None,
 ) -> dict[str, dict]:
     """Coleta evidência acadêmica REAL do aluno: grades + attendance."""
     evidence: dict[str, dict] = defaultdict(
         lambda: {"grades_count": 0, "attendance_count": 0}
     )
     async for g in db.grades.find(
-        {
-            "student_id": student_id,
-            "class_id": class_id,
-            "academic_year": academic_year,
-        },
+        _tenant_query(
+            {
+                "student_id": student_id,
+                "class_id": class_id,
+                "academic_year": academic_year,
+            },
+            tenant_id,
+        ),
         {"_id": 0, "course_id": 1},
     ):
         cid = g.get("course_id")
@@ -126,7 +146,7 @@ async def _collect_evidence(
             evidence[cid]["grades_count"] += 1
 
     async for att in db.attendance.find(
-        {"class_id": class_id},
+        _tenant_query({"class_id": class_id}, tenant_id),
         {"_id": 0, "course_id": 1, "records": 1},
     ):
         cid = att.get("course_id")
@@ -138,11 +158,16 @@ async def _collect_evidence(
     return dict(evidence)
 
 
-async def _collect_teacher_assignment_course_ids(db, class_id: str) -> list[str]:
+async def _collect_teacher_assignment_course_ids(
+    db, class_id: str, *, tenant_id: Optional[str] = None
+) -> list[str]:
     out: list[str] = []
     seen = set()
     async for a in db.teacher_assignments.find(
-        {"class_id": class_id, "status": {"$in": ["active", "Ativo", "ativo"]}},
+        _tenant_query(
+            {"class_id": class_id, "status": {"$in": ["active", "Ativo", "ativo"]}},
+            tenant_id,
+        ),
         {"_id": 0, "course_id": 1},
     ):
         cid = a.get("course_id")
@@ -153,12 +178,12 @@ async def _collect_teacher_assignment_course_ids(db, class_id: str) -> list[str]
 
 
 async def _collect_fallback_course_ids(
-    db, *, nivel_ensino: str
+    db, *, nivel_ensino: str, tenant_id: Optional[str] = None
 ) -> list[str]:
     out: list[str] = []
     seen = set()
     async for c in db.courses.find(
-        {"nivel_ensino": nivel_ensino},
+        _tenant_query({"nivel_ensino": nivel_ensino}, tenant_id),
         {"_id": 0, "id": 1},
     ):
         cid = c.get("id")
@@ -168,12 +193,14 @@ async def _collect_fallback_course_ids(
     return out
 
 
-async def _load_courses(db, ids: list[str]) -> dict[str, dict]:
+async def _load_courses(
+    db, ids: list[str], *, tenant_id: Optional[str] = None
+) -> dict[str, dict]:
     if not ids:
         return {}
     out: dict[str, dict] = {}
     async for c in db.courses.find(
-        {"id": {"$in": ids}},
+        _tenant_query({"id": {"$in": ids}}, tenant_id),
         {
             "_id": 0, "id": 1, "name": 1, "active": 1,
             "atendimento_programa": 1, "optativo": 1,
@@ -199,13 +226,11 @@ def _pick_winner(group: list[dict]) -> tuple[dict, str]:
             reason = reason or "active_tiebreak"
 
     if len(top) > 1:
-        # created_at desc — vazio fica por último
         top.sort(key=lambda c: (c.get("created_at") or ""), reverse=True)
         if (top[0].get("created_at") or "") != (top[-1].get("created_at") or ""):
             reason = reason or "recency_tiebreak"
 
     if len(top) > 1:
-        # Estável por course_id
         top.sort(key=lambda c: c["course_id"])
         reason = reason or "course_id_tiebreak"
 
@@ -226,25 +251,13 @@ async def resolve_curriculum(
 ) -> dict:
     """Resolve componentes curriculares de um aluno em uma turma.
 
-    Retorna:
-        {
-          "components": [
-            {course_id, course_name, active, atendimento_programa, optativo,
-             nivel_ensino, source ('evidence'|'class'|'teacher_assignment'|'fallback'),
-             evidence_score, grades_count, attendance_count, dedupe_kept_reason}
-          ],
-          "warnings": [{code, ...}],
-          "debug": {
-            evidence_course_ids, class_course_ids, teacher_assignment_course_ids,
-            fallback_course_ids, dropped_by_dedupe, duplicate_names_detected,
-            resolution_path, final_resolution
-          }
-        }
+    Quando `class_info` contém `mantenedora_id`, o escopo é propagado para
+    grades, attendance, teacher_assignments e courses. O contrato público
+    continua intacto para consumidores legados.
     """
     warnings: list[dict] = []
     resolution_path: list[dict] = []
 
-    # Carrega class_info / student_info se não fornecidos
     if class_info is None:
         class_info = await db.classes.find_one(
             {"id": class_id},
@@ -252,17 +265,24 @@ async def resolve_curriculum(
                 "_id": 0, "id": 1, "name": 1, "course_ids": 1,
                 "nivel_ensino": 1, "education_level": 1, "grade_level": 1,
                 "atendimento_programa": 1, "school_id": 1, "academic_year": 1,
+                "mantenedora_id": 1,
             },
         ) or {}
+
+    tenant_id = class_info.get("mantenedora_id")
+
     if student_info is None:
         student_info = await db.students.find_one(
-            {"id": student_id},
+            _tenant_query({"id": student_id}, tenant_id),
             {"_id": 0, "id": 1, "student_series": 1, "class_id": 1},
         ) or {}
 
-    # STEP 1 — Evidence
     evidence_map = await _collect_evidence(
-        db, student_id=student_id, class_id=class_id, academic_year=academic_year
+        db,
+        student_id=student_id,
+        class_id=class_id,
+        academic_year=academic_year,
+        tenant_id=tenant_id,
     )
     evidence_course_ids = list(evidence_map.keys())
     resolution_path.append({
@@ -271,7 +291,6 @@ async def resolve_curriculum(
         "course_ids": evidence_course_ids,
     })
 
-    # STEP 2 — class.course_ids
     class_course_ids = list(class_info.get("course_ids") or [])
     resolution_path.append({
         "step": "class_course_ids",
@@ -288,15 +307,15 @@ async def resolve_curriculum(
             ),
         })
 
-    # STEP 3 — teacher_assignments
-    ta_course_ids = await _collect_teacher_assignment_course_ids(db, class_id)
+    ta_course_ids = await _collect_teacher_assignment_course_ids(
+        db, class_id, tenant_id=tenant_id
+    )
     resolution_path.append({
         "step": "teacher_assignments",
         "found": len(ta_course_ids),
         "course_ids": ta_course_ids,
     })
 
-    # STEP 4 — Fallback por nivel_ensino (somente se sem evidência E sem matriz)
     no_evidence = len(evidence_course_ids) == 0
     no_matrix = len(class_course_ids) == 0 and len(ta_course_ids) == 0
     fallback_course_ids: list[str] = []
@@ -311,7 +330,7 @@ async def resolve_curriculum(
             nivel = _infer_nivel_ensino(grade_level)
         if nivel:
             fallback_course_ids = await _collect_fallback_course_ids(
-                db, nivel_ensino=nivel
+                db, nivel_ensino=nivel, tenant_id=tenant_id
             )
         resolution_path.append({
             "step": "nivel_ensino_fallback",
@@ -328,7 +347,6 @@ async def resolve_curriculum(
             ),
         })
 
-    # Une candidatos com prioridade de source
     candidates: dict[str, dict] = {}
     for cid in evidence_course_ids:
         candidates[cid] = {"course_id": cid, "source": "evidence"}
@@ -342,8 +360,9 @@ async def resolve_curriculum(
         if cid not in candidates:
             candidates[cid] = {"course_id": cid, "source": "fallback"}
 
-    # Hidrata com courses
-    courses_map = await _load_courses(db, list(candidates.keys()))
+    courses_map = await _load_courses(
+        db, list(candidates.keys()), tenant_id=tenant_id
+    )
 
     components: list[dict] = []
     for cid, cand in candidates.items():
@@ -364,10 +383,8 @@ async def resolve_curriculum(
             "dedupe_kept_reason": None,
         })
 
-    # Filtro por atendimento_programa (replica regra do PDF)
     components = _apply_atendimento_filter(components, atendimento_programa_filter)
 
-    # STEP 5 — Dedupe final por nome normalizado
     by_norm: dict[str, list[dict]] = defaultdict(list)
     for c in components:
         n = _norm_name(c.get("course_name") or "")
@@ -427,7 +444,6 @@ async def resolve_curriculum(
             winner["course_id"], reason,
         )
 
-    # Ordenação final estável (por nome normalizado)
     final_components.sort(
         key=lambda c: _norm_name(c.get("course_name") or "")
     )
@@ -436,6 +452,7 @@ async def resolve_curriculum(
         "components": final_components,
         "warnings": warnings,
         "debug": {
+            "tenant_id": tenant_id,
             "evidence_course_ids": evidence_course_ids,
             "class_course_ids": class_course_ids,
             "teacher_assignment_course_ids": ta_course_ids,

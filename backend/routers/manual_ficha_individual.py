@@ -295,7 +295,6 @@ async def _load_context(
         db, user, request, fallback_to_first=True
     ) or {}
 
-    # Replica a resolução do nome de escola anexa usada no documento oficial.
     school = dict(school)
     anexa_a = school.get("anexa_a")
     if school.get("tipo_unidade") == "anexa" and anexa_a:
@@ -432,16 +431,21 @@ async def _build_attendance_data(
         assert_same_tenant(record, user, request)
 
     dates = {(doc.get("date") or "")[:10] for doc in records if doc.get("date")}
-    # Atestados legados podem não possuir mantenedora_id. O student_id já foi
-    # validado no tenant e limita esta leitura ao estudante autorizado.
+    # Fail-closed: somente atestados do mesmo tenant do usuário/escopo ativo.
     certs = await db.medical_certificates.find(
-        {
-            "student_id": student_id,
-            "start_date": {"$lte": f"{academic_year}-12-31"},
-            "end_date": {"$gte": f"{academic_year}-01-01"},
-        },
-        {"_id": 0, "start_date": 1, "end_date": 1},
+        apply_tenant_filter(
+            {
+                "student_id": student_id,
+                "start_date": {"$lte": f"{academic_year}-12-31"},
+                "end_date": {"$gte": f"{academic_year}-01-01"},
+            },
+            user,
+            request,
+        ),
+        {"_id": 0, "start_date": 1, "end_date": 1, "mantenedora_id": 1},
     ).to_list(None)
+    for cert in certs:
+        assert_same_tenant(cert, user, request)
     medical_days = fetch_medical_days_for_student(certs, dates) if dates else set()
 
     faltas_regular = 0
@@ -843,7 +847,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 or ctx["school"].get("mantenedora_id")
             ),
         }
-        # Única escrita do fluxo: trilha documental independente.
         await active_db.manual_document_issuances.insert_one(issuance)
 
         filename_base = (
