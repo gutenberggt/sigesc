@@ -175,13 +175,26 @@ def _seed(db) -> None:
         # student_id. Sem apply_tenant_filter ele faria 26/08 virar falta.
         _attendance_doc(f"{PREFIX}att-b-cross", TENANT_B, "2026-08-26", "F", "course-x"),
     ])
-    db.medical_certificates.insert_one({
-        "id": f"{PREFIX}medical-a",
-        "student_id": STUDENT_A,
-        "start_date": "2026-08-25",
-        "end_date": "2026-08-25",
-        "reason": "Atestado CI",
-    })
+    db.medical_certificates.insert_many([
+        {
+            "id": f"{PREFIX}medical-a",
+            "mantenedora_id": TENANT_A,
+            "student_id": STUDENT_A,
+            "start_date": "2026-08-25",
+            "end_date": "2026-08-25",
+            "reason": "Atestado CI",
+        },
+        {
+            # Atestado de outro tenant com o mesmo student_id. Se a consulta
+            # ficar desescopada, 27/08 deixa de ser falta e a frequência sobe.
+            "id": f"{PREFIX}medical-b-cross",
+            "mantenedora_id": TENANT_B,
+            "student_id": STUDENT_A,
+            "start_date": "2026-08-27",
+            "end_date": "2026-08-27",
+            "reason": "Atestado cross-tenant que deve ser ignorado",
+        },
+    ])
 
 
 @pytest.fixture(scope="module")
