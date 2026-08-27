@@ -145,7 +145,7 @@ def _concept_options(nivel_ensino: str, grade_level: str) -> list[dict[str, str]
 def _is_conceptual(nivel_ensino: str, grade_level: str) -> bool:
     return (
         nivel_ensino == "educacao_infantil"
-        or is_serie_conceitual_anos_inICIAIS(grade_level)
+        or is_serie_conceitual_anos_iniciais(grade_level)
     )
 
 
