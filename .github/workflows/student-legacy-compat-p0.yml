@@ -48,5 +48,20 @@ jobs:
       - name: Compile compatibility runtime
         run: python -m py_compile routers/student_legacy_compat.py routers/__init__.py tests/test_student_legacy_compat.py
 
-      - name: Run legacy compatibility guards
-        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py
+      - name: Guard - reconstrução do endereço legado
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_legacy_address_is_reassembled_without_mutating_source
+
+      - name: Guard - endereço legado vazio
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_blank_legacy_address_preserves_flat_city_and_state
+
+      - name: Guard - endereço estruturado intacto
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_structured_address_is_not_reinterpreted
+
+      - name: Guard - fallback somente para legado auditado
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_only_audited_legacy_validation_errors_are_eligible_for_fallback
+
+      - name: Guard - literal desconhecido fail-closed
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_unsupported_literal_is_not_silently_reinterpreted
+
+      - name: Guard - instalação das rotas
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_installer_wraps_expected_routes_and_is_idempotent
