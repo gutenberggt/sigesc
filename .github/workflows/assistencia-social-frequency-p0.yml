@@ -1,0 +1,128 @@
+name: Gate - P0 Frequência Assistência Social
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/routers/attendance_ext_dvd.py'
+      - 'backend/tests/test_assistencia_social_frequency_p0_contract.py'
+      - 'backend/tests/test_assistencia_social_frequency_p0_http.py'
+      - 'frontend/src/pages/AssocialDashboard.js'
+      - '.github/workflows/assistencia-social-frequency-p0.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/routers/attendance_ext_dvd.py'
+      - 'backend/tests/test_assistencia_social_frequency_p0_contract.py'
+      - 'backend/tests/test_assistencia_social_frequency_p0_http.py'
+      - 'frontend/src/pages/AssocialDashboard.js'
+      - '.github/workflows/assistencia-social-frequency-p0.yml'
+  workflow_dispatch:
+
+jobs:
+  social-frequency-contract:
+    name: GATE - Contrato P0 Assistência Social
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: sigesc_contract_unused
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install contract dependencies
+        run: python -m pip install pytest pymongo python-dotenv
+
+      - name: Run architecture contract
+        working-directory: backend
+        run: python -m pytest -q tests/test_assistencia_social_frequency_p0_contract.py
+
+  social-frequency-http:
+    name: GATE - HTTP P0 Assistência Social
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: sigesc_ci
+      JWT_SECRET_KEY: ci-social-frequency-secret-not-for-prod
+      CORS_ORIGINS: http://localhost:8001
+      REACT_APP_BACKEND_URL: http://localhost:8001
+      DISABLE_RENDER_WORKER: "true"
+      CI: "true"
+      CI_ADMIN_EMAIL: ci-admin@sigesc.aprenderdigital.top
+      CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD || 'CiRegress!2026' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+
+      - name: Wait for MongoDB
+        run: |
+          for i in $(seq 1 30); do
+            if python -c "from pymongo import MongoClient; MongoClient('$MONGO_URL', serverSelectionTimeoutMS=1000).admin.command('ping')" 2>/dev/null; then
+              echo "MongoDB pronto"; exit 0
+            fi
+            sleep 1
+          done
+          echo "MongoDB não respondeu"; exit 1
+
+      - name: Bootstrap super_admin de CI
+        run: python scripts/ci_bootstrap_admin.py
+
+      - name: Start backend
+        run: |
+          nohup uvicorn server:app --host 0.0.0.0 --port 8001 > /tmp/backend-social-p0.log 2>&1 &
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/api/ || true)
+            if [ "$code" = "200" ]; then echo "Backend pronto"; exit 0; fi
+            sleep 1
+          done
+          echo "Backend não subiu. Logs:"; tail -n 160 /tmp/backend-social-p0.log; exit 1
+
+      - name: Run HTTP homologation
+        run: |
+          set -o pipefail
+          python -m pytest -vv --tb=long -s \
+            tests/test_assistencia_social_frequency_p0_http.py \
+            2>&1 | tee /tmp/social-p0-e2e.log
+
+      - name: Gate summary
+        if: success()
+        run: |
+          echo "PASS: frequência da Assistência Social validada em backend real + Mongo efêmero."
+          echo "Cobertura: ass_social, ass_social_2, professor negado, cross-tenant, super_admin escopado, calendário legado, atestado, consolidação diária e não-mutação."
+          echo "Este gate não faz merge nem deploy."
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assistencia-social-frequency-p0-diagnostics
+          path: |
+            /tmp/social-p0-e2e.log
+            /tmp/backend-social-p0.log
+          if-no-files-found: ignore
+
+      - name: Backend logs on failure
+        if: failure()
+        run: tail -n 200 /tmp/backend-social-p0.log || true

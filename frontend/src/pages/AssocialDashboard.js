@@ -14,6 +14,7 @@ export default function AssocialDashboard() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentDetails, setStudentDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [frequencyError, setFrequencyError] = useState(null);
 
   // [Fev/2026] Busca server-side via hook reutilizável.
   // Ver /app/docs/SEARCH_ARCHITECTURE.md
@@ -31,14 +32,32 @@ export default function AssocialDashboard() {
     setSelectedStudent(student);
     setSearchTerm('');
     setLoadingDetails(true);
+    setFrequencyError(null);
     
     try {
       const currentYear = new Date().getFullYear();
-      // Buscar dados completos do aluno e frequência em paralelo
-      const [fullStudent, frequencyData] = await Promise.all([
+      // P0 27/08/2026: cadastro e frequência são independentes. Uma falha
+      // transitória/403/500 em uma chamada nunca mais pode ser traduzida como
+      // "Sem registro de frequência" quando a outra chamada foi válida.
+      const [studentResult, frequencyResult] = await Promise.allSettled([
         studentsAPI.getById(student.id),
         attendanceAPI.getStudentFrequency(student.id, currentYear)
       ]);
+
+      const fullStudent = studentResult.status === 'fulfilled'
+        ? studentResult.value
+        : student;
+      const frequencyData = frequencyResult.status === 'fulfilled'
+        ? frequencyResult.value
+        : null;
+
+      if (studentResult.status === 'rejected') {
+        console.error('Erro ao carregar cadastro completo do Estudante:', studentResult.reason);
+      }
+      if (frequencyResult.status === 'rejected') {
+        console.error('Erro ao consultar frequência do Estudante:', frequencyResult.reason);
+        setFrequencyError('Não foi possível consultar a frequência neste momento. Tente novamente.');
+      }
       
       setStudentDetails({
         ...fullStudent,
@@ -48,7 +67,8 @@ export default function AssocialDashboard() {
         formula: frequencyData?.formula || null
       });
     } catch (error) {
-      console.error('Erro ao carregar detalhes:', error);
+      console.error('Erro inesperado ao carregar detalhes:', error);
+      setFrequencyError('Não foi possível consultar a frequência neste momento. Tente novamente.');
       setStudentDetails({
         ...student,
         school_name: student.school_name || 'Nao matriculado',
@@ -68,6 +88,7 @@ export default function AssocialDashboard() {
   const clearSelection = () => {
     setSelectedStudent(null);
     setStudentDetails(null);
+    setFrequencyError(null);
   };
 
   const formatDate = (dateStr) => {
@@ -350,6 +371,10 @@ export default function AssocialDashboard() {
                                     <span className="text-red-600">{studentDetails.attendance.absences || 0} faltas</span>
                                   </div>
                                 </div>
+                              ) : frequencyError ? (
+                                <p className="text-red-600" data-testid="student-attendance-error">
+                                  {frequencyError}
+                                </p>
                               ) : (
                                 <p className="text-gray-500">Sem registro de frequência</p>
                               )}
