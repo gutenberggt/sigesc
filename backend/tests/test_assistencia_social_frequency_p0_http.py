@@ -139,17 +139,17 @@ def _seed(db) -> None:
         "status": "active",
     })
 
-    # Período deliberadamente curto para tornar o denominador determinístico
-    # em 27/08/2026. O feriado de 25/08 não possui end_date, reproduzindo o
-    # formato legado que derrubava a implementação antiga.
+    # Período fechado em 27/08/2026: o denominador permanece determinístico
+    # em qualquer rerun futuro. O feriado de 25/08 não possui end_date,
+    # reproduzindo o formato legado que derrubava a implementação antiga.
     db.calendario_letivo.insert_one({
         "id": f"{PREFIX}calendar-a",
         "mantenedora_id": TENANT_A,
         "ano_letivo": YEAR,
         "school_id": None,
         "bimestre_1_inicio": "2026-08-24",
-        "bimestre_1_fim": "2026-08-28",
-        "bimestre_4_fim": "2026-08-28",
+        "bimestre_1_fim": "2026-08-27",
+        "bimestre_4_fim": "2026-08-27",
     })
     db.calendar_events.insert_one({
         "id": f"{PREFIX}holiday-a",
