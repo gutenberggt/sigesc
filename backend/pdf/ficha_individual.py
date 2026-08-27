@@ -17,6 +17,21 @@ from pdf.utils import (
 )
 from utils.client_time import local_now, local_today
 
+_CONTINGENCY_RESULT_COLORS = {
+    'CURSANDO': '#2563eb',
+    'EM ANDAMENTO': '#2563eb',
+    'PROMOVIDO(A)': '#16a34a',
+    'CONCLUIU A ETAPA': '#16a34a',
+    'APROVADO': '#16a34a',
+    'APROVADO COM DEPENDÊNCIA': '#ca8a04',
+    'EM DEPENDÊNCIA': '#7c3aed',
+    'REPROVADO': '#dc2626',
+    'REPROVADO POR FREQUÊNCIA': '#991b1b',
+    'TRANSFERIDO': '#2563eb',
+    'DESISTENTE': '#6b7280',
+    'FALECIDO': '#6b7280',
+}
+
 def generate_ficha_individual_pdf(
     student: Dict[str, Any],
     school: Dict[str, Any],
@@ -27,7 +42,9 @@ def generate_ficha_individual_pdf(
     courses: List[Dict[str, Any]] = None,
     attendance_data: Dict[str, Any] = None,
     mantenedora: Dict[str, Any] = None,
-    calendario_letivo: Dict[str, Any] = None
+    calendario_letivo: Dict[str, Any] = None,
+    resultado_override: str | None = None,
+    data_emissao_override: date | None = None,
 ) -> BytesIO:
     """
     Gera a Ficha Individual do Aluno em PDF - Modelo Floresta do Araguaia.
@@ -43,6 +60,8 @@ def generate_ficha_individual_pdf(
         attendance_data: Dados de frequência por componente
         mantenedora: Dados da mantenedora (logotipo, cidade, estado)
         calendario_letivo: Dados do calendário letivo (para data fim do 4º bimestre)
+        resultado_override: Resultado manual apenas para emissão de contingência
+        data_emissao_override: Data manual apenas para emissão de contingência
     
     Returns:
         BytesIO com o PDF gerado
@@ -794,8 +813,15 @@ def generate_ficha_individual_pdf(
         frequencia_aluno=frequencia_anual
     )
     
-    resultado = resultado_calc['resultado']
-    resultado_color = colors.HexColor(resultado_calc['cor'])
+    if resultado_override is None:
+        resultado = resultado_calc['resultado']
+        resultado_color = colors.HexColor(resultado_calc['cor'])
+    else:
+        resultado = str(resultado_override).strip().upper()
+        override_color = _CONTINGENCY_RESULT_COLORS.get(resultado)
+        if override_color is None:
+            raise ValueError(f"Resultado de contingência inválido: {resultado}")
+        resultado_color = colors.HexColor(override_color)
     
     # ===== LINHA COM OBSERVAÇÃO E RESULTADO =====
     obs_style = ParagraphStyle('ObsStyle', fontSize=7, fontName='Helvetica-Oblique')
@@ -823,7 +849,7 @@ def generate_ficha_individual_pdf(
     
     # ===== RODAPÉ =====
     # Data e local - usar município da mantenedora
-    today = format_date_pt(local_today())
+    today = format_date_pt(data_emissao_override or local_today())
     city = mant_municipio  # Usar município da mantenedora
     state = mant_estado  # Usar estado da mantenedora
     
@@ -856,4 +882,3 @@ def generate_ficha_individual_pdf(
     doc.build(elements)
     buffer.seek(0)
     return buffer
-

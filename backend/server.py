@@ -84,6 +84,7 @@ from routers import (
     class_details as class_details_mod,
     debug as debug_mod,
     documents as documents_mod,
+    manual_ficha_individual as manual_ficha_individual_mod,
     learning_objects as learning_objects_mod,
     maintenance as maintenance_mod,
     mantenedora as mantenedora_mod,
@@ -469,6 +470,7 @@ calendar_ext_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 class_details_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 debug_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 documents_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+manual_ficha_individual_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 learning_objects_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 maintenance_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 mantenedora_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
@@ -558,6 +560,7 @@ app.include_router(calendar_ext_mod.router, prefix="/api")
 app.include_router(class_details_mod.router, prefix="/api")
 app.include_router(debug_mod.router, prefix="/api")
 app.include_router(documents_mod.router, prefix="/api")
+app.include_router(manual_ficha_individual_mod.router, prefix="/api")
 app.include_router(learning_objects_mod.router, prefix="/api")
 app.include_router(maintenance_mod.router, prefix="/api")
 app.include_router(mantenedora_mod.router, prefix="/api")
