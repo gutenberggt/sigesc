@@ -37,6 +37,12 @@ jobs:
   urgencias-ficha-contract:
     name: GATE - Contrato Ficha Urgência
     runs-on: ubuntu-latest
+    env:
+      # backend/tests/conftest.py é carregado pelo pytest mesmo com as fixtures de
+      # transferência desativadas. Estas variáveis/dependências evitam que esse
+      # bootstrap global contamine o guard puro; nenhuma conexão é usada neste job.
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: sigesc_contract_unused
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,8 +52,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install contract test dependency
-        run: python -m pip install pytest
+      - name: Install minimal contract dependencies
+        run: python -m pip install pytest pymongo python-dotenv
 
       - name: Run pure architecture contract
         working-directory: backend
