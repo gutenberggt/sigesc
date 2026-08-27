@@ -686,13 +686,25 @@ export function StudentsComplete() {
   };
 
   const handleView = async (student) => {
-    // Busca dados frescos do servidor para garantir todos os campos
-    let freshStudent = student;
+    // Nunca abre a visualização com o registro parcial da listagem.
+    // Se a leitura completa falhar, interrompe o fluxo para não exibir dados falsamente vazios.
+    let freshStudent;
     try {
+      if (!student?.id) {
+        throw new Error('ID do estudante ausente');
+      }
       const fetched = await studentsAPI.getById(student.id);
-      if (fetched) freshStudent = fetched;
+      if (!fetched?.id) {
+        throw new Error('Cadastro completo do estudante não retornado pelo servidor');
+      }
+      freshStudent = fetched;
     } catch (e) {
-      console.warn('Usando dados em cache:', e.message);
+      console.error('Falha ao carregar cadastro completo para visualização:', e);
+      showErrorAlert(
+        'Não foi possível carregar o cadastro completo do estudante. ' +
+        'A visualização foi interrompida para evitar a exibição de dados incompletos. Tente novamente.'
+      );
+      return;
     }
     freshStudent = normalizeStudentDates(freshStudent);
     setEditingStudent(freshStudent);
@@ -725,13 +737,25 @@ export function StudentsComplete() {
   };
 
   const handleEdit = async (student) => {
-    // Busca dados frescos do servidor para garantir campos atualizados
-    let freshStudent = student;
+    // Nunca abre a edição com o registro parcial da listagem.
+    // Isso impede que campos ausentes no payload leve virem string vazia e sejam persistidos.
+    let freshStudent;
     try {
+      if (!student?.id) {
+        throw new Error('ID do estudante ausente');
+      }
       const fetched = await studentsAPI.getById(student.id);
-      if (fetched) freshStudent = fetched;
+      if (!fetched?.id) {
+        throw new Error('Cadastro completo do estudante não retornado pelo servidor');
+      }
+      freshStudent = fetched;
     } catch (e) {
-      console.warn('Usando dados em cache:', e.message);
+      console.error('Falha ao carregar cadastro completo para edição:', e);
+      showErrorAlert(
+        'Não foi possível carregar o cadastro completo do estudante. ' +
+        'A edição foi bloqueada para proteger os dados já cadastrados. Tente novamente.'
+      );
+      return;
     }
     freshStudent = normalizeStudentDates(freshStudent);
     setEditingStudent(freshStudent);
@@ -761,17 +785,17 @@ export function StudentsComplete() {
     setIsModalOpen(true);
     
     // Define o ano letivo com base na turma atual do aluno
-    if (student.class_id) {
-      const studentClass = classes.find(c => c.id === student.class_id);
+    if (freshStudent.class_id) {
+      const studentClass = classes.find(c => c.id === freshStudent.class_id);
       if (studentClass?.academic_year) {
         setVinculoAnoLetivo(studentClass.academic_year);
       }
     }
     
     // Carrega histórico do aluno
-    loadStudentHistory(student.id);
+    loadStudentHistory(freshStudent.id);
     // Carrega atestados médicos do aluno
-    loadMedicalCertificates(student.id);
+    loadMedicalCertificates(freshStudent.id);
   };
   
   const loadStudentHistory = async (studentId) => {
