@@ -65,3 +65,6 @@ jobs:
 
       - name: Guard - instalação das rotas
         run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_installer_wraps_expected_routes_and_is_idempotent
+
+      - name: Guard - suíte completa P0
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py
