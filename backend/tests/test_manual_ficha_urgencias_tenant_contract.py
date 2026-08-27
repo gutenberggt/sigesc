@@ -33,9 +33,13 @@ def test_manual_ficha_medical_certificates_are_fail_closed_by_tenant():
         'medical_days =', 1
     )[0]
 
-    assert 'apply_tenant_filter({' in segment
+    # Não depender de formatação: exige o helper de tenant dentro da própria
+    # chamada de medical_certificates e os campos/guards necessários.
+    assert 'apply_tenant_filter(' in segment
     assert '"student_id": student_id,' in segment
     assert '"mantenedora_id": 1' in segment
+    assert 'user,' in segment
+    assert 'request,' in segment
     assert 'for cert in certs:' in source
     assert 'assert_same_tenant(cert, user, request)' in source
 
