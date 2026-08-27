@@ -25,7 +25,7 @@ Uma conversa pode ser apagada quando tudo que nela possuir valor durável tiver 
 | Documentação pública/institucional, manuais e material de publicação | SIGESC Docs (`https://docs.sigesc.aprenderdigital.top/`) |
 | Backlog, bugs ainda abertos, dívida técnica e trabalho futuro | GitHub Issues/Projects do repositório correspondente |
 | Releases e mudanças implementadas | Git history, PRs, changelog/release notes e documentação pertinente |
-| Dados operacionais de alunos, escolas, professores, matrículas, frequência e demais registros transacionais | Banco de dados/serviços do SIGESC, não documentação estática |
+| Dados operacionais de estudantes, escolas, professores, matrículas, frequência e demais registros transacionais | Banco de dados/serviços do SIGESC, não documentação estática |
 | Segredos, tokens, chaves, senhas e credenciais de produção | mecanismo seguro de secrets/env; nunca versionar |
 
 ## 4. O que deve ser preservado
@@ -56,7 +56,7 @@ Por padrão, são transitórios e podem ser descartados após a consolidação d
 - screenshots de erros já resolvidos;
 - tentativas fracassadas sem valor arquitetural;
 - hipóteses descartadas;
-- nomes/UUIDs de alunos, professores, turmas ou escolas usados apenas em investigação;
+- nomes/UUIDs de estudantes, professores, turmas ou escolas usados apenas em investigação;
 - contagens temporárias;
 - saídas de testes isolados;
 - conversas do tipo `erro -> investigação -> correção -> PR -> deploy -> validado`, desde que o resultado esteja registrado no GitHub/documentação.
