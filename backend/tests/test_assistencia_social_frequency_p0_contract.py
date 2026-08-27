@@ -19,10 +19,28 @@ def test_social_frequency_endpoint_is_role_and_tenant_scoped():
 
     assert '_SOCIAL_FREQUENCY_ROLES = ["admin", "admin_teste", "ass_social", "ass_social_2"]' in source
     assert "AuthMiddleware.require_roles(_SOCIAL_FREQUENCY_ROLES)" in segment
-    assert segment.count("apply_tenant_filter(") >= 3
+    assert segment.count("apply_tenant_filter(") >= 4
     assert "AuthMiddleware.verify_school_access" in segment
     assert "compute_monthly_valid_absences(" in segment
     assert '"calculation_version": "social_daily_canonical_v2"' in segment
+
+
+def test_social_medical_certificates_are_fail_closed_by_tenant():
+    source = BACKEND.read_text(encoding="utf-8")
+    segment = _social_segment(source)
+    cert_segment = segment.split(
+        "certificates = await current_db.medical_certificates.find(", 1
+    )[1].split("medical_days =", 1)[0]
+
+    assert "apply_tenant_filter(" in cert_segment
+    assert '"student_id": student_id' in cert_segment
+    assert '"mantenedora_id": 1' in cert_segment
+    assert "user," in cert_segment
+    assert "request," in cert_segment
+    assert "for certificate in certificates:" in segment
+    assert "assert_same_tenant(certificate, user, request)" in segment
+    assert '"mantenedora_id": {"$exists": False}' not in cert_segment
+    assert "legacy_certificates" not in segment
 
 
 def test_social_frequency_endpoint_is_read_only():
