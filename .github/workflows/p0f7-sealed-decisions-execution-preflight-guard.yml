@@ -1,0 +1,49 @@
+name: P0-F7 Sealed Decisions Execution Preflight Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_p0f7_sealed_decisions_execution_preflight.py'
+      - 'backend/tests/test_p0f7_sealed_decisions_execution_preflight.py'
+      - 'backend/scripts/audit_duplicate_course_*.py'
+      - 'backend/scripts/build_p0f6_*.py'
+      - 'backend/tests/test_p0f*.py'
+      - '.github/workflows/p0f7-sealed-decisions-execution-preflight-guard.yml'
+      - 'memory/audit/P0F7_SEALED_DECISIONS_EXECUTION_PREFLIGHT_2026-08-28.md'
+
+permissions:
+  contents: read
+
+jobs:
+  p0f7-read-only-preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-F through P0-F7 guards
+        working-directory: backend
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0_teacher_binding_integrity.py \
+            tests/test_p0f_duplicate_course_identity_forensic.py \
+            tests/test_p0f2_duplicate_course_pair_preflight.py \
+            tests/test_p0f3_duplicate_course_semantic_collision.py \
+            tests/test_p0f4_duplicate_course_conflict_provenance.py \
+            tests/test_p0f5_duplicate_course_human_review_packet.py \
+            tests/test_p0f6_private_human_adjudication_station.py \
+            tests/test_p0f6_js_newline_hotfix.py \
+            tests/test_p0f6_human_readable_ui.py \
+            tests/test_p0f7_sealed_decisions_execution_preflight.py
+
+      - name: Compile P0-F7 auditor
+        working-directory: backend
+        run: python -m py_compile scripts/audit_p0f7_sealed_decisions_execution_preflight.py
