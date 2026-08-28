@@ -1,0 +1,48 @@
+name: P0-F2 Duplicate Course Pair Preflight Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_duplicate_course_pair_preflight_p0f2.py'
+      - 'backend/scripts/audit_duplicate_course_identity_p0f.py'
+      - 'backend/services/course_reference_integrity.py'
+      - 'backend/tests/test_p0f_duplicate_course_identity_forensic.py'
+      - 'backend/tests/test_p0f2_duplicate_course_pair_preflight.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - '.github/workflows/p0f2-duplicate-course-pair-preflight-guard.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/scripts/audit_duplicate_course_pair_preflight_p0f2.py'
+      - 'backend/scripts/audit_duplicate_course_identity_p0f.py'
+      - 'backend/services/course_reference_integrity.py'
+      - 'backend/tests/test_p0f_duplicate_course_identity_forensic.py'
+      - 'backend/tests/test_p0f2_duplicate_course_pair_preflight.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - '.github/workflows/p0f2-duplicate-course-pair-preflight-guard.yml'
+
+jobs:
+  p0f2-duplicate-course-pair-read-only:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-F/P0-F2 read-only guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0_teacher_binding_integrity.py \
+            tests/test_p0f_duplicate_course_identity_forensic.py \
+            tests/test_p0f2_duplicate_course_pair_preflight.py
