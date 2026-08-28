@@ -406,15 +406,24 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.delete("/teacher-assignments/{assignment_id}")
     async def delete_teacher_assignment(assignment_id: str, request: Request):
-        """Remove alocação de professor"""
+        """Hard delete bloqueado pelo P0 Global de integridade de vínculos."""
         await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
 
-        existing = await db.teacher_assignments.find_one({"id": assignment_id})
+        existing = await db.teacher_assignments.find_one({"id": assignment_id}, {"_id": 0, "id": 1})
         if not existing:
             raise HTTPException(status_code=404, detail="Alocação não encontrada")
 
-        await db.teacher_assignments.delete_one({"id": assignment_id})
-        return {"message": "Alocação removida com sucesso"}
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "TEACHER_ASSIGNMENT_HARD_DELETE_DISABLED_P0",
+                "message": (
+                    "Exclusão física de vínculo docente está bloqueada pelo P0 Global. "
+                    "Use atualização de status/encerramento até a consolidação da fonte canônica."
+                ),
+                "assignment_id": assignment_id,
+            },
+        )
 
 
 
