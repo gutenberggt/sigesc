@@ -207,11 +207,13 @@ def classify_blockers(
     if foreign_target_links:
         blockers.append("USER_ALREADY_LINKED_TO_OTHER_STAFF")
 
+    # users.mantenedora_id é historicamente opcional em contas docentes antigas.
+    # Ausência NÃO cria permissão: o candidato só passa se staff + todas as
+    # turmas DVD estiverem no mesmo tenant. Se users declarar tenant, ele também
+    # precisa coincidir. Divergência explícita sempre bloqueia.
     user_tenant = norm(user.get("mantenedora_id"))
     staff_tenant = norm(staff.get("mantenedora_id"))
     clean_class_tenants = {t for t in class_tenants if t}
-    if not user_tenant:
-        blockers.append("USER_TENANT_MISSING")
     if not staff_tenant:
         blockers.append("STAFF_TENANT_MISSING")
     if not clean_class_tenants:
@@ -495,6 +497,7 @@ async def collect_manifest(
             "structural_status": structural_status,
             "evidence_method": method,
             "email_signal": email_evidence,
+            "user_tenant_declared": bool(norm(user.get("mantenedora_id"))),
             "dvd_assignment_count": len(rows),
             "component_assignment_count": len(pair_evidence),
             "class_wide_assignment_count": len(class_wide_rows),
@@ -550,6 +553,7 @@ async def collect_manifest(
             "email_alone_sufficient": False,
             "exact_class_component_legacy_evidence_required": True,
             "tenant_consistency_required": True,
+            "user_tenant_may_be_derived_when_absent": True,
             "staff_user_id_must_be_empty_or_same": True,
             "ambiguous_cases": "NEEDS_REVIEW",
         },
