@@ -120,7 +120,7 @@ jobs:
       - name: Install test runner
         run: pip install pytest pytest-asyncio python-dotenv motor
 
-      - name: Run Fase 0 + Fase 1 + Fase 2 + Fase 3 + Fase 4 + Fase 5 + cutover 38A-38F + P0 + startup + professor diary + multi-role + AEE v2 + schedule normalization + P0 global integrity guards
+      - name: Run DVD + P0 global integrity + P0-C identity guards
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_diary_assignment_contract_phase0.py \
@@ -160,4 +160,5 @@ jobs:
             tests/test_initial_years_schedule_normalization_inventory.py \
             tests/test_initial_years_schedule_normalization_phase2_apply.py \
             tests/test_p0_teacher_binding_integrity.py \
-            tests/test_p0_teacher_binding_containment.py
+            tests/test_p0_teacher_binding_containment.py \
+            tests/test_p0c_teacher_identity_preflight.py
