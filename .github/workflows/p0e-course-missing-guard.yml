@@ -1,0 +1,43 @@
+name: P0-E Course Missing Forensic Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_course_missing_p0e.py'
+      - 'backend/services/course_reference_integrity.py'
+      - 'backend/tests/test_p0e_course_missing_forensic.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - '.github/workflows/p0e-course-missing-guard.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/scripts/audit_course_missing_p0e.py'
+      - 'backend/services/course_reference_integrity.py'
+      - 'backend/tests/test_p0e_course_missing_forensic.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - '.github/workflows/p0e-course-missing-guard.yml'
+
+jobs:
+  p0e-course-missing-read-only:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-E read-only forensic guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0_teacher_binding_integrity.py \
+            tests/test_p0e_course_missing_forensic.py
