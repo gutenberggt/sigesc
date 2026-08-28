@@ -1,0 +1,49 @@
+name: P0-F7.4 Curricular Compatibility Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_p0f7_4_curricular_compatibility.py'
+      - 'backend/tests/test_p0f7_4_curricular_compatibility.py'
+      - '.github/workflows/p0f7-4-curricular-compatibility-guard.yml'
+      - 'memory/audit/P0F7_4_CURRICULAR_COMPATIBILITY_2026-08-28.md'
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependencies
+        run: pip install pytest python-dotenv motor
+
+      - name: Compile auditor
+        run: python -m py_compile backend/scripts/audit_p0f7_4_curricular_compatibility.py
+
+      - name: Run P0-F7.4 tests
+        env:
+          MONGO_URL: mongodb://127.0.0.1:27017
+          DB_NAME: p0f74_unit_test
+        run: pytest -q backend/tests/test_p0f7_4_curricular_compatibility.py
+
+      - name: Enforce read-only surface
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          p = Path('backend/scripts/audit_p0f7_4_curricular_compatibility.py')
+          spec = importlib.util.spec_from_file_location('p0f74', p)
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          mod.assert_read_only()
+          source = p.read_text(encoding='utf-8')
+          assert '--apply' not in source
+          assert 'automatic_course_decision\": False' in source
+          assert 'automatic_workload_decision\": False' in source
+          print('P0-F7.4 READ-ONLY GUARD = PASS')
+          PY
