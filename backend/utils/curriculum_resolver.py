@@ -1,23 +1,28 @@
 """
-Curriculum Resolver — Evidence-First (Fev/2026).
+Curriculum Resolver — Evidence-First + Curricular Compatibility (Ago/2026).
 
 Resolução determinística de componentes curriculares de um aluno em uma turma.
-Princípio: evidência acadêmica concreta > vínculo cadastral explícito > inferência.
+Princípio: compatibilidade curricular explícita limita a escolha entre componentes
+homônimos; dentro do mesmo nível de compatibilidade, preserva-se a precedência
+histórica de evidência acadêmica concreta > vínculo cadastral explícito > inferência.
 
 ORDEM DE RESOLUÇÃO:
   STEP 1 — Evidence: course_ids com `grades` + `attendance` reais do aluno.
-  STEP 2 — class.course_ids: matriz curricular explícita da turma (exclui colisões de nome com evidência).
-  STEP 3 — teacher_assignments: cursos vinculados a professores ativos da turma (exclui colisões).
+  STEP 2 — class.course_ids: matriz curricular explícita da turma.
+  STEP 3 — teacher_assignments: cursos vinculados a professores ativos da turma.
   STEP 4 — Fallback por nivel_ensino: SOMENTE se (no_evidence AND no_matrix).
   STEP 5 — Dedupe final por nome normalizado:
-    1) maior evidence_score
-    2) active=true
-    3) created_at mais recente
-    4) course_id (estável)
+    1) maior curricular_rank
+    2) maior evidence_score
+    3) active=true
+    4) created_at mais recente
+    5) course_id (estável)
 
 WARNINGS:
   - CLASS_WITHOUT_CURRICULUM_MATRIX: turma sem `course_ids`.
   - DUPLICATE_COURSE_NAME: dois ou mais cursos com mesmo nome chegaram à resolução.
+  - CURRICULAR_COMPATIBILITY_REVIEW_REQUIRED: colisão homônima contém escopo
+    curricular incompatível ou inconclusivo e exige revisão cadastral.
 
 REGRAS CRÍTICAS:
   - Puro (apenas leitura).
@@ -29,9 +34,10 @@ REGRAS CRÍTICAS:
 from __future__ import annotations
 
 import logging
+import re
 import unicodedata
 from collections import defaultdict
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +54,12 @@ def _norm_name(name: str) -> str:
         if not unicodedata.combining(c)
     )
     return " ".join(s.casefold().strip().split())
+
+
+def _norm_scalar(value: Any) -> str:
+    if value is None:
+        return ""
+    return _norm_name(str(value))
 
 
 def _tenant_query(query: dict, tenant_id: Optional[str]) -> dict:
@@ -90,6 +102,150 @@ def _infer_nivel_ensino(grade_level: str) -> Optional[str]:
             return 'eja_final'
         return 'eja'
     return None
+
+
+def _series_tokens(value: Any) -> set[str]:
+    """Normaliza séries/etapas em tokens comparáveis sem presumir currículo.
+
+    Exemplos:
+      "8º ANO" -> {"ano:8"}
+      ["8º", "9º"] -> {"ano:8", "ano:9"}
+      "EJA 3ª ETAPA" -> {"eja:3"}
+    """
+    if value is None:
+        return set()
+    if isinstance(value, dict):
+        out: set[str] = set()
+        for key in value.keys():
+            out.update(_series_tokens(key))
+        return out
+    if isinstance(value, (list, tuple, set)):
+        out: set[str] = set()
+        for item in value:
+            out.update(_series_tokens(item))
+        return out
+
+    text = _norm_scalar(value)
+    if not text:
+        return set()
+    digits = [d for d in re.findall(r"(?<!\d)([1-9])(?!\d)", text)]
+    if not digits:
+        return set()
+
+    prefix = "eja" if ("eja" in text or "etapa" in text) else "ano"
+    return {f"{prefix}:{d}" for d in digits}
+
+
+def _resolve_class_curricular_context(
+    class_info: dict,
+    student_info: dict,
+) -> tuple[Optional[str], set[str]]:
+    level = class_info.get("nivel_ensino") or class_info.get("education_level")
+    if not level:
+        level = _infer_nivel_ensino(
+            student_info.get("student_series")
+            or class_info.get("grade_level")
+            or ""
+        )
+
+    class_series = _series_tokens(class_info.get("series"))
+    if not class_series:
+        class_series = _series_tokens(student_info.get("student_series"))
+    if not class_series:
+        class_series = _series_tokens(class_info.get("grade_level"))
+    return level, class_series
+
+
+def _curricular_fit(
+    course: dict,
+    *,
+    class_level: Optional[str],
+    class_series: set[str],
+) -> dict:
+    """Classifica compatibilidade para ordenar somente colisões homônimas.
+
+    Rank 3 = forte; rank 2 = inconclusivo/review; rank 1 = incompatível.
+    O rank nunca cria vínculo nem busca candidato fora do conjunto já resolvido.
+    """
+    course_level = course.get("nivel_ensino")
+    if class_level and course_level and _norm_scalar(course_level) != _norm_scalar(class_level):
+        return {
+            "rank": 1,
+            "classification": "LEVEL_MISMATCH",
+            "class_level": class_level,
+            "course_level": course_level,
+            "class_series": sorted(class_series),
+        }
+
+    if not class_level:
+        return {
+            "rank": 2,
+            "classification": "UNKNOWN_CLASS_LEVEL",
+            "class_level": None,
+            "course_level": course_level,
+            "class_series": sorted(class_series),
+        }
+
+    if not class_series:
+        return {
+            "rank": 2,
+            "classification": "LEVEL_MATCH_SERIES_UNKNOWN",
+            "class_level": class_level,
+            "course_level": course_level,
+            "class_series": [],
+        }
+
+    explicit = _series_tokens(course.get("grade_levels"))
+    matrix = _series_tokens(course.get("carga_horaria_por_serie"))
+
+    explicit_full = bool(explicit) and class_series.issubset(explicit)
+    matrix_full = bool(matrix) and class_series.issubset(matrix)
+    explicit_overlap = bool(explicit & class_series)
+    matrix_overlap = bool(matrix & class_series)
+
+    if explicit and matrix:
+        if explicit_full and matrix_full:
+            classification = "EXPLICIT_AND_MATRIX_FULL_MATCH"
+            rank = 3
+        elif not explicit_overlap and not matrix_overlap:
+            classification = "NO_SERIES_MATCH"
+            rank = 1
+        else:
+            classification = "SERIES_SCOPE_CONFLICT_REQUIRES_REVIEW"
+            rank = 2
+    elif explicit:
+        if explicit_full:
+            classification = "EXPLICIT_SERIES_FULL_MATCH"
+            rank = 3
+        elif explicit_overlap:
+            classification = "PARTIAL_EXPLICIT_SERIES_MATCH_REQUIRES_REVIEW"
+            rank = 2
+        else:
+            classification = "NO_SERIES_MATCH"
+            rank = 1
+    elif matrix:
+        if matrix_full:
+            classification = "PER_SERIES_MATRIX_FULL_MATCH"
+            rank = 3
+        elif matrix_overlap:
+            classification = "PARTIAL_MATRIX_SERIES_MATCH_REQUIRES_REVIEW"
+            rank = 2
+        else:
+            classification = "NO_SERIES_MATCH"
+            rank = 1
+    else:
+        classification = "LEVEL_MATCH_NO_SERIES_SCOPE"
+        rank = 2
+
+    return {
+        "rank": rank,
+        "classification": classification,
+        "class_level": class_level,
+        "course_level": course_level,
+        "class_series": sorted(class_series),
+        "explicit_series": sorted(explicit),
+        "matrix_series": sorted(matrix),
+    }
 
 
 def _apply_atendimento_filter(
@@ -204,7 +360,9 @@ async def _load_courses(
         {
             "_id": 0, "id": 1, "name": 1, "active": 1,
             "atendimento_programa": 1, "optativo": 1,
-            "nivel_ensino": 1, "created_at": 1, "deleted_at": 1,
+            "nivel_ensino": 1, "grade_levels": 1,
+            "carga_horaria_por_serie": 1,
+            "created_at": 1, "deleted_at": 1,
         },
     ):
         out[c["id"]] = c
@@ -212,12 +370,22 @@ async def _load_courses(
 
 
 def _pick_winner(group: list[dict]) -> tuple[dict, str]:
-    """Aplica dedupe determinístico: evidence_score > active > created_at > course_id."""
-    max_ev = max(c["evidence_score"] for c in group)
-    top = [c for c in group if c["evidence_score"] == max_ev]
-    reason = "higher_evidence" if any(
-        c["evidence_score"] == 0 for c in group
-    ) and max_ev > 0 else None
+    """Dedupe: curricular_rank > evidence > active > created_at > course_id."""
+    max_curricular = max(int(c.get("curricular_rank") or 0) for c in group)
+    top = [c for c in group if int(c.get("curricular_rank") or 0) == max_curricular]
+    reason = (
+        "stronger_curricular_compatibility"
+        if len(top) < len(group)
+        else None
+    )
+
+    max_ev = max(c["evidence_score"] for c in top)
+    evidence_top = [c for c in top if c["evidence_score"] == max_ev]
+    if len(evidence_top) < len(top):
+        top = evidence_top
+        reason = reason or "higher_evidence"
+    else:
+        top = evidence_top
 
     if len(top) > 1:
         actives = [c for c in top if c["active"]]
@@ -264,6 +432,7 @@ async def resolve_curriculum(
             {
                 "_id": 0, "id": 1, "name": 1, "course_ids": 1,
                 "nivel_ensino": 1, "education_level": 1, "grade_level": 1,
+                "series": 1,
                 "atendimento_programa": 1, "school_id": 1, "academic_year": 1,
                 "mantenedora_id": 1,
             },
@@ -276,6 +445,10 @@ async def resolve_curriculum(
             _tenant_query({"id": student_id}, tenant_id),
             {"_id": 0, "id": 1, "student_series": 1, "class_id": 1},
         ) or {}
+
+    class_level, class_series = _resolve_class_curricular_context(
+        class_info, student_info
+    )
 
     evidence_map = await _collect_evidence(
         db,
@@ -320,22 +493,14 @@ async def resolve_curriculum(
     no_matrix = len(class_course_ids) == 0 and len(ta_course_ids) == 0
     fallback_course_ids: list[str] = []
     if no_evidence and no_matrix:
-        nivel = class_info.get("nivel_ensino") or class_info.get("education_level")
-        if not nivel:
-            grade_level = (
-                student_info.get("student_series")
-                or class_info.get("grade_level")
-                or ""
-            )
-            nivel = _infer_nivel_ensino(grade_level)
-        if nivel:
+        if class_level:
             fallback_course_ids = await _collect_fallback_course_ids(
-                db, nivel_ensino=nivel, tenant_id=tenant_id
+                db, nivel_ensino=class_level, tenant_id=tenant_id
             )
         resolution_path.append({
             "step": "nivel_ensino_fallback",
             "activated": True,
-            "nivel_ensino": nivel,
+            "nivel_ensino": class_level,
             "found": len(fallback_course_ids),
         })
     else:
@@ -368,6 +533,11 @@ async def resolve_curriculum(
     for cid, cand in candidates.items():
         doc = courses_map.get(cid) or {}
         ev = evidence_map.get(cid, {"grades_count": 0, "attendance_count": 0})
+        fit = _curricular_fit(
+            doc,
+            class_level=class_level,
+            class_series=class_series,
+        )
         components.append({
             "course_id": cid,
             "course_name": doc.get("name"),
@@ -375,11 +545,16 @@ async def resolve_curriculum(
             "atendimento_programa": doc.get("atendimento_programa") or "regular",
             "optativo": bool(doc.get("optativo", False)),
             "nivel_ensino": doc.get("nivel_ensino"),
+            "grade_levels": doc.get("grade_levels") or [],
+            "carga_horaria_por_serie": doc.get("carga_horaria_por_serie") or {},
             "created_at": doc.get("created_at"),
             "source": cand["source"],
             "grades_count": ev["grades_count"],
             "attendance_count": ev["attendance_count"],
             "evidence_score": ev["grades_count"] + ev["attendance_count"],
+            "curricular_rank": fit["rank"],
+            "curricular_classification": fit["classification"],
+            "curricular_fit": fit,
             "dedupe_kept_reason": None,
         })
 
@@ -406,10 +581,15 @@ async def resolve_curriculum(
             "course_name": group[0].get("course_name") or "(sem nome)",
             "course_ids": [c["course_id"] for c in group],
             "sources": [c["source"] for c in group],
+            "curricular_classifications": [
+                c["curricular_classification"] for c in group
+            ],
         })
+
         winner, reason = _pick_winner(group)
         winner["dedupe_kept_reason"] = reason
         final_components.append(winner)
+
         for c in group:
             if c["course_id"] != winner["course_id"]:
                 dropped_by_dedupe.append({
@@ -418,9 +598,34 @@ async def resolve_curriculum(
                     "source": c["source"],
                     "evidence_score": c["evidence_score"],
                     "active": c["active"],
+                    "curricular_rank": c["curricular_rank"],
+                    "curricular_classification": c["curricular_classification"],
                     "winner_course_id": winner["course_id"],
                     "winner_reason": reason,
                 })
+
+        review_required = any(
+            c["curricular_rank"] < 3 for c in group
+        )
+        if review_required:
+            warnings.append({
+                "code": "CURRICULAR_COMPATIBILITY_REVIEW_REQUIRED",
+                "course_name": group[0].get("course_name"),
+                "class_id": class_id,
+                "class_level": class_level,
+                "class_series": sorted(class_series),
+                "course_ids": [c["course_id"] for c in group],
+                "classifications": {
+                    c["course_id"]: c["curricular_classification"]
+                    for c in group
+                },
+                "winner_course_id": winner["course_id"],
+                "winner_reason": reason,
+                "message": (
+                    "Colisão de componentes homônimos contém compatibilidade "
+                    "curricular inconclusiva ou incompatível; revisar cadastro."
+                ),
+            })
 
         warnings.append({
             "code": "DUPLICATE_COURSE_NAME",
@@ -453,6 +658,8 @@ async def resolve_curriculum(
         "warnings": warnings,
         "debug": {
             "tenant_id": tenant_id,
+            "class_level": class_level,
+            "class_series": sorted(class_series),
             "evidence_course_ids": evidence_course_ids,
             "class_course_ids": class_course_ids,
             "teacher_assignment_course_ids": ta_course_ids,
@@ -466,6 +673,8 @@ async def resolve_curriculum(
                     "course_name": c["course_name"],
                     "source": c["source"],
                     "evidence_score": c["evidence_score"],
+                    "curricular_rank": c["curricular_rank"],
+                    "curricular_classification": c["curricular_classification"],
                     "dedupe_kept_reason": c["dedupe_kept_reason"],
                 }
                 for c in final_components
