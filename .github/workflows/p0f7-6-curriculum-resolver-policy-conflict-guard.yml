@@ -1,0 +1,49 @@
+name: P0-F7.6 Curriculum Resolver Policy Conflict Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_p0f7_6_curriculum_resolver_policy_conflict.py'
+      - 'backend/tests/test_p0f7_6_curriculum_resolver_policy_conflict.py'
+      - 'backend/utils/curriculum_resolver.py'
+      - '.github/workflows/p0f7-6-curriculum-resolver-policy-conflict-guard.yml'
+      - 'memory/audit/P0F7_6_CURRICULUM_RESOLVER_POLICY_CONFLICT_2026-08-28.md'
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependency
+        run: pip install pytest
+
+      - name: Compile P0-F7.6 auditor
+        run: python -m py_compile backend/scripts/audit_p0f7_6_curriculum_resolver_policy_conflict.py
+
+      - name: Run P0-F7.6 focused tests
+        run: pytest -q backend/tests/test_p0f7_6_curriculum_resolver_policy_conflict.py
+
+      - name: Enforce offline read-only surface
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('backend/scripts/audit_p0f7_6_curriculum_resolver_policy_conflict.py')
+          spec = importlib.util.spec_from_file_location('p0f76', path)
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          mod.assert_read_only()
+
+          source = path.read_text(encoding='utf-8')
+          assert 'automatic_course_decision": True' not in source
+          assert 'automatic_workload_decision": True' not in source
+          assert 'database_access": True' not in source
+          print('P0-F7.6 OFFLINE READ-ONLY GUARD = PASS')
+          PY
