@@ -193,3 +193,17 @@ def test_level_match_without_series_scope_is_review_not_strong() -> None:
     )
     assert fit["rank"] == 2
     assert fit["classification"] == "LEVEL_MATCH_NO_SERIES_SCOPE"
+
+
+def test_missing_course_level_is_review_even_with_full_series_match() -> None:
+    fit = mod._curricular_fit(
+        {
+            "grade_levels": ["8º", "9º"],
+            "carga_horaria_por_serie": {"8º ANO": 120, "9º ANO": 120},
+        },
+        class_level="fundamental_anos_finais",
+        class_series={"ano:8", "ano:9"},
+    )
+
+    assert fit["rank"] == 2
+    assert fit["classification"] == "COURSE_LEVEL_UNKNOWN_REQUIRES_REVIEW"
