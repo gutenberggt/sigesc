@@ -1,0 +1,47 @@
+name: P0-F5 Human Conflict Review Packet Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_duplicate_course_identity_p0f.py'
+      - 'backend/scripts/audit_duplicate_course_pair_preflight_p0f2.py'
+      - 'backend/scripts/audit_duplicate_course_semantic_collision_p0f3.py'
+      - 'backend/scripts/audit_duplicate_course_conflict_provenance_p0f4.py'
+      - 'backend/scripts/audit_duplicate_course_human_review_packet_p0f5.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - 'backend/tests/test_p0f_duplicate_course_identity_forensic.py'
+      - 'backend/tests/test_p0f2_duplicate_course_pair_preflight.py'
+      - 'backend/tests/test_p0f3_duplicate_course_semantic_collision.py'
+      - 'backend/tests/test_p0f4_duplicate_course_conflict_provenance.py'
+      - 'backend/tests/test_p0f5_duplicate_course_human_review_packet.py'
+      - '.github/workflows/p0f5-human-conflict-review-packet-guard.yml'
+      - 'memory/audit/P0F5_DUPLICATE_COURSE_HUMAN_REVIEW_PACKET_2026-08-28.md'
+
+permissions:
+  contents: read
+
+jobs:
+  p0f5-human-review-read-only:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-F through P0-F5 read-only guards
+        working-directory: backend
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0_teacher_binding_integrity.py \
+            tests/test_p0f_duplicate_course_identity_forensic.py \
+            tests/test_p0f2_duplicate_course_pair_preflight.py \
+            tests/test_p0f3_duplicate_course_semantic_collision.py \
+            tests/test_p0f4_duplicate_course_conflict_provenance.py \
+            tests/test_p0f5_duplicate_course_human_review_packet.py
