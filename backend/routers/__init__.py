@@ -20,6 +20,7 @@ from .student_enrollment_identity_guard import install_student_enrollment_identi
 from .student_enrollment_identity_continuity import install_student_enrollment_identity_continuity
 from .student_enrollment_audit_semantics import install_student_enrollment_audit_semantics
 from .student_legacy_compat import install_student_legacy_compat
+from .student_transfer_destination_access import install_student_transfer_destination_access
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
 from .grades_dvd_hardening import install_grades_dvd_hardening
@@ -35,9 +36,9 @@ from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_generalization
 from .calendar import router as calendar_router, setup_calendar_router
-from .staff import router as staff_router, setup_staff_router
-from .announcements import router as announcements_router, setup_announcements_router
-from .analytics import router as analytics_router, setup_analytics_router
+from .staff import router as staff_router, setup_router as setup_staff_router
+from .announcements import router as announcements_router, setup_router as setup_announcements_router
+from .analytics import router as analytics_router, setup_router as setup_analytics_router
 
 # FastAPI resolve anotações postergadas usando o namespace global do módulo que
 # declara a função. O adaptador de abas registra o mesmo payload Pydantic da
@@ -141,12 +142,13 @@ def setup_auth_router(db, audit_service):
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
-    """Configura Estudantes + identidade numérica + semântica/legado seguros."""
+    """Configura Estudantes + identidade, legado e autorização de destino seguros."""
     configured = _setup_students_router(db, audit_service, sandbox_db)
     configured = install_student_enrollment_identity_guard(configured)
     configured = install_student_enrollment_identity_continuity(configured, db, audit_service)
     configured = install_student_enrollment_audit_semantics(configured, db, sandbox_db)
-    return install_student_legacy_compat(configured, db, sandbox_db)
+    configured = install_student_legacy_compat(configured, db, sandbox_db)
+    return install_student_transfer_destination_access(configured, db, sandbox_db)
 
 
 def setup_grades_router(
