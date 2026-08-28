@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from models import Course, CourseCreate, CourseUpdate
 from auth_middleware import AuthMiddleware
+from services.course_reference_integrity import blocking_course_references, get_course_reference_counts
 from utils.cache import cache, CACHE_TTL_COURSES
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
@@ -109,7 +110,11 @@ def setup_router(db, audit_service):
 
     @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_course(course_id: str, request: Request):
-        """Deleta componente curricular"""
+        """Deleta componente apenas quando não existe nenhuma referência persistente.
+
+        P0 Global: a exclusão física falha fechado para impedir dangling references
+        em vínculos docentes, horários, frequência, notas e conteúdos.
+        """
         current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         
         # Valida tenant antes de deletar
@@ -121,14 +126,20 @@ def setup_router(db, audit_service):
             )
         assert_same_tenant(existing, current_user, request)
 
-        # [Fev/2026] Bloqueia exclusão se houver dependência ativa deste componente.
-        active_deps = await db.student_dependencies.count_documents({
-            "course_id": course_id, "status": "active",
-        })
-        if active_deps > 0:
+        reference_counts = await get_course_reference_counts(db, course_id)
+        blocking = blocking_course_references(reference_counts)
+        if blocking:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Não é possível excluir este componente: {active_deps} aluno(s) com dependência de estudos ativa vinculada(s). Cancele/conclua as dependências antes."
+                detail={
+                    "code": "COURSE_IN_USE_P0",
+                    "message": (
+                        "Exclusão física bloqueada: o componente possui referências persistentes. "
+                        "Use uma futura operação de merge/remediação referencial controlada."
+                    ),
+                    "course_id": course_id,
+                    "references": blocking,
+                },
             )
         
         result = await db.courses.delete_one({"id": course_id})
