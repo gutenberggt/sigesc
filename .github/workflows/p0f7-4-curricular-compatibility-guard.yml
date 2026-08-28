@@ -26,6 +26,9 @@ jobs:
         run: python -m py_compile backend/scripts/audit_p0f7_4_curricular_compatibility.py
 
       - name: Run P0-F7.4 tests
+        env:
+          MONGO_URL: mongodb://127.0.0.1:27017
+          DB_NAME: p0f74_unit_test
         run: pytest -q backend/tests/test_p0f7_4_curricular_compatibility.py
 
       - name: Enforce read-only surface
