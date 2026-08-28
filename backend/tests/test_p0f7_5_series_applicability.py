@@ -1,4 +1,13 @@
-from backend.scripts.audit_p0f7_5_series_applicability import analyze_course_series
+import importlib.util
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "audit_p0f7_5_series_applicability.py"
+spec = importlib.util.spec_from_file_location("p0f75", SCRIPT)
+mod = importlib.util.module_from_spec(spec)
+assert spec and spec.loader
+spec.loader.exec_module(mod)
+analyze_course_series = mod.analyze_course_series
 
 
 def test_explicit_full_match():
