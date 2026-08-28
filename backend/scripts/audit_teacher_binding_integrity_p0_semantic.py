@@ -6,7 +6,8 @@ Corrige a leitura forense do P0-B sem alterar o artefato histórico original:
 - somente vínculos DVD operacionais entram na resolução ``users.id -> staff.id``;
 - ``source=legacy_migration`` só é separado quando os marcadores sintéticos
   oficiais permanecem íntegros;
-- qualquer drift desses marcadores bloqueia remediação automática.
+- materializações sem professor são um bucket sintético explícito, não drift;
+- qualquer drift real desses marcadores bloqueia remediação automática.
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ from services.teacher_class_assignment_semantics import (  # noqa: E402
     LEGACY_MIGRATION_DRIFT,
     LEGACY_MIGRATION_SOURCE,
     LEGACY_MIGRATION_SYNTHETIC,
+    LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED,
     OPERATIONAL_DVD,
     classify_teacher_class_assignment,
     semantic_projection,
@@ -38,7 +40,7 @@ from services.teacher_class_assignment_semantics import (  # noqa: E402
 
 load_dotenv(BACKEND_DIR / ".env")
 
-PHASE_ID = "P0C-1D-TEACHER-BINDING-SEMANTIC-AUDIT-2026"
+PHASE_ID = "P0C-1D-TEACHER-BINDING-SEMANTIC-AUDIT-2026-V3"
 MUTATOR_TOKENS = base.MUTATOR_TOKENS
 
 
@@ -157,11 +159,18 @@ async def collect_semantic_partition(
     distinct_teacher_ids: dict[str, set[str]] = {
         OPERATIONAL_DVD: set(),
         LEGACY_MIGRATION_SYNTHETIC: set(),
+        LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED: set(),
         LEGACY_MIGRATION_DRIFT: set(),
     }
     migration_runs = Counter()
     drift_reasons = Counter()
     drift_examples: list[dict[str, Any]] = []
+
+    migration_kinds = {
+        LEGACY_MIGRATION_SYNTHETIC,
+        LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED,
+        LEGACY_MIGRATION_DRIFT,
+    }
 
     for row in active:
         semantic = classify_teacher_class_assignment(row)
@@ -169,7 +178,7 @@ async def collect_semantic_partition(
         teacher_id = str(row.get("teacher_id") or "").strip()
         if teacher_id:
             distinct_teacher_ids[semantic.kind].add(teacher_id)
-        if semantic.kind in {LEGACY_MIGRATION_SYNTHETIC, LEGACY_MIGRATION_DRIFT}:
+        if semantic.kind in migration_kinds:
             run_id = str(row.get("migration_run_id") or "").strip() or "(missing)"
             migration_runs[run_id] += 1
         if semantic.kind == LEGACY_MIGRATION_DRIFT:
@@ -223,7 +232,7 @@ async def collect_report(
         mantenedora_id=mantenedora_id,
         examples_limit=examples_limit,
     )
-    report["kind"] = "P0_GLOBAL_TEACHER_BINDING_INTEGRITY_SEMANTIC_V2"
+    report["kind"] = "P0_GLOBAL_TEACHER_BINDING_INTEGRITY_SEMANTIC_V3"
     report["phase"] = PHASE_ID
     report["semantic_partition"] = semantic
     report["summary"] = {
@@ -231,6 +240,9 @@ async def collect_report(
         "teacher_class_assignments_raw_active": semantic["raw_active_rows"],
         "teacher_class_assignments_operational": semantic["counts"].get(OPERATIONAL_DVD, 0),
         "legacy_migration_synthetic": semantic["counts"].get(LEGACY_MIGRATION_SYNTHETIC, 0),
+        "legacy_migration_synthetic_unassigned": semantic["counts"].get(
+            LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED, 0
+        ),
         "legacy_migration_drift": semantic["counts"].get(LEGACY_MIGRATION_DRIFT, 0),
     }
     report["remediation_gate"] = semantic["remediation_gate"]
