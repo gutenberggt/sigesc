@@ -1,0 +1,43 @@
+name: P0-F Duplicate Course Identity Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_duplicate_course_identity_p0f.py'
+      - 'backend/services/course_reference_integrity.py'
+      - 'backend/tests/test_p0f_duplicate_course_identity_forensic.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - '.github/workflows/p0f-duplicate-course-identity-guard.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/scripts/audit_duplicate_course_identity_p0f.py'
+      - 'backend/services/course_reference_integrity.py'
+      - 'backend/tests/test_p0f_duplicate_course_identity_forensic.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - '.github/workflows/p0f-duplicate-course-identity-guard.yml'
+
+jobs:
+  p0f-duplicate-course-identity-read-only:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-F read-only forensic guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0_teacher_binding_integrity.py \
+            tests/test_p0f_duplicate_course_identity_forensic.py
