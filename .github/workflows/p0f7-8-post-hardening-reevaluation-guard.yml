@@ -4,11 +4,12 @@ on:
   pull_request:
     paths:
       - 'backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py'
+      - 'backend/scripts/audit_p0f7_8_1_bounded_reevaluation.py'
       - 'backend/tests/test_p0f7_8_post_hardening_reevaluation.py'
       - 'backend/utils/curriculum_resolver.py'
       - '.github/workflows/p0f7-8-post-hardening-reevaluation-guard.yml'
-      - 'memory/audit/P0F7_8_POST_HARDENING_REEVALUATION_2026-08-28.md'
       - 'memory/audit/P0F7_8_1_EMERGENCY_RESOURCE_SAFETY_2026-08-28.md'
+      - 'memory/audit/P0F7_8_1_RESOURCE_BUDGET_CONTRACT_2026-08-28.md'
   workflow_dispatch:
 
 jobs:
@@ -27,9 +28,13 @@ jobs:
       - name: Install focused test dependencies
         run: pip install pytest motor pymongo python-dotenv
 
+      - name: Assert old high-cost entrypoint removed
+        run: |
+          test ! -e backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py
+
       - name: Compile bounded auditor and tests
         run: |
-          python -m py_compile backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py
+          python -m py_compile backend/scripts/audit_p0f7_8_1_bounded_reevaluation.py
           python -m py_compile backend/tests/test_p0f7_8_post_hardening_reevaluation.py
 
       - name: Run focused tests
@@ -41,7 +46,7 @@ jobs:
           from pathlib import Path
 
           audit = Path(
-              'backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py'
+              'backend/scripts/audit_p0f7_8_1_bounded_reevaluation.py'
           ).read_text(encoding='utf-8')
           resolver = Path('backend/utils/curriculum_resolver.py').read_text(encoding='utf-8')
 
@@ -56,7 +61,7 @@ jobs:
           )
           assert not any(token in executable_audit for token in mutators)
           assert not any(token in resolver for token in mutators)
-          assert '--apply' not in audit
+          assert ('--' + 'apply') not in audit
 
           heavy = [
               'db.' + 'students',
@@ -64,8 +69,8 @@ jobs:
               'db.' + 'grades',
               'db.' + 'attendance',
               'resolve_' + 'curriculum(',
-              '.to_list(5000)',
-              '.to_list(10000)',
+              '.to_list(' + '5000)',
+              '.to_list(' + '10000)',
           ]
           assert not any(token in audit for token in heavy), [
               token for token in heavy if token in audit
