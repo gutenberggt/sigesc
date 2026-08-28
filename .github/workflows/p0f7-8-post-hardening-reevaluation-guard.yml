@@ -1,4 +1,4 @@
-name: P0-F7.8 Post-Hardening Re-evaluation Guard
+name: P0-F7.8.1 Bounded Re-evaluation Guard
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
       - 'backend/utils/curriculum_resolver.py'
       - '.github/workflows/p0f7-8-post-hardening-reevaluation-guard.yml'
       - 'memory/audit/P0F7_8_POST_HARDENING_REEVALUATION_2026-08-28.md'
+      - 'memory/audit/P0F7_8_1_EMERGENCY_RESOURCE_SAFETY_2026-08-28.md'
   workflow_dispatch:
 
 jobs:
@@ -26,23 +27,23 @@ jobs:
       - name: Install focused test dependencies
         run: pip install pytest motor pymongo python-dotenv
 
-      - name: Compile P0-F7.8 auditor and tests
+      - name: Compile bounded auditor and tests
         run: |
           python -m py_compile backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py
           python -m py_compile backend/tests/test_p0f7_8_post_hardening_reevaluation.py
 
-      - name: Run P0-F7.8 focused tests
+      - name: Run focused tests
         run: pytest -q backend/tests/test_p0f7_8_post_hardening_reevaluation.py
 
-      - name: Enforce read-only and privacy contract
+      - name: Enforce read-only, privacy and fixed resource budget
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          audit_path = Path('backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py')
-          resolver_path = Path('backend/utils/curriculum_resolver.py')
-          audit = audit_path.read_text(encoding='utf-8')
-          resolver = resolver_path.read_text(encoding='utf-8')
+          audit = Path(
+              'backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py'
+          ).read_text(encoding='utf-8')
+          resolver = Path('backend/utils/curriculum_resolver.py').read_text(encoding='utf-8')
 
           mutators = [
               '.insert_one(', '.insert_many(', '.update_one(', '.update_many(',
@@ -56,13 +57,33 @@ jobs:
           assert not any(token in executable_audit for token in mutators)
           assert not any(token in resolver for token in mutators)
           assert '--apply' not in audit
-          assert 'resolve_curriculum(' in audit
-          assert 'student_identifiers_used_only_in_memory' in audit
-          assert 'student_identifiers_exposed": False' in audit
+
+          heavy = [
+              'db.' + 'students',
+              'db.' + 'enrollments',
+              'db.' + 'grades',
+              'db.' + 'attendance',
+              'resolve_' + 'curriculum(',
+              '.to_list(5000)',
+              '.to_list(10000)',
+          ]
+          assert not any(token in audit for token in heavy), [
+              token for token in heavy if token in audit
+          ]
+
+          assert 'MAX_CASES = 3' in audit
+          assert 'MAX_DATABASE_QUERY_CALLS = 9' in audit
+          assert 'maxPoolSize=2' in audit
+          assert 'socketTimeoutMS=15000' in audit
+          assert 'student_records_read": 0' in audit
+          assert 'enrollment_records_read": 0' in audit
+          assert 'grade_records_read": 0' in audit
+          assert 'attendance_records_read": 0' in audit
+          assert 'full_resolver_replays": 0' in audit
           assert 'production_writes_executed": False' in audit
           assert 'not_authorization_for_executor": True' in audit
           assert '0o600' in audit
-          print('P0-F7.8 READ-ONLY/PRIVACY GUARD = PASS')
+          print('P0-F7.8.1 BOUNDED RESOURCE SAFETY = PASS')
           PY
 
       - name: Enforce post-hardening SSoT contract
@@ -84,5 +105,5 @@ jobs:
           assert 'COURSE_LEVEL_UNKNOWN_REQUIRES_REVIEW' in fit
           assert 'LEVEL_MISMATCH' in fit
           assert 'SERIES_SCOPE_CONFLICT_REQUIRES_REVIEW' in fit
-          print('P0-F7.8 POST-HARDENING SSOT CONTRACT = PASS')
+          print('P0-F7.8.1 POST-HARDENING SSOT CONTRACT = PASS')
           PY
