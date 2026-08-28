@@ -1,0 +1,59 @@
+name: P0-F7.2 Teacher Assignment Forensic Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_p0f7_2_teacher_assignment_forensic.py'
+      - 'backend/scripts/audit_p0f7_sealed_decisions_execution_preflight.py'
+      - 'backend/scripts/audit_duplicate_course_semantic_collision_p0f3.py'
+      - 'backend/tests/test_p0f7_2_teacher_assignment_forensic.py'
+      - 'backend/tests/test_p0f7_sealed_decisions_execution_preflight.py'
+      - '.github/workflows/p0f7-2-teacher-assignment-forensic-guard.yml'
+      - 'memory/audit/P0F7_2_TEACHER_ASSIGNMENT_FORENSIC_2026-08-28.md'
+
+permissions:
+  contents: read
+
+jobs:
+  p0f7-2-read-only-forensic:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-F7 and P0-F7.2 guards
+        working-directory: backend
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0f7_sealed_decisions_execution_preflight.py \
+            tests/test_p0f7_2_teacher_assignment_forensic.py
+
+      - name: Compile P0-F7.2
+        working-directory: backend
+        run: python -m py_compile scripts/audit_p0f7_2_teacher_assignment_forensic.py
+
+      - name: Guard no executable mutation surface
+        working-directory: backend
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('scripts/audit_p0f7_2_teacher_assignment_forensic.py')
+          spec = importlib.util.spec_from_file_location('p0f72_guard', path)
+          assert spec and spec.loader
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          module.assert_read_only()
+          source = path.read_text(encoding='utf-8')
+          assert '--apply' not in source
+          print('P0F7_2_READ_ONLY_GUARD=PASS')
+          PY
