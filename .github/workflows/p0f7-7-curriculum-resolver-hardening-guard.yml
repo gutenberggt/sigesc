@@ -1,0 +1,72 @@
+name: P0-F7.7 Curriculum Resolver Hardening Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/utils/curriculum_resolver.py'
+      - 'backend/tests/test_p0f7_7_curriculum_resolver_hardening.py'
+      - '.github/workflows/p0f7-7-curriculum-resolver-hardening-guard.yml'
+      - 'memory/audit/P0F7_7_CURRICULUM_RESOLVER_HARDENING_2026-08-28.md'
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_inert
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependencies
+        run: pip install pytest pymongo python-dotenv
+
+      - name: Compile resolver and focused tests
+        run: |
+          python -m py_compile backend/utils/curriculum_resolver.py
+          python -m py_compile backend/tests/test_p0f7_7_curriculum_resolver_hardening.py
+
+      - name: Run P0-F7.7 focused tests
+        run: pytest -q backend/tests/test_p0f7_7_curriculum_resolver_hardening.py
+
+      - name: Enforce curricular-before-operational ordering
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path('backend/utils/curriculum_resolver.py')
+          source = path.read_text(encoding='utf-8')
+          tree = ast.parse(source)
+
+          functions = {
+              node.name: ast.get_source_segment(source, node) or ''
+              for node in ast.walk(tree)
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+          }
+
+          winner = functions['_pick_winner']
+          loader = functions['_load_courses']
+          resolver = functions['resolve_curriculum']
+          fit = functions['_curricular_fit']
+
+          assert winner.find('curricular_rank') < winner.find('evidence_score')
+          assert 'grade_levels' in loader
+          assert 'carga_horaria_por_serie' in loader
+          assert 'series' in resolver
+          assert 'LEVEL_MISMATCH' in fit
+          assert 'SERIES_SCOPE_CONFLICT_REQUIRES_REVIEW' in fit
+          assert 'CURRICULAR_COMPATIBILITY_REVIEW_REQUIRED' in resolver
+
+          forbidden = [
+              '.insert_one(', '.insert_many(', '.update_one(', '.update_many(',
+              '.replace_one(', '.delete_one(', '.delete_many(', '.bulk_write(',
+          ]
+          assert not any(token in source for token in forbidden)
+          assert '--apply' not in source
+          print('P0-F7.7 CURRICULAR HARDENING GUARD = PASS')
+          PY
