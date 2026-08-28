@@ -1,0 +1,53 @@
+name: P0-F7.1 Structured Manual Reconciliation Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/build_p0f7_1_private_structured_manual_reconciliation_station.py'
+      - 'backend/scripts/audit_p0f7_sealed_decisions_execution_preflight.py'
+      - 'backend/scripts/build_p0f6_private_human_adjudication_station.py'
+      - 'backend/tests/test_p0f7_1_structured_manual_reconciliation.py'
+      - 'backend/tests/test_p0f7_sealed_decisions_execution_preflight.py'
+      - 'backend/tests/test_p0f6_private_human_adjudication_station.py'
+      - '.github/workflows/p0f7-1-structured-manual-reconciliation-guard.yml'
+      - 'memory/audit/P0F7_1_STRUCTURED_MANUAL_RECONCILIATION_2026-08-28.md'
+
+permissions:
+  contents: read
+
+jobs:
+  p0f7-1-private-offline-reconciliation:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-F6 through P0-F7.1 guards
+        working-directory: backend
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0f6_private_human_adjudication_station.py \
+            tests/test_p0f7_sealed_decisions_execution_preflight.py \
+            tests/test_p0f7_1_structured_manual_reconciliation.py
+
+      - name: Compile P0-F7.1
+        working-directory: backend
+        run: python -m py_compile scripts/build_p0f7_1_private_structured_manual_reconciliation_station.py
+
+      - name: Guard no database or apply surface
+        working-directory: backend
+        run: |
+          ! grep -E 'AsyncIOMotorClient|MONGO_URL|--apply|motor\.motor_asyncio' scripts/build_p0f7_1_private_structured_manual_reconciliation_station.py
