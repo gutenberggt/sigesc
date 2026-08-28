@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_post_hardening_reevaluation.py"
+SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_1_bounded_reevaluation.py"
+OLD_SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_post_hardening_reevaluation.py"
 
 spec = importlib.util.spec_from_file_location("p0f781", SCRIPT)
 mod = importlib.util.module_from_spec(spec)
@@ -15,6 +16,10 @@ spec.loader.exec_module(mod)
 
 def _fit(rank: int, classification: str) -> dict:
     return {"rank": rank, "classification": classification}
+
+
+def test_old_high_cost_entrypoint_is_removed() -> None:
+    assert OLD_SCRIPT.exists() is False
 
 
 def test_read_only_and_resource_safety_guards_pass() -> None:
@@ -64,6 +69,7 @@ def test_case_2_both_level_mismatch_stays_blocked() -> None:
     assert policy["state"] == "BOTH_CURRICULARLY_INCOMPATIBLE_REQUIRES_ADJUDICATION"
     assert policy["curricular_preference"] is None
     assert policy["component_adjudication_required"] is True
+    assert policy["automatic_database_action"] is False
 
 
 def test_case_3_same_review_rank_stays_blocked() -> None:
@@ -74,6 +80,7 @@ def test_case_3_same_review_rank_stays_blocked() -> None:
     assert policy["state"] == "BOTH_REVIEW_TIER_REQUIRES_ADJUDICATION"
     assert policy["curricular_preference"] is None
     assert policy["component_adjudication_required"] is True
+    assert policy["automatic_database_action"] is False
 
 
 def test_p0f75_classifications_map_to_hardened_ranks() -> None:
