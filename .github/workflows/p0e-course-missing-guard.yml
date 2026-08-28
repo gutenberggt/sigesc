@@ -5,7 +5,10 @@ on:
     paths:
       - 'backend/scripts/audit_course_missing_p0e.py'
       - 'backend/services/course_reference_integrity.py'
+      - 'backend/services/course_missing_containment.py'
+      - 'backend/routers/__init__.py'
       - 'backend/tests/test_p0e_course_missing_forensic.py'
+      - 'backend/tests/test_p0e4_course_missing_containment.py'
       - 'backend/tests/test_p0_teacher_binding_integrity.py'
       - '.github/workflows/p0e-course-missing-guard.yml'
   push:
@@ -14,7 +17,10 @@ on:
     paths:
       - 'backend/scripts/audit_course_missing_p0e.py'
       - 'backend/services/course_reference_integrity.py'
+      - 'backend/services/course_missing_containment.py'
+      - 'backend/routers/__init__.py'
       - 'backend/tests/test_p0e_course_missing_forensic.py'
+      - 'backend/tests/test_p0e4_course_missing_containment.py'
       - 'backend/tests/test_p0_teacher_binding_integrity.py'
       - '.github/workflows/p0e-course-missing-guard.yml'
 
@@ -34,10 +40,11 @@ jobs:
           python-version: '3.11'
 
       - name: Install test runner
-        run: pip install pytest python-dotenv motor
+        run: pip install pytest pytest-asyncio python-dotenv motor fastapi
 
-      - name: Run P0-E read-only forensic guards
+      - name: Run P0-E forensic and containment guards
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_p0_teacher_binding_integrity.py \
-            tests/test_p0e_course_missing_forensic.py
+            tests/test_p0e_course_missing_forensic.py \
+            tests/test_p0e4_course_missing_containment.py
