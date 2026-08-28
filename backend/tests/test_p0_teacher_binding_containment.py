@@ -8,6 +8,13 @@ def _section(source: str, start: str, end: str) -> str:
     return source.split(start, 1)[1].split(end, 1)[0]
 
 
+def _production_python_files():
+    for path in BACKEND_DIR.rglob("*.py"):
+        if "tests" in path.parts:
+            continue
+        yield path
+
+
 def test_course_consolidation_is_read_only_during_p0():
     source = (BACKEND_DIR / "routers" / "maintenance.py").read_text(encoding="utf-8")
     section = _section(
@@ -33,3 +40,21 @@ def test_course_delete_requires_global_reference_check():
     assert "get_course_reference_counts" in section
     assert "blocking_course_references" in section
     assert "COURSE_IN_USE_P0" in section
+
+
+def test_no_other_production_path_hard_deletes_teacher_assignments():
+    offenders = []
+    for path in _production_python_files():
+        source = path.read_text(encoding="utf-8")
+        if "db.teacher_assignments.delete_one" in source:
+            offenders.append(str(path.relative_to(BACKEND_DIR)))
+    assert offenders == []
+
+
+def test_course_hard_delete_exists_only_in_guarded_course_router():
+    offenders = []
+    for path in _production_python_files():
+        source = path.read_text(encoding="utf-8")
+        if "db.courses.delete_one" in source and path != BACKEND_DIR / "routers" / "courses.py":
+            offenders.append(str(path.relative_to(BACKEND_DIR)))
+    assert offenders == []
