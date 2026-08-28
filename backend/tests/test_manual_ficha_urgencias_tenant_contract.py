@@ -21,7 +21,7 @@ def test_curriculum_resolver_scopes_all_internal_evidence_by_class_tenant():
         '_tenant_query(\n            {\n                "student_id": student_id,',
         '_tenant_query({"class_id": class_id}, tenant_id)',
         'db, class_id, tenant_id=tenant_id',
-        'db, nivel_ensino=nivel, tenant_id=tenant_id',
+        'db, nivel_ensino=class_level, tenant_id=tenant_id',
         'db, list(candidates.keys()), tenant_id=tenant_id',
     ):
         assert fragment in source, f"Tenant scope ausente no resolver: {fragment}"

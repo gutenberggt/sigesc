@@ -143,15 +143,17 @@ def test_read_only_guard_passes() -> None:
     mod.assert_read_only()
 
 
-def test_current_resolver_exposes_policy_gap_candidate() -> None:
+def test_current_resolver_reports_policy_gap_closed_by_hardening() -> None:
     policy = mod.inspect_resolver_policy(RESOLVER)
     assert policy["expected_precedence_confirmed"] is True
     assert policy["winner_uses_operational_signals"] is True
-    assert policy["winner_has_level_or_series_gate"] is False
+    assert policy["winner_curricular_gates"]["curricular_rank"] is True
     assert policy["loaded_curricular_fields"]["nivel_ensino"] is True
-    assert policy["loaded_curricular_fields"]["grade_levels"] is False
-    assert policy["loaded_curricular_fields"]["carga_horaria_por_serie"] is False
-    assert policy["policy_gap_candidate"] is True
+    assert policy["loaded_curricular_fields"]["grade_levels"] is True
+    assert policy["loaded_curricular_fields"]["carga_horaria_por_serie"] is True
+    assert policy["derived_curricular_rank_gate"] is True
+    assert policy["winner_has_level_or_series_gate"] is True
+    assert policy["policy_gap_candidate"] is False
 
 
 def test_three_cases_are_classified_without_automatic_decision() -> None:
@@ -172,7 +174,7 @@ def test_three_cases_are_classified_without_automatic_decision() -> None:
     assert all(case["automatic_workload_decision"] is False for case in cases)
 
 
-def test_collect_report_is_offline_and_blocks_executor(tmp_path: Path) -> None:
+def test_collect_report_is_offline_and_reports_hardening_closed(tmp_path: Path) -> None:
     source = tmp_path / "p0f7_5.json"
     source.write_text(json.dumps(_report(), ensure_ascii=False), encoding="utf-8")
 
@@ -180,8 +182,8 @@ def test_collect_report_is_offline_and_blocks_executor(tmp_path: Path) -> None:
 
     assert report["status"] == "PASS"
     assert report["summary"]["meaningful_policy_conflicts"] == 4
-    assert report["summary"]["resolver_policy_gap_candidate"] is True
-    assert report["summary"]["requires_resolver_hardening_before_executor"] is True
+    assert report["summary"]["resolver_policy_gap_candidate"] is False
+    assert report["summary"]["requires_resolver_hardening_before_executor"] is False
     assert report["summary"]["automatic_course_decisions"] == 0
     assert report["summary"]["automatic_workload_decisions"] == 0
     assert report["summary"]["database_access"] is False

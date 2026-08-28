@@ -184,6 +184,7 @@ def inspect_resolver_policy(path: Path) -> dict[str, Any]:
         "course_id": "course_id" in pick_winner,
     }
     winner_curricular_gates = {
+        "curricular_rank": "curricular_rank" in pick_winner,
         "nivel_ensino": "nivel_ensino" in pick_winner,
         "grade_levels": "grade_levels" in pick_winner,
         "carga_horaria_por_serie": "carga_horaria_por_serie" in pick_winner,
@@ -197,7 +198,23 @@ def inspect_resolver_policy(path: Path) -> dict[str, Any]:
 
     expected_precedence_confirmed = all(precedence_markers.values())
     winner_uses_operational_signals = all(winner_signals.values())
-    winner_has_level_or_series_gate = any(winner_curricular_gates.values())
+    direct_curricular_gate = any(
+        enabled
+        for name, enabled in winner_curricular_gates.items()
+        if name != "curricular_rank"
+    )
+    derived_curricular_rank_gate = bool(
+        winner_curricular_gates["curricular_rank"]
+        and loaded_curricular_fields["nivel_ensino"]
+        and (
+            loaded_curricular_fields["grade_levels"]
+            or loaded_curricular_fields["carga_horaria_por_serie"]
+        )
+        and "_curricular_fit" in resolve_curriculum
+    )
+    winner_has_level_or_series_gate = bool(
+        direct_curricular_gate or derived_curricular_rank_gate
+    )
 
     return {
         "resolver_path": str(path),
@@ -206,6 +223,8 @@ def inspect_resolver_policy(path: Path) -> dict[str, Any]:
         "winner_signals": winner_signals,
         "winner_curricular_gates": winner_curricular_gates,
         "loaded_curricular_fields": loaded_curricular_fields,
+        "direct_curricular_gate": direct_curricular_gate,
+        "derived_curricular_rank_gate": derived_curricular_rank_gate,
         "expected_precedence_confirmed": expected_precedence_confirmed,
         "winner_uses_operational_signals": winner_uses_operational_signals,
         "winner_has_level_or_series_gate": winner_has_level_or_series_gate,
