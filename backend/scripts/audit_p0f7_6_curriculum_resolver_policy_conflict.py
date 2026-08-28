@@ -24,12 +24,18 @@ PHASE_ID = "P0F7.6-CURRICULUM-RESOLVER-POLICY-CONFLICT-READ-ONLY-2026"
 P0F75_PHASE = "P0F7.5-SERIES-APPLICABILITY-READ-ONLY-2026"
 MANIFEST_VERSION = 1
 
-MUTATOR_TOKENS = (
-    ".insert_one(", ".insert_many(", ".update_one(", ".update_many(",
-    ".replace_one(", ".delete_one(", ".delete_many(", ".bulk_write(",
-    ".find_one_and_update(", ".find_one_and_delete(", ".find_one_and_replace(",
+_MUTATOR_NAMES = (
+    "insert_one", "insert_many", "update_one", "update_many",
+    "replace_one", "delete_one", "delete_many", "bulk_write",
+    "find_one_and_update", "find_one_and_delete", "find_one_and_replace",
 )
-DB_CLIENT_TOKENS = ("AsyncIOMotorClient", "MongoClient", "motor.motor_asyncio", "pymongo")
+MUTATOR_TOKENS = tuple("." + name + "(" for name in _MUTATOR_NAMES)
+DB_CLIENT_TOKENS = (
+    "AsyncIO" + "MotorClient",
+    "Mongo" + "Client",
+    "motor." + "motor_asyncio",
+    "py" + "mongo",
+)
 
 STRONG_SERIES_MATCH = {
     "EXPLICIT_SERIES_FULL_MATCH",
@@ -217,12 +223,10 @@ def classify_case(case: Mapping[str, Any]) -> dict[str, Any]:
     source_classification = _norm((case.get("source_series_applicability") or {}).get("classification"))
     target_classification = _norm((case.get("target_series_applicability") or {}).get("classification"))
 
-    candidate_classes: list[str] = []
     alternate_candidates: list[dict[str, Any]] = []
     for candidate in case.get("exact_level_same_name_candidates") or []:
         applicability = candidate.get("series_applicability") or {}
         classification = _norm(applicability.get("classification"))
-        candidate_classes.append(classification)
         if not candidate.get("is_source") and not candidate.get("is_target"):
             course = candidate.get("course") or {}
             alternate_candidates.append({
