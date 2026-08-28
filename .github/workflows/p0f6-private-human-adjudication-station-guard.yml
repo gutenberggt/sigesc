@@ -5,12 +5,15 @@ on:
     paths:
       - 'backend/scripts/build_p0f6_private_human_adjudication_station.py'
       - 'backend/scripts/build_p0f6_private_human_adjudication_station_hotfix.py'
+      - 'backend/scripts/build_p0f6_private_human_adjudication_station_human_ui.py'
       - 'backend/tests/test_p0f6_private_human_adjudication_station.py'
       - 'backend/tests/test_p0f6_js_newline_hotfix.py'
+      - 'backend/tests/test_p0f6_human_readable_ui.py'
       - 'backend/scripts/audit_duplicate_course_*.py'
       - 'backend/tests/test_p0f*.py'
       - '.github/workflows/p0f6-private-human-adjudication-station-guard.yml'
       - 'memory/audit/P0F6_PRIVATE_HUMAN_ADJUDICATION_STATION_2026-08-28.md'
+      - 'memory/audit/P0F6_2_HUMAN_READABLE_UI_2026-08-28.md'
 
 permissions:
   contents: read
@@ -41,4 +44,5 @@ jobs:
             tests/test_p0f4_duplicate_course_conflict_provenance.py \
             tests/test_p0f5_duplicate_course_human_review_packet.py \
             tests/test_p0f6_private_human_adjudication_station.py \
-            tests/test_p0f6_js_newline_hotfix.py
+            tests/test_p0f6_js_newline_hotfix.py \
+            tests/test_p0f6_human_readable_ui.py
