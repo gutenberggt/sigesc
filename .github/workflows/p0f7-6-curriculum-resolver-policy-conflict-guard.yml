@@ -13,6 +13,9 @@ on:
 jobs:
   guard:
     runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_inert
     steps:
       - uses: actions/checkout@v4
 
