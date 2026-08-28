@@ -34,4 +34,5 @@ jobs:
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_p0c_teacher_identity_preflight.py \
             tests/test_p0c_teacher_assignment_semantics.py \
-            tests/test_p0d_teacher_identity_backfill.py
+            tests/test_p0d_teacher_identity_backfill.py \
+            tests/test_p0d2_sealed_teacher_identity_backfill.py
