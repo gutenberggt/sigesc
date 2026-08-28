@@ -29,11 +29,14 @@ A evidência acadêmica continua sendo o primeiro sinal operacional, mas deixa d
 ### Rank 2 — inconclusivo / revisão
 
 - `UNKNOWN_CLASS_LEVEL`;
+- `COURSE_LEVEL_UNKNOWN_REQUIRES_REVIEW`;
 - `LEVEL_MATCH_SERIES_UNKNOWN`;
 - `LEVEL_MATCH_NO_SERIES_SCOPE`;
 - `PARTIAL_EXPLICIT_SERIES_MATCH_REQUIRES_REVIEW`;
 - `PARTIAL_MATRIX_SERIES_MATCH_REQUIRES_REVIEW`;
 - `SERIES_SCOPE_CONFLICT_REQUIRES_REVIEW`.
+
+Curso sem `nivel_ensino` explícito nunca recebe rank forte apenas por coincidência de série. Essa regra mantém a semântica fail-safe já usada pela P0-F7.4 (`UNKNOWN_COURSE_LEVEL`).
 
 ### Rank 1 — incompatível
 
@@ -78,7 +81,7 @@ Em colisões homônimas com qualquer candidato abaixo de rank forte, o resolver 
 
 A P0-F7.7 somente pode ser integrada se:
 
-- testes focados cobrirem os três padrões P0-F7.x;
+- testes focados cobrirem os três padrões P0-F7.x e ausência de `nivel_ensino` no curso;
 - CI geral estiver verde;
 - regressões existentes estiverem verdes;
 - o guard confirmar `curricular_rank` antes de `evidence_score` em `_pick_winner()`;
