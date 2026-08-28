@@ -20,8 +20,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install focused test dependency
-        run: pip install pytest
+      - name: Install focused test dependencies
+        run: pip install pytest pymongo python-dotenv
 
       - name: Compile P0-F7.6 auditor
         run: python -m py_compile backend/scripts/audit_p0f7_6_curriculum_resolver_policy_conflict.py
