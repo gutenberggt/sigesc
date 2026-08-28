@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install focused test dependencies
-        run: pip install pytest pymongo
+        run: pip install pytest pymongo python-dotenv
 
       - name: Compile auditor
         run: python -m py_compile backend/scripts/audit_p0f7_5_series_applicability.py
