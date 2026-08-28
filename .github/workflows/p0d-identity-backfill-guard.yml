@@ -1,0 +1,37 @@
+name: P0-D Identity Backfill Guard
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  p0d-identity-backfill-guard:
+    name: P0-D - Teacher identity backfill safety guard
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest pytest-asyncio python-dotenv motor
+
+      - name: Run P0-D safety guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0c_teacher_identity_preflight.py \
+            tests/test_p0c_teacher_assignment_semantics.py \
+            tests/test_p0d_teacher_identity_backfill.py
