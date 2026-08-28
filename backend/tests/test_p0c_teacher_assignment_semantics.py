@@ -6,6 +6,7 @@ from pathlib import Path
 from services.teacher_class_assignment_semantics import (
     LEGACY_MIGRATION_DRIFT,
     LEGACY_MIGRATION_SYNTHETIC,
+    LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED,
     OPERATIONAL_DVD,
     classify_teacher_class_assignment,
     partition_teacher_class_assignments,
@@ -47,10 +48,49 @@ def valid_legacy_row(**overrides):
     return row
 
 
+def valid_unassigned_legacy_row(**overrides):
+    row = valid_legacy_row(
+        id="legacy::class-1::course-1::none",
+        teacher_id=None,
+    )
+    row.update(overrides)
+    return row
+
+
 def test_valid_legacy_migration_is_synthetic_not_operational():
     semantic = classify_teacher_class_assignment(valid_legacy_row())
     assert semantic.kind == LEGACY_MIGRATION_SYNTHETIC
     assert semantic.drift_reasons == ()
+
+
+def test_valid_unassigned_legacy_migration_is_explicit_synthetic_bucket():
+    semantic = classify_teacher_class_assignment(valid_unassigned_legacy_row())
+    assert semantic.kind == LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED
+    assert semantic.drift_reasons == ()
+
+
+def test_unassigned_without_none_suffix_fails_closed_as_drift():
+    semantic = classify_teacher_class_assignment(
+        valid_unassigned_legacy_row(id="legacy::class-1::course-1::staff-missing")
+    )
+    assert semantic.kind == LEGACY_MIGRATION_DRIFT
+    assert "UNASSIGNED_ID_NOT_NONE" in semantic.drift_reasons
+
+
+def test_teacher_present_with_none_suffix_fails_closed_as_drift():
+    semantic = classify_teacher_class_assignment(
+        valid_legacy_row(id="legacy::class-1::course-1::none")
+    )
+    assert semantic.kind == LEGACY_MIGRATION_DRIFT
+    assert "TEACHER_PRESENT_WITH_NONE_ID" in semantic.drift_reasons
+
+
+def test_enabled_unassigned_legacy_migration_still_fails_closed():
+    semantic = classify_teacher_class_assignment(
+        valid_unassigned_legacy_row(diary_settings={"enabled": True})
+    )
+    assert semantic.kind == LEGACY_MIGRATION_DRIFT
+    assert "DVD_ENABLED_TRUE" in semantic.drift_reasons
 
 
 def test_enabled_legacy_migration_fails_closed_as_drift():
@@ -81,14 +121,16 @@ def test_non_migration_source_remains_operational():
     assert semantic.kind == OPERATIONAL_DVD
 
 
-def test_partition_keeps_three_populations_explicit():
+def test_partition_keeps_four_populations_explicit():
     rows = [
         valid_legacy_row(),
+        valid_unassigned_legacy_row(),
         valid_legacy_row(id="bad", synthetic_validity=False),
         {"id": "dvd", "source": "import"},
     ]
     result = partition_teacher_class_assignments(rows)
     assert len(result[LEGACY_MIGRATION_SYNTHETIC]) == 1
+    assert len(result[LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED]) == 1
     assert len(result[LEGACY_MIGRATION_DRIFT]) == 1
     assert len(result[OPERATIONAL_DVD]) == 1
 
@@ -152,5 +194,5 @@ def test_new_auditors_have_no_apply_mode_and_read_only_guards():
 
 
 def test_semantic_preflight_version_is_explicit():
-    assert PREFLIGHT.MANIFEST_VERSION == 2
-    assert "SEMANTIC-V2" in PREFLIGHT.PHASE_ID
+    assert PREFLIGHT.MANIFEST_VERSION == 3
+    assert "SEMANTIC-V3" in PREFLIGHT.PHASE_ID
