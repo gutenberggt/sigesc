@@ -1,0 +1,88 @@
+name: P0-F7.8 Post-Hardening Re-evaluation Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py'
+      - 'backend/tests/test_p0f7_8_post_hardening_reevaluation.py'
+      - 'backend/utils/curriculum_resolver.py'
+      - '.github/workflows/p0f7-8-post-hardening-reevaluation-guard.yml'
+      - 'memory/audit/P0F7_8_POST_HARDENING_REEVALUATION_2026-08-28.md'
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_inert
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependencies
+        run: pip install pytest motor pymongo python-dotenv
+
+      - name: Compile P0-F7.8 auditor and tests
+        run: |
+          python -m py_compile backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py
+          python -m py_compile backend/tests/test_p0f7_8_post_hardening_reevaluation.py
+
+      - name: Run P0-F7.8 focused tests
+        run: pytest -q backend/tests/test_p0f7_8_post_hardening_reevaluation.py
+
+      - name: Enforce read-only and privacy contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          audit_path = Path('backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py')
+          resolver_path = Path('backend/utils/curriculum_resolver.py')
+          audit = audit_path.read_text(encoding='utf-8')
+          resolver = resolver_path.read_text(encoding='utf-8')
+
+          mutators = [
+              '.insert_one(', '.insert_many(', '.update_one(', '.update_many(',
+              '.replace_one(', '.delete_one(', '.delete_many(', '.bulk_write(',
+              '.find_one_and_update(', '.find_one_and_delete(', '.find_one_and_replace(',
+          ]
+          executable_audit = '\n'.join(
+              line for line in audit.splitlines()
+              if 'MUTATOR_TOKENS' not in line and not line.lstrip().startswith('"')
+          )
+          assert not any(token in executable_audit for token in mutators)
+          assert not any(token in resolver for token in mutators)
+          assert '--apply' not in audit
+          assert 'resolve_curriculum(' in audit
+          assert 'student_identifiers_used_only_in_memory' in audit
+          assert 'student_identifiers_exposed": False' in audit
+          assert 'production_writes_executed": False' in audit
+          assert 'not_authorization_for_executor": True' in audit
+          assert '0o600' in audit
+          print('P0-F7.8 READ-ONLY/PRIVACY GUARD = PASS')
+          PY
+
+      - name: Enforce post-hardening SSoT contract
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          source = Path('backend/utils/curriculum_resolver.py').read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          functions = {
+              node.name: ast.get_source_segment(source, node) or ''
+              for node in ast.walk(tree)
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+          }
+          pick = functions['_pick_winner']
+          fit = functions['_curricular_fit']
+          assert pick.find('curricular_rank') < pick.find('evidence_score')
+          assert 'COURSE_LEVEL_UNKNOWN_REQUIRES_REVIEW' in fit
+          assert 'LEVEL_MISMATCH' in fit
+          assert 'SERIES_SCOPE_CONFLICT_REQUIRES_REVIEW' in fit
+          print('P0-F7.8 POST-HARDENING SSOT CONTRACT = PASS')
+          PY
