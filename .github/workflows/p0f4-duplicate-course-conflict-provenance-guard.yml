@@ -1,0 +1,46 @@
+name: P0-F4 Duplicate Course Conflict Provenance Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_duplicate_course_conflict_provenance_p0f4.py'
+      - 'backend/tests/test_p0f4_duplicate_course_conflict_provenance.py'
+      - 'backend/scripts/audit_duplicate_course_semantic_collision_p0f3.py'
+      - 'backend/tests/test_p0f3_duplicate_course_semantic_collision.py'
+      - 'backend/scripts/audit_duplicate_course_pair_preflight_p0f2.py'
+      - 'backend/tests/test_p0f2_duplicate_course_pair_preflight.py'
+      - 'backend/scripts/audit_duplicate_course_identity_p0f.py'
+      - 'backend/tests/test_p0f_duplicate_course_identity_forensic.py'
+      - 'backend/scripts/audit_teacher_binding_integrity_p0.py'
+      - 'backend/tests/test_p0_teacher_binding_integrity.py'
+      - '.github/workflows/p0f4-duplicate-course-conflict-provenance-guard.yml'
+      - 'memory/audit/P0F4_DUPLICATE_COURSE_CONFLICT_PROVENANCE_2026-08-28.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p0f4-conflict-provenance-read-only:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest python-dotenv motor
+
+      - name: Run P0-F/P0-F2/P0-F3/P0-F4 read-only guards
+        working-directory: backend
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_p0_teacher_binding_integrity.py \
+            tests/test_p0f_duplicate_course_identity_forensic.py \
+            tests/test_p0f2_duplicate_course_pair_preflight.py \
+            tests/test_p0f3_duplicate_course_semantic_collision.py \
+            tests/test_p0f4_duplicate_course_conflict_provenance.py
