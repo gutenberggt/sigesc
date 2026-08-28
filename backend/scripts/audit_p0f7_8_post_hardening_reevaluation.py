@@ -1,10 +1,9 @@
-"""P0-F7.8 — reavaliação pós-hardening da SSoT (READ-ONLY).
+"""P0-F7.8.1 — reavaliação pós-hardening bounded e READ-ONLY.
 
-Consome o relatório privado P0-F7.5, revalida em produção o snapshot dos três
-casos de Geografia e executa o ``resolve_curriculum`` endurecido para as
-matrículas ativas das três turmas. Identificadores de estudantes são usados
-somente em memória para a leitura necessária ao resolver e NUNCA são
-serializados ou impressos.
+Substitui a implementação inicial da P0-F7.8, que fazia replay do resolver por
+matrícula e podia gerar carga N+1 incompatível com produção. Esta versão lê
+somente os três casos selados e consulta, por caso, apenas turma, cursos e
+vínculos docentes. Não acessa estudantes, matrículas, notas ou frequência.
 
 A fase NÃO remapeia componente, NÃO escolhe 2h/3h, NÃO altera vínculos e NÃO
 autoriza executor.
@@ -13,7 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import inspect
@@ -37,14 +36,18 @@ from utils.curriculum_resolver import (  # noqa: E402
     _pick_winner,
     _resolve_class_curricular_context,
     _series_tokens,
-    resolve_curriculum,
 )
 import utils.curriculum_resolver as curriculum_resolver_module  # noqa: E402
 
-PHASE_ID = "P0F7.8-POST-HARDENING-REEVALUATION-READ-ONLY-2026"
+PHASE_ID = "P0F7.8.1-BOUNDED-POST-HARDENING-REEVALUATION-READ-ONLY-2026"
 P0F75_PHASE = "P0F7.5-SERIES-APPLICABILITY-READ-ONLY-2026"
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 ACTIVE_STATUSES = ["active", "Ativo", "ativo"]
+MAX_CASES = 3
+MAX_TRACKED_COURSES_PER_CASE = 4
+MAX_ASSIGNMENT_ROWS_PER_CASE = 10
+MAX_DATABASE_QUERY_CALLS = 9
+
 MUTATOR_TOKENS = (
     ".insert_one(", ".insert_many(", ".update_one(", ".update_many(",
     ".replace_one(", ".delete_one(", ".delete_many(", ".bulk_write(",
@@ -64,6 +67,22 @@ def assert_read_only() -> None:
     apply_token = "--" + "apply"
     if apply_token in source:
         raise RuntimeError("READ_ONLY_GUARD_FAILED apply_surface")
+
+
+def assert_resource_safety() -> None:
+    source = Path(__file__).read_text(encoding="utf-8")
+    forbidden_surfaces = (
+        "db." + "students",
+        "db." + "enrollments",
+        "db." + "grades",
+        "db." + "attendance",
+        "resolve_" + "curriculum(",
+        ".to_list(5000)",
+        ".to_list(10000)",
+    )
+    found = [token for token in forbidden_surfaces if token in source]
+    if found:
+        raise RuntimeError(f"RESOURCE_SAFETY_GUARD_FAILED forbidden={found}")
 
 
 def _norm(value: Any) -> str:
@@ -122,7 +141,7 @@ def validate_p0f75(report: Mapping[str, Any]) -> dict[str, Any]:
     summary = report.get("summary") or {}
     safety = report.get("safety") or {}
     cases = report.get("cases") or []
-    if summary.get("documented_cases") != 3 or len(cases) != 3:
+    if summary.get("documented_cases") != MAX_CASES or len(cases) != MAX_CASES:
         raise ValueError("P0F7_5_CASE_COUNT_MISMATCH")
     if summary.get("automatic_course_decisions") != 0:
         raise ValueError("P0F7_5_AUTOMATIC_COURSE_DECISION_PRESENT")
@@ -172,6 +191,7 @@ def validate_resolver_hardening_contract() -> dict[str, Any]:
         "curricular_rank_precedes_evidence_score": True,
         "unknown_course_level_is_review": True,
         "resolver_mutator_surface_detected": False,
+        "full_resolver_replay_per_student_performed": False,
     }
 
 
@@ -191,7 +211,9 @@ def _expected_rank_from_p0f75(classification: str) -> int:
     return 2
 
 
-def classify_pair_policy(source_fit: Mapping[str, Any], target_fit: Mapping[str, Any]) -> dict[str, Any]:
+def classify_pair_policy(
+    source_fit: Mapping[str, Any], target_fit: Mapping[str, Any]
+) -> dict[str, Any]:
     source_rank = int(source_fit.get("rank") or 0)
     target_rank = int(target_fit.get("rank") or 0)
 
@@ -212,7 +234,7 @@ def classify_pair_policy(source_fit: Mapping[str, Any], target_fit: Mapping[str,
         preference = None
         adjudication_required = True
     elif source_rank == target_rank == 3:
-        state = "BOTH_STRONG_OPERATIONAL_TIEBREAK_APPLIES"
+        state = "BOTH_STRONG_OPERATIONAL_TIEBREAK_REMAINS_POSSIBLE"
         preference = None
         adjudication_required = True
     elif source_rank > target_rank:
@@ -250,7 +272,12 @@ def _course_snapshot(row: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _assert_course_snapshot(number: int, label: str, expected: Mapping[str, Any], live: Mapping[str, Any]) -> None:
+def _assert_course_snapshot(
+    number: int,
+    label: str,
+    expected: Mapping[str, Any],
+    live: Mapping[str, Any],
+) -> None:
     expected_snap = _course_snapshot(expected)
     live_snap = _course_snapshot(live)
     drift = []
@@ -265,21 +292,25 @@ def _assert_course_snapshot(number: int, label: str, expected: Mapping[str, Any]
             drift.append(field)
     if drift:
         raise RuntimeError(
-            f"CASE_{number}_{label.upper()}_COURSE_SNAPSHOT_DRIFT:{','.join(sorted(drift))}"
+            f"CASE_{number}_{label.upper()}_COURSE_SNAPSHOT_DRIFT:"
+            f"{','.join(sorted(drift))}"
         )
 
 
-async def _fetch_live_courses(db: Any, tenant_id: str, course_ids: list[str]) -> dict[str, dict[str, Any]]:
+async def _fetch_live_courses(
+    db: Any, tenant_id: str, course_ids: list[str]
+) -> dict[str, dict[str, Any]]:
+    if len(course_ids) > MAX_TRACKED_COURSES_PER_CASE:
+        raise RuntimeError("TRACKED_COURSE_BUDGET_EXCEEDED")
     docs = await db.courses.find(
         {"id": {"$in": course_ids}, "mantenedora_id": tenant_id},
         {
             "_id": 0, "id": 1, "name": 1, "nivel_ensino": 1,
             "grade_levels": 1, "carga_horaria_por_serie": 1,
             "workload": 1, "active": 1, "created_at": 1,
-            "atendimento_programa": 1, "optativo": 1,
             "mantenedora_id": 1,
         },
-    ).to_list(100)
+    ).to_list(MAX_TRACKED_COURSES_PER_CASE)
     return {_norm(row.get("id")): row for row in docs}
 
 
@@ -290,6 +321,8 @@ async def _validate_assignment_pair(
     tenant_id: str,
     class_id: str,
     staff_id: str,
+    school_id: str,
+    academic_year: int,
     source_course_id: str,
     target_course_id: str,
     expected_workload: Mapping[str, Any],
@@ -299,30 +332,34 @@ async def _validate_assignment_pair(
             "mantenedora_id": tenant_id,
             "class_id": class_id,
             "staff_id": staff_id,
+            "school_id": school_id,
+            "academic_year": {"$in": [academic_year, str(academic_year)]},
             "course_id": {"$in": [source_course_id, target_course_id]},
             "status": {"$in": ACTIVE_STATUSES},
         },
         {
-            "_id": 0, "id": 1, "course_id": 1, "staff_id": 1,
-            "class_id": 1, "school_id": 1, "academic_year": 1,
-            "status": 1, "carga_horaria_semanal": 1,
+            "_id": 0, "id": 1, "course_id": 1,
+            "carga_horaria_semanal": 1,
         },
-    ).to_list(20)
-    by_course: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    ).to_list(MAX_ASSIGNMENT_ROWS_PER_CASE)
+
+    by_course: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
-        by_course[_norm(row.get("course_id"))].append(row)
+        by_course.setdefault(_norm(row.get("course_id")), []).append(row)
 
     for label, cid in (("source", source_course_id), ("target", target_course_id)):
         matches = by_course.get(cid) or []
         if len(matches) != 1:
             raise RuntimeError(
-                f"CASE_{number}_{label.upper()}_ACTIVE_ASSIGNMENT_COUNT_DRIFT:{len(matches)}"
+                f"CASE_{number}_{label.upper()}_ACTIVE_ASSIGNMENT_COUNT_DRIFT:"
+                f"{len(matches)}"
             )
         expected = expected_workload.get(label)
         live = matches[0].get("carga_horaria_semanal")
         if expected != live:
             raise RuntimeError(
-                f"CASE_{number}_{label.upper()}_WEEKLY_WORKLOAD_DRIFT:{expected!r}!={live!r}"
+                f"CASE_{number}_{label.upper()}_WEEKLY_WORKLOAD_DRIFT:"
+                f"{expected!r}!={live!r}"
             )
 
     return {
@@ -334,38 +371,26 @@ async def _validate_assignment_pair(
     }
 
 
-def _candidate_role(
-    course_id: str,
-    *,
-    source_course_id: str,
-    target_course_id: str,
-    alternative_ids: set[str],
-) -> str:
-    if course_id == source_course_id:
-        return "source"
-    if course_id == target_course_id:
-        return "target"
-    if course_id in alternative_ids:
-        return "alternative_exact_level"
-    return "other_same_name_candidate"
-
-
 async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
     assert_read_only()
+    assert_resource_safety()
     validated = validate_p0f75(_load_json(p0f75_path))
     hardening = validate_resolver_hardening_contract()
 
     results: list[dict[str, Any]] = []
     policy_counts: Counter[str] = Counter()
-    total_resolver_executions = 0
     unresolved_cases = 0
     strong_preferences = 0
+    query_calls = 0
 
-    for raw_case in sorted(validated["cases"], key=lambda row: int(row.get("case_number") or 0)):
+    for raw_case in sorted(
+        validated["cases"], key=lambda row: int(row.get("case_number") or 0)
+    ):
         number = int(raw_case.get("case_number") or 0)
         class_meta = raw_case.get("class") or {}
         teacher_meta = raw_case.get("teacher") or {}
         school_meta = raw_case.get("school") or {}
+
         class_id = _norm(class_meta.get("class_id") or class_meta.get("id"))
         staff_id = _norm(teacher_meta.get("staff_id") or teacher_meta.get("id"))
         school_id = _norm(school_meta.get("school_id") or school_meta.get("id"))
@@ -377,11 +402,13 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
             {"id": class_id},
             {
                 "_id": 0, "id": 1, "name": 1, "school_id": 1,
-                "academic_year": 1, "mantenedora_id": 1, "course_ids": 1,
-                "nivel_ensino": 1, "education_level": 1, "grade_level": 1,
-                "series": 1, "atendimento_programa": 1,
+                "academic_year": 1, "mantenedora_id": 1,
+                "nivel_ensino": 1, "education_level": 1,
+                "grade_level": 1, "series": 1,
             },
         ) or {}
+        query_calls += 1
+
         tenant_id = _norm(live_class.get("mantenedora_id"))
         if not tenant_id:
             raise RuntimeError(f"CASE_{number}_TENANT_MISSING_FAIL_CLOSED")
@@ -406,27 +433,36 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
             raise ValueError(f"CASE_{number}_COURSE_PAIR_MISSING")
 
         expected_candidates = raw_case.get("exact_level_same_name_candidates") or []
-        alternative_ids = {
-            _norm((candidate.get("course") or {}).get("course_id"))
-            for candidate in expected_candidates
-            if not candidate.get("is_source") and not candidate.get("is_target")
-        }
-        alternative_ids.discard("")
-        tracked_ids = sorted({source_course_id, target_course_id, *alternative_ids})
-        live_courses = await _fetch_live_courses(db, tenant_id, tracked_ids)
-        missing = [cid for cid in tracked_ids if cid not in live_courses]
-        if missing:
-            raise RuntimeError(f"CASE_{number}_TRACKED_COURSE_MISSING:{','.join(missing)}")
-
-        _assert_course_snapshot(number, "source", source_expected, live_courses[source_course_id])
-        _assert_course_snapshot(number, "target", target_expected, live_courses[target_course_id])
+        alternative_expected: dict[str, dict[str, Any]] = {}
         for candidate in expected_candidates:
             if candidate.get("is_source") or candidate.get("is_target"):
                 continue
-            expected_course = candidate.get("course") or {}
-            cid = _norm(expected_course.get("course_id"))
+            course = candidate.get("course") or {}
+            cid = _norm(course.get("course_id"))
             if cid:
-                _assert_course_snapshot(number, "alternative", expected_course, live_courses[cid])
+                alternative_expected[cid] = course
+
+        tracked_ids = sorted(
+            {source_course_id, target_course_id, *alternative_expected.keys()}
+        )
+        live_courses = await _fetch_live_courses(db, tenant_id, tracked_ids)
+        query_calls += 1
+        missing = [cid for cid in tracked_ids if cid not in live_courses]
+        if missing:
+            raise RuntimeError(
+                f"CASE_{number}_TRACKED_COURSE_MISSING:{','.join(missing)}"
+            )
+
+        _assert_course_snapshot(
+            number, "source", source_expected, live_courses[source_course_id]
+        )
+        _assert_course_snapshot(
+            number, "target", target_expected, live_courses[target_course_id]
+        )
+        for cid, expected_course in alternative_expected.items():
+            _assert_course_snapshot(
+                number, "alternative", expected_course, live_courses[cid]
+            )
 
         assignment_state = await _validate_assignment_pair(
             db,
@@ -434,10 +470,13 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
             tenant_id=tenant_id,
             class_id=class_id,
             staff_id=staff_id,
+            school_id=school_id,
+            academic_year=year,
             source_course_id=source_course_id,
             target_course_id=target_course_id,
             expected_workload=raw_case.get("weekly_workload_conflict") or {},
         )
+        query_calls += 1
 
         source_fit = _curricular_fit(
             live_courses[source_course_id],
@@ -449,11 +488,20 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
             class_level=live_level,
             class_series=live_series,
         )
+
         expected_source_rank = _expected_rank_from_p0f75(
-            _norm((raw_case.get("source_series_applicability") or {}).get("classification"))
+            _norm(
+                (raw_case.get("source_series_applicability") or {}).get(
+                    "classification"
+                )
+            )
         )
         expected_target_rank = _expected_rank_from_p0f75(
-            _norm((raw_case.get("target_series_applicability") or {}).get("classification"))
+            _norm(
+                (raw_case.get("target_series_applicability") or {}).get(
+                    "classification"
+                )
+            )
         )
         if int(source_fit.get("rank") or 0) != expected_source_rank:
             raise RuntimeError(f"CASE_{number}_SOURCE_RANK_CHAIN_DRIFT")
@@ -467,94 +515,8 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
         if policy["curricular_preference"]:
             strong_preferences += 1
 
-        enrollments = await db.enrollments.find(
-            {
-                "mantenedora_id": tenant_id,
-                "class_id": class_id,
-                "academic_year": {"$in": [year, str(year)]},
-                "status": {"$in": ACTIVE_STATUSES},
-            },
-            {"_id": 0, "student_id": 1, "student_series": 1},
-        ).to_list(5000)
-
-        winner_roles: Counter[str] = Counter()
-        winner_reasons: Counter[str] = Counter()
-        winner_classifications: Counter[str] = Counter()
-        warning_counts: Counter[str] = Counter()
-        candidate_presence: Counter[str] = Counter()
-        unexpected_same_name_ids: set[str] = set()
-        tracked_name = _norm_name(
-            live_courses[source_course_id].get("name")
-            or live_courses[target_course_id].get("name")
-            or "Geografia"
-        )
-
-        for enrollment in enrollments:
-            student_id = _norm(enrollment.get("student_id"))
-            if not student_id:
-                raise RuntimeError(f"CASE_{number}_ENROLLMENT_STUDENT_ID_MISSING")
-            resolved = await resolve_curriculum(
-                db,
-                student_id=student_id,
-                class_id=class_id,
-                academic_year=year,
-                class_info=live_class,
-                student_info={
-                    "id": student_id,
-                    "student_series": enrollment.get("student_series"),
-                },
-                atendimento_programa_filter=live_class.get("atendimento_programa"),
-            )
-            total_resolver_executions += 1
-
-            debug = resolved.get("debug") or {}
-            candidate_ids = set(debug.get("evidence_course_ids") or [])
-            candidate_ids.update(debug.get("class_course_ids") or [])
-            candidate_ids.update(debug.get("teacher_assignment_course_ids") or [])
-            candidate_ids.update(debug.get("fallback_course_ids") or [])
-            for cid in tracked_ids:
-                if cid in candidate_ids:
-                    candidate_presence[_candidate_role(
-                        cid,
-                        source_course_id=source_course_id,
-                        target_course_id=target_course_id,
-                        alternative_ids=alternative_ids,
-                    )] += 1
-
-            same_name = [
-                component
-                for component in (resolved.get("components") or [])
-                if _norm_name(component.get("course_name") or "") == tracked_name
-            ]
-            if len(same_name) == 0:
-                winner_roles["no_same_name_component"] += 1
-            elif len(same_name) > 1:
-                winner_roles["multiple_same_name_components_unexpected"] += 1
-            else:
-                winner = same_name[0]
-                winner_id = _norm(winner.get("course_id"))
-                role = _candidate_role(
-                    winner_id,
-                    source_course_id=source_course_id,
-                    target_course_id=target_course_id,
-                    alternative_ids=alternative_ids,
-                )
-                winner_roles[role] += 1
-                if role == "other_same_name_candidate" and winner_id:
-                    unexpected_same_name_ids.add(winner_id)
-                winner_reasons[_norm(winner.get("dedupe_kept_reason")) or "unknown"] += 1
-                winner_classifications[
-                    _norm(winner.get("curricular_classification")) or "unknown"
-                ] += 1
-
-            for warning in resolved.get("warnings") or []:
-                code = _norm(warning.get("code"))
-                if code in {"CURRICULAR_COMPATIBILITY_REVIEW_REQUIRED", "DUPLICATE_COURSE_NAME"}:
-                    if _norm_name(warning.get("course_name") or "") == tracked_name:
-                        warning_counts[code] += 1
-
         alternatives = []
-        for cid in sorted(alternative_ids):
+        for cid in sorted(alternative_expected):
             alt_fit = _curricular_fit(
                 live_courses[cid],
                 class_level=live_level,
@@ -564,9 +526,7 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
                 "course_id": cid,
                 "curricular_rank": alt_fit.get("rank"),
                 "curricular_classification": alt_fit.get("classification"),
-                "present_in_any_resolver_candidate_set": (
-                    candidate_presence.get("alternative_exact_level", 0) > 0
-                ),
+                "automatically_injected_into_resolver": False,
             })
 
         results.append({
@@ -596,42 +556,47 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
             "alternative_exact_level_candidates": alternatives,
             "pair_policy": policy,
             "assignment_snapshot": assignment_state,
-            "resolver_observation": {
-                "active_enrollments_evaluated": len(enrollments),
-                "winner_role_counts": dict(sorted(winner_roles.items())),
-                "winner_reason_counts": dict(sorted(winner_reasons.items())),
-                "winner_curricular_classification_counts": dict(
-                    sorted(winner_classifications.items())
-                ),
-                "tracked_candidate_presence_counts": dict(sorted(candidate_presence.items())),
-                "warning_counts": dict(sorted(warning_counts.items())),
-                "unexpected_same_name_course_ids": sorted(unexpected_same_name_ids),
-                "student_identifiers_exposed": False,
-                "grade_values_exposed": False,
-                "attendance_values_exposed": False,
+            "resource_safety": {
+                "student_records_read": 0,
+                "enrollment_records_read": 0,
+                "grade_records_read": 0,
+                "attendance_records_read": 0,
+                "full_resolver_replays": 0,
+                "database_query_calls_for_case": 3,
             },
             "automatic_course_mutation": False,
             "automatic_workload_decision": False,
             "executor_authorized": False,
         })
 
+    if query_calls > MAX_DATABASE_QUERY_CALLS:
+        raise RuntimeError(
+            f"RESOURCE_QUERY_BUDGET_EXCEEDED:{query_calls}>{MAX_DATABASE_QUERY_CALLS}"
+        )
+
     report: dict[str, Any] = {
         "phase": PHASE_ID,
         "manifest_version": MANIFEST_VERSION,
-        "mode": "READ_ONLY_POST_HARDENING_RESOLVER_REEVALUATION",
+        "mode": "READ_ONLY_BOUNDED_POST_HARDENING_REEVALUATION",
         "status": "PASS",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "group_name": "Geografia",
         "source_p0f7_5_manifest_sha256": validated["manifest_sha256"],
         "resolver_hardening_contract": hardening,
         "summary": {
-            "expected_cases": 3,
+            "expected_cases": MAX_CASES,
             "documented_cases": len(results),
             "snapshot_drift_cases": 0,
-            "resolver_executions": total_resolver_executions,
             "pair_policy_state_counts": dict(sorted(policy_counts.items())),
             "strong_curricular_preferences": strong_preferences,
             "component_policy_cases_requiring_adjudication": unresolved_cases,
+            "database_query_calls": query_calls,
+            "database_query_call_budget": MAX_DATABASE_QUERY_CALLS,
+            "full_resolver_replays": 0,
+            "student_records_read": 0,
+            "enrollment_records_read": 0,
+            "grade_records_read": 0,
+            "attendance_records_read": 0,
             "automatic_course_mutations": 0,
             "automatic_workload_decisions": 0,
             "database_access": True,
@@ -639,11 +604,14 @@ async def collect_report(db: Any, *, p0f75_path: Path) -> dict[str, Any]:
         },
         "safety": {
             "read_only": True,
+            "bounded_read_only": True,
             "database_access": True,
-            "student_identifiers_used_only_in_memory": True,
+            "allowed_collections": ["classes", "courses", "teacher_assignments"],
+            "student_identifiers_used": False,
             "student_identifiers_exposed": False,
             "contains_grade_values": False,
             "contains_attendance_values": False,
+            "full_resolver_replay_per_student_performed": False,
             "automatic_database_action": False,
             "automatic_workload_resolution": False,
             "database_mutation": False,
@@ -662,7 +630,9 @@ def compact_summary(report: Mapping[str, Any]) -> dict[str, Any]:
         "mode": report.get("mode"),
         "status": report.get("status"),
         "group_name": report.get("group_name"),
-        "source_p0f7_5_manifest_sha256": report.get("source_p0f7_5_manifest_sha256"),
+        "source_p0f7_5_manifest_sha256": report.get(
+            "source_p0f7_5_manifest_sha256"
+        ),
         "resolver_hardening_contract": report.get("resolver_hardening_contract"),
         "summary": report.get("summary"),
         "cases": report.get("cases"),
@@ -677,7 +647,7 @@ def compact_summary(report: Mapping[str, Any]) -> dict[str, Any]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="P0-F7.8 post-hardening resolver reevaluation read-only"
+        description="P0-F7.8.1 bounded post-hardening reevaluation read-only"
     )
     parser.add_argument("--series", required=True, type=Path)
     parser.add_argument("--json", dest="json_path", required=True, type=Path)
@@ -686,11 +656,19 @@ def parse_args() -> argparse.Namespace:
 
 async def async_main() -> int:
     assert_read_only()
+    assert_resource_safety()
     args = parse_args()
     mongo_url, db_name = os.getenv("MONGO_URL"), os.getenv("DB_NAME")
     if not mongo_url or not db_name:
         raise RuntimeError("MONGO_URL and DB_NAME are required")
-    client = AsyncIOMotorClient(mongo_url)
+    client = AsyncIOMotorClient(
+        mongo_url,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=15000,
+        maxPoolSize=2,
+        minPoolSize=0,
+    )
     try:
         report = await collect_report(client[db_name], p0f75_path=args.series)
     finally:
