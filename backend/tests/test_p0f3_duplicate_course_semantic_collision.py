@@ -170,12 +170,22 @@ def test_teacher_assignment_exact_active_duplicate_requires_plan_not_hard_confli
 
 
 def _tca(doc_id, component, *, aula=1, valid_from="2026-02-01", valid_until=None):
+    slot_times = {
+        1: ("08:00", "08:50"),
+        2: ("08:50", "09:40"),
+    }
+    start_time, end_time = slot_times.get(aula, ("10:00", "10:50"))
     return {
         "id": doc_id,
         "teacher_id": "u", "class_id": "c", "component_id": component,
         "valid_from": valid_from, "valid_until": valid_until, "deleted": False,
         "is_substitute": False,
-        "weekly_slots": [{"weekday": 2, "aula_numero": aula, "start_time": "08:00", "end_time": "08:50"}],
+        "weekly_slots": [{
+            "weekday": 2,
+            "aula_numero": aula,
+            "start_time": start_time,
+            "end_time": end_time,
+        }],
     }
 
 
