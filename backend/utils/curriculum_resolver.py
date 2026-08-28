@@ -186,6 +186,15 @@ def _curricular_fit(
             "class_series": sorted(class_series),
         }
 
+    if not course_level:
+        return {
+            "rank": 2,
+            "classification": "COURSE_LEVEL_UNKNOWN_REQUIRES_REVIEW",
+            "class_level": class_level,
+            "course_level": None,
+            "class_series": sorted(class_series),
+        }
+
     if not class_series:
         return {
             "rank": 2,
