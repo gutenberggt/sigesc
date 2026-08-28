@@ -34,7 +34,7 @@ from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_generalization
-from .calendar import router as calendar_router, setup_calendar_router
+from .calendar import router as calendar_router, setup_router as setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
 from .analytics import router as analytics_router, setup_analytics_router
@@ -57,8 +57,10 @@ install_dvd_historical_bridge_generalization(
 # intactos; leitura histórica e cópia segura são adicionadas sobre o motor canônico.
 from . import content_entries as _content_entries_mod
 from . import learning_objects as _learning_objects_mod
+from . import assignments as _assignments_mod
 from .content_dvd_history import install_content_history_setups
 from .content_copy_dvd import install_content_copy_setup
+from services.course_missing_containment import install_course_missing_containment_setup
 
 # Sprint 007 — a gestão da política avaliativa é exposta dentro do cadastro da
 # mantenedora, mas sua SSoT permanece em assessment_policies. Envolver o setup
@@ -111,6 +113,7 @@ from aee_v2.plan_write_governance import install_aee_v2_plan_write_governance_se
 install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 install_content_copy_setup(_content_entries_mod)
+install_course_missing_containment_setup(_learning_objects_mod, _assignments_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
 install_aee_v2_p0_setup(_aee_mod)
 install_aee_v2_dossier_setup(_aee_mod)
