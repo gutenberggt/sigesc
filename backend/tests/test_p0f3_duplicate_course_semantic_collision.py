@@ -67,10 +67,18 @@ def test_grade_divergent_nonempty_values_are_hard_conflict_without_exposing_valu
     r = m.analyze_grades(src, tgt, 10)
     assert r["classifications"] == {"VALUE_CONFLICT": 1}
     assert r["hard_conflicts"] == 1
-    assert r["examples"][0]["field_names"] == ["b1"]
-    rendered = str(r["examples"])
-    assert "8" not in rendered
-    assert "5" not in rendered
+    example = r["examples"][0]
+    assert example["field_names"] == ["b1"]
+    assert set(example) == {
+        "key_sha256",
+        "classification",
+        "field_names",
+        "source_document_ids",
+        "target_document_ids",
+    }
+    assert "values" not in example
+    assert "source_values" not in example
+    assert "target_values" not in example
 
 
 def test_attendance_different_aula_numero_is_not_collision():
