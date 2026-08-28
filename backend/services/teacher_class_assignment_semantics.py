@@ -1,13 +1,14 @@
 """Semântica canônica de ``teacher_class_assignments`` para auditorias P0.
 
-O campo ``teacher_id`` possui duas semânticas históricas persistidas:
+O campo ``teacher_id`` possui semânticas históricas persistidas distintas:
 - vínculos DVD operacionais: ``users.id``;
-- materializações de grade legada: ``staff.id`` com ``source=legacy_migration``.
+- materializações de grade legada com professor: ``staff.id``;
+- materializações de grade legada sem professor: ``teacher_id=None`` e id ``::none``.
 
-A segunda população NÃO representa propriedade pedagógica DVD. Ela é um artefato
-sintético criado pela migração definitiva da grade horária e só pode ser excluída
-de auditorias de identidade quando seus marcadores institucionais continuam
-íntegros. Qualquer drift permanece fail-closed.
+As duas populações ``legacy_migration`` NÃO representam propriedade pedagógica
+DVD. São artefatos sintéticos criados pela migração definitiva da grade horária
+e só podem ser excluídos de auditorias de identidade quando seus marcadores
+institucionais continuam íntegros. Qualquer drift permanece fail-closed.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from typing import Any, Iterable, Mapping
 LEGACY_MIGRATION_SOURCE = "legacy_migration"
 OPERATIONAL_DVD = "OPERATIONAL_DVD"
 LEGACY_MIGRATION_SYNTHETIC = "LEGACY_MIGRATION_SYNTHETIC"
+LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED = "LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED"
 LEGACY_MIGRATION_DRIFT = "LEGACY_MIGRATION_DRIFT"
 
 
@@ -31,18 +33,22 @@ def _norm(value: Any) -> str:
 
 
 def classify_teacher_class_assignment(row: Mapping[str, Any]) -> AssignmentSemantic:
-    """Classifica um documento sem inferência por nome ou heurística de ID.
+    """Classifica um documento sem inferência por nome.
 
     Apenas ``source=legacy_migration`` entra na trilha sintética. Para ser
     reconhecido como artefato válido, o documento precisa manter os marcadores
-    produzidos pelo writer oficial. Se algum marcador divergir, o registro vira
-    ``LEGACY_MIGRATION_DRIFT`` e NÃO pode ser silenciosamente ignorado.
+    produzidos pelo writer oficial. O bridge oficial admite explicitamente
+    componente de grade sem professor, persistido como ``teacher_id=None`` e id
+    determinístico terminado em ``::none``. Esse estado é sintético legítimo,
+    não drift e não vínculo DVD operacional.
     """
     if _norm(row.get("source")) != LEGACY_MIGRATION_SOURCE:
         return AssignmentSemantic(OPERATIONAL_DVD)
 
     reasons: list[str] = []
     assignment_id = _norm(row.get("id"))
+    teacher_id = _norm(row.get("teacher_id"))
+
     if not assignment_id.startswith("legacy::"):
         reasons.append("ID_NOT_LEGACY_DETERMINISTIC")
     if row.get("migrated_from_legacy") is not True:
@@ -53,12 +59,23 @@ def classify_teacher_class_assignment(row: Mapping[str, Any]) -> AssignmentSeman
         reasons.append("CREATED_BY_MISMATCH")
     if (row.get("diary_settings") or {}).get("enabled") is True:
         reasons.append("DVD_ENABLED_TRUE")
-    if not _norm(row.get("teacher_id")):
-        reasons.append("TEACHER_ID_MISSING")
     if not _norm(row.get("class_id")):
         reasons.append("CLASS_ID_MISSING")
     if not _norm(row.get("component_id")):
         reasons.append("COMPONENT_ID_MISSING")
+
+    if not teacher_id:
+        if assignment_id and not assignment_id.endswith("::none"):
+            reasons.append("UNASSIGNED_ID_NOT_NONE")
+        if reasons:
+            return AssignmentSemantic(
+                LEGACY_MIGRATION_DRIFT,
+                tuple(sorted(set(reasons))),
+            )
+        return AssignmentSemantic(LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED)
+
+    if assignment_id.endswith("::none"):
+        reasons.append("TEACHER_PRESENT_WITH_NONE_ID")
 
     if reasons:
         return AssignmentSemantic(LEGACY_MIGRATION_DRIFT, tuple(sorted(set(reasons))))
@@ -71,6 +88,7 @@ def partition_teacher_class_assignments(
     result: dict[str, list[Mapping[str, Any]]] = {
         OPERATIONAL_DVD: [],
         LEGACY_MIGRATION_SYNTHETIC: [],
+        LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED: [],
         LEGACY_MIGRATION_DRIFT: [],
     }
     for row in rows:

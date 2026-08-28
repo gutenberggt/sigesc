@@ -2,8 +2,10 @@
 """P0-C.1E — preflight de identidade semantic-aware, READ-ONLY.
 
 Executa o P0-C original somente sobre vínculos DVD operacionais. Artefatos
-``source=legacy_migration`` são separados porque usam ``teacher_id=staff.id`` e
-não representam propriedade pedagógica DVD. Qualquer drift dos marcadores
+``source=legacy_migration`` são separados porque representam materializações de
+grade: com professor usam ``teacher_id=staff.id``; sem professor usam
+``teacher_id=None`` com id terminado em ``::none``. Nenhuma dessas populações
+representa propriedade pedagógica DVD. Qualquer drift real dos marcadores
 sintéticos bloqueia o preflight fail-closed.
 """
 from __future__ import annotations
@@ -15,7 +17,7 @@ import json
 import os
 from pathlib import Path
 import sys
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = SCRIPT_DIR.parent
@@ -31,14 +33,15 @@ from scripts.audit_teacher_binding_integrity_p0_semantic import (  # noqa: E402
 from services.teacher_class_assignment_semantics import (  # noqa: E402
     LEGACY_MIGRATION_DRIFT,
     LEGACY_MIGRATION_SYNTHETIC,
+    LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED,
     OPERATIONAL_DVD,
 )
 
 load_dotenv(BACKEND_DIR / ".env")
 
-PHASE_ID = "P0C-TEACHER-IDENTITY-PREFLIGHT-2026-SEMANTIC-V2"
-MANIFEST_VERSION = 2
-DEFAULT_MANIFEST = "/tmp/sigesc_p0c_teacher_identity_semantic_v2.json"
+PHASE_ID = "P0C-TEACHER-IDENTITY-PREFLIGHT-2026-SEMANTIC-V3"
+MANIFEST_VERSION = 3
+DEFAULT_MANIFEST = "/tmp/sigesc_p0c_teacher_identity_semantic_v3.json"
 MUTATOR_TOKENS = base.MUTATOR_TOKENS
 
 
@@ -88,6 +91,9 @@ async def collect_manifest(
                 "proposed_staff_user_id_backfills": 0,
                 "operational_dvd_rows": semantic["counts"].get(OPERATIONAL_DVD, 0),
                 "legacy_migration_synthetic": semantic["counts"].get(LEGACY_MIGRATION_SYNTHETIC, 0),
+                "legacy_migration_synthetic_unassigned": semantic["counts"].get(
+                    LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED, 0
+                ),
                 "legacy_migration_drift": semantic["counts"].get(LEGACY_MIGRATION_DRIFT, 0),
             },
             "proposals": [],
@@ -114,12 +120,16 @@ async def collect_manifest(
         "teacher_class_assignments_raw_active": semantic["raw_active_rows"],
         "operational_dvd_rows": semantic["counts"].get(OPERATIONAL_DVD, 0),
         "legacy_migration_synthetic": semantic["counts"].get(LEGACY_MIGRATION_SYNTHETIC, 0),
+        "legacy_migration_synthetic_unassigned": semantic["counts"].get(
+            LEGACY_MIGRATION_SYNTHETIC_UNASSIGNED, 0
+        ),
         "legacy_migration_drift": semantic["counts"].get(LEGACY_MIGRATION_DRIFT, 0),
     }
     payload["safety_contract"] = {
         **payload["safety_contract"],
         "legacy_migration_semantically_separated": True,
-        "legacy_migration_teacher_id_semantics": "staff.id",
+        "legacy_migration_assigned_teacher_id_semantics": "staff.id",
+        "legacy_migration_unassigned_teacher_id_semantics": "None + deterministic ::none id",
         "operational_dvd_teacher_id_semantics": "users.id",
         "legacy_migration_drift_blocks_preflight": True,
     }
