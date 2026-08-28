@@ -3,12 +3,13 @@ Router para Manutenção.
 Extraído automaticamente de server.py.
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from datetime import datetime, timezone
 import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+from tenant_scope import apply_tenant_filter
 
 logger = logging.getLogger(__name__)
 
@@ -109,9 +110,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.delete("/maintenance/orphan-cleanup")
     async def cleanup_orphan_data(request: Request, dry_run: bool = True):
         """
-        Remove dados órfãos do sistema.
-        Apenas admin pode executar.
-        Use dry_run=false para executar a limpeza real.
+        Remove dados órfãos no escopo legado.
+
+        P0 Global: ``teacher_assignments`` não são mais removidos fisicamente por
+        esta rotina. Vínculos docentes precisam ser preservados até a reconciliação
+        global entre as fontes de verdade concorrentes.
         """
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
 
@@ -121,14 +124,16 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if dry_run:
             return {
                 'mode': 'dry_run',
-                'message': 'Nenhuma alteração foi feita. Use dry_run=false para executar a limpeza.',
-                'would_delete': orphan_check['summary']
+                'message': 'Nenhuma alteração foi feita. Use dry_run=false para executar.',
+                'would_delete': orphan_check['summary'],
+                'p0_protection': 'teacher_assignments nunca serão hard-deleted por esta rotina'
             }
 
         deleted = {
             'enrollments': 0,
             'school_assignments': 0,
             'teacher_assignments': 0,
+            'teacher_assignments_protected': 0,
             'total': 0
         }
 
@@ -141,12 +146,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     await db.school_assignments.delete_one({"id": orphan['id']})
                     deleted['school_assignments'] += 1
                 elif orphan['type'] == 'teacher_assignment':
-                    await db.teacher_assignments.delete_one({"id": orphan['id']})
-                    deleted['teacher_assignments'] += 1
+                    deleted['teacher_assignments_protected'] += 1
             except Exception as e:
                 logger.error(f"Falha ao remover registro órfão {orphan.get('type')}/{orphan.get('id')}: {e}")
 
-        deleted['total'] = deleted['enrollments'] + deleted['school_assignments'] + deleted['teacher_assignments']
+        deleted['total'] = deleted['enrollments'] + deleted['school_assignments']
 
         # Registra auditoria da limpeza
         await audit_service.log(
@@ -154,7 +158,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             collection='system',
             user=current_user,
             request=request,
-            description=f"Executou limpeza de dados órfãos: {deleted['total']} registros removidos",
+            description=(
+                f"Executou limpeza de dados órfãos: {deleted['total']} registros removidos; "
+                f"{deleted['teacher_assignments_protected']} vínculos docentes preservados pelo P0"
+            ),
             extra_data=deleted
         )
 
@@ -166,34 +173,38 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.get("/maintenance/duplicate-courses")
     async def check_duplicate_courses(request: Request):
-        """
-        Verifica componentes curriculares duplicados.
-        Apenas admin pode executar.
-        """
+        """Verifica componentes duplicados somente dentro do tenant autorizado."""
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
 
-        courses = await db.courses.find({}, {"_id": 0}).to_list(500)
+        # P0 Global: nunca comparar/mesclar componentes atravessando mantenedoras.
+        course_query = apply_tenant_filter({}, current_user, request)
+        courses = await db.courses.find(course_query, {"_id": 0}).to_list(5000)
 
-        # Agrupar por nome + nivel_ensino
+        # Agrupar por tenant + nome + nível de ensino.
         groups = {}
         for course in courses:
-            key = (course.get('name', ''), course.get('nivel_ensino', ''))
+            key = (
+                course.get('mantenedora_id'),
+                course.get('name', ''),
+                course.get('nivel_ensino', '')
+            )
             if key not in groups:
                 groups[key] = []
             groups[key].append(course)
 
-        # Encontrar duplicados
         duplicates = []
         for key, courses_list in groups.items():
             if len(courses_list) > 1:
                 duplicates.append({
-                    'name': key[0],
-                    'nivel_ensino': key[1],
+                    'mantenedora_id': key[0],
+                    'name': key[1],
+                    'nivel_ensino': key[2],
                     'count': len(courses_list),
                     'courses': courses_list
                 })
 
         return {
+            'mode': 'READ_ONLY',
             'total_duplicates': len(duplicates),
             'duplicates': duplicates
         }
@@ -201,82 +212,36 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.post("/maintenance/consolidate-courses")
     async def consolidate_duplicate_courses(request: Request, dry_run: bool = True):
-        """
-        Consolida componentes curriculares duplicados.
-        Apenas admin pode executar.
-        Une os grade_levels de componentes com mesmo nome e nivel_ensino.
-        """
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        """Prévia de duplicados; execução destrutiva congelada pelo P0 Global.
 
-        # Obter duplicados
+        A implementação anterior apagava ``courses.id`` sem remapear as referências
+        em vínculos docentes e dados pedagógicos. Até existir motor transacional de
+        merge com manifesto, rollback e pós-check, apenas ``dry_run`` é permitido.
+        """
+        await AuthMiddleware.require_roles(['admin'])(request)
         dup_check = await check_duplicate_courses(request)
 
         if dry_run:
             return {
                 'mode': 'dry_run',
-                'message': 'Nenhuma alteração foi feita. Use dry_run=false para executar.',
+                'message': (
+                    'P0 Global ativo: prévia permitida, consolidação destrutiva desabilitada. '
+                    'Nenhuma alteração foi feita.'
+                ),
                 'would_consolidate': dup_check
             }
 
-        consolidated = []
-
-        for dup in dup_check['duplicates']:
-            courses_list = dup['courses']
-            if len(courses_list) < 2:
-                continue
-
-            # Escolher o primeiro como base
-            base_course = courses_list[0]
-            base_id = base_course.get('id')
-
-            # Unir grade_levels de todos os duplicados
-            all_grade_levels = set()
-            for c in courses_list:
-                grade_levels = c.get('grade_levels', [])
-                if grade_levels:
-                    all_grade_levels.update(grade_levels)
-
-            # Atualizar o componente base com todos os grade_levels
-            if all_grade_levels:
-                sorted_levels = sorted(list(all_grade_levels), key=lambda x: (
-                    0 if 'º Ano' in x else 1,
-                    int(''.join(filter(str.isdigit, x)) or 0)
-                ))
-                await db.courses.update_one(
-                    {"id": base_id},
-                    {"$set": {"grade_levels": sorted_levels}}
-                )
-
-            # Remover os duplicados (manter apenas o primeiro)
-            removed_ids = []
-            for c in courses_list[1:]:
-                await db.courses.delete_one({"id": c.get('id')})
-                removed_ids.append(c.get('id'))
-
-            consolidated.append({
-                'name': dup['name'],
-                'nivel_ensino': dup['nivel_ensino'],
-                'kept_id': base_id,
-                'removed_ids': removed_ids,
-                'unified_grade_levels': sorted_levels if all_grade_levels else []
-            })
-
-        # Registra auditoria
-        await audit_service.log(
-            action='update',
-            collection='courses',
-            user=current_user,
-            request=request,
-            description=f"Consolidou {len(consolidated)} componentes curriculares duplicados",
-            extra_data={'consolidated': consolidated}
+        raise HTTPException(
+            status_code=409,
+            detail={
+                'code': 'COURSE_CONSOLIDATION_DISABLED_P0',
+                'message': (
+                    'Consolidação física de componentes está bloqueada pelo P0 Global. '
+                    'É obrigatório remapear todas as referências com dry-run, manifesto, '
+                    'rollback e validação pós-migração antes de reabilitar esta operação.'
+                ),
+            },
         )
-
-        return {
-            'mode': 'executed',
-            'consolidated': consolidated,
-            'total': len(consolidated)
-        }
-
 
 
     @router.post("/maintenance/cleanup-cancelled-enrollments")
