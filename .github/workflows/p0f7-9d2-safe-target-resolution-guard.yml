@@ -29,7 +29,7 @@ jobs:
         run: python -m py_compile backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
 
       - name: Run focused regressions
-        run: pytest -q --noconftest backend/tests/test_p0f7_9d2_safe_targets.py
+        run: PYTHONPATH=backend pytest -q --noconftest backend/tests/test_p0f7_9d2_safe_targets.py
 
       - name: Guard writer SSoT reuse and canonical name normalization
         run: |
