@@ -1,0 +1,49 @@
+name: P0-F7.9D2 Safe Target Resolution Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_p0f7_9d2_safe_targets_offline.py'
+      - 'backend/tests/test_p0f7_9d2_safe_targets.py'
+      - 'scripts/p0f7_9d2_safe_targets_local.ps1'
+      - '.github/workflows/p0f7-9d2-safe-target-resolution-guard.yml'
+      - 'memory/audit/P0F7_9D2_SAFE_TARGET_RESOLUTION_2026-08-29.md'
+  workflow_dispatch:
+
+jobs:
+  safe-target-resolution-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install focused test dependency
+        run: python -m pip install pytest
+
+      - name: Compile offline resolver
+        run: python -m py_compile backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
+
+      - name: Run focused regressions
+        run: pytest -q --noconftest backend/tests/test_p0f7_9d2_safe_targets.py
+
+      - name: Guard writer SSoT reuse and canonical name normalization
+        run: |
+          grep -q 'validate_teacher_assignment_curriculum' backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
+          grep -q 'from utils.curriculum_resolver import _norm_name' backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
+
+      - name: Guard offline-only implementation
+        run: |
+          ! grep -Eiq 'pymongo|motor|mongosh|docker exec|ssh |subprocess|requests\.|httpx\.' backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
+          ! grep -Eiq 'mongosh|docker exec|ssh ' scripts/p0f7_9d2_safe_targets_local.ps1
+
+      - name: Guard proposal-only safety contract
+        run: |
+          grep -q '"production_access": False' backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
+          grep -q '"database_mutation": False' backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
+          grep -q '"production_writes": False' backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
+          grep -q '"remediation_executed": False' backend/scripts/audit_p0f7_9d2_safe_targets_offline.py
