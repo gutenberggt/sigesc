@@ -3,12 +3,16 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_1_bounded_reevaluation.py"
+SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_2_offline_snapshot.py"
 OLD_SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_post_hardening_reevaluation.py"
+BOUNDED_SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_1_bounded_reevaluation.py"
+POWERSHELL = ROOT / "scripts" / "p0f7_8_2_analyze_local.ps1"
 
-spec = importlib.util.spec_from_file_location("p0f781", SCRIPT)
+spec = importlib.util.spec_from_file_location("p0f782", SCRIPT)
 mod = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(mod)
@@ -18,35 +22,61 @@ def _fit(rank: int, classification: str) -> dict:
     return {"rank": rank, "classification": classification}
 
 
-def test_old_high_cost_entrypoint_is_removed() -> None:
+def _minimal_snapshot() -> dict:
+    return {
+        "phase": mod.SNAPSHOT_PHASE,
+        "mode": "READ_ONLY_MINIMAL_MONGOSH",
+        "query_budget": 9,
+        "query_calls": 9,
+        "cases": [
+            {"case_number": 1, "class": {}, "courses": [], "assignments": []},
+            {"case_number": 2, "class": {}, "courses": [], "assignments": []},
+            {"case_number": 3, "class": {}, "courses": [], "assignments": []},
+        ],
+    }
+
+
+def test_all_production_python_auditor_entrypoints_are_removed() -> None:
     assert OLD_SCRIPT.exists() is False
+    assert BOUNDED_SCRIPT.exists() is False
 
 
-def test_read_only_and_resource_safety_guards_pass() -> None:
-    mod.assert_read_only()
-    mod.assert_resource_safety()
-
-
-def test_script_has_fixed_small_resource_budget() -> None:
+def test_offline_analyzer_has_no_database_or_remote_runtime() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
-    assert mod.MAX_CASES == 3
-    assert mod.MAX_DATABASE_QUERY_CALLS == 9
-    assert mod.MAX_TRACKED_COURSES_PER_CASE <= 4
-    assert "db.enrollments" not in source
-    assert "db.students" not in source
-    assert "db.grades" not in source
-    assert "db.attendance" not in source
-    assert "resolve_curriculum(" not in source
-    assert ".to_list(5000)" not in source
-    assert ".to_list(10000)" not in source
+    forbidden = [
+        "from motor", "import motor", "pymongo", "AsyncIOMotorClient",
+        "MongoClient(", "subprocess.", "docker exec", "MONGO_URL", "DB_NAME",
+    ]
+    assert not any(token in source for token in forbidden)
+    assert "--apply" not in source
 
 
-def test_resolver_hardening_contract_is_present_without_full_replay() -> None:
+def test_powershell_wrapper_is_local_only() -> None:
+    source = POWERSHELL.read_text(encoding="utf-8")
+    forbidden = ["ssh.exe", "scp.exe", "docker exec", "mongosh", "Invoke-WebRequest"]
+    assert not any(token in source for token in forbidden)
+    assert "PRODUCTION_ACCESS=NO" in source
+
+
+def test_snapshot_contract_is_three_cases_and_nine_reads() -> None:
+    result = mod.validate_snapshot(_minimal_snapshot())
+    assert len(result["snapshot_sha256"]) == 64
+    assert sorted(result["cases"]) == [1, 2, 3]
+
+
+def test_snapshot_privacy_guard_rejects_student_keys() -> None:
+    snapshot = _minimal_snapshot()
+    snapshot["cases"][0]["student_id"] = "forbidden"
+    with pytest.raises(ValueError, match="SNAPSHOT_PRIVACY_GUARD_FAILED"):
+        mod.validate_snapshot(snapshot)
+
+
+def test_resolver_hardening_contract_is_reused_offline() -> None:
     contract = mod.validate_resolver_hardening_contract()
     assert contract["curricular_rank_precedes_evidence_score"] is True
     assert contract["unknown_course_level_is_review"] is True
     assert contract["resolver_mutator_surface_detected"] is False
-    assert contract["full_resolver_replay_per_student_performed"] is False
+    assert contract["database_client_available_in_analyzer"] is False
     assert len(contract["resolver_sha256"]) == 64
 
 
