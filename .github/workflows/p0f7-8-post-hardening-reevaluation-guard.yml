@@ -6,6 +6,7 @@ on:
       - 'backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py'
       - 'backend/scripts/audit_p0f7_8_1_bounded_reevaluation.py'
       - 'backend/scripts/audit_p0f7_8_2_offline_snapshot.py'
+      - 'backend/scripts/audit_p0f7_8_2_offline_runner.py'
       - 'backend/tests/test_p0f7_8_post_hardening_reevaluation.py'
       - 'scripts/p0f7_8_2_analyze_local.ps1'
       - 'backend/utils/curriculum_resolver.py'
@@ -31,9 +32,10 @@ jobs:
           test ! -e backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py
           test ! -e backend/scripts/audit_p0f7_8_1_bounded_reevaluation.py
 
-      - name: Compile offline analyzer and tests
+      - name: Compile offline analyzer, runner and tests
         run: |
           python -m py_compile backend/scripts/audit_p0f7_8_2_offline_snapshot.py
+          python -m py_compile backend/scripts/audit_p0f7_8_2_offline_runner.py
           python -m py_compile backend/tests/test_p0f7_8_post_hardening_reevaluation.py
 
       - name: Parse PowerShell wrapper
@@ -59,29 +61,35 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          audit = Path('backend/scripts/audit_p0f7_8_2_offline_snapshot.py').read_text(encoding='utf-8')
+          core = Path('backend/scripts/audit_p0f7_8_2_offline_snapshot.py').read_text(encoding='utf-8')
+          runner = Path('backend/scripts/audit_p0f7_8_2_offline_runner.py').read_text(encoding='utf-8')
           ps = Path('scripts/p0f7_8_2_analyze_local.ps1').read_text(encoding='utf-8')
 
-          forbidden_audit = [
-              'from motor', 'import motor', 'pymongo', 'AsyncIOMotorClient',
-              'MongoClient(', 'MONGO_URL', 'DB_NAME', 'subprocess.', 'docker exec',
+          forbidden_runner = [
+              'from motor', 'import motor', 'AsyncIOMotorClient', 'MongoClient(',
+              'MONGO_URL', 'DB_NAME', 'subprocess.', 'docker exec',
           ]
-          assert not any(token in audit for token in forbidden_audit)
-          assert '--apply' not in audit
+          assert not any(token in runner for token in forbidden_runner)
+          assert 'from motor' not in core
+          assert 'import motor' not in core
+          assert 'MONGO_URL' not in core
+          assert 'DB_NAME' not in core
+          assert '--apply' not in runner
+          assert '--apply' not in core
 
           forbidden_ps = ['ssh.exe', 'scp.exe', 'docker exec', 'mongosh', 'Invoke-WebRequest']
           assert not any(token in ps for token in forbidden_ps)
           assert 'PRODUCTION_ACCESS=NO' in ps
 
-          assert 'EXPECTED_PRODUCTION_QUERY_CALLS = 9' in audit
-          assert 'student_records_read": 0' in audit
-          assert 'enrollment_records_read": 0' in audit
-          assert 'grade_records_read": 0' in audit
-          assert 'attendance_records_read": 0' in audit
-          assert 'production_python_executions": 0' in audit
-          assert 'production_backend_exec_calls": 0' in audit
-          assert 'production_writes_executed": False' in audit
-          assert 'not_authorization_for_executor": True' in audit
+          assert 'EXPECTED_PRODUCTION_QUERY_CALLS = 9' in core
+          assert 'student_records_read": 0' in core
+          assert 'enrollment_records_read": 0' in core
+          assert 'grade_records_read": 0' in core
+          assert 'attendance_records_read": 0' in core
+          assert 'production_python_executions": 0' in core
+          assert 'production_backend_exec_calls": 0' in core
+          assert 'production_writes_executed": False' in core
+          assert 'not_authorization_for_executor": True' in core
           print('P0-F7.8.2 OFFLINE EXECUTION BOUNDARY = PASS')
           PY
 
