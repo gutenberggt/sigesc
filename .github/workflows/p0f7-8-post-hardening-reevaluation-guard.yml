@@ -7,7 +7,9 @@ on:
       - 'backend/scripts/audit_p0f7_8_1_bounded_reevaluation.py'
       - 'backend/scripts/audit_p0f7_8_2_offline_snapshot.py'
       - 'backend/scripts/audit_p0f7_8_2_offline_runner.py'
+      - 'backend/scripts/build_p0f7_8_2_snapshot_js.py'
       - 'backend/tests/test_p0f7_8_post_hardening_reevaluation.py'
+      - 'backend/tests/test_p0f7_8_2_snapshot_builder.py'
       - 'scripts/p0f7_8_2_analyze_local.ps1'
       - 'backend/utils/curriculum_resolver.py'
       - '.github/workflows/p0f7-8-post-hardening-reevaluation-guard.yml'
@@ -32,11 +34,13 @@ jobs:
           test ! -e backend/scripts/audit_p0f7_8_post_hardening_reevaluation.py
           test ! -e backend/scripts/audit_p0f7_8_1_bounded_reevaluation.py
 
-      - name: Compile offline analyzer, runner and tests
+      - name: Compile offline tools and tests
         run: |
           python -m py_compile backend/scripts/audit_p0f7_8_2_offline_snapshot.py
           python -m py_compile backend/scripts/audit_p0f7_8_2_offline_runner.py
+          python -m py_compile backend/scripts/build_p0f7_8_2_snapshot_js.py
           python -m py_compile backend/tests/test_p0f7_8_post_hardening_reevaluation.py
+          python -m py_compile backend/tests/test_p0f7_8_2_snapshot_builder.py
 
       - name: Parse PowerShell wrapper
         shell: pwsh
@@ -54,7 +58,10 @@ jobs:
           Write-Output 'P0-F7.8.2 POWERSHELL PARSE = PASS'
 
       - name: Run focused tests
-        run: pytest -q backend/tests/test_p0f7_8_post_hardening_reevaluation.py
+        run: |
+          pytest -q \
+            backend/tests/test_p0f7_8_post_hardening_reevaluation.py \
+            backend/tests/test_p0f7_8_2_snapshot_builder.py
 
       - name: Enforce offline-only execution boundary
         run: |
@@ -63,6 +70,7 @@ jobs:
 
           core = Path('backend/scripts/audit_p0f7_8_2_offline_snapshot.py').read_text(encoding='utf-8')
           runner = Path('backend/scripts/audit_p0f7_8_2_offline_runner.py').read_text(encoding='utf-8')
+          builder = Path('backend/scripts/build_p0f7_8_2_snapshot_js.py').read_text(encoding='utf-8')
           ps = Path('scripts/p0f7_8_2_analyze_local.ps1').read_text(encoding='utf-8')
 
           forbidden_runner = [
@@ -74,14 +82,19 @@ jobs:
           assert 'import motor' not in core
           assert 'MONGO_URL' not in core
           assert 'DB_NAME' not in core
+          assert 'from motor' not in builder
+          assert 'import motor' not in builder
+          assert 'AsyncIOMotorClient' not in builder
           assert '--apply' not in runner
           assert '--apply' not in core
+          assert '--apply' not in builder
 
           forbidden_ps = ['ssh.exe', 'scp.exe', 'docker exec', 'mongosh', 'Invoke-WebRequest']
           assert not any(token in ps for token in forbidden_ps)
           assert 'PRODUCTION_ACCESS=NO' in ps
 
           assert 'EXPECTED_PRODUCTION_QUERY_CALLS = 9' in core
+          assert 'QUERY_BUDGET = 9' in builder
           assert 'student_records_read": 0' in core
           assert 'enrollment_records_read": 0' in core
           assert 'grade_records_read": 0' in core
