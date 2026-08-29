@@ -1,0 +1,89 @@
+name: P0-F7.9A Curricular Allocation Forensics Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/build_p0f7_9a_curricular_allocation_snapshot_js.py'
+      - 'backend/scripts/audit_p0f7_9a_curricular_allocation_offline.py'
+      - 'backend/tests/test_p0f7_9a_curricular_allocation_forensics.py'
+      - 'scripts/p0f7_9a_investigate_local.ps1'
+      - '.github/workflows/p0f7-9a-curricular-allocation-forensics-guard.yml'
+      - 'memory/audit/P0F7_9A_CURRICULAR_ALLOCATION_FORENSICS_2026-08-29.md'
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_inert
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependencies
+        run: pip install pytest pymongo python-dotenv
+
+      - name: Compile forensic tools
+        run: |
+          python -m py_compile backend/scripts/build_p0f7_9a_curricular_allocation_snapshot_js.py
+          python -m py_compile backend/scripts/audit_p0f7_9a_curricular_allocation_offline.py
+          python -m py_compile backend/tests/test_p0f7_9a_curricular_allocation_forensics.py
+
+      - name: Parse PowerShell wrapper
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/p0f7_9a_investigate_local.ps1'),
+            [ref]$null,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error }
+
+      - name: Run focused forensic tests
+        run: pytest -q backend/tests/test_p0f7_9a_curricular_allocation_forensics.py
+
+      - name: Enforce bounded read-only collector
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          path = Path('backend/scripts/build_p0f7_9a_curricular_allocation_snapshot_js.py')
+          spec = importlib.util.spec_from_file_location('builder', path)
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          payload = {
+              'phase': mod.P0F75_PHASE,
+              'status': 'PASS',
+              'group_name': 'Geografia',
+              'cases': [
+                  {'case_number': 2, 'class': {'class_id': 'c', 'academic_year': 2026}, 'school': {'school_id': 's'}},
+              ],
+          }
+          payload['manifest_sha256'] = mod._canonical_sha256(payload)
+          js = mod.build_js(payload, 'sigesc_ci_inert')
+          assert js.count('result.query_calls += 1') == 8
+          forbidden = ('.insertOne(', '.insertMany(', '.updateOne(', '.updateMany(', '.deleteOne(', '.deleteMany(', '.replaceOne(', '.bulkWrite(')
+          assert not any(token in js for token in forbidden)
+          for collection in ('students', 'enrollments', 'grades', 'attendance'):
+              assert f'targetDb.{collection}' not in js
+          print('P0-F7.9A BOUNDED COLLECTOR GUARD = PASS')
+          PY
+
+      - name: Enforce local-only analyzer and wrapper
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          analyzer = Path('backend/scripts/audit_p0f7_9a_curricular_allocation_offline.py').read_text(encoding='utf-8')
+          wrapper = Path('scripts/p0f7_9a_investigate_local.ps1').read_text(encoding='utf-8')
+          assert not any(token in analyzer for token in ('motor', 'pymongo', 'requests', 'httpx', 'subprocess', 'MongoClient'))
+          assert not any(token in wrapper for token in ('ssh ', 'scp ', 'docker exec', 'mongosh', 'Invoke-WebRequest'))
+          assert 'PRODUCTION_ACCESS=NO' in wrapper
+          assert 'DATABASE_MUTATION=NO' in wrapper
+          assert 'STUDENT_DATA_ACCESS=NO' in wrapper
+          print('P0-F7.9A OFFLINE BOUNDARY GUARD = PASS')
+          PY
