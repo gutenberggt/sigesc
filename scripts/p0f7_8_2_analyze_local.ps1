@@ -15,7 +15,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$Analyzer = Join-Path $RepoRoot "backend/scripts/audit_p0f7_8_2_offline_snapshot.py"
+$Analyzer = Join-Path $RepoRoot "backend/scripts/audit_p0f7_8_2_offline_runner.py"
 
 if ($StaticCheck) {
     if (-not (Test-Path $Analyzer -PathType Leaf)) {
