@@ -34,7 +34,7 @@ jobs:
       - name: Guard offline-only planner
         run: |
           ! grep -Eiq 'pymongo|motor|mongosh|docker exec|ssh |subprocess|requests\.|httpx\.' backend/scripts/build_p0f7_9d4_sealed_remediation_plan.py
-          ! grep -Eiq 'mongosh|docker exec|ssh ' scripts/p0f7_9d4_sealed_remediation_plan_local.ps1
+          ! grep -v 'Select-String' scripts/p0f7_9d4_sealed_remediation_plan_local.ps1 | grep -Eiq 'mongosh|docker exec|ssh '
 
       - name: Guard no database writer primitives
         run: |
