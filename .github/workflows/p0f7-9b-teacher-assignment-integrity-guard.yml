@@ -30,7 +30,7 @@ jobs:
           python -m py_compile backend/routers/assignments.py
 
       - name: Run P0-F7.9B focused regressions
-        run: pytest -q backend/tests/test_p0f7_9b_teacher_assignment_integrity.py
+        run: pytest -q --noconftest backend/tests/test_p0f7_9b_teacher_assignment_integrity.py
 
       - name: Guard SSoT and no database access in domain service
         run: |
