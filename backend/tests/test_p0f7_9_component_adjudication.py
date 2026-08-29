@@ -18,6 +18,7 @@ spec.loader.exec_module(mod)
 
 def _seal(payload: dict) -> dict:
     payload = dict(payload)
+    payload.pop("manifest_sha256", None)
     payload["manifest_sha256"] = mod._canonical_sha256(payload)
     return payload
 
@@ -103,6 +104,9 @@ def _p0f782(p0f75: dict) -> dict:
         ),
         _case(3, mod.CASE3_POLICY, 2, 2),
     ]
+    # Mirrors the persisted full P0-F7.8.2 JSON: mutation/executor guarantees
+    # are canonical under summary+safety. Compact stdout-only top-level flags
+    # are intentionally absent.
     return _seal({
         "phase": mod.P0F782_PHASE,
         "status": "PASS",
@@ -114,9 +118,14 @@ def _p0f782(p0f75: dict) -> dict:
             "automatic_workload_decisions": 0,
             "database_mutation": False,
         },
+        "safety": {
+            "read_only": True,
+            "offline_analysis": True,
+            "database_mutation": False,
+            "production_writes_executed": False,
+            "not_authorization_for_executor": True,
+        },
         "cases": cases,
-        "database_mutation": False,
-        "executor_authorized": False,
     })
 
 
@@ -162,9 +171,33 @@ def test_offline_ast_guard_passes_and_wrapper_is_local_only() -> None:
     assert "EXECUTOR_AUTHORIZED=NO" in wrapper_source
 
 
+def test_canonical_full_p0f782_report_without_compact_top_level_flags_is_accepted() -> None:
+    validated, _, p782 = _validated()
+    assert "database_mutation" not in p782
+    assert "executor_authorized" not in p782
+    assert sorted(validated["cases782"]) == [1, 2, 3]
+
+
+def test_full_report_safety_contract_is_fail_closed() -> None:
+    p75 = _p0f75()
+    p782 = _p0f782(p75)
+    p782["safety"]["database_mutation"] = True
+    p782 = _seal(p782)
+    with pytest.raises(ValueError, match="P0F7_8_2_SAFETY_DATABASE_MUTATION_INVALID"):
+        mod.validate_inputs(p75, p782)
+
+
+def test_explicit_compact_top_level_mutation_true_is_still_rejected() -> None:
+    p75 = _p0f75()
+    p782 = _p0f782(p75)
+    p782["database_mutation"] = True
+    p782 = _seal(p782)
+    with pytest.raises(ValueError, match="P0F7_8_2_TOP_LEVEL_MUTATION_INVALID"):
+        mod.validate_inputs(p75, p782)
+
+
 def test_input_chain_and_three_policy_states_are_required() -> None:
     validated, _, _ = _validated()
-    assert sorted(validated["cases782"]) == [1, 2, 3]
     assert validated["cases782"][1]["pair_policy"]["state"] == mod.CASE1_POLICY
     assert validated["cases782"][2]["pair_policy"]["state"] == mod.CASE2_POLICY
     assert validated["cases782"][3]["pair_policy"]["state"] == mod.CASE3_POLICY
