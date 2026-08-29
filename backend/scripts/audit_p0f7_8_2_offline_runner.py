@@ -10,6 +10,7 @@ import hashlib
 import importlib.util
 import inspect
 from pathlib import Path
+from typing import Any, Mapping
 
 CORE_PATH = Path(__file__).resolve().with_name("audit_p0f7_8_2_offline_snapshot.py")
 spec = importlib.util.spec_from_file_location("p0f782_core", CORE_PATH)
@@ -21,6 +22,28 @@ SNAPSHOT_PHASE = core.SNAPSHOT_PHASE
 validate_snapshot = core.validate_snapshot
 classify_pair_policy = core.classify_pair_policy
 _expected_rank_from_p0f75 = core._expected_rank_from_p0f75
+
+
+_base_course_snapshot = core._course_snapshot
+
+
+def course_snapshot_with_legacy_active_semantics(
+    row: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Preserve the tri-state `active` value sealed by P0-F7.4/P0-F7.5.
+
+    P0-F7.4 serialized legacy courses with `active=null` when the field did not
+    exist. The minimal live snapshot may omit the field entirely. Those two
+    representations carry the same historical information and must normalize to
+    `None`; explicit `True` and `False` remain distinct and continue to trigger
+    drift when they differ from the sealed state.
+    """
+    snapshot = _base_course_snapshot(row)
+    snapshot["active"] = row.get("active")
+    return snapshot
+
+
+core._course_snapshot = course_snapshot_with_legacy_active_semantics
 
 
 def validate_resolver_hardening_contract() -> dict:
