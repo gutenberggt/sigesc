@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 SCRIPT = ROOT / "scripts" / "adjudicate_p0f7_9d731_curricular_policy.py"
 spec = importlib.util.spec_from_file_location("p0f7_9d731", SCRIPT)
 assert spec and spec.loader
