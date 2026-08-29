@@ -1,4 +1,4 @@
-from backend.scripts.audit_p0f7_9d2_safe_targets_offline import resolve_targets
+from scripts.audit_p0f7_9d2_safe_targets_offline import resolve_targets
 
 
 def _base_audit():
