@@ -154,13 +154,12 @@ def _decisions(validated: dict) -> dict:
 
 def test_offline_ast_guard_passes_and_wrapper_is_local_only() -> None:
     mod.assert_offline_only()
-    runner_source = SCRIPT.read_text(encoding="utf-8")
     wrapper_source = POWERSHELL.read_text(encoding="utf-8")
-    assert "MongoClient(" not in runner_source
-    assert "AsyncIOMotorClient" not in runner_source
     for token in ("ssh.exe", "scp.exe", "docker exec", "mongosh", "Invoke-WebRequest"):
         assert token not in wrapper_source
     assert "PRODUCTION_ACCESS=NO" in wrapper_source
+    assert "WORKLOAD_DECISION=NO" in wrapper_source
+    assert "EXECUTOR_AUTHORIZED=NO" in wrapper_source
 
 
 def test_input_chain_and_three_policy_states_are_required() -> None:
