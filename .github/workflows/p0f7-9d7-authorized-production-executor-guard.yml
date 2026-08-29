@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - feat/p0f7-9d7-authorized-production-executor
+      - fix/p0f7-9d71-intra-batch-collision-preflight
 
 jobs:
   authorized-executor-guard:
@@ -21,13 +22,16 @@ jobs:
       - name: Install focused test dependency
         run: python -m pip install pytest
 
-      - name: Compile D7 scripts
+      - name: Compile D7 and D7.1 scripts
         run: |
           python -m py_compile backend/scripts/build_p0f7_9d7_authorized_executor_js.py
           python -m py_compile backend/scripts/validate_p0f7_9d7_execution_receipt_offline.py
+          python -m py_compile backend/scripts/analyze_p0f7_9d71_intra_batch_collisions.py
 
       - name: Run focused regressions
-        run: pytest -q --noconftest backend/tests/test_p0f7_9d7_authorized_executor.py
+        run: |
+          pytest -q --noconftest backend/tests/test_p0f7_9d7_authorized_executor.py
+          pytest -q --noconftest backend/tests/test_p0f7_9d71_intra_batch_collisions.py
 
       - name: Guard exact writer primitive surface
         shell: bash
@@ -70,17 +74,39 @@ jobs:
           grep -Fq 'AuthorizeProductionWrites' "$WRAPPER"
           grep -Fq 'D7_EXPLICIT_PRODUCTION_WRITE_AUTHORIZATION_REQUIRED' "$WRAPPER"
 
-      - name: Guard local wrapper cannot execute remote writes
+      - name: Guard D7.1 cumulative collision gate
         shell: bash
         run: |
           set -euo pipefail
-          WRAPPER=scripts/p0f7_9d7_authorized_execution_local.ps1
-          if grep -Ei '(^|[[:space:]])(ssh|scp|docker|mongosh)([[:space:]]|$)' "$WRAPPER"; then
+          ANALYZER=backend/scripts/analyze_p0f7_9d71_intra_batch_collisions.py
+          D71_WRAPPER=scripts/p0f7_9d71_intra_batch_collision_preflight_local.ps1
+          D7_WRAPPER=scripts/p0f7_9d7_authorized_execution_local.ps1
+          grep -Fq 'target_tuple_fingerprint_sha256' "$ANALYZER"
+          grep -Fq 'HUMAN_ADJUDICATION_BEFORE_ANY_REVISED_WRITE_PLAN' "$ANALYZER"
+          grep -Fq 'execution_gate_open' "$ANALYZER"
+          grep -Fq "ValidateSet('StaticCheck','Analyze')" "$D71_WRAPPER"
+          grep -Fq 'D71Report' "$D7_WRAPPER"
+          grep -Fq 'D71_INTRA_BATCH_COLLISION_GATE_CLOSED' "$D7_WRAPPER"
+          grep -Fq 'safe_noncolliding -ne 23' "$D7_WRAPPER"
+          grep -Fq 'blocked_intra_batch -ne 0' "$D7_WRAPPER"
+
+      - name: Guard offline-only D7.1 analyzer and wrappers
+        shell: bash
+        run: |
+          set -euo pipefail
+          ANALYZER=backend/scripts/analyze_p0f7_9d71_intra_batch_collisions.py
+          D71_WRAPPER=scripts/p0f7_9d71_intra_batch_collision_preflight_local.ps1
+          D7_WRAPPER=scripts/p0f7_9d7_authorized_execution_local.ps1
+          if grep -Ei '(^|[[:space:]])(pymongo|motor|requests|httpx|subprocess)([[:space:].]|$)' "$ANALYZER"; then
+            echo 'Network/database dependency detected in D7.1 analyzer.' >&2
+            exit 1
+          fi
+          if grep -Ei '(^|[[:space:]])(ssh|scp|docker|mongosh)([[:space:]]|$)' "$D71_WRAPPER" "$D7_WRAPPER"; then
             echo 'Remote execution primitive detected in local wrapper.' >&2
             exit 1
           fi
-          grep -Fq "ValidateSet('StaticCheck','Build')" "$WRAPPER"
-          grep -Fq 'EXECUTION_NOT_PERFORMED=YES' "$WRAPPER"
+          grep -Fq 'PRODUCTION_WRITES=NO' "$D71_WRAPPER"
+          grep -Fq 'EXECUTION_NOT_PERFORMED=YES' "$D7_WRAPPER"
 
       - name: Guard receipt validator is offline only
         shell: bash
