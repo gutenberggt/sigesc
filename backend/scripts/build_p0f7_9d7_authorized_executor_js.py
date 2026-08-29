@@ -29,6 +29,7 @@ OUTPUT_PHASE = "P0F7.9D7-AUTHORIZED-PRODUCTION-EXECUTOR-2026"
 EXPECTED_ENTRIES = 23
 EXPECTED_STRATEGY = "CAS_WITH_COMPENSATING_ROLLBACK_REQUIRED"
 AUTHORIZATION_MARKER = "P0-F7.9D7-EXPLICIT-23-WRITES-AUTHORIZED-2026-08-29"
+AUTHORIZED_PLAN_SHA256 = "6d39d8425c0555b36b69c8f5d00832fc8f93e1c4f38c35c0f29ea8e72fcf1312"
 ACTIVE_STATUSES = ["active", "ativo"]
 
 
@@ -72,8 +73,20 @@ def _validate_sources(
     plan_sha = _norm(plan.get("plan_sha256"))
     if not plan_sha or plan_sha != _unsigned_hash(plan, "plan_sha256"):
         raise ValueError("P0F7_9D4_PLAN_SHA256_INVALID")
+    if plan_sha != AUTHORIZED_PLAN_SHA256:
+        raise ValueError("P0F7_9D7_PLAN_NOT_AUTHORIZED")
     if (plan.get("execution_contract") or {}).get("executable") is not False:
         raise ValueError("P0F7_9D4_PLAN_MUST_BE_NON_EXECUTABLE")
+
+    plan_entries = list(plan.get("entries") or [])
+    if len(plan_entries) != EXPECTED_ENTRIES:
+        raise ValueError("P0F7_9D7_PLAN_ENTRY_COUNT_INVALID")
+    plan_by_id: dict[str, Mapping[str, Any]] = {}
+    for row in plan_entries:
+        assignment_id = _norm((row or {}).get("assignment_id"))
+        if not assignment_id or assignment_id in plan_by_id:
+            raise ValueError("P0F7_9D7_PLAN_ENTRY_ID_INVALID_OR_DUPLICATE")
+        plan_by_id[assignment_id] = row
 
     if d5.get("phase") != D5_PHASE or d5.get("status") != "PASS":
         raise ValueError("P0F7_9D5_REPORT_INVALID")
@@ -101,6 +114,15 @@ def _validate_sources(
         raise ValueError("P0F7_9D7_EXPECTED_STANDALONE_TOPOLOGY")
     if _norm(topology.get("required_future_execution_strategy")) != EXPECTED_STRATEGY:
         raise ValueError("P0F7_9D7_STRATEGY_DRIFT")
+
+    d5_by_id: dict[str, Mapping[str, Any]] = {}
+    for row in d5.get("results") or []:
+        assignment_id = _norm((row or {}).get("assignment_id"))
+        if not assignment_id or assignment_id in d5_by_id:
+            raise ValueError("P0F7_9D7_D5_ENTRY_ID_INVALID_OR_DUPLICATE")
+        d5_by_id[assignment_id] = row
+    if len(d5_by_id) != EXPECTED_ENTRIES:
+        raise ValueError("P0F7_9D7_D5_RESULT_COUNT_INVALID")
 
     if (
         package.get("phase") != D6_PACKAGE_PHASE
@@ -181,6 +203,39 @@ def _validate_sources(
         ):
             raise ValueError("P0F7_9D7_ENTRY_INVALID")
         seen.add(assignment_id)
+
+        plan_row = plan_by_id.get(assignment_id)
+        if not plan_row:
+            raise ValueError(f"P0F7_9D7_PACKAGE_ENTRY_NOT_IN_AUTHORIZED_PLAN:{assignment_id}")
+        expected_plan = {
+            "ordinal": int(plan_row.get("ordinal") or 0),
+            "school_id": _norm(plan_row.get("school_id")),
+            "class_id": _norm(plan_row.get("class_id")),
+            "source_course_id": _norm((plan_row.get("source") or {}).get("course_id")),
+            "target_course_id": _norm((plan_row.get("target") or {}).get("course_id")),
+        }
+        actual = {
+            "ordinal": ordinal,
+            "school_id": school_id,
+            "class_id": class_id,
+            "source_course_id": source_course_id,
+            "target_course_id": target_course_id,
+        }
+        if actual != expected_plan:
+            raise ValueError(f"P0F7_9D7_PACKAGE_ENTRY_AUTHORIZED_PLAN_DRIFT:{assignment_id}")
+
+        d5_row = d5_by_id.get(assignment_id)
+        if not d5_row or _norm(d5_row.get("preflight")) != "CLEAR_FOR_EXECUTION_AUTHORIZATION":
+            raise ValueError(f"P0F7_9D7_D5_ENTRY_NOT_CLEAR:{assignment_id}")
+        for field, expected in {
+            "school_id": school_id,
+            "class_id": class_id,
+            "source_course_id": source_course_id,
+            "target_course_id": target_course_id,
+        }.items():
+            if _norm(d5_row.get(field)) != expected:
+                raise ValueError(f"P0F7_9D7_D5_ENTRY_DRIFT:{assignment_id}:{field}")
+
         entries.append(
             {
                 "ordinal": ordinal,
@@ -453,6 +508,7 @@ def main() -> None:
     args.js.write_text(js, encoding="utf-8")
     print(f"P0F7_9D7_AUTHORIZED_EXECUTOR_BUILT=YES path={args.js}")
     print(f"P0F7_9D7_EXPECTED_FORWARD_WRITES={EXPECTED_ENTRIES}")
+    print(f"P0F7_9D7_AUTHORIZED_PLAN_SHA256={AUTHORIZED_PLAN_SHA256}")
     print(f"P0F7_9D7_STRATEGY={EXPECTED_STRATEGY}")
     print("P0F7_9D7_AUTHORIZATION=EXPLICIT_USER_AUTHORIZATION_RECORDED")
     print("EXECUTION_NOT_PERFORMED_BY_BUILDER=YES")
