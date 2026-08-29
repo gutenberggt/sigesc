@@ -27,16 +27,28 @@ jobs:
           python -m py_compile backend/utils/curricular_workload_policy.py
           python -m py_compile backend/scripts/adjudicate_p0f7_9d731_curricular_policy.py
       - name: Run policy matrix regressions
-        run: python -m pytest -q backend/tests/test_p0f7_9d731_curricular_workload_policy.py
+        run: python -m pytest -q --noconftest backend/tests/test_p0f7_9d731_curricular_workload_policy.py
       - name: Run policy adjudication regressions
-        run: python -m pytest -q backend/tests/test_p0f7_9d731_policy_adjudication.py
+        run: python -m pytest -q --noconftest backend/tests/test_p0f7_9d731_policy_adjudication.py
       - name: Preserve D7.3 base regressions
-        run: python -m pytest -q backend/tests/test_p0f7_9d73_duplicate_pair_adjudication.py
+        run: python -m pytest -q --noconftest backend/tests/test_p0f7_9d73_duplicate_pair_adjudication.py
       - name: Guard offline boundary
+        shell: bash
         run: |
-          ! grep -E '\b(pymongo|motor|requests|httpx|subprocess|paramiko|fabric)\b' backend/scripts/adjudicate_p0f7_9d731_curricular_policy.py
-          ! grep -E '\b(insert_one|insert_many|update_one|update_many|replace_one|delete_one|delete_many|bulk_write|find_one_and_update)\b' backend/scripts/adjudicate_p0f7_9d731_curricular_policy.py
-          ! grep -E -- '--apply|--execute|--rollback' scripts/p0f7_9d731_curricular_policy_local.ps1
+          set -euo pipefail
+          A=backend/scripts/adjudicate_p0f7_9d731_curricular_policy.py
+          if grep -Ei '(^|[[:space:]])(pymongo|motor|requests|httpx|subprocess|paramiko|fabric)([[:space:].]|$)' "$A"; then
+            echo 'Network/database dependency detected in D7.3.1.' >&2
+            exit 1
+          fi
+          if grep -Eq '\b(insert_one|insert_many|update_one|update_many|replace_one|delete_one|delete_many|bulk_write|find_one_and_update)\b' "$A"; then
+            echo 'Database mutator detected in D7.3.1.' >&2
+            exit 1
+          fi
+          if grep -Eq '\-\-apply|\-\-execute|\-\-rollback' scripts/p0f7_9d731_curricular_policy_local.ps1; then
+            echo 'Executor switch detected in D7.3.1 wrapper.' >&2
+            exit 1
+          fi
       - name: Guard canonical current case
         run: |
           PYTHONPATH=backend python - <<'PY'
