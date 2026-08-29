@@ -190,10 +190,9 @@ const allocations = targetDb.teacher_allocations.find(
   {{
     mantenedora_id:tenant,
     class_id:req.class_id,
-    school_id:req.school_id,
     academic_year:{{$in:[req.academic_year,String(req.academic_year)]}}
   }},
-  {{_id:0,id:1,staff_id:1,class_id:1,course_id:1,status:1,academic_year:1,created_at:1,updated_at:1,mantenedora_id:1}}
+  {{_id:0,id:1,staff_id:1,school_id:1,class_id:1,course_id:1,status:1,academic_year:1,created_at:1,updated_at:1,mantenedora_id:1}}
 ).limit(MAX_ALLOCATIONS).toArray();
 result.query_calls += 1;
 if (allocations.length >= MAX_ALLOCATIONS) throw new Error("TEACHER_ALLOCATION_BOUND_REACHED");
