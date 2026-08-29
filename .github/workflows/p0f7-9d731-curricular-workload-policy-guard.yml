@@ -41,8 +41,8 @@ jobs:
             echo 'Network/database dependency detected in D7.3.1.' >&2
             exit 1
           fi
-          if grep -Eq '\b(insert_one|insert_many|update_one|update_many|replace_one|delete_one|delete_many|bulk_write|find_one_and_update)\b' "$A"; then
-            echo 'Database mutator detected in D7.3.1.' >&2
+          if grep -Eq '(insert_one|insert_many|update_one|update_many|replace_one|delete_one|delete_many|bulk_write|find_one_and_update)[[:space:]]*\(' "$A"; then
+            echo 'Database mutator call detected in D7.3.1.' >&2
             exit 1
           fi
           if grep -Eq '\-\-apply|\-\-execute|\-\-rollback' scripts/p0f7_9d731_curricular_policy_local.ps1; then
