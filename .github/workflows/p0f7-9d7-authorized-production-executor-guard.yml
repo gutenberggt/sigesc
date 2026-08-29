@@ -39,8 +39,8 @@ jobs:
             echo 'Forbidden MongoDB mutation primitive detected.' >&2
             exit 1
           fi
-          grep -Fq '{$set:{course_id:String(e.target_course_id)}}' "$BUILDER"
-          grep -Fq '{$set:{course_id:String(e.source_course_id)}}' "$BUILDER"
+          grep -Fq '{{$set:{{course_id:String(e.target_course_id)}}}}' "$BUILDER"
+          grep -Fq '{{$set:{{course_id:String(e.source_course_id)}}}}' "$BUILDER"
           if grep -Fq 'updated_at' "$BUILDER"; then
             echo 'D7 must mutate course_id only.' >&2
             exit 1
