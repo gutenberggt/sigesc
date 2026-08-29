@@ -26,6 +26,8 @@ jobs:
         run: |
           python -m py_compile backend/utils/curricular_workload_policy.py
           python -m py_compile backend/scripts/adjudicate_p0f7_9d731_curricular_policy.py
+      - name: Exercise supported CLI import path
+        run: PYTHONPATH=backend python backend/scripts/adjudicate_p0f7_9d731_curricular_policy.py --help
       - name: Run policy matrix regressions
         run: python -m pytest -q --noconftest backend/tests/test_p0f7_9d731_curricular_workload_policy.py
       - name: Run policy adjudication regressions
