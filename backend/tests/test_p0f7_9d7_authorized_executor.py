@@ -12,10 +12,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from scripts.build_p0f7_9d7_authorized_executor_js import (  # noqa: E402
-    AUTHORIZATION_MARKER,
-    build_js,
-)
+from scripts import build_p0f7_9d7_authorized_executor_js as d7  # noqa: E402
 
 
 def _sha(payload):
@@ -157,16 +154,28 @@ def _fixtures():
     return plan, d5, package, report
 
 
-def test_requires_explicit_authorization():
+def _authorize_fixture(monkeypatch, plan):
+    monkeypatch.setattr(d7, "AUTHORIZED_PLAN_SHA256", plan["plan_sha256"])
+
+
+def test_requires_explicit_authorization(monkeypatch):
     plan, d5, package, report = _fixtures()
+    _authorize_fixture(monkeypatch, plan)
     with pytest.raises(ValueError, match="EXPLICIT_AUTHORIZATION_REQUIRED"):
-        build_js(plan, d5, package, report, "sigesc", authorized=False)
+        d7.build_js(plan, d5, package, report, "sigesc", authorized=False)
 
 
-def test_builds_exact_23_entry_cas_executor_with_reverse_rollback():
+def test_rejects_plan_not_explicitly_authorized():
     plan, d5, package, report = _fixtures()
-    js = build_js(plan, d5, package, report, "sigesc", authorized=True)
-    assert AUTHORIZATION_MARKER in js
+    with pytest.raises(ValueError, match="PLAN_NOT_AUTHORIZED"):
+        d7.build_js(plan, d5, package, report, "sigesc", authorized=True)
+
+
+def test_builds_exact_23_entry_cas_executor_with_reverse_rollback(monkeypatch):
+    plan, d5, package, report = _fixtures()
+    _authorize_fixture(monkeypatch, plan)
+    js = d7.build_js(plan, d5, package, report, "sigesc", authorized=True)
+    assert d7.AUTHORIZATION_MARKER in js
     assert "updateOne(" in js
     assert "applied.length - 1" in js
     assert "P0F79D7_EXECUTION_JSON=" in js
@@ -182,8 +191,9 @@ def test_builds_exact_23_entry_cas_executor_with_reverse_rollback():
     assert "updated_at" not in js
 
 
-def test_rejects_stale_d6_package_after_fresh_d5():
+def test_rejects_stale_d6_package_after_fresh_d5(monkeypatch):
     plan, d5, package, report = _fixtures()
+    _authorize_fixture(monkeypatch, plan)
     stale = copy.deepcopy(package)
     stale["source_p0f7_9d5_report_sha256"] = "0" * 64
     unsigned = dict(stale)
@@ -194,11 +204,27 @@ def test_rejects_stale_d6_package_after_fresh_d5():
     unsigned_report.pop("report_sha256", None)
     report["report_sha256"] = _sha(unsigned_report)
     with pytest.raises(ValueError, match="PACKAGE_D5_CHAIN_MISMATCH"):
-        build_js(plan, d5, stale, report, "sigesc", authorized=True)
+        d7.build_js(plan, d5, stale, report, "sigesc", authorized=True)
 
 
-def test_rejects_any_blocked_last_mile_entry():
+def test_rejects_package_entry_drift_from_authorized_plan(monkeypatch):
     plan, d5, package, report = _fixtures()
+    _authorize_fixture(monkeypatch, plan)
+    package["entries"][0]["target_course_id"] = "tampered-target"
+    unsigned = dict(package)
+    unsigned.pop("package_sha256", None)
+    package["package_sha256"] = _sha(unsigned)
+    report["package_sha256"] = package["package_sha256"]
+    unsigned_report = dict(report)
+    unsigned_report.pop("report_sha256", None)
+    report["report_sha256"] = _sha(unsigned_report)
+    with pytest.raises(ValueError, match="AUTHORIZED_PLAN_DRIFT"):
+        d7.build_js(plan, d5, package, report, "sigesc", authorized=True)
+
+
+def test_rejects_any_blocked_last_mile_entry(monkeypatch):
+    plan, d5, package, report = _fixtures()
+    _authorize_fixture(monkeypatch, plan)
     d5["summary"]["clear_for_execution_authorization"] = 22
     unsigned = dict(d5)
     unsigned.pop("report_sha256", None)
@@ -212,4 +238,4 @@ def test_rejects_any_blocked_last_mile_entry():
     unsigned_report.pop("report_sha256", None)
     report["report_sha256"] = _sha(unsigned_report)
     with pytest.raises(ValueError, match="D5_NOT_ALL_CLEAR"):
-        build_js(plan, d5, package, report, "sigesc", authorized=True)
+        d7.build_js(plan, d5, package, report, "sigesc", authorized=True)
