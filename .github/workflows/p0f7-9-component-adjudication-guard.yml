@@ -1,0 +1,74 @@
+name: P0-F7.9 Component Adjudication Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/audit_p0f7_9_component_adjudication.py'
+      - 'backend/scripts/audit_p0f7_9_component_adjudication_runner.py'
+      - 'backend/tests/test_p0f7_9_component_adjudication.py'
+      - 'scripts/p0f7_9_adjudicate_local.ps1'
+      - '.github/workflows/p0f7-9-component-adjudication-guard.yml'
+      - 'memory/audit/P0F7_9_COMPONENT_ADJUDICATION_2026-08-28.md'
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_inert
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependencies
+        run: pip install pytest pymongo python-dotenv
+
+      - name: Compile offline station
+        run: |
+          python -m py_compile backend/scripts/audit_p0f7_9_component_adjudication.py
+          python -m py_compile backend/scripts/audit_p0f7_9_component_adjudication_runner.py
+          python -m py_compile backend/tests/test_p0f7_9_component_adjudication.py
+
+      - name: Parse PowerShell wrapper
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/p0f7_9_adjudicate_local.ps1'),
+            [ref]$null,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error }
+
+      - name: Run focused adjudication tests
+        run: pytest -q backend/tests/test_p0f7_9_component_adjudication.py
+
+      - name: Enforce offline-only AST boundary
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          p = Path('backend/scripts/audit_p0f7_9_component_adjudication_runner.py')
+          spec = importlib.util.spec_from_file_location('p0f79', p)
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          mod.assert_offline_only()
+          print('P0-F7.9 OFFLINE AST GUARD = PASS')
+          PY
+
+      - name: Enforce no remote PowerShell surface
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('scripts/p0f7_9_adjudicate_local.ps1').read_text(encoding='utf-8')
+          forbidden = ('ssh.exe', 'scp.exe', 'docker exec', 'mongosh', 'Invoke-WebRequest')
+          assert not any(token in source for token in forbidden)
+          assert 'PRODUCTION_ACCESS=NO' in source
+          assert 'WORKLOAD_DECISION=NO' in source
+          assert 'EXECUTOR_AUTHORIZED=NO' in source
+          print('P0-F7.9 POWERSHELL LOCAL-ONLY GUARD = PASS')
+          PY
