@@ -76,6 +76,23 @@ def test_snapshot_privacy_guard_rejects_student_keys() -> None:
         mod.validate_snapshot(snapshot)
 
 
+def test_legacy_active_null_and_missing_normalize_to_same_sealed_state() -> None:
+    expected = {"course_id": "course-1", "active": None}
+    live = {"id": "course-1"}
+
+    assert mod.course_snapshot_with_legacy_active_semantics(expected)["active"] is None
+    assert mod.course_snapshot_with_legacy_active_semantics(live)["active"] is None
+    mod.core._assert_course_snapshot(1, "source", expected, live)
+
+
+def test_explicit_active_change_still_fails_closed() -> None:
+    expected = {"course_id": "course-1", "active": None}
+    live = {"id": "course-1", "active": True}
+
+    with pytest.raises(RuntimeError, match="COURSE_SNAPSHOT_DRIFT:active"):
+        mod.core._assert_course_snapshot(1, "source", expected, live)
+
+
 def test_resolver_hardening_contract_is_reused_offline() -> None:
     contract = mod.validate_resolver_hardening_contract()
     assert contract["curricular_rank_precedes_evidence_score"] is True
