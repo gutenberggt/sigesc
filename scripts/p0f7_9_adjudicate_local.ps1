@@ -12,7 +12,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
-$Script = Join-Path $Root "backend\scripts\audit_p0f7_9_component_adjudication.py"
+$Script = Join-Path $Root "backend\scripts\audit_p0f7_9_component_adjudication_runner.py"
 
 if (-not (Test-Path $Script)) {
     throw "P0-F7.9 analyzer not found: $Script"
