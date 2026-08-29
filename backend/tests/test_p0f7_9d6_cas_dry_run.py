@@ -3,11 +3,17 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from pathlib import Path
+import sys
 
 import pytest
 
-from scripts.build_p0f7_9d6_cas_dry_run_package import build_package
-from scripts.simulate_p0f7_9d6_cas_dry_run import simulate
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from scripts.build_p0f7_9d6_cas_dry_run_package import build_package  # noqa: E402
+from scripts.simulate_p0f7_9d6_cas_dry_run import simulate  # noqa: E402
 
 
 def _sha(payload):
