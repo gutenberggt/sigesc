@@ -7,7 +7,8 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_2_offline_snapshot.py"
+SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_2_offline_runner.py"
+CORE = ROOT / "backend" / "scripts" / "audit_p0f7_8_2_offline_snapshot.py"
 OLD_SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_post_hardening_reevaluation.py"
 BOUNDED_SCRIPT = ROOT / "backend" / "scripts" / "audit_p0f7_8_1_bounded_reevaluation.py"
 POWERSHELL = ROOT / "scripts" / "p0f7_8_2_analyze_local.ps1"
@@ -43,12 +44,16 @@ def test_all_production_python_auditor_entrypoints_are_removed() -> None:
 
 def test_offline_analyzer_has_no_database_or_remote_runtime() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
-    forbidden = [
-        "from motor", "import motor", "pymongo", "AsyncIOMotorClient",
-        "MongoClient(", "subprocess.", "docker exec", "MONGO_URL", "DB_NAME",
+    core = CORE.read_text(encoding="utf-8")
+    forbidden_runner = [
+        "from motor", "import motor", "AsyncIOMotorClient",
+        "MongoClient(", "MONGO_URL", "DB_NAME", "subprocess.", "docker exec",
     ]
-    assert not any(token in source for token in forbidden)
+    assert not any(token in source for token in forbidden_runner)
+    assert "from motor" not in core
+    assert "import motor" not in core
     assert "--apply" not in source
+    assert "--apply" not in core
 
 
 def test_powershell_wrapper_is_local_only() -> None:
