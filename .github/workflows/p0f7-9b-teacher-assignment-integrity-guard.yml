@@ -1,0 +1,58 @@
+name: P0-F7.9B Teacher Assignment Integrity Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/teacher_assignment_integrity.py'
+      - 'backend/routers/assignments.py'
+      - 'backend/tests/test_p0f7_9b_teacher_assignment_integrity.py'
+      - '.github/workflows/p0f7-9b-teacher-assignment-integrity-guard.yml'
+  workflow_dispatch:
+
+jobs:
+  integrity-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Compile integrity boundary
+        run: |
+          python -m py_compile backend/services/teacher_assignment_integrity.py
+          python -m py_compile backend/routers/assignments.py
+
+      - name: Run P0-F7.9B focused regressions
+        run: pytest -q backend/tests/test_p0f7_9b_teacher_assignment_integrity.py
+
+      - name: Guard SSoT and no database access in domain service
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('backend/services/teacher_assignment_integrity.py').read_text(encoding='utf-8')
+          assert 'from utils.curriculum_resolver import' in text
+          for forbidden in ('find_one(', 'insert_one(', 'update_one(', 'delete_one(', 'motor.', 'pymongo'):
+              assert forbidden not in text, forbidden
+          print('P0F7_9B_DOMAIN_SERVICE_BOUNDARY=PASS')
+          PY
+
+      - name: Guard write paths and audit trail
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('backend/routers/assignments.py').read_text(encoding='utf-8')
+          assert text.count('validate_teacher_assignment_curriculum(') >= 3
+          assert "action='create'" in text
+          assert "action='update'" in text
+          assert "action='delete_blocked'" in text
+          assert 'TEACHER_ASSIGNMENT_HARD_DELETE_DISABLED_P0' in text
+          assert 'INACTIVE_REMEDIATION_ALLOWED' in text
+          print('P0F7_9B_WRITE_AND_AUDIT_CONTRACT=PASS')
+          PY
