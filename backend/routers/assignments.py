@@ -11,6 +11,10 @@ from models import *
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create
 from utils.carga_horaria_calculator import calcular_carga_por_lotacao
+from services.teacher_assignment_integrity import (
+    TeacherAssignmentIntegrityError,
+    validate_teacher_assignment_curriculum,
+)
 
 
 router = APIRouter(tags=["Lotações"])
@@ -18,19 +22,78 @@ router = APIRouter(tags=["Lotações"])
 
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     """Configura o router com dependências."""
-    
+
     # Helper para obter DB correto (produção ou sandbox)
     def get_db_for_user(user: dict):
         if user.get('is_sandbox'):
             return sandbox_db if sandbox_db else db
         return db
 
+    def integrity_http_error(exc: TeacherAssignmentIntegrityError) -> HTTPException:
+        return HTTPException(
+            status_code=409,
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                "curricular_fit": dict(exc.fit or {}),
+            },
+        )
 
+    def assert_context_tenant(tenant_id: str, *docs: dict) -> None:
+        """Fail-closed para impedir combinação de documentos de tenants distintos."""
+        if not tenant_id:
+            raise HTTPException(status_code=403, detail="Mantenedora da alocação não pôde ser determinada")
+        for doc in docs:
+            if not doc or str(doc.get('mantenedora_id') or '') != str(tenant_id):
+                raise HTTPException(status_code=403, detail="Contexto da alocação pertence a outra mantenedora ou está sem escopo")
+
+    async def load_teacher_assignment_context(
+        *,
+        current_user: dict,
+        request: Request,
+        staff_id: str,
+        school_id: str,
+        class_id: str,
+        course_id: str,
+    ):
+        """Carrega o contexto mínimo de escrita já preso ao tenant da request."""
+        staff = await db.staff.find_one(
+            apply_tenant_filter({"id": staff_id}, current_user, request)
+        )
+        if not staff:
+            raise HTTPException(status_code=404, detail="Servidor não encontrado")
+
+        school = await db.schools.find_one(
+            apply_tenant_filter({"id": school_id}, current_user, request)
+        )
+        if not school:
+            raise HTTPException(status_code=404, detail="Escola não encontrada")
+
+        turma = await db.classes.find_one(
+            apply_tenant_filter({"id": class_id}, current_user, request)
+        )
+        if not turma:
+            raise HTTPException(status_code=404, detail="Turma não encontrada")
+
+        course = await db.courses.find_one(
+            apply_tenant_filter({"id": course_id}, current_user, request)
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="Componente curricular não encontrado")
+
+        tenant_id = await resolve_tenant_id_for_create(
+            db,
+            current_user,
+            request,
+            school_id=school_id,
+        )
+        assert_context_tenant(tenant_id, staff, school, turma, course)
+        return staff, school, turma, course, tenant_id
 
     @router.get("/school-assignments")
     async def list_school_assignments(
-        request: Request, 
-        school_id: Optional[str] = None, 
+        request: Request,
+        school_id: Optional[str] = None,
         staff_id: Optional[str] = None,
         status: Optional[str] = None,
         academic_year: Optional[int] = None
@@ -48,7 +111,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             query["status"] = status
         if academic_year:
             query["academic_year"] = academic_year
-        
+
         # Multi-tenancy
         query = apply_tenant_filter(query, current_user, request)
 
@@ -74,7 +137,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     assign['carga_horaria_calculada'] = None
 
         return assignments
-
 
     @router.post("/school-assignments")
     async def create_school_assignment(assignment: SchoolAssignmentCreate, request: Request):
@@ -127,7 +189,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         return await db.school_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
 
-
     @router.get("/school-assignments/staff/{staff_id}/schools")
     async def get_staff_schools(staff_id: str, request: Request, academic_year: Optional[int] = None):
         """Busca as escolas onde um servidor está lotado"""
@@ -150,7 +211,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 schools.append(school)
 
         return schools
-
 
     @router.put("/school-assignments/{assignment_id}")
     async def update_school_assignment(assignment_id: str, assignment_data: SchoolAssignmentUpdate, request: Request):
@@ -185,7 +245,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         return await db.school_assignments.find_one({"id": assignment_id}, {"_id": 0})
 
-
     @router.delete("/school-assignments/{assignment_id}")
     async def delete_school_assignment(assignment_id: str, request: Request):
         """Remove lotação"""
@@ -217,7 +276,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         return {"message": "Lotação removida com sucesso"}
 
-
     @router.get("/teacher-assignments")
     async def list_teacher_assignments(
         request: Request,
@@ -245,7 +303,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             query["academic_year"] = academic_year
         if status:
             query["status"] = status
-        
+
         # Multi-tenancy
         query = apply_tenant_filter(query, current_user, request)
 
@@ -271,98 +329,134 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         return assignments
 
-
     @router.post("/teacher-assignments")
     async def create_teacher_assignment(assignment: TeacherAssignmentCreate, request: Request):
-        """Cria nova alocação de professor"""
+        """Cria nova alocação de professor com integridade curricular fail-closed."""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
 
-        # Verifica se servidor existe e é professor
-        staff = await db.staff.find_one({"id": assignment.staff_id})
-        if not staff:
-            raise HTTPException(status_code=404, detail="Servidor não encontrado")
-        if staff['cargo'] != 'professor':
+        staff, school, turma, course, tenant_id = await load_teacher_assignment_context(
+            current_user=current_user,
+            request=request,
+            staff_id=assignment.staff_id,
+            school_id=assignment.school_id,
+            class_id=assignment.class_id,
+            course_id=assignment.course_id,
+        )
+        if staff.get('cargo') != 'professor':
             raise HTTPException(status_code=400, detail="Servidor não é professor")
 
-        # Verifica se turma existe
-        turma = await db.classes.find_one({"id": assignment.class_id})
-        if not turma:
-            raise HTTPException(status_code=404, detail="Turma não encontrada")
+        try:
+            integrity = validate_teacher_assignment_curriculum(
+                class_info=turma,
+                course=course,
+                school_id=assignment.school_id,
+                academic_year=assignment.academic_year,
+            )
+        except TeacherAssignmentIntegrityError as exc:
+            raise integrity_http_error(exc) from exc
 
-        # Verifica se componente existe
-        course = await db.courses.find_one({"id": assignment.course_id})
-        if not course:
-            raise HTTPException(status_code=404, detail="Componente curricular não encontrado")
-
-        # Verifica se o MESMO professor já está alocado para o MESMO componente na MESMA turma/ano
-        # (permite múltiplos componentes na mesma turma, mas não duplicar a mesma alocação)
-        existing = await db.teacher_assignments.find_one({
+        existing_query = apply_tenant_filter({
             "staff_id": assignment.staff_id,
             "class_id": assignment.class_id,
             "course_id": assignment.course_id,
             "academic_year": assignment.academic_year,
-            "status": "ativo"
-        })
+            "status": "ativo",
+        }, current_user, request)
+        existing = await db.teacher_assignments.find_one(existing_query)
         if existing:
             raise HTTPException(status_code=400, detail="Este professor já está alocado para este componente nesta turma")
 
         new_assignment = TeacherAssignment(**assignment.model_dump())
         ta_doc = new_assignment.model_dump()
-        # Multi-tenancy: injeta mantenedora_id derivada da escola
-        ta_doc['mantenedora_id'] = await resolve_tenant_id_for_create(
-            db, current_user, request, school_id=assignment.school_id
-        )
+        ta_doc['mantenedora_id'] = tenant_id
         await db.teacher_assignments.insert_one(ta_doc)
 
-        return await db.teacher_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
+        await audit_service.log(
+            action='create',
+            collection='teacher_assignments',
+            user=current_user,
+            request=request,
+            document_id=new_assignment.id,
+            description='Criou alocação docente com validação curricular P0-F7.9B',
+            school_id=assignment.school_id,
+            school_name=school.get('name'),
+            academic_year=assignment.academic_year,
+            new_value={
+                'staff_id': assignment.staff_id,
+                'class_id': assignment.class_id,
+                'course_id': assignment.course_id,
+                'status': assignment.status,
+                'curricular_write_policy': integrity.get('write_policy'),
+            },
+        )
 
+        return await db.teacher_assignments.find_one(
+            apply_tenant_filter({"id": new_assignment.id}, current_user, request),
+            {"_id": 0},
+        )
 
     @router.post("/teacher-assignments/substitutions")
     async def create_teacher_substitution(assignment: TeacherAssignmentCreate, request: Request):
-        """
-        Cria uma **substituição** de professor para uma turma/componente.
-        - `staff_id` = professor substituto.
-        - `substituted_staff_id` = staff_id do titular sendo substituído (deduzido se não fornecido).
-        - Data início obrigatória; data fim opcional (vigente enquanto vazio).
-        - Cria lotação temporária na escola caso o substituto ainda não tenha, garantindo
-          aparição automática na Folha de Pagamento daquela escola.
-        """
+        """Cria substituição preservando a mesma barreira curricular da alocação titular."""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
 
         payload = assignment.model_dump()
         payload['is_substituicao'] = True
 
-        staff = await db.staff.find_one({"id": payload['staff_id']})
-        if not staff:
-            raise HTTPException(status_code=404, detail="Professor substituto não encontrado")
+        staff, school, turma, course, tenant_id = await load_teacher_assignment_context(
+            current_user=current_user,
+            request=request,
+            staff_id=payload['staff_id'],
+            school_id=payload['school_id'],
+            class_id=payload['class_id'],
+            course_id=payload['course_id'],
+        )
+        if staff.get('cargo') != 'professor':
+            raise HTTPException(status_code=400, detail="Servidor não é professor")
 
         if not payload.get('data_inicio_substituicao'):
             raise HTTPException(status_code=400, detail="Data de início da substituição é obrigatória")
 
-        # Se não informou o titular, deduz a partir da alocação ativa naquela turma/componente
+        try:
+            integrity = validate_teacher_assignment_curriculum(
+                class_info=turma,
+                course=course,
+                school_id=payload['school_id'],
+                academic_year=payload['academic_year'],
+            )
+        except TeacherAssignmentIntegrityError as exc:
+            raise integrity_http_error(exc) from exc
+
+        # Se não informou o titular, deduz a partir da alocação ativa naquela turma/componente.
         if not payload.get('substituted_staff_id'):
-            titular_assign = await db.teacher_assignments.find_one({
+            titular_query = apply_tenant_filter({
                 "class_id": payload['class_id'],
                 "course_id": payload['course_id'],
                 "academic_year": payload['academic_year'],
                 "status": "ativo",
                 "is_substituicao": {"$ne": True},
-            }, {"_id": 0, "staff_id": 1, "carga_horaria_semanal": 1})
+            }, current_user, request)
+            titular_assign = await db.teacher_assignments.find_one(
+                titular_query,
+                {"_id": 0, "staff_id": 1, "carga_horaria_semanal": 1},
+            )
             if titular_assign:
                 payload['substituted_staff_id'] = titular_assign.get('staff_id')
                 if not payload.get('carga_horaria_semanal'):
                     payload['carga_horaria_semanal'] = titular_assign.get('carga_horaria_semanal')
 
         new_assignment = TeacherAssignment(**payload)
-        await db.teacher_assignments.insert_one(new_assignment.model_dump())
+        ta_doc = new_assignment.model_dump()
+        ta_doc['mantenedora_id'] = tenant_id
+        await db.teacher_assignments.insert_one(ta_doc)
 
-        # Garantir que o substituto tenha lotação ativa na escola, para a Folha de Pagamento
-        # identificá-lo e calcular proventos da substituição.
-        school_assign = await db.school_assignments.find_one({
+        # Garantir que o substituto tenha lotação ativa na escola, para a Folha de Pagamento.
+        school_assign_query = apply_tenant_filter({
             "staff_id": payload['staff_id'],
             "school_id": payload['school_id'],
             "status": "ativo",
-        })
+        }, current_user, request)
+        school_assign = await db.school_assignments.find_one(school_assign_query)
         if not school_assign:
             try:
                 from models import SchoolAssignment
@@ -378,40 +472,142 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     status='ativo',
                     observacoes='Lotação criada automaticamente via Substituição',
                 )
-                await db.school_assignments.insert_one(lot_temp.model_dump())
+                lot_doc = lot_temp.model_dump()
+                lot_doc['mantenedora_id'] = tenant_id
+                await db.school_assignments.insert_one(lot_doc)
             except Exception as e:  # noqa: BLE001
-                # Não derruba a criação da substituição por falha de lotação automática
                 import logging
                 logging.getLogger(__name__).warning(f"Não foi possível criar lotação auto p/ substituição: {e}")
 
-        return await db.teacher_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
+        await audit_service.log(
+            action='create',
+            collection='teacher_assignments',
+            user=current_user,
+            request=request,
+            document_id=new_assignment.id,
+            description='Criou substituição docente com validação curricular P0-F7.9B',
+            school_id=payload['school_id'],
+            school_name=school.get('name'),
+            academic_year=payload['academic_year'],
+            new_value={
+                'staff_id': payload['staff_id'],
+                'class_id': payload['class_id'],
+                'course_id': payload['course_id'],
+                'is_substituicao': True,
+                'curricular_write_policy': integrity.get('write_policy'),
+            },
+        )
 
+        return await db.teacher_assignments.find_one(
+            apply_tenant_filter({"id": new_assignment.id}, current_user, request),
+            {"_id": 0},
+        )
 
     @router.put("/teacher-assignments/{assignment_id}")
     async def update_teacher_assignment(assignment_id: str, assignment_data: TeacherAssignmentUpdate, request: Request):
-        """Atualiza alocação de professor"""
+        """Atualiza vínculo; vínculos ativos precisam continuar curricularmente válidos."""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
 
-        existing = await db.teacher_assignments.find_one({"id": assignment_id})
+        existing_query = apply_tenant_filter({"id": assignment_id}, current_user, request)
+        existing = await db.teacher_assignments.find_one(existing_query)
         if not existing:
             raise HTTPException(status_code=404, detail="Alocação não encontrada")
+        assert_same_tenant(existing, current_user, request)
 
         update_data = {k: v for k, v in assignment_data.model_dump().items() if v is not None}
+        resulting = dict(existing)
+        resulting.update(update_data)
+
+        integrity = None
+        # Encerramento/inativação de passivo histórico precisa permanecer possível.
+        if resulting.get('status', 'ativo') == 'ativo':
+            staff, school, turma, course, tenant_id = await load_teacher_assignment_context(
+                current_user=current_user,
+                request=request,
+                staff_id=resulting['staff_id'],
+                school_id=resulting['school_id'],
+                class_id=resulting['class_id'],
+                course_id=resulting['course_id'],
+            )
+            if str(existing.get('mantenedora_id') or '') != str(tenant_id):
+                raise HTTPException(status_code=403, detail="Alocação pertence a outra mantenedora")
+            if staff.get('cargo') != 'professor':
+                raise HTTPException(status_code=400, detail="Servidor não é professor")
+            try:
+                integrity = validate_teacher_assignment_curriculum(
+                    class_info=turma,
+                    course=course,
+                    school_id=resulting['school_id'],
+                    academic_year=resulting['academic_year'],
+                )
+            except TeacherAssignmentIntegrityError as exc:
+                raise integrity_http_error(exc) from exc
+        else:
+            school = await db.schools.find_one(
+                apply_tenant_filter({"id": resulting['school_id']}, current_user, request),
+                {"_id": 0, "name": 1},
+            )
+
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+        await db.teacher_assignments.update_one(existing_query, {"$set": update_data})
 
-        await db.teacher_assignments.update_one({"id": assignment_id}, {"$set": update_data})
+        await audit_service.log(
+            action='update',
+            collection='teacher_assignments',
+            user=current_user,
+            request=request,
+            document_id=assignment_id,
+            description='Atualizou alocação docente sob política de integridade P0-F7.9B',
+            school_id=resulting.get('school_id'),
+            school_name=school.get('name') if school else None,
+            academic_year=resulting.get('academic_year'),
+            old_value={
+                'staff_id': existing.get('staff_id'),
+                'class_id': existing.get('class_id'),
+                'course_id': existing.get('course_id'),
+                'status': existing.get('status'),
+                'carga_horaria_semanal': existing.get('carga_horaria_semanal'),
+            },
+            new_value={
+                **update_data,
+                'curricular_write_policy': integrity.get('write_policy') if integrity else 'INACTIVE_REMEDIATION_ALLOWED',
+            },
+        )
 
-        return await db.teacher_assignments.find_one({"id": assignment_id}, {"_id": 0})
-
+        return await db.teacher_assignments.find_one(existing_query, {"_id": 0})
 
     @router.delete("/teacher-assignments/{assignment_id}")
     async def delete_teacher_assignment(assignment_id: str, request: Request):
-        """Hard delete bloqueado pelo P0 Global de integridade de vínculos."""
-        await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+        """Hard delete segue bloqueado; a tentativa passa a ser auditada."""
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
 
-        existing = await db.teacher_assignments.find_one({"id": assignment_id}, {"_id": 0, "id": 1})
+        existing_query = apply_tenant_filter({"id": assignment_id}, current_user, request)
+        existing = await db.teacher_assignments.find_one(existing_query, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Alocação não encontrada")
+        assert_same_tenant(existing, current_user, request)
+
+        school = await db.schools.find_one(
+            apply_tenant_filter({"id": existing.get('school_id')}, current_user, request),
+            {"_id": 0, "name": 1},
+        )
+        await audit_service.log(
+            action='delete_blocked',
+            collection='teacher_assignments',
+            user=current_user,
+            request=request,
+            document_id=assignment_id,
+            description='Tentativa de hard delete bloqueada pelo P0 Global',
+            school_id=existing.get('school_id'),
+            school_name=school.get('name') if school else None,
+            academic_year=existing.get('academic_year'),
+            old_value={
+                'staff_id': existing.get('staff_id'),
+                'class_id': existing.get('class_id'),
+                'course_id': existing.get('course_id'),
+                'status': existing.get('status'),
+            },
+        )
 
         raise HTTPException(
             status_code=409,
@@ -424,7 +620,5 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "assignment_id": assignment_id,
             },
         )
-
-
 
     return router
