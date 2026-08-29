@@ -1,0 +1,82 @@
+name: P0-F7.9C1 Paged School Audit Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/build_p0f7_9c1_reference_snapshot_js.py'
+      - 'backend/scripts/build_p0f7_9c1_school_pages_js.py'
+      - 'backend/scripts/audit_p0f7_9c1_school_pages_offline.py'
+      - 'backend/tests/test_p0f7_9c1_paged_school_audit.py'
+      - 'scripts/p0f7_9c1_school_audit_local.ps1'
+      - 'memory/audit/P0F7_9C1_PAGED_SCHOOL_AUDIT_2026-08-29.md'
+      - '.github/workflows/p0f7-9c1-paged-school-audit-guard.yml'
+  workflow_dispatch:
+
+jobs:
+  paged-school-audit-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Compile local tools
+        run: |
+          python -m py_compile backend/scripts/build_p0f7_9c1_reference_snapshot_js.py
+          python -m py_compile backend/scripts/build_p0f7_9c1_school_pages_js.py
+          python -m py_compile backend/scripts/audit_p0f7_9c1_school_pages_offline.py
+
+      - name: Run focused regressions
+        run: pytest -q --noconftest backend/tests/test_p0f7_9c1_paged_school_audit.py
+
+      - name: Guard production collectors are bounded and read-only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          paths = [
+              Path('backend/scripts/build_p0f7_9c1_reference_snapshot_js.py'),
+              Path('backend/scripts/build_p0f7_9c1_school_pages_js.py'),
+          ]
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              for forbidden in (
+                  'students.', 'enrollments.', 'grades.', 'attendance.',
+                  'insertOne(', 'insertMany(', 'updateOne(', 'updateMany(',
+                  'deleteOne(', 'deleteMany(', 'replaceOne(', 'bulkWrite(',
+                  'findOneAndUpdate('
+              ):
+                  assert forbidden not in text, (path, forbidden)
+          page = paths[1].read_text(encoding='utf-8')
+          assert 'MAX_CLASSES_PER_SCHOOL = 100' in page
+          assert 'MAX_ASSIGNMENTS_PER_SCHOOL = 600' in page
+          print('P0F7_9C1_BOUNDED_READ_ONLY_CONTRACT=PASS')
+          PY
+
+      - name: Guard analyzer reuses writer SSoT and minimizes identity data
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('backend/scripts/audit_p0f7_9c1_school_pages_offline.py').read_text(encoding='utf-8')
+          assert 'validate_teacher_assignment_curriculum' in text
+          assert '_curricular_fit' not in text
+          assert 'staff_id' not in text
+          assert 'teacher_identity_fields_collected' in text
+          print('P0F7_9C1_SSO_T_AND_MINIMIZATION=PASS')
+          PY
+
+      - name: Guard local wrapper has no remote execution
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('scripts/p0f7_9c1_school_audit_local.ps1').read_text(encoding='utf-8')
+          for forbidden in ('ssh ', 'scp ', 'docker exec', 'mongosh', 'Invoke-WebRequest'):
+              assert forbidden not in text, forbidden
+          print('P0F7_9C1_LOCAL_WRAPPER_REMOTE_ACCESS=NO')
+          PY
