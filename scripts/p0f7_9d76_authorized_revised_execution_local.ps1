@@ -14,30 +14,31 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-Write-Host 'P0-F7.9D7.6 authorized revised production executor'
+Write-Host 'P0-F7.9D7.6.1 authorized revised production executor'
 Write-Host 'MANIFEST_SHA256=89e0f72d97f7cfa8b2d4b5dd7b5d35a01376a813d69d46f5bce7fa9c11440fcc'
 Write-Host 'EXPECTED_FORWARD_WRITES=23'
 Write-Host 'STRATEGY=CAS_WITH_COMPENSATING_ROLLBACK_REQUIRED'
+Write-Host 'RETIRE_STATUS_CAS=EXACT_SEALED_ACTIVE_STATUS'
 Write-Host 'HARD_DELETE=NO'
 Write-Host 'REMOTE_EXECUTION_BY_WRAPPER=NO'
 
-$Builder = '.\backend\scripts\build_p0f7_9d76_authorized_revised_executor_js.py'
+$Builder = '.\backend\scripts\build_p0f7_9d761_authorized_revised_executor_js.py'
 $Validator = '.\backend\scripts\validate_p0f7_9d76_execution_receipt_offline.py'
 
 if ($Mode -eq 'StaticCheck') {
-    if (-not (Test-Path $Builder)) { throw 'D76_BUILDER_NOT_FOUND' }
+    if (-not (Test-Path $Builder)) { throw 'D761_BUILDER_NOT_FOUND' }
     if (-not (Test-Path $Validator)) { throw 'D76_VALIDATOR_NOT_FOUND' }
 
     python -m py_compile $Builder $Validator
-    if ($LASTEXITCODE -ne 0) { throw "D76_COMPILE_FAILED=$LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "D761_COMPILE_FAILED=$LASTEXITCODE" }
 
     python $Builder --help | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "D76_BUILDER_CLI_IMPORT_FAILED=$LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "D761_BUILDER_CLI_IMPORT_FAILED=$LASTEXITCODE" }
     python $Validator --help | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "D76_VALIDATOR_CLI_IMPORT_FAILED=$LASTEXITCODE" }
 
-    Write-Host 'P0F7_9D76_LOCAL_WRAPPER_STATIC_CHECK=PASS'
-    Write-Host 'P0F7_9D76_BUILDER_CLI_IMPORT_CHECK=PASS'
+    Write-Host 'P0F7_9D761_LOCAL_WRAPPER_STATIC_CHECK=PASS'
+    Write-Host 'P0F7_9D761_BUILDER_CLI_IMPORT_CHECK=PASS'
     Write-Host 'P0F7_9D76_VALIDATOR_CLI_IMPORT_CHECK=PASS'
     Write-Host 'DATABASE_MUTATION=NO'
     Write-Host 'PRODUCTION_WRITES=NO'
@@ -46,11 +47,11 @@ if ($Mode -eq 'StaticCheck') {
 
 if ($Mode -eq 'Build') {
     if (-not $Manifest -or -not $Executor -or -not $Metadata) {
-        throw 'D76_BUILD_ARGS_REQUIRED'
+        throw 'D761_BUILD_ARGS_REQUIRED'
     }
-    if (-not (Test-Path $Manifest)) { throw 'D76_MANIFEST_NOT_FOUND' }
+    if (-not (Test-Path $Manifest)) { throw 'D761_MANIFEST_NOT_FOUND' }
     if (-not $AuthorizeProductionWrites) {
-        throw 'D76_EXPLICIT_PRODUCTION_WRITE_AUTHORIZATION_REQUIRED'
+        throw 'D761_EXPLICIT_PRODUCTION_WRITE_AUTHORIZATION_REQUIRED'
     }
 
     python $Builder `
@@ -60,8 +61,8 @@ if ($Mode -eq 'Build') {
         --metadata $Metadata `
         --authorize-production-writes
 
-    if ($LASTEXITCODE -ne 0) { throw "D76_BUILDER_FAILED=$LASTEXITCODE" }
-    Write-Host 'P0F7_9D76_LOCAL_BUILD_DONE=YES'
+    if ($LASTEXITCODE -ne 0) { throw "D761_BUILDER_FAILED=$LASTEXITCODE" }
+    Write-Host 'P0F7_9D761_LOCAL_BUILD_DONE=YES'
     Write-Host "EXECUTOR=$Executor"
     Write-Host "METADATA=$Metadata"
     Write-Host 'EXECUTION_NOT_PERFORMED=YES'
