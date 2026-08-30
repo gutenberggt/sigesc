@@ -116,8 +116,8 @@ jobs:
               assert 'org.opencontainers.image.revision=$SIGESC_GIT_SHA' in text
           assert '/usr/share/nginx/html/version.json' in frontend
           assert 'PUBLIC_FRONTEND_SHA' in workflow
-          assert 'BACKEND_IMAGE_REVISION' in workflow
-          assert 'FRONTEND_IMAGE_REVISION' in workflow
+          assert "printf '%s_IMAGE_REVISION=%s" in workflow
+          assert 'test "$revision" = "$target"' in workflow
           print('SIGESC_RELEASE_SHA_PROVENANCE_GUARD=PASS')
           PY
 
