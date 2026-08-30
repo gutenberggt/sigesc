@@ -1,0 +1,244 @@
+name: SIGESC Production Topology Discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DISCOVER_SIGESC_PRODUCTION_TOPOLOGY to run read-only discovery'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sigesc-production-topology-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    name: Discover Coolify production topology read-only
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+
+    steps:
+      - name: Validate manual read-only dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.confirm }}' = 'DISCOVER_SIGESC_PRODUCTION_TOPOLOGY' || {
+            echo 'SIGESC_DEPLOY_DISCOVERY_CONFIRMATION_INVALID'
+            exit 1
+          }
+          test '${{ github.ref_name }}' = 'main' || {
+            echo 'SIGESC_DEPLOY_DISCOVERY_MAIN_REQUIRED'
+            exit 1
+          }
+          echo 'SIGESC_DEPLOY_DISCOVERY_DISPATCH=PASS'
+
+      - name: Checkout reviewed main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+          PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+          PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+          MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "SIGESC_DEPLOY_DISCOVERY_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'SIGESC_DEPLOY_DISCOVERY_PROD_USER_INVALID'; exit 1; }
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'SIGESC_DEPLOY_DISCOVERY_MONGO_CONTAINER_INVALID'; exit 1; }
+          mkdir -p ~/.ssh evidence
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/sigesc_prod_key
+          chmod 600 ~/.ssh/sigesc_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'SIGESC_DEPLOY_DISCOVERY_SSH_TRUST=PASS'
+
+      - name: Discover Docker Compose and Coolify topology
+        shell: bash
+        env:
+          PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+          PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+          MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+        run: |
+          set -euo pipefail
+          raw='evidence/production-topology.txt'
+          : > "$raw"
+
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash -s -- "$MONGO_CONTAINER" > "$raw" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+
+          docker inspect "$mongo_container" >/dev/null
+
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          workdir="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$mongo_container")"
+          config_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$mongo_container")"
+          mongo_service="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.service" }}' "$mongo_container")"
+
+          printf 'DISCOVERY_SCHEMA=SIGESC_DEPLOY_TOPOLOGY_V1\n'
+          printf 'DATABASE_MUTATION=NO\n'
+          printf 'PRODUCTION_WRITES=NO\n'
+          printf 'MONGO_CONTAINER=%s\n' "$mongo_container"
+          printf 'MONGO_SERVICE=%s\n' "$mongo_service"
+          printf 'COMPOSE_PROJECT=%s\n' "$project"
+          printf 'COMPOSE_WORKING_DIR=%s\n' "$workdir"
+          printf 'COMPOSE_CONFIG_FILES=%s\n' "$config_files"
+          printf 'DOCKER_COMPOSE_VERSION=%s\n' "$(docker compose version --short 2>/dev/null || echo unavailable)"
+
+          if [ -n "$workdir" ] && [ -d "$workdir" ]; then
+            printf 'WORKDIR_EXISTS=YES\n'
+            if [ -w "$workdir" ]; then
+              printf 'WORKDIR_WRITABLE_BY_DEPLOY_USER=YES\n'
+            else
+              printf 'WORKDIR_WRITABLE_BY_DEPLOY_USER=NO\n'
+            fi
+
+            if [ -d "$workdir/.git" ]; then
+              printf 'WORKDIR_GIT_REPOSITORY=YES\n'
+              printf 'WORKDIR_GIT_HEAD=%s\n' "$(git -C "$workdir" rev-parse HEAD 2>/dev/null || echo unavailable)"
+              printf 'WORKDIR_GIT_BRANCH=%s\n' "$(git -C "$workdir" branch --show-current 2>/dev/null || echo detached-or-unavailable)"
+              printf 'WORKDIR_GIT_ORIGIN=%s\n' "$(git -C "$workdir" remote get-url origin 2>/dev/null || echo unavailable)"
+              printf 'WORKDIR_TRACKED_DIRTY_COUNT=%s\n' "$(git -C "$workdir" status --porcelain --untracked-files=no 2>/dev/null | wc -l | tr -d ' ')"
+            else
+              printf 'WORKDIR_GIT_REPOSITORY=NO\n'
+            fi
+
+            if [ -f "$workdir/docker-compose.coolify.yml" ]; then
+              printf 'REPO_COOLIFY_COMPOSE_PRESENT=YES\n'
+            else
+              printf 'REPO_COOLIFY_COMPOSE_PRESENT=NO\n'
+            fi
+          else
+            printf 'WORKDIR_EXISTS=NO\n'
+            printf 'WORKDIR_GIT_REPOSITORY=NO\n'
+            printf 'REPO_COOLIFY_COMPOSE_PRESENT=NO\n'
+          fi
+
+          printf '%s\n' '--- COMPOSE SERVICES ---'
+          if [ -n "$workdir" ] && [ -d "$workdir" ] && [ -n "$config_files" ]; then
+            first_config="${config_files%%,*}"
+            case "$first_config" in
+              /*) compose_path="$first_config" ;;
+              *) compose_path="$workdir/$first_config" ;;
+            esac
+            printf 'PRIMARY_COMPOSE_PATH=%s\n' "$compose_path"
+            if [ -f "$compose_path" ]; then
+              printf 'PRIMARY_COMPOSE_EXISTS=YES\n'
+              (cd "$workdir" && docker compose -f "$compose_path" config --services 2>/dev/null) || true
+            else
+              printf 'PRIMARY_COMPOSE_EXISTS=NO\n'
+            fi
+          else
+            printf 'PRIMARY_COMPOSE_EXISTS=UNKNOWN\n'
+          fi
+
+          printf '%s\n' '--- PROJECT CONTAINERS ---'
+          docker ps -a \
+            --filter "label=com.docker.compose.project=$project" \
+            --format 'CONTAINER={{.Names}}|IMAGE={{.Image}}|STATUS={{.Status}}'
+
+          for service in mongo backend frontend; do
+            cname="$(docker ps -a \
+              --filter "label=com.docker.compose.project=$project" \
+              --filter "label=com.docker.compose.service=$service" \
+              --format '{{.Names}}' | head -n 1)"
+            service_upper="$(printf '%s' "$service" | tr '[:lower:]' '[:upper:]')"
+            if [ -z "$cname" ]; then
+              printf '%s_CONTAINER=NOT_FOUND\n' "$service_upper"
+              continue
+            fi
+            health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cname")"
+            state="$(docker inspect -f '{{.State.Status}}' "$cname")"
+            image_id="$(docker inspect -f '{{.Image}}' "$cname")"
+            revision="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image_id" 2>/dev/null || true)"
+            printf '%s_CONTAINER=%s\n' "$service_upper" "$cname"
+            printf '%s_STATE=%s\n' "$service_upper" "$state"
+            printf '%s_HEALTH=%s\n' "$service_upper" "$health"
+            printf '%s_IMAGE_ID=%s\n' "$service_upper" "$image_id"
+            if [ -n "$revision" ] && [ "$revision" != '<no value>' ]; then
+              printf '%s_IMAGE_REVISION=%s\n' "$service_upper" "$revision"
+            else
+              printf '%s_IMAGE_REVISION=UNSET\n' "$service_upper"
+            fi
+          done
+          REMOTE
+
+          cat "$raw"
+
+          grep -Fq 'DATABASE_MUTATION=NO' "$raw"
+          grep -Fq 'PRODUCTION_WRITES=NO' "$raw"
+          grep -Fq 'COMPOSE_PROJECT=' "$raw"
+          grep -Fq 'COMPOSE_WORKING_DIR=' "$raw"
+          echo 'SIGESC_DEPLOY_DISCOVERY_REMOTE=PASS'
+
+      - name: Public production health smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          api_json='evidence/public-api-health.json'
+          frontend_headers='evidence/public-frontend-headers.txt'
+
+          curl --fail --silent --show-error --max-time 20 \
+            'https://api.sigesc.aprenderdigital.top/api/health' > "$api_json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('evidence/public-api-health.json').read_text(encoding='utf-8'))
+          if data.get('status') != 'healthy' or data.get('database') != 'connected':
+              raise SystemExit('SIGESC_DEPLOY_DISCOVERY_API_HEALTH_INVALID')
+          print('PUBLIC_API_HEALTH=healthy')
+          print('PUBLIC_DATABASE=connected')
+          PY
+
+          curl --fail --silent --show-error --location --max-time 20 \
+            --head 'https://sigesc.aprenderdigital.top/' > "$frontend_headers"
+          echo 'PUBLIC_FRONTEND_HTTP=PASS'
+
+      - name: Publish discovery summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## SIGESC production topology discovery'
+            echo
+            echo '- Mode: read-only'
+            echo '- Database mutation: NO'
+            echo '- Production writes: NO'
+            echo '- GitHub SHA: `${{ github.sha }}`'
+            echo '- Run ID: `${{ github.run_id }}`'
+            echo
+            if [ -f evidence/production-topology.txt ]; then
+              echo '### Key topology facts'
+              echo '```text'
+              grep -E '^(COMPOSE_PROJECT|COMPOSE_WORKING_DIR|COMPOSE_CONFIG_FILES|WORKDIR_|PRIMARY_COMPOSE_|MONGO_|BACKEND_|FRONTEND_)=' evidence/production-topology.txt || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload topology evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigesc-production-topology-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 90
