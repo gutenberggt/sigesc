@@ -58,10 +58,10 @@ jobs:
               if marker not in guard:
                   raise SystemExit(f'P0_250_F2_5_REQUIRED_GUARD_MARKER_MISSING:{marker}')
 
-          # O bridge deve continuar usando exatamente a presença de candidatos
+          # O bridge deve continuar usando a presença de candidatos
           # content_enabled para escolher DVD vs fallback legado.
           required_bridge = [
-              'capabilities?.content_enabled === true',
+              'if (!diary?.capabilities?.content_enabled) return false;',
               'if (candidates.length === 0) return config;',
           ]
           for marker in required_bridge:
