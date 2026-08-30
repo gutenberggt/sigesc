@@ -1,8 +1,8 @@
 """P0-F7.9D7.3.1 - policy-driven workload resolution for D7.3.
 
 This offline adapter supersedes only the workload-choice portion of D7.3.
-The duplicate survivor remains a human institutional decision, while weekly
-workload is derived deterministically from the canonical curricular policy.
+The duplicate survivor remains a human institutional decision, while workload
+is derived deterministically from the canonical curricular policy.
 
 No database, network or production write surface exists here.
 """
@@ -98,13 +98,15 @@ def validate_policy_inputs(plan, d71, d72) -> tuple[dict[str, Any], dict[str, An
 
 def _policy_justification(policy: Mapping[str, Any]) -> str:
     annual = policy.get("canonical_annual_workload")
+    monthly = policy.get("canonical_monthly_workload")
     weekly = policy.get("canonical_weekly_workload")
+    base = (
+        f"Política curricular institucional: {annual}h anuais / 8 = {monthly}h mensais; "
+        f"{monthly}h mensais / 5 = {weekly}h semanais."
+    )
     if policy.get("multigrade"):
-        return (
-            f"Política curricular institucional: multissérie usa a maior CH; "
-            f"resultado canônico {annual}h anuais = {weekly}h semanais."
-        )
-    return f"Política curricular institucional: {annual}h anuais = {weekly}h semanais."
+        return f"Multissérie usa a maior CH anual. {base}"
+    return base
 
 
 def build_decision_template(validated: Mapping[str, Any], policy: Mapping[str, Any]) -> dict[str, Any]:
@@ -117,7 +119,9 @@ def build_decision_template(validated: Mapping[str, Any], policy: Mapping[str, A
     template["workload_resolution"] = {
         "source": OUTPUT_POLICY_PHASE,
         "human_choice_required": False,
+        "conversion_formula": policy["conversion_formula"],
         "canonical_annual_workload": policy["canonical_annual_workload"],
+        "canonical_monthly_workload": policy["canonical_monthly_workload"],
         "canonical_weekly_workload": policy["canonical_weekly_workload"],
         "multigrade": policy["multigrade"],
         "multigrade_rule": policy["multigrade_rule"],
@@ -150,6 +154,9 @@ def build_html(validated: Mapping[str, Any], policy: Mapping[str, Any]) -> str:
         for row in rows
     )
     series_text = ", ".join(str(v) for v in policy.get("series") or []) or "regra do nível"
+    annual = policy.get("canonical_annual_workload")
+    monthly = policy.get("canonical_monthly_workload")
+    weekly = policy.get("canonical_weekly_workload")
     return f"""<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
@@ -162,8 +169,11 @@ def build_html(validated: Mapping[str, Any], policy: Mapping[str, Any]) -> str:
 Componente: {_esc(policy.get('component'))}<br>
 Nível: {_esc(policy.get('class_level'))}<br>
 Séries/etapas: {_esc(series_text)}<br>
-CH anual canônica: <b>{_esc(policy.get('canonical_annual_workload'))}h</b><br>
-CH semanal canônica: <b>{_esc(policy.get('canonical_weekly_workload'))}h</b><br>
+CH anual canônica (ha): <b>{_esc(annual)}h</b><br>
+CH mensal canônica (hm): <b>{_esc(monthly)}h</b><br>
+CH semanal canônica (hs): <b>{_esc(weekly)}h</b><br>
+Fórmula: <b>{_esc(annual)} / 8 = {_esc(monthly)} hm; {_esc(monthly)} / 5 = {_esc(weekly)} hs</b><br>
+Equivalência: {_esc(annual)} / 40 = {_esc(weekly)} hs<br>
 Regra multissérie: {_esc(policy.get('multigrade_rule'))}</div>
 {cards}
 <section class="card"><h2>Única decisão humana remanescente: survivor</h2>
@@ -198,7 +208,9 @@ def seal(plan, d71, d72, decision: Mapping[str, Any]) -> dict[str, Any]:
         "per_series_annual_workload": policy["per_series_annual_workload"],
         "multigrade": policy["multigrade"],
         "multigrade_rule": policy["multigrade_rule"],
+        "conversion_formula": policy["conversion_formula"],
         "canonical_annual_workload": policy["canonical_annual_workload"],
+        "canonical_monthly_workload": policy["canonical_monthly_workload"],
         "canonical_weekly_workload": policy["canonical_weekly_workload"],
         "human_workload_choice_required": False,
     }
@@ -237,7 +249,9 @@ def main() -> None:
         _private_write_json(args.policy_json, policy)
         print("P0F7_9D731_POLICY_STATION_BUILT=YES")
         print(f"CANONICAL_ANNUAL_WORKLOAD={policy['canonical_annual_workload']}")
+        print(f"CANONICAL_MONTHLY_WORKLOAD={policy['canonical_monthly_workload']}")
         print(f"CANONICAL_WEEKLY_WORKLOAD={policy['canonical_weekly_workload']}")
+        print("WORKLOAD_FORMULA=ha/8=hm;hm/5=hs;ha/40=hs")
         print(f"MULTIGRADE_RULE={policy['multigrade_rule']}")
         print("WORKLOAD_HUMAN_CHOICE_REQUIRED=NO")
         print("PRODUCTION_ACCESS=NO")
