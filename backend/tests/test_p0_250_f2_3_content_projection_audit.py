@@ -126,3 +126,37 @@ def test_entitlement_drift_has_priority_when_component_count_is_not_nine():
     )
     assert result["classification"] == "PROFESSOR_CONTENT_ENTITLEMENT_DRIFT"
     assert result["assignment_component_count"] == 2
+
+
+def test_legacy_fallback_models_same_class_month_dataset_and_emits_only_provenance_counts():
+    management = [
+        legacy("lo-30", "2026-06-30", "course-1", recorded_by="other-user", content="secret 30"),
+        legacy("lo-29", "2026-06-29", "course-2", recorded_by="teacher-1", content="secret 29"),
+        legacy("lo-27", "2026-06-27", "course-3", recorded_by="other-user", content="secret 27"),
+        legacy("lo-26", "2026-06-26", "course-1", recorded_by="teacher-1", content="secret 26"),
+    ]
+
+    result = mod.analyze_legacy_fallback_projection(
+        management_rows=management,
+        legacy_assignment_course_ids=[f"course-{i}" for i in range(1, 10)],
+        target_teacher_id="teacher-1",
+    )
+
+    assert result["classification"] == "CONTENT_LEGACY_FALLBACK_PARITY_EXPECTED"
+    assert result["projection_mode"] == "LEGACY_FALLBACK"
+    assert result["legacy_teacher_assignment_component_count"] == 9
+    assert result["management_legacy_record_count"] == 4
+    assert result["professor_projection_record_count"] == 4
+    assert result["management_only_slot_count"] == 0
+    assert result["professor_only_slot_count"] == 0
+    assert result["professor_legacy_record_count"] == 4
+    assert result["legacy_date_provenance"][0] == {
+        "date": "2026-06-30",
+        "record_count": 1,
+        "component_count": 1,
+        "recorded_by_target_professor_count": 0,
+        "recorded_by_other_or_unknown_count": 1,
+    }
+    payload = json.dumps(result, ensure_ascii=False)
+    for forbidden in ("secret 30", "secret 29", "secret 27", "secret 26", "lo-30", "teacher-1"):
+        assert forbidden not in payload
