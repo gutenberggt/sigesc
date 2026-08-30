@@ -13,7 +13,9 @@ from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant
 from utils.carga_horaria_calculator import calcular_carga_por_lotacao
 from services.teacher_assignment_integrity import (
     TeacherAssignmentIntegrityError,
+    is_active_teacher_assignment_status,
     validate_teacher_assignment_curriculum,
+    validate_teacher_assignment_workload,
 )
 
 
@@ -352,6 +354,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 school_id=assignment.school_id,
                 academic_year=assignment.academic_year,
             )
+            workload_integrity = validate_teacher_assignment_workload(
+                class_info=turma,
+                course=course,
+                weekly_workload=assignment.carga_horaria_semanal,
+            )
         except TeacherAssignmentIntegrityError as exc:
             raise integrity_http_error(exc) from exc
 
@@ -360,7 +367,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "class_id": assignment.class_id,
             "course_id": assignment.course_id,
             "academic_year": assignment.academic_year,
-            "status": "ativo",
+            "status": {"$in": ["ativo", "active"]},
         }, current_user, request)
         existing = await db.teacher_assignments.find_one(existing_query)
         if existing:
@@ -377,7 +384,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             user=current_user,
             request=request,
             document_id=new_assignment.id,
-            description='Criou alocação docente com validação curricular P0-F7.9B',
+            description='Criou alocação docente com validação curricular P0-F7.9B + carga P0-F7.9D7.8',
             school_id=assignment.school_id,
             school_name=school.get('name'),
             academic_year=assignment.academic_year,
@@ -387,6 +394,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 'course_id': assignment.course_id,
                 'status': assignment.status,
                 'curricular_write_policy': integrity.get('write_policy'),
+                'workload_write_policy': workload_integrity.get('workload_policy'),
+                'canonical_weekly_workload': workload_integrity.get('canonical_weekly_workload'),
             },
         )
 
@@ -397,7 +406,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.post("/teacher-assignments/substitutions")
     async def create_teacher_substitution(assignment: TeacherAssignmentCreate, request: Request):
-        """Cria substituição preservando a mesma barreira curricular da alocação titular."""
+        """Cria substituição preservando as barreiras curricular e de carga da alocação titular."""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
 
         payload = assignment.model_dump()
@@ -433,7 +442,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "class_id": payload['class_id'],
                 "course_id": payload['course_id'],
                 "academic_year": payload['academic_year'],
-                "status": "ativo",
+                "status": {"$in": ["ativo", "active"]},
                 "is_substituicao": {"$ne": True},
             }, current_user, request)
             titular_assign = await db.teacher_assignments.find_one(
@@ -444,6 +453,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 payload['substituted_staff_id'] = titular_assign.get('staff_id')
                 if not payload.get('carga_horaria_semanal'):
                     payload['carga_horaria_semanal'] = titular_assign.get('carga_horaria_semanal')
+
+        try:
+            workload_integrity = validate_teacher_assignment_workload(
+                class_info=turma,
+                course=course,
+                weekly_workload=payload.get('carga_horaria_semanal'),
+            )
+        except TeacherAssignmentIntegrityError as exc:
+            raise integrity_http_error(exc) from exc
 
         new_assignment = TeacherAssignment(**payload)
         ta_doc = new_assignment.model_dump()
@@ -485,7 +503,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             user=current_user,
             request=request,
             document_id=new_assignment.id,
-            description='Criou substituição docente com validação curricular P0-F7.9B',
+            description='Criou substituição docente com validação curricular P0-F7.9B + carga P0-F7.9D7.8',
             school_id=payload['school_id'],
             school_name=school.get('name'),
             academic_year=payload['academic_year'],
@@ -495,6 +513,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 'course_id': payload['course_id'],
                 'is_substituicao': True,
                 'curricular_write_policy': integrity.get('write_policy'),
+                'workload_write_policy': workload_integrity.get('workload_policy'),
+                'canonical_weekly_workload': workload_integrity.get('canonical_weekly_workload'),
             },
         )
 
@@ -519,8 +539,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         resulting.update(update_data)
 
         integrity = None
+        workload_integrity = None
         # Encerramento/inativação de passivo histórico precisa permanecer possível.
-        if resulting.get('status', 'ativo') == 'ativo':
+        if is_active_teacher_assignment_status(resulting.get('status', 'ativo')):
             staff, school, turma, course, tenant_id = await load_teacher_assignment_context(
                 current_user=current_user,
                 request=request,
@@ -540,6 +561,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     school_id=resulting['school_id'],
                     academic_year=resulting['academic_year'],
                 )
+                workload_integrity = validate_teacher_assignment_workload(
+                    class_info=turma,
+                    course=course,
+                    weekly_workload=resulting.get('carga_horaria_semanal'),
+                )
             except TeacherAssignmentIntegrityError as exc:
                 raise integrity_http_error(exc) from exc
         else:
@@ -557,7 +583,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             user=current_user,
             request=request,
             document_id=assignment_id,
-            description='Atualizou alocação docente sob política de integridade P0-F7.9B',
+            description='Atualizou alocação docente sob política de integridade P0-F7.9B + P0-F7.9D7.8',
             school_id=resulting.get('school_id'),
             school_name=school.get('name') if school else None,
             academic_year=resulting.get('academic_year'),
@@ -571,6 +597,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             new_value={
                 **update_data,
                 'curricular_write_policy': integrity.get('write_policy') if integrity else 'INACTIVE_REMEDIATION_ALLOWED',
+                'workload_write_policy': workload_integrity.get('workload_policy') if workload_integrity else 'INACTIVE_REMEDIATION_ALLOWED',
+                'canonical_weekly_workload': workload_integrity.get('canonical_weekly_workload') if workload_integrity else None,
             },
         )
 
