@@ -38,8 +38,10 @@ jobs:
           set -euo pipefail
           python -m py_compile backend/scripts/p0_250_f2_1_http_projection_audit.py
           python -m py_compile backend/tests/test_p0_250_f2_1_http_projection_audit.py
-          pip install pytest pymongo python-dotenv
-          pytest -q backend/tests/test_p0_250_f2_1_http_projection_audit.py
+          pip install pytest pymongo
+          # This test is intentionally independent from backend/tests/conftest.py,
+          # whose transfer fixtures require live Mongo env vars at import time.
+          pytest -q --noconftest backend/tests/test_p0_250_f2_1_http_projection_audit.py
 
       - name: Enforce source-level read-only and privacy contract
         shell: bash
@@ -161,8 +163,7 @@ jobs:
               },
           )
           with urllib.request.urlopen(req, timeout=30) as response:
-              main = json.load(response)
-          main_sha = main['commit']['sha']
+              main_sha = json.load(response)['commit']['sha']
           if main_sha != target:
               raise SystemExit(f'P0_250_F2_1_MAIN_MOVED:{main_sha}')
 
@@ -276,7 +277,11 @@ jobs:
           from pathlib import Path
 
           p = json.loads(Path('evidence/p0-250-f2-1-snapshot.json').read_text(encoding='utf-8'))
-          for key in ('database_mutation', 'production_writes', 'grade_values_emitted', 'student_ids_emitted', 'student_pii_emitted', 'access_token_emitted', 'access_token_persisted'):
+          for key in (
+              'database_mutation', 'production_writes', 'grade_values_emitted',
+              'student_ids_emitted', 'student_pii_emitted', 'access_token_emitted',
+              'access_token_persisted',
+          ):
               if p.get(key) is not False:
                   raise SystemExit(f'P0_250_F2_1_BOUNDARY_FAILED:{key}')
           if p.get('http_methods') != ['GET']:
@@ -372,14 +377,18 @@ jobs:
           }
           req = urllib.request.Request(
               f'https://api.github.com/repos/{repo}/issues/{issue}/comments',
-              data=json.dumps(body).encode(), method='POST', headers=headers,
+              data=json.dumps(body).encode(),
+              method='POST',
+              headers=headers,
           )
           with urllib.request.urlopen(req, timeout=30):
               pass
           if classification != 'AUDIT_INCOMPLETE':
               req = urllib.request.Request(
                   f'https://api.github.com/repos/{repo}/issues/{issue}',
-                  data=json.dumps({'state': 'closed'}).encode(), method='PATCH', headers=headers,
+                  data=json.dumps({'state': 'closed'}).encode(),
+                  method='PATCH',
+                  headers=headers,
               )
               with urllib.request.urlopen(req, timeout=30):
                   pass
