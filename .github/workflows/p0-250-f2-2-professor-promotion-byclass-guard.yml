@@ -89,7 +89,7 @@ jobs:
                   raise SystemExit(f'P0_250_F2_2_PARITY_MARKER_MISSING:{marker}')
 
           required_tests = [
-              "F2.2 projeta exatamente 21 x 9 pares do by-class e descarta o 22º aluno",
+              "F2.2 projeta exatamente 21 x 9 pares do by-class e descarta o 22º estudante",
               'toBe(189)',
               "projected.has('student-22')",
               "course_id === 'course-10'",
