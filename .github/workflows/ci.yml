@@ -63,6 +63,11 @@ jobs:
             yarn install --network-timeout 600000
           fi
 
+      - name: Professor promotion parity contract
+        run: yarn test --watchAll=false --runTestsByPath src/utils/promotionParity.test.js
+        env:
+          CI: 'true'
+
       - name: Build production bundle
         run: yarn build
         env:
