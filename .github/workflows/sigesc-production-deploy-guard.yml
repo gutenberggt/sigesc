@@ -1,14 +1,16 @@
-name: SIGESC Production Deploy Guard
+name: SIGESC Production Release Guard
 
 on:
   pull_request:
     paths:
       - '.github/workflows/sigesc-production-deploy.yml'
       - '.github/workflows/sigesc-production-deploy-guard.yml'
-      - 'scripts/ops/sigesc_github_only_deploy.sh'
+      - 'docker-compose.coolify.yml'
       - 'backend/Dockerfile'
       - 'frontend/Dockerfile'
       - 'docs/operations/GITHUB_ONLY_PRODUCTION_DEPLOY.md'
+      - 'memory/audit/SIGESC_PRODUCTION_DEPLOY_INCIDENT_2026-08-30.md'
+      - 'scripts/ops/sigesc_github_only_deploy.sh'
 
 permissions:
   contents: read
@@ -22,10 +24,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Parse deploy executor shell
-        run: bash -n scripts/ops/sigesc_github_only_deploy.sh
-
-      - name: Guard protected manual deployment contract
+      - name: Guard protected source-promotion contract
         shell: bash
         run: |
           python - <<'PY'
@@ -33,20 +32,24 @@ jobs:
 
           workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
           required = (
+              'name: SIGESC Production Release',
               'workflow_dispatch:',
               'environment: production',
-              'group: sigesc-production-deploy',
+              'contents: write',
+              'actions: read',
+              'group: sigesc-production-release',
               'cancel-in-progress: false',
-              'DEPLOY_SIGESC_PRODUCTION_MAIN',
+              'PROMOTE_SIGESC_MAIN_TO_PRODUCTION',
               'github.ref_name',
               "= 'main'",
-              'StrictHostKeyChecking=yes',
-              'EXPECTED_COMPOSE_PROJECT: bww8wogkcs0sws8sc80s4k4c',
-              'Fail closed unless main and push CI are green',
+              '/git/refs/heads/production',
+              "'force': False",
+              "'force': True",
+              'PRODUCTION_NOT_FAST_FORWARDABLE',
               'CI - Build & Lint',
-              'SIGESC_PRODUCTION_DEPLOY=APPLIED',
-              'SIGESC_PRODUCTION_DEPLOY=SAFE_ROLLBACK',
-              'Do not rerun automatically.',
+              'SIGESC_PRODUCTION_RELEASE=APPLIED',
+              'SIGESC_PRODUCTION_RELEASE=SAFE_ROLLBACK',
+              'AMBIGUOUS_OR_ROLLBACK_INCOMPLETE',
               'retention-days: 90',
           )
           for marker in required:
@@ -55,84 +58,87 @@ jobs:
           trigger_prefix = workflow.split('permissions:', 1)[0]
           assert 'pull_request:' not in trigger_prefix
           assert '\n  push:' not in trigger_prefix
-          print('SIGESC_DEPLOY_MANUAL_PROTECTION_GUARD=PASS')
+          print('SIGESC_RELEASE_PROMOTION_CONTRACT_GUARD=PASS')
           PY
 
-      - name: Guard Coolify ownership and Mongo isolation
+      - name: Guard Coolify as sole runtime mutator
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
           workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
-          executor = Path('scripts/ops/sigesc_github_only_deploy.sh').read_text(encoding='utf-8')
+          legacy = Path('scripts/ops/sigesc_github_only_deploy.sh')
+          assert not legacy.exists(), 'legacy direct Docker executor must be removed'
 
-          for forbidden in (
-              'git pull', 'git reset', 'git checkout', 'git fetch',
-              'docker compose down', 'docker restart', 'docker stop',
-              'docker rm', 'mongosh', 'mongoimport', 'updateOne(', 'deleteOne(',
-          ):
-              assert forbidden not in executor, forbidden
+          forbidden = (
+              'docker compose ',
+              'docker build ',
+              'docker restart ',
+              'docker stop ',
+              'docker start ',
+              'docker rm ',
+              'docker image tag ',
+              'scp ',
+              'git pull',
+              'git push',
+              'mongosh',
+              'mongoimport',
+              'updateOne(',
+              'deleteOne(',
+          )
+          for token in forbidden:
+              assert token not in workflow, token
 
-          assert 'WORKDIR_GIT_REPOSITORY=NO' in workflow
-          assert '.github-deploy/releases/' in workflow
-          assert 'override_dir="$deploy_root/overrides"' in executor
-          assert 'receipt_dir="$deploy_root/receipts"' in executor
-
-          assert 'up -d --no-deps --no-build --force-recreate backend' in executor
-          assert 'up -d --no-deps --no-build --force-recreate frontend' in executor
-          assert 'up -d --no-deps --no-build --force-recreate mongo' not in executor
-          assert 'MONGO_CONTAINER_CHANGED' in executor
-          assert 'ROLLBACK_MONGO_CONTAINER_CHANGED' in executor
+          assert 'docker inspect' in workflow
+          assert 'docker ps -a' in workflow
+          assert 'RUNTIME_MUTATION_OWNER=COOLIFY' in workflow
+          assert 'DIRECT_DOCKER_MUTATION=NO' in workflow
           assert 'EXPLICIT_DATABASE_MIGRATION=NO' in workflow
-          assert 'MONGO_REBUILD_OR_RESTART=FORBIDDEN' in workflow
-          print('SIGESC_DEPLOY_COOLIFY_AND_MONGO_ISOLATION_GUARD=PASS')
+          print('SIGESC_RELEASE_COOLIFY_OWNERSHIP_GUARD=PASS')
           PY
 
-      - name: Guard immutable SHA provenance
+      - name: Guard source commit provenance
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
+          compose = Path('docker-compose.coolify.yml').read_text(encoding='utf-8')
           backend = Path('backend/Dockerfile').read_text(encoding='utf-8')
           frontend = Path('frontend/Dockerfile').read_text(encoding='utf-8')
-          executor = Path('scripts/ops/sigesc_github_only_deploy.sh').read_text(encoding='utf-8')
           workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
 
+          assert compose.count('SIGESC_GIT_SHA') >= 2
+          assert compose.count('${SOURCE_COMMIT:-unknown}') >= 2
           for text in (backend, frontend):
               assert 'ARG SIGESC_GIT_SHA=unknown' in text
               assert 'org.opencontainers.image.revision=$SIGESC_GIT_SHA' in text
-
           assert '/usr/share/nginx/html/version.json' in frontend
-          assert 'BUILT_BACKEND_REVISION_MISMATCH' in executor
-          assert 'BUILT_FRONTEND_REVISION_MISMATCH' in executor
-          assert 'RUNNING_BACKEND_REVISION_MISMATCH' in executor
-          assert 'RUNNING_FRONTEND_REVISION_MISMATCH' in executor
-          assert 'PUBLIC_FRONTEND_SHA_MISMATCH' in workflow
-          assert 'SIGESC_RELEASE_ARCHIVE_SHA_MISMATCH' in workflow
-          print('SIGESC_DEPLOY_SHA_PROVENANCE_GUARD=PASS')
+          assert 'PUBLIC_FRONTEND_SHA' in workflow
+          assert "printf '%s_IMAGE_REVISION=%s" in workflow
+          assert 'test "$revision" = "$target"' in workflow
+          print('SIGESC_RELEASE_SHA_PROVENANCE_GUARD=PASS')
           PY
 
-      - name: Guard compensating container rollback
+      - name: Guard Mongo persistence and source rollback
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          executor = Path('scripts/ops/sigesc_github_only_deploy.sh').read_text(encoding='utf-8')
           workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
           required = (
-              'OLD_BACKEND_IMAGE_ID',
-              'OLD_FRONTEND_IMAGE_ID',
-              'restore_old_images_and_runtime',
-              'CONTAINER_ROLLBACK=APPLIED',
-              'ROLLBACK_INCOMPLETE',
-              'SAFE_ROLLBACK',
+              'MONGO_DATA_VOLUME',
+              'MONGO_VOLUME_CONTINUITY=PASS',
+              'MONGO_PERSISTENT_VOLUME_REQUIRED=YES',
+              'MONGO_IMAGE=mongo:7',
+              'PREVIOUS_PRODUCTION_SHA',
+              'PRODUCTION_BRANCH_ROLLBACK_SHA',
+              'PRODUCTION_SOURCE_ROLLBACK=APPLIED',
+              'ROLLBACK_PUBLIC_HEALTH=PASS',
           )
           for marker in required:
-              assert marker in executor, marker
-          assert 'Roll back containers when public smoke fails' in workflow
-          assert 'Verify public service after rollback' in workflow
-          print('SIGESC_DEPLOY_ROLLBACK_GUARD=PASS')
+              assert marker in workflow, marker
+          print('SIGESC_RELEASE_MONGO_AND_ROLLBACK_GUARD=PASS')
           PY

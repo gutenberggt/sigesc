@@ -23,6 +23,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        # Disponível quando "Include Source Commit in Build" está habilitado no Coolify.
+        SIGESC_GIT_SHA: ${SOURCE_COMMIT:-unknown}
     environment:
       - MONGO_URL=${MONGO_URL}
       - DB_NAME=${DB_NAME:-sigesc}
@@ -69,6 +72,8 @@ services:
       dockerfile: Dockerfile
       args:
         - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
+        # Mesma proveniência usada pelo backend e por /version.json.
+        - SIGESC_GIT_SHA=${SOURCE_COMMIT:-unknown}
     restart: unless-stopped
     depends_on:
       - backend
