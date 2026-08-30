@@ -1,12 +1,14 @@
-"""P1 — autorização da escola de destino para matrícula de estudante transferido.
+"""P0 — acesso seguro da escola de destino a candidatos de matrícula/rematrícula.
 
 Contrato institucional:
 - estudante ATIVO continua restrito à escola vinculada ao secretário;
-- estudante TRANSFERIDO pode ser consultado por secretário de outra escola da MESMA
-  mantenedora para viabilizar a matrícula de entrada;
-- consultar um transferido não concede permissão sobre a escola de origem;
+- estudante com status TRANSFERIDO, DESISTENTE, INATIVO ou CANCELADO pode ser
+  consultado por secretário de outra escola da MESMA mantenedora para viabilizar
+  uma nova matrícula;
+- consultar um candidato não concede permissão sobre a escola histórica de origem;
 - qualquer mudança de escola ou reativação feita por secretário exige que a
   escola FINAL esteja no escopo escolar do JWT;
+- candidato cross-tenant é bloqueado fail-closed, inclusive no PUT;
 - o fluxo legado continua responsável por validar turma, criar enrollment,
   preservar histórico e aplicar as demais regras de domínio;
 - documentos históricos passam pela mesma normalização não persistente usada por
@@ -14,6 +16,11 @@ Contrato institucional:
 
 A camada é deliberadamente pequena e fail-closed. Ela não grava diretamente no
 MongoDB e não altera lotações, JWTs ou regras de estudantes ativos.
+
+O nome do módulo/função de instalação é preservado por compatibilidade com a
+composição existente de ``setup_students_router``. A regra, porém, é mais ampla
+que transferência: cobre todo o conjunto institucional de candidatos a nova
+matrícula.
 """
 
 from __future__ import annotations
@@ -30,7 +37,16 @@ from .student_legacy_compat import normalize_legacy_student_doc
 
 
 ROUTE_PATH = "/students/{student_id}"
-TRANSFERRED_STATUSES = frozenset({"transferred", "transferido"})
+REENROLLMENT_CANDIDATE_STATUSES = frozenset({
+    "transferred",
+    "transferido",
+    "dropout",
+    "desistente",
+    "inactive",
+    "inativo",
+    "cancelled",
+    "cancelado",
+})
 ACTIVE_STATUSES = frozenset({"active", "ativo"})
 
 
@@ -62,19 +78,19 @@ def _remove_route(base_router: Any, path: str, method: str):
     return None
 
 
-def _assert_transfer_candidate_same_tenant(
+def _assert_reenrollment_candidate_same_tenant(
     student_doc: dict,
     current_user: dict,
     request: Request,
 ) -> None:
-    """Libera consulta do transferido somente com tenant explícito e coincidente."""
+    """Libera candidato somente com tenant explícito e coincidente."""
     student_tenant = str(student_doc.get("mantenedora_id") or "").strip()
     user_tenant = str(get_mantenedora_scope(current_user, request) or "").strip()
 
     if not student_tenant or not user_tenant or student_tenant != user_tenant:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Estudante transferido não pertence à mantenedora do usuário",
+            detail="Estudante não está disponível para matrícula nesta mantenedora",
         )
 
 
@@ -98,9 +114,9 @@ async def _assert_secretary_destination_access(
     school_is_changing = "school_id" in payload and target_school_id != old_school_id
     becoming_active = "status" in payload and _norm(payload.get("status")) in ACTIVE_STATUSES
 
-    # Edição meramente cadastral de estudante não ativo continua possível sem exigir
-    # vínculo com a escola histórica. A autorização de destino só entra quando a
-    # operação efetivamente muda escola ou reativa o estudante.
+    # Edição meramente cadastral de estudante candidato continua possível sem
+    # exigir vínculo com a escola histórica. A autorização de destino só entra
+    # quando a operação efetivamente muda escola ou reativa o estudante.
     if not school_is_changing and not becoming_active:
         return
 
@@ -120,7 +136,7 @@ def install_student_transfer_destination_access(
     db,
     sandbox_db=None,
 ):
-    """Instala leitura tenant-wide do transferido + guarda da escola de destino."""
+    """Instala leitura tenant-wide dos candidatos + guarda da escola de destino."""
     if getattr(base_router, "_student_transfer_destination_access_installed", False):
         return base_router
 
@@ -134,7 +150,7 @@ def install_student_transfer_destination_access(
 
     @base_router.get("/{student_id}", response_model=Student)
     @wraps(current_get)
-    async def transfer_aware_get_student(student_id: str, request: Request):
+    async def reenrollment_aware_get_student(student_id: str, request: Request):
         current_user = await AuthMiddleware.get_current_user(request)
 
         # Todos os demais perfis preservam exatamente a autorização anterior.
@@ -149,17 +165,16 @@ def install_student_transfer_destination_access(
             # Preserva a resposta/semântica 404 do endpoint anterior.
             return await current_get(student_id, request)
 
-        if _norm(student_doc.get("status")) not in TRANSFERRED_STATUSES:
-            # Estudante ativo (ou qualquer outro status) continua sujeito ao vínculo
-            # com sua escola atual, exatamente como antes.
+        if _norm(student_doc.get("status")) not in REENROLLMENT_CANDIDATE_STATUSES:
+            # Estudante ativo (ou qualquer outro status não autorizado) continua
+            # sujeito ao vínculo com sua escola atual, exatamente como antes.
             return await current_get(student_id, request)
 
-        _assert_transfer_candidate_same_tenant(student_doc, current_user, request)
+        _assert_reenrollment_candidate_same_tenant(student_doc, current_user, request)
 
-        # O #178 antecedeu a camada P0 de compatibilidade legada. Como esta leitura
-        # autorizada não chama a rota anterior, aplicamos aqui a MESMA projeção
-        # não persistente para não reintroduzir ResponseValidationError em cadastros
-        # históricos (address string, certificado/comunidade legados).
+        # A leitura autorizada não chama a rota anterior, portanto aplicamos aqui
+        # a MESMA projeção não persistente da camada de compatibilidade legada para
+        # não reintroduzir ResponseValidationError em cadastros históricos.
         return normalize_legacy_student_doc(student_doc)
 
     @base_router.put("/{student_id}", response_model=Student)
@@ -178,11 +193,15 @@ def install_student_transfer_destination_access(
                 {"_id": 0, "id": 1, "school_id": 1, "status": 1, "mantenedora_id": 1},
             )
             if student_doc:
-                # A origem transferida pode ser de outra escola, mas jamais de
-                # outra mantenedora. Para status não transferido, a rota anterior
-                # continua fazendo suas próprias verificações de origem.
-                if _norm(student_doc.get("status")) in TRANSFERRED_STATUSES:
-                    _assert_transfer_candidate_same_tenant(student_doc, current_user, request)
+                # A origem de qualquer candidato pode ser outra escola, mas jamais
+                # outra mantenedora. Isso fecha também o PUT para desistente,
+                # inativo e cancelado antes de delegar ao fluxo de escrita legado.
+                if _norm(student_doc.get("status")) in REENROLLMENT_CANDIDATE_STATUSES:
+                    _assert_reenrollment_candidate_same_tenant(
+                        student_doc,
+                        current_user,
+                        request,
+                    )
 
                 await _assert_secretary_destination_access(
                     request=request,

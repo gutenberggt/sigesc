@@ -1,4 +1,4 @@
-"""Regressões P1: matrícula de transferido pela escola de destino."""
+"""Regressões P0: matrícula/rematrícula pela escola de destino."""
 
 from __future__ import annotations
 
@@ -19,6 +19,23 @@ TENANT = "tenant-1"
 SOURCE_SCHOOL = "school-source"
 TARGET_SCHOOL = "school-target"
 OTHER_SCHOOL = "school-other"
+
+REENROLLMENT_STATUSES = (
+    "transferred",
+    "transferido",
+    "dropout",
+    "desistente",
+    "inactive",
+    "inativo",
+    "cancelled",
+    "cancelado",
+)
+CANONICAL_REENROLLMENT_STATUSES = (
+    "transferred",
+    "dropout",
+    "inactive",
+    "cancelled",
+)
 
 
 class _StudentsCollection:
@@ -58,7 +75,7 @@ def _routes(router, method):
 def _student(*, status="transferred", tenant=TENANT):
     return {
         "id": "student-1",
-        "full_name": "Aluno Transferido",
+        "full_name": "Aluno Candidato",
         "status": status,
         "school_id": SOURCE_SCHOOL,
         "class_id": "class-source",
@@ -100,9 +117,13 @@ def _install_router(db, seen):
 
 
 @pytest.mark.asyncio
-async def test_secretary_can_load_transferred_student_from_other_school_same_tenant(monkeypatch):
+@pytest.mark.parametrize("candidate_status", REENROLLMENT_STATUSES)
+async def test_secretary_can_load_reenrollment_candidate_from_other_school_same_tenant(
+    monkeypatch,
+    candidate_status,
+):
     seen = {}
-    db = _DB(_student())
+    db = _DB(_student(status=candidate_status))
     router = _install_router(db, seen)
 
     async def fake_current_user(request):
@@ -113,15 +134,19 @@ async def test_secretary_can_load_transferred_student_from_other_school_same_ten
     result = await _routes(router, "GET")[0].endpoint("student-1", _request())
 
     assert result["id"] == "student-1"
-    assert result["status"] == "transferred"
+    assert result["status"] == candidate_status
     assert result["school_id"] == SOURCE_SCHOOL
     assert seen.get("legacy_get_calls", 0) == 0
 
 
 @pytest.mark.asyncio
-async def test_secretary_cannot_load_transferred_student_from_other_tenant(monkeypatch):
+@pytest.mark.parametrize("candidate_status", CANONICAL_REENROLLMENT_STATUSES)
+async def test_secretary_cannot_load_reenrollment_candidate_from_other_tenant(
+    monkeypatch,
+    candidate_status,
+):
     seen = {}
-    db = _DB(_student(tenant="tenant-other"))
+    db = _DB(_student(status=candidate_status, tenant="tenant-other"))
     router = _install_router(db, seen)
 
     async def fake_current_user(request):
@@ -138,9 +163,13 @@ async def test_secretary_cannot_load_transferred_student_from_other_tenant(monke
 
 
 @pytest.mark.asyncio
-async def test_secretary_cannot_load_transferred_student_without_explicit_tenant(monkeypatch):
+@pytest.mark.parametrize("candidate_status", CANONICAL_REENROLLMENT_STATUSES)
+async def test_secretary_cannot_load_reenrollment_candidate_without_explicit_tenant(
+    monkeypatch,
+    candidate_status,
+):
     seen = {}
-    doc = _student()
+    doc = _student(status=candidate_status)
     doc.pop("mantenedora_id")
     db = _DB(doc)
     router = _install_router(db, seen)
@@ -158,9 +187,13 @@ async def test_secretary_cannot_load_transferred_student_without_explicit_tenant
 
 
 @pytest.mark.asyncio
-async def test_active_student_keeps_previous_school_authorization(monkeypatch):
+@pytest.mark.parametrize("protected_status", ("active", "ativo", "deceased", ""))
+async def test_non_candidate_student_keeps_previous_school_authorization(
+    monkeypatch,
+    protected_status,
+):
     seen = {}
-    db = _DB(_student(status="active"))
+    db = _DB(_student(status=protected_status))
     router = _install_router(db, seen)
 
     async def fake_current_user(request):
@@ -175,9 +208,9 @@ async def test_active_student_keeps_previous_school_authorization(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_transferred_legacy_student_is_normalized_before_response(monkeypatch):
+async def test_reenrollment_candidate_legacy_student_is_normalized_before_response(monkeypatch):
     seen = {}
-    doc = _student()
+    doc = _student(status="dropout")
     doc.update({
         "address": "Rua Histórica",
         "address_number": "123",
@@ -206,9 +239,13 @@ async def test_transferred_legacy_student_is_normalized_before_response(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_transfer_to_active_requires_access_to_destination_school(monkeypatch):
+@pytest.mark.parametrize("candidate_status", CANONICAL_REENROLLMENT_STATUSES)
+async def test_reenrollment_candidate_to_active_requires_access_to_destination_school(
+    monkeypatch,
+    candidate_status,
+):
     seen = {}
-    db = _DB(_student())
+    db = _DB(_student(status=candidate_status))
     router = _install_router(db, seen)
 
     async def fake_current_user(request):
@@ -239,9 +276,13 @@ async def test_transfer_to_active_requires_access_to_destination_school(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_transfer_to_unlinked_destination_is_blocked_before_previous_write(monkeypatch):
+@pytest.mark.parametrize("candidate_status", CANONICAL_REENROLLMENT_STATUSES)
+async def test_reenrollment_candidate_to_unlinked_destination_is_blocked_before_previous_write(
+    monkeypatch,
+    candidate_status,
+):
     seen = {}
-    db = _DB(_student())
+    db = _DB(_student(status=candidate_status))
     router = _install_router(db, seen)
 
     async def fake_current_user(request):
@@ -271,9 +312,13 @@ async def test_transfer_to_unlinked_destination_is_blocked_before_previous_write
 
 
 @pytest.mark.asyncio
-async def test_cadastral_edit_of_transferred_student_does_not_require_source_school_link(monkeypatch):
+@pytest.mark.parametrize("candidate_status", CANONICAL_REENROLLMENT_STATUSES)
+async def test_cadastral_edit_of_reenrollment_candidate_does_not_require_source_school_link(
+    monkeypatch,
+    candidate_status,
+):
     seen = {}
-    db = _DB(_student())
+    db = _DB(_student(status=candidate_status))
     router = _install_router(db, seen)
 
     async def fake_current_user(request):
@@ -293,6 +338,41 @@ async def test_cadastral_edit_of_transferred_student_does_not_require_source_sch
 
     assert result == {"legacy": True, "id": "student-1"}
     assert seen["legacy_put_calls"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("candidate_status", CANONICAL_REENROLLMENT_STATUSES)
+async def test_cross_tenant_candidate_put_is_blocked_before_destination_or_previous_write(
+    monkeypatch,
+    candidate_status,
+):
+    seen = {}
+    db = _DB(_student(status=candidate_status, tenant="tenant-other"))
+    router = _install_router(db, seen)
+
+    async def fake_current_user(request):
+        return _secretary()
+
+    async def should_not_verify(request, school_id):
+        raise AssertionError("destino não deve ser avaliado quando a origem é cross-tenant")
+
+    monkeypatch.setattr(AuthMiddleware, "get_current_user", staticmethod(fake_current_user))
+    monkeypatch.setattr(AuthMiddleware, "verify_school_access", staticmethod(should_not_verify))
+
+    with pytest.raises(HTTPException) as exc:
+        await _routes(router, "PUT")[0].endpoint(
+            "student-1",
+            StudentUpdate(
+                school_id=TARGET_SCHOOL,
+                class_id="class-target",
+                status="active",
+            ),
+            _request(),
+        )
+
+    assert exc.value.status_code == 403
+    assert "mantenedora" in str(exc.value.detail).lower()
+    assert seen.get("legacy_put_calls", 0) == 0
 
 
 def test_installation_is_idempotent_no_direct_writes_and_wired_after_legacy_compat():
@@ -324,6 +404,9 @@ def test_installation_is_idempotent_no_direct_writes_and_wired_after_legacy_comp
         ".bulk_write(",
     ):
         assert primitive not in source
+
+    for expected in REENROLLMENT_STATUSES:
+        assert f'"{expected}"' in source
 
     legacy_call = "configured = install_student_legacy_compat(configured, db, sandbox_db)"
     destination_call = "return install_student_transfer_destination_access(configured, db, sandbox_db)"
