@@ -1,0 +1,185 @@
+name: P0-F7.9D7.7 Post-execution Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type VERIFY_P0F79D77_READ_ONLY to verify the applied remediation'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p0f7-9d77-post-execution-verification
+  cancel-in-progress: false
+
+jobs:
+  verify-final-state:
+    name: Verify D7.6 remediation final state read-only
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      EXPECTED_MANIFEST_SHA: 89e0f72d97f7cfa8b2d4b5dd7b5d35a01376a813d69d46f5bce7fa9c11440fcc
+      EXPECTED_EXECUTOR_SHA: aa61676f8e3841436b34d8f345d235304380eda866984319b815ceec638e4e5b
+      DB_NAME: sigesc
+
+    steps:
+      - name: Validate manual read-only dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.confirm }}' = 'VERIFY_P0F79D77_READ_ONLY' || {
+            echo 'P0F79D77_DISPATCH_CONFIRMATION_INVALID'
+            exit 1
+          }
+          test '${{ github.ref_name }}' = 'main' || {
+            echo 'P0F79D77_MAIN_BRANCH_REQUIRED'
+            exit 1
+          }
+          echo 'P0F79D77_DISPATCH=PASS'
+
+      - name: Checkout reviewed main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore exact sealed manifest
+        shell: bash
+        env:
+          MANIFEST_B64: ${{ secrets.P0F79D75_MANIFEST_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$MANIFEST_B64" || {
+            echo 'P0F79D77_MANIFEST_SECRET_MISSING'
+            exit 1
+          }
+          mkdir -p runtime evidence
+          printf '%s' "$MANIFEST_B64" | base64 --decode > runtime/manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('runtime/manifest.json').read_text(encoding='utf-8-sig'))
+          if p.get('manifest_sha256') != '89e0f72d97f7cfa8b2d4b5dd7b5d35a01376a813d69d46f5bce7fa9c11440fcc':
+              raise SystemExit('P0F79D77_MANIFEST_SHA_MISMATCH')
+          if len(p.get('operations') or []) != 23:
+              raise SystemExit('P0F79D77_OPERATION_COUNT_MISMATCH')
+          print('P0F79D77_MANIFEST=PASS')
+          PY
+
+      - name: Build bounded read-only verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py \
+            --manifest runtime/manifest.json \
+            --db "$DB_NAME" \
+            --js runtime/verifier.js
+
+          for token in '.updateOne(' '.updateMany(' '.replaceOne(' '.deleteOne(' '.deleteMany(' '.insertOne(' '.insertMany(' '.bulkWrite(' '.findOneAndUpdate(' '.findOneAndDelete(' '.findOneAndReplace('; do
+            if grep -Fq "$token" runtime/verifier.js; then
+              echo "P0F79D77_MUTATION_PRIMITIVE_FOUND:$token"
+              exit 1
+            fi
+          done
+          test "$(grep -Fo 'teacher_assignments.find(' runtime/verifier.js | wc -l | tr -d ' ')" = '2' || {
+            echo 'P0F79D77_QUERY_BUDGET_DRIFT'
+            exit 1
+          }
+          echo 'P0F79D77_READ_ONLY_STATIC_GATE=PASS'
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+          PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+          PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+          MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "P0F79D77_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'P0F79D77_PROD_USER_INVALID'; exit 1; }
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'P0F79D77_MONGO_CONTAINER_INVALID'; exit 1; }
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/p0f7_prod_key
+          chmod 600 ~/.ssh/p0f7_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'P0F79D77_SSH_TRUST_CONFIGURED=YES'
+
+      - name: Read and verify production final state
+        shell: bash
+        env:
+          PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+          PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+          MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+        run: |
+          set -euo pipefail
+          raw='evidence/post-execution-raw.log'
+          snapshot='evidence/post-execution-snapshot.json'
+          : > "$raw"
+
+          remote_command="timeout 60 docker exec -i ${MONGO_CONTAINER} mongosh --quiet --file /dev/stdin"
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/p0f7_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            "$remote_command" \
+            < runtime/verifier.js \
+            > "$raw" 2>&1
+
+          prefix='P0F79D77_POST_EXECUTION_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [[ -z "$line" ]]; then
+            echo 'P0F79D77_SNAPSHOT_MARKER_NOT_FOUND'
+            tail -n 50 "$raw" || true
+            exit 2
+          fi
+          printf '%s' "${line#${prefix}}" > "$snapshot"
+          python -m json.tool "$snapshot" >/dev/null
+          echo 'P0F79D77_PRODUCTION_READ_ONLY_VERIFICATION=PASS'
+
+      - name: Seal final remediation state offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/scripts/seal_p0f7_9d77_post_execution.py \
+            --snapshot evidence/post-execution-snapshot.json \
+            --run-id '${{ github.run_id }}' \
+            --code-sha '${{ github.sha }}' \
+            --json evidence/final-remediation-seal.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('evidence/final-remediation-seal.json').read_text(encoding='utf-8'))
+          print(f"FINAL_CLASSIFICATION={p['final_classification']}")
+          print(f"SEAL_SHA256={p['seal_sha256']}")
+          print(f"OPERATIONS_VERIFIED={p['operations_verified']}")
+          print(f"ACTIVE_UNIQUE_TUPLES_VERIFIED={p['active_unique_tuples_verified']}")
+          print(f"DATABASE_MUTATION={p['verification_database_mutation']}")
+          print(f"PRODUCTION_WRITES={p['verification_production_writes']}")
+          PY
+
+      - name: Upload final verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0f7-9d77-final-verification-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 90

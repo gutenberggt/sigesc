@@ -1,0 +1,70 @@
+name: P0-F7.9D7.7 Post-execution Verification Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/p0f7-9d77-post-execution-verification.yml'
+      - '.github/workflows/p0f7-9d77-post-execution-verification-guard.yml'
+      - 'backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py'
+      - 'backend/scripts/seal_p0f7_9d77_post_execution.py'
+      - 'backend/tests/test_p0f7_9d77_post_execution_verification.py'
+      - 'memory/audit/P0F7_9D77_POST_EXECUTION_VERIFICATION_2026-08-30.md'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Guard manual-only read-only production verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='.github/workflows/p0f7-9d77-post-execution-verification.yml'
+          grep -Fq 'workflow_dispatch:' "$workflow"
+          ! grep -Eq '^  (push|schedule|pull_request):' "$workflow"
+          grep -Fq 'environment: production' "$workflow"
+          grep -Fq 'VERIFY_P0F79D77_READ_ONLY' "$workflow"
+          echo 'P0F79D77_TRIGGER_GUARD=PASS'
+      - name: Guard exact immutable chain and expected counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '89e0f72d97f7cfa8b2d4b5dd7b5d35a01376a813d69d46f5bce7fa9c11440fcc' backend/scripts/seal_p0f7_9d77_post_execution.py
+          grep -Fq 'b6cfcfd3fec964fe58ebdcc7aea6e9fe1953207d7178da35b7e1bd4dea8c39fb' backend/scripts/seal_p0f7_9d77_post_execution.py
+          grep -Fq 'b835f5393e035dee0703f1aa0ae0dd52c779b81d5f73b8c05d0adff3fbcedc9e' backend/scripts/seal_p0f7_9d77_post_execution.py
+          grep -Fq 'aa61676f8e3841436b34d8f345d235304380eda866984319b815ceec638e4e5b' backend/scripts/seal_p0f7_9d77_post_execution.py
+          grep -Fq 'operations_verified:23' backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py
+          grep -Fq 'active_unique_tuples_verified:22' backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py
+          echo 'P0F79D77_CHAIN_GUARD=PASS'
+      - name: Guard verifier template contains no mutation primitive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          path = Path('backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py')
+          spec = importlib.util.spec_from_file_location('d77_guard_builder', path)
+          if not spec or not spec.loader:
+              raise SystemExit('P0F79D77_BUILDER_IMPORT_FAILED')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          for token in module.BANNED_MUTATION_TOKENS:
+              if token in module._JS_TEMPLATE:
+                  raise SystemExit(f'P0F79D77_MUTATION_TOKEN_IN_TEMPLATE:{token}')
+          if module._JS_TEMPLATE.count('teacher_assignments.find(') != 2:
+              raise SystemExit('P0F79D77_QUERY_BUDGET_DRIFT')
+          print('P0F79D77_READ_ONLY_TEMPLATE_GUARD=PASS')
+          PY
+      - name: Run focused tests without repository conftest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install pytest
+          python -m pytest -q --noconftest backend/tests/test_p0f7_9d77_post_execution_verification.py
