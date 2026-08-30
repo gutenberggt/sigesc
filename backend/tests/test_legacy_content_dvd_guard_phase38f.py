@@ -1,25 +1,10 @@
 import asyncio
 
+import services.legacy_content_dvd_guard as guard
 from services.legacy_content_dvd_guard import (
     build_professor_dvd_query,
     legacy_content_block_detail,
-    professor_has_active_dvd_content,
 )
-
-
-class FakeCollection:
-    def __init__(self, result=None):
-        self.result = result
-        self.last_query = None
-
-    async def find_one(self, query, projection=None):
-        self.last_query = query
-        return self.result
-
-
-class FakeDb:
-    def __init__(self, result=None):
-        self.teacher_class_assignments = FakeCollection(result)
 
 
 def test_non_professor_never_enters_professor_guard():
@@ -47,7 +32,7 @@ def test_professor_query_is_scoped_to_owner_class_enabled_component_and_validity
     assert {"component_id": None} in component_clause
 
 
-def test_broad_professor_query_still_detects_any_active_dvd():
+def test_broad_professor_query_still_detects_any_active_dvd_candidate():
     q = build_professor_dvd_query(
         {"id": "u1", "role": "professor"}, on_date="2026-08-18"
     )
@@ -56,26 +41,54 @@ def test_broad_professor_query_still_detects_any_active_dvd():
     assert q["diary_settings.enabled"] is True
 
 
-def test_active_dvd_is_detected():
-    db = FakeDb({"id": "a1"})
+def test_canonical_content_diary_is_detected(monkeypatch):
+    calls = []
+
+    async def fake_list_teacher_diaries(db, current_user, **kwargs):
+        calls.append((db, current_user, kwargs))
+        return {
+            "items": [
+                {
+                    "class_id": "c1",
+                    "component_id": "co1",
+                    "capabilities": {"content_enabled": True},
+                }
+            ]
+        }
+
+    monkeypatch.setattr(guard, "list_teacher_diaries", fake_list_teacher_diaries)
+    db = object()
+    user = {"id": "u1", "role": "professor", "mantenedora_id": "m1"}
+
     result = asyncio.run(
-        professor_has_active_dvd_content(
+        guard.professor_has_active_dvd_content(
             db,
-            {"id": "u1", "role": "professor"},
+            user,
             class_id="c1",
             course_id="co1",
             on_date="2026-08-18",
         )
     )
+
     assert result is True
-    assert db.teacher_class_assignments.last_query["teacher_id"] == "u1"
-
-
-def test_missing_dvd_keeps_legacy_path_available():
-    db = FakeDb(None)
-    result = asyncio.run(
-        professor_has_active_dvd_content(
+    assert calls == [
+        (
             db,
+            user,
+            {"reference_date": "2026-08-18", "active_mantenedora_id": "m1"},
+        )
+    ]
+
+
+def test_missing_canonical_content_diary_keeps_legacy_path_available(monkeypatch):
+    async def fake_list_teacher_diaries(*args, **kwargs):
+        return {"items": [], "blocked_total": 7}
+
+    monkeypatch.setattr(guard, "list_teacher_diaries", fake_list_teacher_diaries)
+
+    result = asyncio.run(
+        guard.professor_has_active_dvd_content(
+            object(),
             {"id": "u1", "role": "professor"},
             class_id="c1",
             course_id="co1",
