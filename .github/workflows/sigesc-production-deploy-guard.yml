@@ -1,0 +1,138 @@
+name: SIGESC Production Deploy Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sigesc-production-deploy.yml'
+      - '.github/workflows/sigesc-production-deploy-guard.yml'
+      - 'scripts/ops/sigesc_github_only_deploy.sh'
+      - 'backend/Dockerfile'
+      - 'frontend/Dockerfile'
+      - 'docs/operations/GITHUB_ONLY_PRODUCTION_DEPLOY.md'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Parse deploy executor shell
+        run: bash -n scripts/ops/sigesc_github_only_deploy.sh
+
+      - name: Guard protected manual deployment contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
+          required = (
+              'workflow_dispatch:',
+              'environment: production',
+              'group: sigesc-production-deploy',
+              'cancel-in-progress: false',
+              'DEPLOY_SIGESC_PRODUCTION_MAIN',
+              "test '${{ github.ref_name }}' = 'main'",
+              'StrictHostKeyChecking=yes',
+              'EXPECTED_COMPOSE_PROJECT: bww8wogkcs0sws8sc80s4k4c',
+              'Fail closed unless main and push CI are green',
+              'CI - Build & Lint',
+              'SIGESC_PRODUCTION_DEPLOY=APPLIED',
+              'SIGESC_PRODUCTION_DEPLOY=SAFE_ROLLBACK',
+              'Do not rerun automatically.',
+              'retention-days: 90',
+          )
+          for marker in required:
+              assert marker in workflow, marker
+
+          # O workflow de produção é somente manual; não pode ganhar trigger de push/PR.
+          trigger_prefix = workflow.split('permissions:', 1)[0]
+          assert 'pull_request:' not in trigger_prefix
+          assert '\n  push:' not in trigger_prefix
+          print('SIGESC_DEPLOY_MANUAL_PROTECTION_GUARD=PASS')
+          PY
+
+      - name: Guard Coolify ownership and Mongo isolation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
+          executor = Path('scripts/ops/sigesc_github_only_deploy.sh').read_text(encoding='utf-8')
+
+          # Não transformar o workspace Coolify em clone Git nem editar o Compose gerado.
+          for forbidden in (
+              'git pull', 'git reset', 'git checkout', 'git fetch',
+              'docker compose down', 'docker restart', 'docker stop',
+              'docker rm', 'mongosh', 'mongoimport', 'updateOne(', 'deleteOne(',
+          ):
+              assert forbidden not in executor, forbidden
+
+          assert 'WORKDIR_GIT_REPOSITORY=NO' in workflow
+          assert '.github-deploy/releases/' in workflow
+          assert '.github-deploy/overrides/' in executor
+
+          # O runtime só pode ser recriado para backend/frontend; Mongo é apenas inspecionado.
+          assert 'up -d --no-deps --no-build --force-recreate backend' in executor
+          assert 'up -d --no-deps --no-build --force-recreate frontend' in executor
+          assert 'up -d --no-deps --no-build --force-recreate mongo' not in executor
+          assert 'MONGO_CONTAINER_CHANGED' in executor
+          assert 'ROLLBACK_MONGO_CONTAINER_CHANGED' in executor
+          assert 'EXPLICIT_DATABASE_MIGRATION=NO' in workflow
+          assert 'MONGO_REBUILD_OR_RESTART=FORBIDDEN' in workflow
+          print('SIGESC_DEPLOY_COOLIFY_AND_MONGO_ISOLATION_GUARD=PASS')
+          PY
+
+      - name: Guard immutable SHA provenance
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          backend = Path('backend/Dockerfile').read_text(encoding='utf-8')
+          frontend = Path('frontend/Dockerfile').read_text(encoding='utf-8')
+          executor = Path('scripts/ops/sigesc_github_only_deploy.sh').read_text(encoding='utf-8')
+          workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
+
+          for text in (backend, frontend):
+              assert 'ARG SIGESC_GIT_SHA=unknown' in text
+              assert 'org.opencontainers.image.revision=$SIGESC_GIT_SHA' in text
+
+          assert '/usr/share/nginx/html/version.json' in frontend
+          assert 'BUILT_BACKEND_REVISION_MISMATCH' in executor
+          assert 'BUILT_FRONTEND_REVISION_MISMATCH' in executor
+          assert 'RUNNING_BACKEND_REVISION_MISMATCH' in executor
+          assert 'RUNNING_FRONTEND_REVISION_MISMATCH' in executor
+          assert 'PUBLIC_FRONTEND_SHA_MISMATCH' in workflow
+          print('SIGESC_DEPLOY_SHA_PROVENANCE_GUARD=PASS')
+          PY
+
+      - name: Guard compensating container rollback
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          executor = Path('scripts/ops/sigesc_github_only_deploy.sh').read_text(encoding='utf-8')
+          workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
+          required = (
+              'OLD_BACKEND_IMAGE_ID',
+              'OLD_FRONTEND_IMAGE_ID',
+              'restore_old_images_and_runtime',
+              'CONTAINER_ROLLBACK=APPLIED',
+              'ROLLBACK_INCOMPLETE',
+              'SAFE_ROLLBACK',
+          )
+          for marker in required:
+              assert marker in executor, marker
+          assert 'Roll back containers when public smoke fails' in workflow
+          assert 'Verify public service after rollback' in workflow
+          print('SIGESC_DEPLOY_ROLLBACK_GUARD=PASS')
+          PY
