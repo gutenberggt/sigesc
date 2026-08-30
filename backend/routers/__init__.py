@@ -60,6 +60,7 @@ from . import content_entries as _content_entries_mod
 from . import learning_objects as _learning_objects_mod
 from . import assignments as _assignments_mod
 from .content_dvd_history import install_content_history_setups
+from .content_partial_cutover import install_professor_content_partial_cutover_setup
 from .content_copy_dvd import install_content_copy_setup
 from services.course_missing_containment import install_course_missing_containment_setup
 
@@ -113,6 +114,7 @@ from aee_v2.plan_write_governance import install_aee_v2_plan_write_governance_se
 # de ser registrado na aplicação, sem alterar o gerador/layout legado.
 install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
+install_professor_content_partial_cutover_setup(_learning_objects_mod)
 install_content_copy_setup(_content_entries_mod)
 install_course_missing_containment_setup(_learning_objects_mod, _assignments_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
