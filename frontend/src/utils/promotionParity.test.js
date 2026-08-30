@@ -97,7 +97,7 @@ describe('Issue #250 - paridade Notas x Livro de Promoção', () => {
     expect(projected[0].b2).toBe(9);
   });
 
-  test('F2.2 projeta exatamente 21 x 9 pares do by-class e descarta o 22º aluno', () => {
+  test('F2.2 projeta exatamente 21 x 9 pares do by-class e descarta o 22º estudante', () => {
     const promotionStudentIds = Array.from(
       { length: 21 },
       (_, index) => `student-${index + 1}`
