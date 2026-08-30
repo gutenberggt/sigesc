@@ -1,0 +1,386 @@
+name: "P0 #250 F2.1 Professor Promotion HTTP Projection Read-only Audit"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/p0_250_f2_1_http_projection_audit.py'
+      - 'backend/tests/test_p0_250_f2_1_http_projection_audit.py'
+      - '.github/workflows/p0-250-f2-1-professor-promotion-http-projection-readonly-audit.yml'
+      - 'memory/audit/P0_250_F2_1_PROFESSOR_PROMOTION_HTTP_PROJECTION_2026-08-30.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: p0-250-f2-1-professor-promotion-http-projection-readonly-audit
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.1 HTTP/projection collector
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile and test the 21 x 9 projection contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/p0_250_f2_1_http_projection_audit.py
+          python -m py_compile backend/tests/test_p0_250_f2_1_http_projection_audit.py
+          pip install pytest pymongo
+          pytest -q backend/tests/test_p0_250_f2_1_http_projection_audit.py
+
+      - name: Enforce source-level read-only and privacy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path('backend/scripts/p0_250_f2_1_http_projection_audit.py')
+          source = path.read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          forbidden_attrs = {
+              'insert_one', 'insert_many', 'update_one', 'update_many', 'replace_one',
+              'delete_one', 'delete_many', 'bulk_write', 'find_one_and_update',
+              'find_one_and_delete', 'find_one_and_replace', 'drop', 'drop_database',
+          }
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                  if node.func.attr in forbidden_attrs:
+                      raise SystemExit(f'P0_250_F2_1_MONGO_MUTATOR_CALL_FOUND:{node.func.attr}')
+              if isinstance(node, ast.Call):
+                  for kw in node.keywords:
+                      if kw.arg == 'method' and isinstance(kw.value, ast.Constant):
+                          method = str(kw.value.value).upper()
+                          if method in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+                              raise SystemExit(f'P0_250_F2_1_HTTP_WRITE_METHOD_FOUND:{method}')
+
+          required = [
+              '"grade_values_emitted": False',
+              '"student_ids_emitted": False',
+              '"student_pii_emitted": False',
+              '"access_token_emitted": False',
+              '"access_token_persisted": False',
+              '"database_mutation": False',
+              '"production_writes": False',
+              'EXPECTED_PROMOTION_STUDENTS = 21',
+              'EXPECTED_COMPONENTS = 9',
+          ]
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'P0_250_F2_1_REQUIRED_CONTRACT_MISSING:{marker}')
+          print('P0_250_F2_1_STATIC_READ_ONLY_PRIVACY_GATE=PASS')
+          PY
+
+  production-audit:
+    name: Compare live HTTP grade shapes for the 21 Promotion students
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[P0-250-F2.1-AUDIT] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped F2.1 authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
+              event = json.load(fh)
+          issue = event.get('issue') or {}
+          owner = os.environ['REPOSITORY_OWNER']
+          creator = ((issue.get('user') or {}).get('login') or '')
+          if creator != owner:
+              raise SystemExit('P0_250_F2_1_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('P0_250_F2_1_ISSUE_MUST_BE_OPEN')
+
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              line = raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              key, value = key.strip(), value.strip()
+              if key in values:
+                  raise SystemExit(f'P0_250_F2_1_DUPLICATE_FIELD:{key}')
+              values[key] = value
+
+          if values.get('P0_250_F2_1_AUDIT') != 'AUTHORIZED':
+              raise SystemExit('P0_250_F2_1_AUTHORIZATION_INVALID')
+          if values.get('CONFIRMATION') != 'VERIFY_P0_250_F2_1_HTTP_PROJECTION_READ_ONLY':
+              raise SystemExit('P0_250_F2_1_CONFIRMATION_INVALID')
+
+          target = values.get('TARGET_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('P0_250_F2_1_TARGET_SHA_INVALID')
+          if issue.get('title') != f'[P0-250-F2.1-AUDIT] {target}':
+              raise SystemExit('P0_250_F2_1_TITLE_MISMATCH')
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/branches/main',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f'Bearer {token}',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'User-Agent': 'sigesc-p0-250-f2-1-readonly-audit',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              main = json.load(response)
+          main_sha = main['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'P0_250_F2_1_MAIN_MOVED:{main_sha}')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'issue_number={issue.get("number")}\n')
+          print('P0_250_F2_1_AUDIT_CONTEXT=PASS')
+          print(f'TARGET_SHA={target}')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          print('HTTP_METHODS=GET_ONLY')
+          print('GRADE_VALUES_EMITTED=NO')
+          print('STUDENT_IDS_EMITTED=NO')
+          print('ACCESS_TOKEN_EMITTED=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "P0_250_F2_1_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/p0_250_f2_1_prod_key
+          chmod 600 ~/.ssh/p0_250_f2_1_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'P0_250_F2_1_SSH_TRUST=PASS'
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh \
+              -o BatchMode=yes \
+              -o ConnectTimeout=15 \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+              -i "$HOME/.ssh/p0_250_f2_1_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" \
+              bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps \
+            --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' \
+            --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend" || { echo 'P0_250_F2_1_BACKEND_CONTAINER_NOT_FOUND'; exit 1; }
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'P0_250_F2_1_BACKEND_CONTAINER_INVALID'; exit 1; }
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+          echo 'P0_250_F2_1_BACKEND_CONTAINER_RESOLVED=PASS'
+
+      - name: Execute live HTTP/projection audit inside backend container
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          raw='evidence/p0-250-f2-1-raw.log'
+          snapshot='evidence/p0-250-f2-1-snapshot.json'
+          remote_command="timeout 180 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"p0_250_f2_1_http_projection_audit.py\",\"exec\"),ns); print(\"P0_250_F2_1_AUDIT_JSON=\" + json.dumps(ns[\"run_live_audit\"](), ensure_ascii=False))'"
+
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/p0_250_f2_1_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            "$remote_command" \
+            < backend/scripts/p0_250_f2_1_http_projection_audit.py \
+            > "$raw" 2>&1
+
+          prefix='P0_250_F2_1_AUDIT_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line" || {
+            echo 'P0_250_F2_1_SNAPSHOT_MARKER_NOT_FOUND'
+            tail -n 30 "$raw" || true
+            exit 2
+          }
+          printf '%s' "${line#${prefix}}" > "$snapshot"
+          python -m json.tool "$snapshot" >/dev/null
+          rm -f "$raw"
+          echo 'P0_250_F2_1_LIVE_HTTP_COLLECTION=PASS'
+
+      - name: Publish aggregate diagnosis only
+        id: diagnosis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(Path('evidence/p0-250-f2-1-snapshot.json').read_text(encoding='utf-8'))
+          for key in ('database_mutation', 'production_writes', 'grade_values_emitted', 'student_ids_emitted', 'student_pii_emitted', 'access_token_emitted', 'access_token_persisted'):
+              if p.get(key) is not False:
+                  raise SystemExit(f'P0_250_F2_1_BOUNDARY_FAILED:{key}')
+          if p.get('http_methods') != ['GET']:
+              raise SystemExit('P0_250_F2_1_HTTP_METHOD_BOUNDARY_FAILED')
+
+          a = p.get('analysis') or {}
+          print(f"AUDIT_STATUS={p.get('status')}")
+          print(f"CLASSIFICATION={p.get('classification')}")
+          print(f"PROMOTION_STUDENTS={a.get('promotion_student_count')}")
+          print(f"ALLOWED_COURSES={a.get('allowed_course_count')}")
+          print(f"EXPECTED_PAIRS={a.get('expected_student_course_pairs')}")
+          print(f"GENERIC_DOCUMENT_PAIRS={a.get('generic_document_pairs')}")
+          print(f"BYCLASS_ROW_PAIRS={a.get('by_class_row_pairs')}")
+          print(f"BYCLASS_OUTSIDE_PROMOTION={a.get('by_class_rows_outside_promotion')}")
+          print(f"DOCUMENT_MISMATCH_PAIRS={a.get('document_presence_mismatch_pairs')}")
+          print(f"FIELD_PRESENCE_MISMATCHES={a.get('field_presence_mismatches')}")
+          print(f"FIELD_VALUE_MISMATCHES={a.get('field_value_mismatches')}")
+          print(f"STRICT_ID_TYPE_MISMATCHES={a.get('strict_course_identity_type_mismatches')}")
+          for c in a.get('course_summaries') or []:
+              print(
+                  'COURSE_ID=' + str(c.get('course_id'))
+                  + '|EXPECTED=' + str(c.get('expected_student_pairs'))
+                  + '|GENERIC_DOCS=' + str(c.get('generic_document_pairs'))
+                  + '|BYCLASS_ROWS=' + str(c.get('by_class_row_pairs'))
+                  + '|DOC_MISMATCH=' + str(c.get('document_presence_mismatch_pairs'))
+                  + '|VALUE_MISMATCH=' + str(c.get('field_value_mismatches'))
+              )
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f"classification={p.get('classification')}\n")
+              out.write(f"promotion_students={a.get('promotion_student_count')}\n")
+              out.write(f"expected_pairs={a.get('expected_student_course_pairs')}\n")
+              out.write(f"document_mismatches={a.get('document_presence_mismatch_pairs')}\n")
+              out.write(f"value_mismatches={a.get('field_value_mismatches')}\n")
+          PY
+
+      - name: Upload private aggregate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: p0-250-f2-1-http-projection-readonly-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Annotate and close F2.1 audit trigger issue
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          CLASSIFICATION: ${{ steps.diagnosis.outputs.classification }}
+          PROMOTION_STUDENTS: ${{ steps.diagnosis.outputs.promotion_students }}
+          EXPECTED_PAIRS: ${{ steps.diagnosis.outputs.expected_pairs }}
+          DOCUMENT_MISMATCHES: ${{ steps.diagnosis.outputs.document_mismatches }}
+          VALUE_MISMATCHES: ${{ steps.diagnosis.outputs.value_mismatches }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ISSUE_NUMBER" || exit 0
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          issue = os.environ['ISSUE_NUMBER']
+          token = os.environ['GH_TOKEN']
+          classification = os.environ.get('CLASSIFICATION') or 'AUDIT_INCOMPLETE'
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {token}',
+              'Content-Type': 'application/json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'sigesc-p0-250-f2-1-readonly-audit',
+          }
+          body = {
+              'body': (
+                  f'P0 #250 F2.1 HTTP/projection read-only audit: **{classification}**\n\n'
+                  f'- Target SHA: `{os.environ.get("TARGET_SHA")}`\n'
+                  f'- Workflow run: `{os.environ["GITHUB_RUN_ID"]}`\n'
+                  f'- Promotion students: `{os.environ.get("PROMOTION_STUDENTS")}`\n'
+                  f'- Student × course pairs: `{os.environ.get("EXPECTED_PAIRS")}`\n'
+                  f'- Document mismatches: `{os.environ.get("DOCUMENT_MISMATCHES")}`\n'
+                  f'- Grade-field value mismatches: `{os.environ.get("VALUE_MISMATCHES")}`\n'
+                  '- HTTP methods: **GET only**\n'
+                  '- Database mutation: **NO**\n'
+                  '- Grade values emitted: **NO**\n'
+                  '- Student IDs/PII emitted: **NO**\n'
+                  '- Ephemeral access token emitted/persisted: **NO**'
+              )
+          }
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/issues/{issue}/comments',
+              data=json.dumps(body).encode(), method='POST', headers=headers,
+          )
+          with urllib.request.urlopen(req, timeout=30):
+              pass
+          if classification != 'AUDIT_INCOMPLETE':
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/issues/{issue}',
+                  data=json.dumps({'state': 'closed'}).encode(), method='PATCH', headers=headers,
+              )
+              with urllib.request.urlopen(req, timeout=30):
+                  pass
+          PY
