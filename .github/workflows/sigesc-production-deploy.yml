@@ -7,10 +7,13 @@ on:
         description: 'Type PROMOTE_SIGESC_MAIN_TO_PRODUCTION to release the exact current main SHA'
         required: true
         type: string
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
   actions: read
+  issues: write
 
 concurrency:
   group: sigesc-production-release
@@ -19,6 +22,11 @@ concurrency:
 jobs:
   release:
     name: Promote exact main SHA and verify Coolify deployment
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       startsWith(github.event.issue.title, '[SIGESC-PROD-RELEASE] ') &&
+       github.event.issue.user.login == github.repository_owner)
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 50
@@ -30,29 +38,99 @@ jobs:
       MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
 
     steps:
-      - name: Validate protected production release dispatch
+      - name: Resolve protected production release context
+        id: context
+        env:
+          DISPATCH_CONFIRMATION: ${{ inputs.confirmation }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_SHA: ${{ github.sha }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
         shell: bash
         run: |
           set -euo pipefail
-          test '${{ inputs.confirmation }}' = 'PROMOTE_SIGESC_MAIN_TO_PRODUCTION' || {
-            echo 'SIGESC_PRODUCTION_RELEASE_CONFIRMATION_INVALID'
-            exit 1
-          }
-          test '${{ github.ref_name }}' = 'main' || {
-            echo 'SIGESC_PRODUCTION_RELEASE_MAIN_REQUIRED'
-            exit 1
-          }
-          [[ '${{ github.sha }}' =~ ^[0-9a-f]{40}$ ]] || {
-            echo 'SIGESC_PRODUCTION_RELEASE_SHA_INVALID'
-            exit 1
-          }
-          echo 'SIGESC_PRODUCTION_RELEASE_DISPATCH=PASS'
-          echo 'TARGET_SHA=${{ github.sha }}'
+          python - <<'PY'
+          import json
+          import os
+          import re
+
+          event_name = os.environ['GITHUB_EVENT_NAME']
+          output = os.environ['GITHUB_OUTPUT']
+          sha_re = re.compile(r'^[0-9a-f]{40}$')
+          confirmation_value = 'PROMOTE_SIGESC_MAIN_TO_PRODUCTION'
+
+          if event_name == 'workflow_dispatch':
+              if os.environ.get('DISPATCH_CONFIRMATION') != confirmation_value:
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_CONFIRMATION_INVALID')
+              if os.environ.get('REF_NAME') != 'main':
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_MAIN_REQUIRED')
+              target = os.environ.get('EVENT_SHA', '')
+              if not sha_re.fullmatch(target):
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_SHA_INVALID')
+              expected_previous = ''
+              request_mode = 'workflow_dispatch'
+              issue_number = ''
+          elif event_name == 'issues':
+              with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
+                  event = json.load(fh)
+              issue = event.get('issue') or {}
+              owner = os.environ.get('REPOSITORY_OWNER', '')
+              creator = ((issue.get('user') or {}).get('login') or '')
+              if creator != owner:
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_REQUEST_OWNER_REQUIRED')
+              if issue.get('state') != 'open':
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_REQUEST_MUST_BE_OPEN')
+
+              values = {}
+              for raw in (issue.get('body') or '').splitlines():
+                  line = raw.strip()
+                  if not line or '=' not in line:
+                      continue
+                  key, value = line.split('=', 1)
+                  key = key.strip()
+                  value = value.strip()
+                  if key in values:
+                      raise SystemExit(f'SIGESC_PRODUCTION_RELEASE_DUPLICATE_FIELD:{key}')
+                  values[key] = value
+
+              if values.get('SIGESC_PRODUCTION_RELEASE_REQUEST') != 'AUTHORIZED':
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_REQUEST_INVALID')
+              if values.get('CONFIRMATION') != confirmation_value:
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_CONFIRMATION_INVALID')
+
+              target = values.get('TARGET_SHA', '')
+              expected_previous = values.get('EXPECTED_PRODUCTION_SHA', '')
+              if not sha_re.fullmatch(target):
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_TARGET_SHA_INVALID')
+              if not sha_re.fullmatch(expected_previous):
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_BASELINE_SHA_INVALID')
+              expected_title = f'[SIGESC-PROD-RELEASE] {target}'
+              if issue.get('title') != expected_title:
+                  raise SystemExit('SIGESC_PRODUCTION_RELEASE_REQUEST_TITLE_MISMATCH')
+
+              request_mode = 'owner_issue'
+              issue_number = str(issue.get('number') or '')
+          else:
+              raise SystemExit(f'SIGESC_PRODUCTION_RELEASE_EVENT_FORBIDDEN:{event_name}')
+
+          with open(output, 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'expected_previous_sha={expected_previous}\n')
+              out.write(f'request_mode={request_mode}\n')
+              out.write(f'issue_number={issue_number}\n')
+
+          print('SIGESC_PRODUCTION_RELEASE_CONTEXT=PASS')
+          print(f'REQUEST_MODE={request_mode}')
+          print(f'TARGET_SHA={target}')
+          if expected_previous:
+              print(f'EXPECTED_PRODUCTION_SHA={expected_previous}')
+          if issue_number:
+              print(f'RELEASE_REQUEST_ISSUE={issue_number}')
+          PY
 
       - name: Checkout exact release SHA
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ steps.context.outputs.target_sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -65,11 +143,12 @@ jobs:
           printf '%s\n' 'SIGESC_RELEASE_EVIDENCE_WORKSPACE=READY' > evidence/workspace.txt
           cat evidence/workspace.txt
 
-      - name: Fail closed unless main and push CI are green
+      - name: Fail closed unless main, production baseline and push CI are green
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          EXPECTED_PREVIOUS_SHA: ${{ steps.context.outputs.expected_previous_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -83,6 +162,7 @@ jobs:
 
           repo = os.environ['GITHUB_REPOSITORY']
           target = os.environ['TARGET_SHA']
+          expected_previous = os.environ.get('EXPECTED_PREVIOUS_SHA', '').strip()
           token = os.environ['GH_TOKEN']
           headers = {
               'Accept': 'application/vnd.github+json',
@@ -103,6 +183,10 @@ jobs:
 
           production = get_json(f'https://api.github.com/repos/{repo}/branches/production')
           previous = production['commit']['sha']
+          if expected_previous and previous != expected_previous:
+              raise SystemExit(
+                  f'PRODUCTION_BASELINE_MOVED: expected {expected_previous}, current {previous}'
+              )
 
           compare = get_json(f'https://api.github.com/repos/{repo}/compare/{previous}...{target}')
           if compare.get('status') not in {'ahead', 'identical'}:
@@ -131,6 +215,8 @@ jobs:
 
           print(f'MAIN_SHA={main_sha}')
           print(f'PRODUCTION_SHA_BEFORE={previous}')
+          if expected_previous:
+              print(f'EXPECTED_PRODUCTION_SHA={expected_previous}')
           print(f'COMPARE_STATUS={compare.get("status")}')
           print(f'PUSH_WORKFLOW_COUNT={len(runs)}')
           print('CI_BUILD_LINT=success')
@@ -196,7 +282,7 @@ jobs:
         id: promote
         env:
           GH_TOKEN: ${{ github.token }}
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
           PREVIOUS_SHA: ${{ steps.gate.outputs.previous_sha }}
         shell: bash
         run: |
@@ -244,7 +330,7 @@ jobs:
         if: steps.promote.outcome == 'success'
         continue-on-error: true
         env:
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -292,7 +378,7 @@ jobs:
         if: steps.public_smoke.outcome == 'success'
         continue-on-error: true
         env:
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
           EXPECTED_MONGO_VOLUME: ${{ steps.pre_runtime.outputs.mongo_volume }}
         shell: bash
         run: |
@@ -399,8 +485,11 @@ jobs:
         run: |
           mkdir -p evidence
           {
-            echo 'SIGESC_PRODUCTION_RELEASE_EVIDENCE_V2'
-            echo 'TARGET_SHA=${{ github.sha }}'
+            echo 'SIGESC_PRODUCTION_RELEASE_EVIDENCE_V3'
+            echo 'REQUEST_MODE=${{ steps.context.outputs.request_mode }}'
+            echo 'RELEASE_REQUEST_ISSUE=${{ steps.context.outputs.issue_number }}'
+            echo 'TARGET_SHA=${{ steps.context.outputs.target_sha }}'
+            echo 'EXPECTED_PRODUCTION_SHA=${{ steps.context.outputs.expected_previous_sha }}'
             echo 'PREVIOUS_PRODUCTION_SHA=${{ steps.gate.outputs.previous_sha }}'
             echo 'RUN_ID=${{ github.run_id }}'
             echo 'PROMOTION_OUTCOME=${{ steps.promote.outcome }}'
@@ -418,10 +507,81 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: sigesc-production-release-${{ github.run_id }}-${{ github.sha }}
+          name: sigesc-production-release-${{ github.run_id }}-${{ steps.context.outputs.target_sha }}
           path: evidence/
           if-no-files-found: warn
           retention-days: 90
+
+      - name: Annotate automatic release request
+        if: always() && github.event_name == 'issues'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          PROMOTION_OUTCOME: ${{ steps.promote.outcome }}
+          PUBLIC_SMOKE_OUTCOME: ${{ steps.public_smoke.outcome }}
+          RUNTIME_VERIFY_OUTCOME: ${{ steps.runtime_verify.outcome }}
+          ROLLBACK_OUTCOME: ${{ steps.rollback.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ISSUE_NUMBER" || exit 0
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          issue = os.environ['ISSUE_NUMBER']
+          token = os.environ['GH_TOKEN']
+          target = os.environ['TARGET_SHA']
+          promote = os.environ.get('PROMOTION_OUTCOME', '')
+          smoke = os.environ.get('PUBLIC_SMOKE_OUTCOME', '')
+          runtime = os.environ.get('RUNTIME_VERIFY_OUTCOME', '')
+          rollback = os.environ.get('ROLLBACK_OUTCOME', '')
+
+          if promote == smoke == runtime == 'success':
+              state = 'APPLIED'
+              close_issue = True
+          elif rollback == 'success':
+              state = 'SAFE_ROLLBACK'
+              close_issue = True
+          else:
+              state = 'AMBIGUOUS_OR_ROLLBACK_INCOMPLETE'
+              close_issue = False
+
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {token}',
+              'Content-Type': 'application/json',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'sigesc-production-release',
+          }
+          comment = {
+              'body': (
+                  f'Automated production release result: **{state}**\n\n'
+                  f'- Target SHA: `{target}`\n'
+                  f'- Workflow run: `{os.environ["GITHUB_RUN_ID"]}`\n'
+                  f'- Runtime mutator: Coolify\n'
+                  f'- Explicit database migration: NO'
+              )
+          }
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/issues/{issue}/comments',
+              data=json.dumps(comment).encode(), method='POST', headers=headers,
+          )
+          with urllib.request.urlopen(request, timeout=30):
+              pass
+
+          if close_issue:
+              request = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/issues/{issue}',
+                  data=json.dumps({'state': 'closed'}).encode(), method='PATCH', headers=headers,
+              )
+              with urllib.request.urlopen(request, timeout=30):
+                  pass
+          PY
 
       - name: Final production release gate
         if: always()
