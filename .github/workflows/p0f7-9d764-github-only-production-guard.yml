@@ -1,0 +1,87 @@
+name: P0-F7.9D7.6.4 GitHub-only Production Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/p0f7-9d764-github-only-production-execution.yml'
+      - '.github/workflows/p0f7-9d764-github-only-production-guard.yml'
+      - 'memory/audit/P0F7_9D764_GITHUB_ONLY_PRODUCTION_PIPELINE_2026-08-30.md'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard manual-only production trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          f='.github/workflows/p0f7-9d764-github-only-production-execution.yml'
+          grep -Fq 'workflow_dispatch:' "$f"
+          ! grep -Eq '^  (push|pull_request|schedule):' "$f"
+          grep -Fq 'environment: production' "$f"
+          grep -Fq 'cancel-in-progress: false' "$f"
+          grep -Fq "EXECUTE_P0F79D763_23_WRITES" "$f"
+
+      - name: Guard immutable authorization chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          f='.github/workflows/p0f7-9d764-github-only-production-execution.yml'
+          grep -Fq 'a627189a5cd2b38297260a0d4360b64e17441221' "$f"
+          grep -Fq '89e0f72d97f7cfa8b2d4b5dd7b5d35a01376a813d69d46f5bce7fa9c11440fcc' "$f"
+          grep -Fq 'b6cfcfd3fec964fe58ebdcc7aea6e9fe1953207d7178da35b7e1bd4dea8c39fb' "$f"
+          grep -Fq 'b835f5393e035dee0703f1aa0ae0dd52c779b81d5f73b8c05d0adff3fbcedc9e' "$f"
+          grep -Fq 'aa61676f8e3841436b34d8f345d235304380eda866984319b815ceec638e4e5b' "$f"
+          grep -Fq "EXPECTED_OPERATIONS: '23'" "$f"
+
+      - name: Guard SSH trust and non-stale capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          f='.github/workflows/p0f7-9d764-github-only-production-execution.yml'
+          grep -Fq 'StrictHostKeyChecking=yes' "$f"
+          grep -Fq 'UserKnownHostsFile=' "$f"
+          grep -Fq "raw='evidence/production-execution.log'" "$f"
+          grep -Fq ': > "$raw"' "$f"
+          grep -Fq 'set +e' "$f"
+          grep -Fq 'set -e' "$f"
+          grep -Fq 'P0F79D764_RECEIPT_NOT_FOUND_DO_NOT_RERUN' "$f"
+          grep -Fq 'P0F79D76_EXECUTION_RECEIPT=' "$f"
+
+      - name: Guard exact D7.6.3 builder and receipt validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          f='.github/workflows/p0f7-9d764-github-only-production-execution.yml'
+          grep -Fq 'build_p0f7_9d763_authorized_revised_executor_js.py' "$f"
+          grep -Fq 'validate_p0f7_9d76_execution_receipt_offline.py' "$f"
+          grep -Fq "'{projection:'" "$f"
+          grep -Fq 'P0F79D764_EXECUTOR_SHA_MISMATCH' "$f"
+          grep -Fq 'P0F79D764_ROLLBACK_INCOMPLETE_STOP' "$f"
+          grep -Fq 'P0F79D764_SAFE_ROLLBACK_REMEDIATION_NOT_APPLIED' "$f"
+
+      - name: Guard secrets are referenced, not embedded
+        shell: bash
+        run: |
+          set -euo pipefail
+          f='.github/workflows/p0f7-9d764-github-only-production-execution.yml'
+          grep -Fq 'secrets.P0F79D75_MANIFEST_B64' "$f"
+          grep -Fq 'secrets.SIGESC_PROD_SSH_PRIVATE_KEY' "$f"
+          grep -Fq 'secrets.SIGESC_PROD_SSH_KNOWN_HOSTS' "$f"
+          grep -Fq 'secrets.SIGESC_PROD_HOST' "$f"
+          grep -Fq 'secrets.SIGESC_PROD_USER' "$f"
+          grep -Fq 'secrets.SIGESC_PROD_MONGO_CONTAINER' "$f"
+          ! grep -Eq 'BEGIN (OPENSSH|RSA|EC) PRIVATE KEY' "$f"
+
+      - name: Guard evidence retention
+        shell: bash
+        run: |
+          set -euo pipefail
+          f='.github/workflows/p0f7-9d764-github-only-production-execution.yml'
+          grep -Fq 'actions/upload-artifact@v4' "$f"
+          grep -Fq 'retention-days: 90' "$f"
