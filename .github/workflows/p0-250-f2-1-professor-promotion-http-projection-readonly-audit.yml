@@ -38,7 +38,7 @@ jobs:
           set -euo pipefail
           python -m py_compile backend/scripts/p0_250_f2_1_http_projection_audit.py
           python -m py_compile backend/tests/test_p0_250_f2_1_http_projection_audit.py
-          pip install pytest pymongo
+          pip install pytest pymongo python-dotenv
           pytest -q backend/tests/test_p0_250_f2_1_http_projection_audit.py
 
       - name: Enforce source-level read-only and privacy contract
