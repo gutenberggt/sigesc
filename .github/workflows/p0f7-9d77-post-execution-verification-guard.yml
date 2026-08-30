@@ -42,19 +42,26 @@ jobs:
           grep -Fq 'operations_verified:23' backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py
           grep -Fq 'active_unique_tuples_verified:22' backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py
           echo 'P0F79D77_CHAIN_GUARD=PASS'
-      - name: Guard verifier contains no mutation primitive
+      - name: Guard verifier template contains no mutation primitive
         shell: bash
         run: |
           set -euo pipefail
-          file='backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py'
-          for token in '.updateOne(' '.updateMany(' '.replaceOne(' '.deleteOne(' '.deleteMany(' '.insertOne(' '.insertMany(' '.bulkWrite(' '.findOneAndUpdate(' '.findOneAndDelete(' '.findOneAndReplace('; do
-            if grep -F "$token" "$file" | grep -v 'BANNED_MUTATION_TOKENS' >/dev/null 2>&1; then
-              echo "P0F79D77_MUTATION_TOKEN_IN_SOURCE:$token"
-              exit 1
-            fi
-          done
-          grep -Fq 'QUERY_BUDGET=2' "$file"
-          echo 'P0F79D77_READ_ONLY_SOURCE_GUARD=PASS'
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          path = Path('backend/scripts/build_p0f7_9d77_post_execution_verifier_js.py')
+          spec = importlib.util.spec_from_file_location('d77_guard_builder', path)
+          if not spec or not spec.loader:
+              raise SystemExit('P0F79D77_BUILDER_IMPORT_FAILED')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          for token in module.BANNED_MUTATION_TOKENS:
+              if token in module._JS_TEMPLATE:
+                  raise SystemExit(f'P0F79D77_MUTATION_TOKEN_IN_TEMPLATE:{token}')
+          if module._JS_TEMPLATE.count('teacher_assignments.find(') != 2:
+              raise SystemExit('P0F79D77_QUERY_BUDGET_DRIFT')
+          print('P0F79D77_READ_ONLY_TEMPLATE_GUARD=PASS')
+          PY
       - name: Run focused tests without repository conftest
         shell: bash
         run: |
