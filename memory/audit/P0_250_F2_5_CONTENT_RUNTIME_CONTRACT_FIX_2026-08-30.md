@@ -23,13 +23,14 @@ Logo, um vínculo podia bloquear o legado no backend sem existir como candidato 
 
 ## Correção F2.5
 
-O guard de produção passa a reutilizar diretamente `list_teacher_diaries()` e espelha o matching do `contentDvdBridge`:
+O guard de produção passa a reutilizar diretamente `list_teacher_diaries()` e espelha literalmente o matching do `contentDvdBridge`:
 
 1. mesmo professor autenticado;
 2. mesma data de referência;
 3. mesma turma, quando informada;
-4. mesmo componente, aceitando vínculo class-wide (`component_id` ausente/nulo);
-5. `capabilities.content_enabled is True`.
+4. quando a requisição informa componente, `component_id` precisa ser exatamente o mesmo;
+5. vínculo class-wide (`component_id` nulo) participa apenas da leitura sem filtro de componente, exatamente como no bridge atual;
+6. `capabilities.content_enabled is True`.
 
 Somente quando existe esse candidato canônico o reader legado é bloqueado.
 
@@ -52,8 +53,11 @@ Isto elimina o estado contraditório `frontend -> legado` + `backend -> 409` ide
 - diário canônico com conteúdo habilitado bloqueia;
 - capability de conteúdo desabilitada não bloqueia;
 - componente diferente não bloqueia;
-- vínculo class-wide habilitado bloqueia componente específico;
+- vínculo class-wide não bloqueia requisição component-scoped;
+- vínculo class-wide participa da requisição class-level sem componente;
 - perfil não-professor não aciona o reader de diários.
+
+O teste histórico `backend/tests/test_legacy_content_dvd_guard_phase38f.py` também foi adaptado para a nova autoridade canônica, mantendo os testes estruturais do helper bruto.
 
 ## Escopo e segurança
 
