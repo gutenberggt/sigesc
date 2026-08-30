@@ -3,6 +3,7 @@ import { getDiaryPrefill } from '@/utils/diaryPrefill';
 import '@/services/contentDvdBridge';
 import '@/services/contentDvdClassWideResolver';
 import '@/services/contentDvdHistoricalBackfillResolver';
+import '@/services/contentPartialCutoverResolver';
 import '@/utils/contentCopyErrorNormalizerLate';
 
 /**
