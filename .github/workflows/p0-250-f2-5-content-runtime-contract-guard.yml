@@ -1,0 +1,93 @@
+name: "P0 #250 F2.5 Content Runtime Contract Guard"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/legacy_content_dvd_guard.py'
+      - 'backend/services/teacher_diaries.py'
+      - 'backend/tests/test_legacy_content_dvd_guard_f2_5.py'
+      - 'frontend/src/services/contentDvdBridge.js'
+      - '.github/workflows/p0-250-f2-5-content-runtime-contract-guard.yml'
+      - 'memory/audit/P0_250_F2_5_CONTENT_RUNTIME_CONTRACT_FIX_2026-08-30.md'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Guard canonical legacy/DVD cutover parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile and run F2.5 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/legacy_content_dvd_guard.py
+          python -m py_compile backend/tests/test_legacy_content_dvd_guard_f2_5.py
+          pip install pytest
+          PYTHONPATH=backend pytest -q --noconftest backend/tests/test_legacy_content_dvd_guard_f2_5.py
+
+      - name: Enforce canonical cutover contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          guard_path = Path('backend/services/legacy_content_dvd_guard.py')
+          guard = guard_path.read_text(encoding='utf-8')
+          bridge = Path('frontend/src/services/contentDvdBridge.js').read_text(encoding='utf-8')
+
+          required_guard = [
+              'from services.teacher_diaries import list_teacher_diaries',
+              'await list_teacher_diaries(',
+              '"content_enabled") is True',
+              'def _diary_matches_content_context(',
+              'def build_professor_dvd_query(',
+          ]
+          for marker in required_guard:
+              if marker not in guard:
+                  raise SystemExit(f'P0_250_F2_5_REQUIRED_GUARD_MARKER_MISSING:{marker}')
+
+          # O bridge deve continuar usando a presença de candidatos
+          # content_enabled para escolher DVD vs fallback legado.
+          required_bridge = [
+              'if (!diary?.capabilities?.content_enabled) return false;',
+              'if (candidates.length === 0) return config;',
+          ]
+          for marker in required_bridge:
+              if marker not in bridge:
+                  raise SystemExit(f'P0_250_F2_5_BRIDGE_CONTRACT_CHANGED:{marker}')
+
+          tree = ast.parse(guard)
+          forbidden_mutators = {
+              'insert_one', 'insert_many', 'update_one', 'update_many', 'replace_one',
+              'delete_one', 'delete_many', 'bulk_write', 'find_one_and_update',
+              'find_one_and_delete', 'find_one_and_replace', 'drop', 'drop_database',
+          }
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                  if node.func.attr in forbidden_mutators:
+                      raise SystemExit(f'P0_250_F2_5_DB_MUTATOR_FOUND:{node.func.attr}')
+
+          # A autoridade funcional não pode voltar a ser um find_one bruto no
+          # corpo de professor_has_active_dvd_content.
+          start = guard.index('async def professor_has_active_dvd_content(')
+          end = guard.index('\ndef legacy_content_block_detail()', start)
+          blocker = guard[start:end]
+          if 'teacher_class_assignments.find_one' in blocker or 'build_professor_dvd_query(' in blocker:
+              raise SystemExit('P0_250_F2_5_RAW_ASSIGNMENT_REINTRODUCED_AS_CUTOVER_AUTHORITY')
+
+          print('P0_250_F2_5_CANONICAL_CUTOVER_GUARD=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('RBAC_EXPANSION=NO')
+          PY

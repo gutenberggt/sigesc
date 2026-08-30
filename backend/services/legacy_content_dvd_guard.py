@@ -1,20 +1,26 @@
 """Guard de cutover do conteúdo legado para Diário por Vínculo Docente.
 
-A decisão é deliberadamente simples e fail-closed para professor comum:
-se existe teacher_class_assignment habilitado e vigente para o contexto, o
-endpoint legado /learning-objects não pode ser usado como caminho alternativo
-de leitura ou escrita. O frontend DVD usa content_entries, cuja autorização é
-canônica.
+O bloqueio do reader legado precisa usar a mesma projeção canônica que o
+frontend recebe em ``/professor/diarios``. Um ``teacher_class_assignment`` bruto
+com ``diary_settings.enabled=true`` não é suficiente: o vínculo ainda pode ser
+rejeitado pelo autorizador canônico (escopo DVD, tenant, escola, vigência,
+proprietário) ou não possuir capability de conteúdo.
 
-Uma requisição ampla do professor sem class_id também é bloqueada quando ele
-possui qualquer DVD vigente, evitando contornar o isolamento omitindo filtros.
-Gestão não é reclassificada aqui; suas visões consolidadas continuam nos fluxos
-existentes até contrato específico de gestão.
+Invariante F2.5: o endpoint legado ``/learning-objects`` só é bloqueado quando a
+mesma turma/componente aparece em ``list_teacher_diaries`` com
+``capabilities.content_enabled=true``. Assim, se o ``contentDvdBridge`` não tem
+candidato canônico e cai no reader legado, o backend também permite esse
+fallback. Gestão não é reclassificada aqui.
+
+``build_professor_dvd_query`` é preservado como helper estrutural/forense para
+auditorias do conjunto bruto de candidatos; ele não é a autoridade de cutover.
 """
 from __future__ import annotations
 
 from datetime import date
 from typing import Any, Mapping, Optional
+
+from services.teacher_diaries import list_teacher_diaries
 
 
 def build_professor_dvd_query(
@@ -24,6 +30,11 @@ def build_professor_dvd_query(
     course_id: Optional[str] = None,
     on_date: Optional[str] = None,
 ) -> Optional[dict]:
+    """Monta o conjunto bruto de candidatos DVD para auditoria/diagnóstico.
+
+    O retorno desta função não deve ser usado isoladamente para decidir o
+    cutover. A decisão funcional passa por ``list_teacher_diaries`` abaixo.
+    """
     if current_user.get("role") != "professor" or not current_user.get("id"):
         return None
 
@@ -66,6 +77,25 @@ def build_professor_dvd_query(
     return query
 
 
+def _diary_matches_content_context(
+    item: Mapping[str, Any],
+    *,
+    class_id: Optional[str],
+    course_id: Optional[str],
+) -> bool:
+    """Espelha literalmente o matching do ``contentDvdBridge`` de conteúdo."""
+    if class_id and item.get("class_id") != class_id:
+        return False
+
+    # O bridge exige igualdade exata quando a requisição informa componente.
+    # Vínculo class-wide (component_id nulo) só participa de leitura sem filtro
+    # de componente; não deve bloquear um GET legado component-scoped.
+    if course_id and item.get("component_id") != course_id:
+        return False
+
+    return (item.get("capabilities") or {}).get("content_enabled") is True
+
+
 async def professor_has_active_dvd_content(
     db,
     current_user: Mapping[str, Any],
@@ -74,17 +104,31 @@ async def professor_has_active_dvd_content(
     course_id: Optional[str] = None,
     on_date: Optional[str] = None,
 ) -> bool:
-    query = build_professor_dvd_query(
-        current_user,
-        class_id=class_id,
-        course_id=course_id,
-        on_date=on_date,
-    )
-    if query is None:
+    """Retorna True somente quando existe rota DVD canônica de conteúdo.
+
+    Esta função é chamada pelo guard do endpoint legado. Reutilizar
+    ``list_teacher_diaries`` evita que frontend e backend tomem decisões de
+    cutover com critérios diferentes.
+    """
+    if current_user.get("role") != "professor" or not current_user.get("id"):
         return False
 
-    doc = await db.teacher_class_assignments.find_one(query, {"_id": 0, "id": 1})
-    return bool(doc)
+    target_date = on_date or date.today().isoformat()
+    diaries_payload = await list_teacher_diaries(
+        db,
+        current_user,
+        reference_date=target_date,
+        active_mantenedora_id=current_user.get("mantenedora_id"),
+    )
+
+    return any(
+        _diary_matches_content_context(
+            item,
+            class_id=class_id,
+            course_id=course_id,
+        )
+        for item in (diaries_payload.get("items") or [])
+    )
 
 
 def legacy_content_block_detail() -> dict:
