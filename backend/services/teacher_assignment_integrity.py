@@ -1,10 +1,12 @@
 """Integridade curricular para gravação de alocações docentes.
 
-P0-F7.9B — fronteira fail-closed de escrita.
+P0-F7.9B — fronteira fail-closed de escrita curricular.
+P0-F7.9D7.8 — hardening preventivo de carga horária semanal.
 
-Este módulo NÃO duplica a regra de compatibilidade curricular: reutiliza a
-normalização e o classificador canônico de ``utils.curriculum_resolver`` e
-aplica apenas a política de escrita de ``teacher_assignments``.
+Este módulo NÃO duplica regras curriculares: reutiliza a normalização e o
+classificador canônico de ``utils.curriculum_resolver`` e a SSoT de carga
+horária ``utils.curricular_workload_policy``. Aqui existe apenas a política de
+escrita de ``teacher_assignments``.
 """
 from __future__ import annotations
 
@@ -12,6 +14,13 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from utils.curriculum_resolver import _curricular_fit, _norm_scalar, _series_tokens
+from utils.curricular_workload_policy import (
+    CurricularWorkloadPolicyError,
+    resolve_curricular_workload,
+)
+
+
+ACTIVE_ASSIGNMENT_STATUSES = frozenset({"ativo", "active"})
 
 
 @dataclass(frozen=True)
@@ -22,6 +31,11 @@ class TeacherAssignmentIntegrityError(ValueError):
 
     def __str__(self) -> str:
         return self.message
+
+
+def is_active_teacher_assignment_status(value: Any) -> bool:
+    """Reconhece os dois tokens históricos de vínculo ativo."""
+    return str(value or "").strip().lower() in ACTIVE_ASSIGNMENT_STATUSES
 
 
 def _explicit_class_level(class_info: Mapping[str, Any]) -> str:
@@ -38,6 +52,14 @@ def _class_series(class_info: Mapping[str, Any]) -> set[str]:
     if not series:
         series = _series_tokens(class_info.get("grade_level"))
     return series
+
+
+def _class_series_source(class_info: Mapping[str, Any]) -> Any:
+    """Preserva a representação da turma para a SSoT de carga horária."""
+    series = class_info.get("series")
+    if series:
+        return series
+    return class_info.get("grade_level")
 
 
 def validate_teacher_assignment_curriculum(
@@ -152,4 +174,80 @@ def validate_teacher_assignment_curriculum(
         "allowed": True,
         "write_policy": str(fit.get("classification") or "CURRICULAR_MATCH"),
         "fit": fit,
+    }
+
+
+def validate_teacher_assignment_workload(
+    *,
+    class_info: Mapping[str, Any],
+    course: Mapping[str, Any],
+    weekly_workload: Any,
+) -> dict[str, Any]:
+    """Valida carga semanal de vínculo ativo contra a SSoT institucional.
+
+    A política canônica atualmente cobre Geografia, História e Ciências. Para
+    componentes fora dessa matriz específica, o comportamento legado é
+    preservado (``applies=False``). Para componentes cobertos, a carga semanal
+    é obrigatória e precisa coincidir exatamente com o valor resolvido pela
+    SSoT, inclusive em turmas multisseriadas.
+    """
+    try:
+        workload = resolve_curricular_workload(
+            component_name=course.get("name"),
+            class_level=_explicit_class_level(class_info),
+            class_series=_class_series_source(class_info),
+        )
+    except CurricularWorkloadPolicyError as exc:
+        raise TeacherAssignmentIntegrityError(
+            "TEACHER_ASSIGNMENT_WORKLOAD_POLICY_UNRESOLVED",
+            "A carga horária canônica do componente não pôde ser resolvida para esta turma.",
+            {
+                "workload_policy_error": exc.code,
+                "workload_policy_message": exc.message,
+            },
+        ) from exc
+
+    if workload.get("applies") is not True:
+        return {
+            "allowed": True,
+            "workload_policy": "NOT_APPLICABLE",
+            "workload": workload,
+        }
+
+    if weekly_workload is None or str(weekly_workload).strip() == "":
+        raise TeacherAssignmentIntegrityError(
+            "TEACHER_ASSIGNMENT_WEEKLY_WORKLOAD_REQUIRED",
+            "A carga horária semanal é obrigatória para este componente curricular.",
+            {"workload": workload},
+        )
+
+    try:
+        actual = float(weekly_workload)
+        expected = float(workload["canonical_weekly_workload"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise TeacherAssignmentIntegrityError(
+            "TEACHER_ASSIGNMENT_WEEKLY_WORKLOAD_INVALID",
+            "A carga horária semanal informada é inválida.",
+            {"workload": workload},
+        ) from exc
+
+    if actual != expected:
+        raise TeacherAssignmentIntegrityError(
+            "TEACHER_ASSIGNMENT_WEEKLY_WORKLOAD_MISMATCH",
+            (
+                "A carga horária semanal informada diverge da matriz curricular canônica "
+                f"({actual:g}h informada; {expected:g}h esperada)."
+            ),
+            {
+                "workload": workload,
+                "actual_weekly_workload": actual,
+                "expected_weekly_workload": expected,
+            },
+        )
+
+    return {
+        "allowed": True,
+        "workload_policy": "CANONICAL_WEEKLY_WORKLOAD_MATCH",
+        "canonical_weekly_workload": workload["canonical_weekly_workload"],
+        "workload": workload,
     }
