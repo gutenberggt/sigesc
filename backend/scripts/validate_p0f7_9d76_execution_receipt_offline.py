@@ -3,6 +3,10 @@
 The validator never connects to production. It verifies the exact D7.5
 manifest, D7.6 executor metadata and executor file hash, then classifies the
 captured mongosh receipt as APPLIED, SAFE_ROLLBACK or unsafe/incomplete.
+
+D7.6.2 deliberately loads the D7.6.1 compatibility builder so validation uses
+the same exact sealed retire-status contract used to materialize the authorized
+executor. This changes no writer bytes and performs no production access.
 """
 from __future__ import annotations
 
@@ -13,12 +17,17 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-BUILDER_PATH = Path(__file__).with_name("build_p0f7_9d76_authorized_revised_executor_js.py")
-_spec = importlib.util.spec_from_file_location("p0f7_9d76_builder", BUILDER_PATH)
+COMPAT_BUILDER_PATH = Path(__file__).with_name(
+    "build_p0f7_9d761_authorized_revised_executor_js.py"
+)
+_spec = importlib.util.spec_from_file_location("p0f7_9d761_builder_for_receipt", COMPAT_BUILDER_PATH)
 if not _spec or not _spec.loader:
-    raise RuntimeError("P0F7_9D76_BUILDER_IMPORT_FAILED")
-builder = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(builder)
+    raise RuntimeError("P0F7_9D762_COMPAT_BUILDER_IMPORT_FAILED")
+compat_builder = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(compat_builder)
+# The D7.6.1 module patches only the retire-status operation validator on the
+# reviewed D7.6 builder and exposes that patched builder as ``d76``.
+builder = compat_builder.d76
 
 OUTPUT_PHASE = "P0F7.9D7.6-OFFLINE-EXECUTION-RECEIPT-VALIDATION-2026"
 
