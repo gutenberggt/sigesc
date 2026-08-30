@@ -1,4 +1,4 @@
-name: P0 #250 F2 Professor Promotion Read-only Audit
+name: "P0 #250 F2 Professor Promotion Read-only Audit"
 
 on:
   pull_request:
@@ -23,6 +23,9 @@ jobs:
     name: Guard F2 read-only collector
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_inert
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -38,7 +41,7 @@ jobs:
           set -euo pipefail
           python -m py_compile backend/scripts/build_p0_250_f2_promotion_case_audit_js.py
           python -m py_compile backend/tests/test_p0_250_f2_promotion_case_audit.py
-          pip install pytest
+          pip install pytest pymongo python-dotenv
           pytest -q backend/tests/test_p0_250_f2_promotion_case_audit.py
 
       - name: Enforce generated Mongo collector is read-only
