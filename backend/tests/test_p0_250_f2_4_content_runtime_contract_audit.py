@@ -1,7 +1,7 @@
 import importlib.util
 from pathlib import Path
 
-SCRIPT = Path(__file__).with_name("p0_250_f2_4_content_runtime_contract_audit.py")
+SCRIPT = Path(__file__).parents[1] / "scripts" / "p0_250_f2_4_content_runtime_contract_audit.py"
 spec = importlib.util.spec_from_file_location("p0_250_f2_4_content_runtime_contract_audit", SCRIPT)
 mod = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
