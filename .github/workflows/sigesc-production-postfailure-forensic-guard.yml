@@ -1,0 +1,79 @@
+name: SIGESC Production Post-failure Forensic Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sigesc-production-postfailure-forensic.yml'
+      - '.github/workflows/sigesc-production-postfailure-forensic-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Guard strict read-only contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('.github/workflows/sigesc-production-postfailure-forensic.yml')
+          text = p.read_text(encoding='utf-8')
+
+          required = (
+              'workflow_dispatch:',
+              'environment: production',
+              'VERIFY_SIGESC_POSTFAILURE_READ_ONLY',
+              'DATABASE_MUTATION=NO',
+              'PRODUCTION_WRITES=NO',
+              'CONTAINER_MUTATION=NO',
+              'StrictHostKeyChecking=yes',
+              'docker inspect',
+              'docker image inspect',
+              'docker ps -a',
+              'retention-days: 90',
+          )
+          for marker in required:
+              assert marker in text, marker
+
+          forbidden = (
+              'docker compose up',
+              'docker compose down',
+              'docker compose build',
+              'docker build ',
+              'docker tag ',
+              'docker image tag',
+              'docker restart',
+              'docker stop',
+              'docker start',
+              'docker rm ',
+              'docker rmi ',
+              'docker commit',
+              'git pull',
+              'git fetch',
+              'git reset',
+              'git checkout',
+              'mongosh',
+              'mongoimport',
+              'updateOne(',
+              'deleteOne(',
+              'insertOne(',
+              'scp ',
+              'rsync ',
+          )
+          for marker in forbidden:
+              assert marker not in text, marker
+
+          trigger_prefix = text.split('permissions:', 1)[0]
+          assert 'pull_request:' not in trigger_prefix
+          assert '\n  push:' not in trigger_prefix
+          print('SIGESC_POSTFAILURE_FORENSIC_READ_ONLY_GUARD=PASS')
+          PY

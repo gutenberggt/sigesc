@@ -1,0 +1,228 @@
+name: SIGESC Production Post-failure Forensic
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type VERIFY_SIGESC_POSTFAILURE_READ_ONLY'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sigesc-production-postfailure-forensic
+  cancel-in-progress: false
+
+jobs:
+  forensic:
+    name: Verify production state after failed deploy read-only
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      EXPECTED_PROJECT: bww8wogkcs0sws8sc80s4k4c
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Validate read-only dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.confirmation }}' = 'VERIFY_SIGESC_POSTFAILURE_READ_ONLY' || {
+            echo 'SIGESC_POSTFAILURE_FORENSIC_CONFIRMATION_INVALID'
+            exit 1
+          }
+          test '${{ github.ref_name }}' = 'main' || {
+            echo 'SIGESC_POSTFAILURE_FORENSIC_MAIN_REQUIRED'
+            exit 1
+          }
+          echo 'DATABASE_MUTATION=NO'
+          echo 'PRODUCTION_WRITES=NO'
+          echo 'CONTAINER_MUTATION=NO'
+
+      - name: Checkout reviewed main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "SIGESC_POSTFAILURE_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh evidence
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/sigesc_prod_key
+          chmod 600 ~/.ssh/sigesc_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'SIGESC_POSTFAILURE_SSH_TRUST=PASS'
+
+      - name: Inspect current Docker runtime read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/postfailure-runtime.txt'
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash -s -- "$MONGO_CONTAINER" "$EXPECTED_PROJECT" > "$raw" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          expected_project="$2"
+
+          docker inspect "$mongo_container" >/dev/null
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          workdir="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$mongo_container")"
+          config_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$mongo_container")"
+
+          printf 'FORENSIC_SCHEMA=SIGESC_POSTFAILURE_RUNTIME_V1\n'
+          printf 'DATABASE_MUTATION=NO\n'
+          printf 'PRODUCTION_WRITES=NO\n'
+          printf 'CONTAINER_MUTATION=NO\n'
+          printf 'COMPOSE_PROJECT=%s\n' "$project"
+          printf 'COMPOSE_WORKING_DIR=%s\n' "$workdir"
+          printf 'COMPOSE_CONFIG_FILES=%s\n' "$config_files"
+          test "$project" = "$expected_project"
+
+          shared_network=''
+          for service in mongo backend frontend; do
+            upper="$(printf '%s' "$service" | tr '[:lower:]' '[:upper:]')"
+            cname="$(docker ps -a \
+              --filter "label=com.docker.compose.project=$project" \
+              --filter "label=com.docker.compose.service=$service" \
+              --format '{{.Names}}' | head -n 1)"
+            test -n "$cname" || { printf '%s_CONTAINER=NOT_FOUND\n' "$upper"; exit 1; }
+
+            cid="$(docker inspect -f '{{.Id}}' "$cname")"
+            state="$(docker inspect -f '{{.State.Status}}' "$cname")"
+            health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cname")"
+            started="$(docker inspect -f '{{.State.StartedAt}}' "$cname")"
+            created="$(docker inspect -f '{{.Created}}' "$cname")"
+            image_id="$(docker inspect -f '{{.Image}}' "$cname")"
+            image_ref="$(docker inspect -f '{{.Config.Image}}' "$cname")"
+            networks="$(docker inspect -f '{{range $name, $cfg := .NetworkSettings.Networks}}{{$name}} {{end}}' "$cname" | xargs)"
+
+            image_available=NO
+            image_tags='UNAVAILABLE'
+            image_created='UNAVAILABLE'
+            image_revision='UNSET'
+            if docker image inspect "$image_id" >/dev/null 2>&1; then
+              image_available=YES
+              image_tags="$(docker image inspect -f '{{json .RepoTags}}' "$image_id")"
+              image_created="$(docker image inspect -f '{{.Created}}' "$image_id")"
+              revision="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image_id" 2>/dev/null || true)"
+              if [ -n "$revision" ] && [ "$revision" != '<no value>' ]; then image_revision="$revision"; fi
+            fi
+
+            printf '%s_CONTAINER=%s\n' "$upper" "$cname"
+            printf '%s_CONTAINER_ID=%s\n' "$upper" "$cid"
+            printf '%s_STATE=%s\n' "$upper" "$state"
+            printf '%s_HEALTH=%s\n' "$upper" "$health"
+            printf '%s_STARTED_AT=%s\n' "$upper" "$started"
+            printf '%s_CREATED_AT=%s\n' "$upper" "$created"
+            printf '%s_RUNNING_IMAGE_ID=%s\n' "$upper" "$image_id"
+            printf '%s_CONFIG_IMAGE_REF=%s\n' "$upper" "$image_ref"
+            printf '%s_RUNNING_IMAGE_AVAILABLE=%s\n' "$upper" "$image_available"
+            printf '%s_RUNNING_IMAGE_TAGS=%s\n' "$upper" "$image_tags"
+            printf '%s_RUNNING_IMAGE_CREATED_AT=%s\n' "$upper" "$image_created"
+            printf '%s_RUNNING_IMAGE_REVISION=%s\n' "$upper" "$image_revision"
+            printf '%s_NETWORKS=%s\n' "$upper" "$networks"
+
+            if [ "$service" = 'mongo' ]; then
+              shared_network="$networks"
+            else
+              test "$networks" = "$shared_network" || printf 'NETWORK_SET_DIFF_%s=%s\n' "$upper" "$networks"
+            fi
+          done
+
+          printf 'SHARED_NETWORK_CANDIDATE=%s\n' "$shared_network"
+
+          for service in backend frontend; do
+            upper="$(printf '%s' "$service" | tr '[:lower:]' '[:upper:]')"
+            tag="${project}-${service}:latest"
+            if docker image inspect "$tag" >/dev/null 2>&1; then
+              latest_id="$(docker image inspect -f '{{.Id}}' "$tag")"
+              latest_revision="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$tag" 2>/dev/null || true)"
+              [ -n "$latest_revision" ] && [ "$latest_revision" != '<no value>' ] || latest_revision='UNSET'
+              printf '%s_LATEST_TAG=%s\n' "$upper" "$tag"
+              printf '%s_LATEST_IMAGE_ID=%s\n' "$upper" "$latest_id"
+              printf '%s_LATEST_IMAGE_REVISION=%s\n' "$upper" "$latest_revision"
+            else
+              printf '%s_LATEST_TAG=%s\n' "$upper" "$tag"
+              printf '%s_LATEST_IMAGE_ID=UNAVAILABLE\n' "$upper"
+              printf '%s_LATEST_IMAGE_REVISION=UNAVAILABLE\n' "$upper"
+            fi
+          done
+          REMOTE
+
+          cat "$raw"
+          grep -Fq 'DATABASE_MUTATION=NO' "$raw"
+          grep -Fq 'PRODUCTION_WRITES=NO' "$raw"
+          grep -Fq 'CONTAINER_MUTATION=NO' "$raw"
+          grep -Fq 'MONGO_STATE=running' "$raw"
+          grep -Fq 'BACKEND_STATE=running' "$raw"
+          grep -Fq 'FRONTEND_STATE=running' "$raw"
+          echo 'SIGESC_POSTFAILURE_RUNTIME_FORENSIC=PASS'
+
+      - name: Public availability read-only
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          curl --silent --show-error --max-time 20 -w '\nHTTP_STATUS=%{http_code}\n' \
+            'https://api.sigesc.aprenderdigital.top/api/health' > evidence/public-api-health.txt 2>&1
+          api_rc=$?
+          curl --silent --show-error --location --max-time 20 -I -w '\nHTTP_STATUS=%{http_code}\n' \
+            'https://sigesc.aprenderdigital.top/' > evidence/public-frontend.txt 2>&1
+          frontend_rc=$?
+          curl --silent --show-error --max-time 20 -w '\nHTTP_STATUS=%{http_code}\n' \
+            'https://sigesc.aprenderdigital.top/version.json' > evidence/public-version.txt 2>&1
+          version_rc=$?
+          printf 'API_CURL_RC=%s\nFRONTEND_CURL_RC=%s\nVERSION_CURL_RC=%s\n' \
+            "$api_rc" "$frontend_rc" "$version_rc" | tee evidence/public-summary.txt
+          exit 0
+
+      - name: Publish forensic summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## SIGESC post-failure production forensic'
+            echo
+            echo '- Read-only: YES'
+            echo '- Failed deploy run: `33316921122`'
+            echo '- Failed target SHA: `4e6ff49f89e79d3ae09678c0a2b0094c006abe07`'
+            echo '- Database mutation: NO'
+            echo '- Container mutation: NO'
+            echo
+            if [ -f evidence/postfailure-runtime.txt ]; then
+              echo '```text'
+              cat evidence/postfailure-runtime.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload forensic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sigesc-postfailure-forensic-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 90
