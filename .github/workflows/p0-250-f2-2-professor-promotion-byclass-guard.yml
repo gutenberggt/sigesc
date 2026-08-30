@@ -1,0 +1,102 @@
+name: "P0 #250 F2.2 Professor Promotion by-class Guard"
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/src/pages/Promotion.jsx'
+      - 'frontend/src/utils/promotionParity.js'
+      - 'frontend/src/utils/promotionParity.test.js'
+      - '.github/workflows/p0-250-f2-2-professor-promotion-byclass-guard.yml'
+      - 'memory/audit/P0_250_F2_2_PROFESSOR_PROMOTION_BYCLASS_2026-08-30.md'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Guard professor Promotion by-class projection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          if yarn install --frozen-lockfile --network-timeout 600000; then
+            echo 'P0_250_F2_2_YARN_FROZEN=PASS'
+          else
+            echo '::warning title=Lockfile desatualizado::Fallback igual ao CI/produção atual.'
+            yarn install --network-timeout 600000
+          fi
+
+      - name: Run professor Promotion parity regression
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: yarn test --watchAll=false --runTestsByPath src/utils/promotionParity.test.js
+
+      - name: Enforce F2.2 wiring and fail-closed boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          promotion = Path('frontend/src/pages/Promotion.jsx').read_text(encoding='utf-8')
+          parity = Path('frontend/src/utils/promotionParity.js').read_text(encoding='utf-8')
+          tests = Path('frontend/src/utils/promotionParity.test.js').read_text(encoding='utf-8')
+
+          required_promotion = [
+              'P0 #250 F2.2 — paridade HTTP com a tela de Notas.',
+              'if (restrictToProfessor) {',
+              'gradesAPI.getByClass(selectedClass, course.id, selectedYear)',
+              'buildPromotionGradesByStudentFromByClass(',
+              '} else {',
+              'gradesAPI.getAll(',
+              'const studentGrades = gradesByStudent.get(String(student.id)) || [];',
+          ]
+          for marker in required_promotion:
+              if marker not in promotion:
+                  raise SystemExit(f'P0_250_F2_2_PROMOTION_MARKER_MISSING:{marker}')
+
+          professor_branch = promotion.index('if (restrictToProfessor) {', promotion.index('P0 #250 F2.2'))
+          by_class_call = promotion.index('gradesAPI.getByClass(selectedClass, course.id, selectedYear)', professor_branch)
+          management_else = promotion.index('} else {', by_class_call)
+          generic_call = promotion.index('gradesAPI.getAll(', management_else)
+          if not (professor_branch < by_class_call < management_else < generic_call):
+              raise SystemExit('P0_250_F2_2_PROFESSOR_MANAGEMENT_BRANCH_ORDER_INVALID')
+
+          required_parity = [
+              'export const buildPromotionGradesByStudentFromByClass',
+              'if (!byStudent.has(normalizedStudentId)) return;',
+              'if (!allowedCourseIds.has(normalizedCourseId)) return;',
+              'if (seenPairs.has(pairKey)) return;',
+          ]
+          for marker in required_parity:
+              if marker not in parity:
+                  raise SystemExit(f'P0_250_F2_2_PARITY_MARKER_MISSING:{marker}')
+
+          required_tests = [
+              "F2.2 projeta exatamente 21 x 9 pares do by-class e descarta o 22º aluno",
+              'toBe(189)',
+              "projected.has('student-22')",
+              "course_id === 'course-10'",
+          ]
+          for marker in required_tests:
+              if marker not in tests:
+                  raise SystemExit(f'P0_250_F2_2_TEST_MARKER_MISSING:{marker}')
+
+          print('P0_250_F2_2_WIRING_FAIL_CLOSED_GATE=PASS')
+          PY
