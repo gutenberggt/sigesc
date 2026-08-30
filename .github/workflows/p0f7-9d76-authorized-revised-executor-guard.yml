@@ -5,13 +5,16 @@ on:
     paths:
       - 'backend/scripts/build_p0f7_9d76_authorized_revised_executor_js.py'
       - 'backend/scripts/build_p0f7_9d761_authorized_revised_executor_js.py'
+      - 'backend/scripts/build_p0f7_9d763_authorized_revised_executor_js.py'
       - 'backend/scripts/validate_p0f7_9d76_execution_receipt_offline.py'
       - 'backend/tests/test_p0f7_9d76_authorized_revised_executor.py'
       - 'backend/tests/test_p0f7_9d761_retire_status_cas_contract.py'
+      - 'backend/tests/test_p0f7_9d763_mongosh_projection_contract.py'
       - 'scripts/p0f7_9d76_authorized_revised_execution_local.ps1'
       - 'memory/audit/P0F7_9D76_AUTHORIZED_REVISED_EXECUTION_2026-08-30.md'
       - 'memory/audit/P0F7_9D761_RETIRE_STATUS_CAS_CONTRACT_2026-08-30.md'
       - 'memory/audit/P0F7_9D762_RECEIPT_VALIDATOR_CONTRACT_2026-08-30.md'
+      - 'memory/audit/P0F7_9D763_MONGOSH_PROJECTION_AND_RECEIPT_CAPTURE_2026-08-30.md'
       - '.github/workflows/p0f7-9d76-authorized-revised-executor-guard.yml'
 
 jobs:
@@ -34,19 +37,22 @@ jobs:
           python -m py_compile \
             backend/scripts/build_p0f7_9d76_authorized_revised_executor_js.py \
             backend/scripts/build_p0f7_9d761_authorized_revised_executor_js.py \
+            backend/scripts/build_p0f7_9d763_authorized_revised_executor_js.py \
             backend/scripts/validate_p0f7_9d76_execution_receipt_offline.py
 
       - name: Exercise supported CLI import paths
         run: |
           python backend/scripts/build_p0f7_9d76_authorized_revised_executor_js.py --help >/dev/null
           python backend/scripts/build_p0f7_9d761_authorized_revised_executor_js.py --help >/dev/null
+          python backend/scripts/build_p0f7_9d763_authorized_revised_executor_js.py --help >/dev/null
           python backend/scripts/validate_p0f7_9d76_execution_receipt_offline.py --help >/dev/null
 
       - name: Run focused D7.6 regressions
         run: |
           pytest -q --noconftest \
             backend/tests/test_p0f7_9d76_authorized_revised_executor.py \
-            backend/tests/test_p0f7_9d761_retire_status_cas_contract.py
+            backend/tests/test_p0f7_9d761_retire_status_cas_contract.py \
+            backend/tests/test_p0f7_9d763_mongosh_projection_contract.py
 
       - name: Guard exact authorization chain
         run: |
@@ -60,7 +66,13 @@ jobs:
           grep -Fq 'status not in d76.ACTIVE_STATUSES' backend/scripts/build_p0f7_9d761_authorized_revised_executor_js.py
           grep -Fq 'P0F7_9D761_RETIRE_ROLLBACK_STATUS_MISMATCH' backend/scripts/build_p0f7_9d761_authorized_revised_executor_js.py
           grep -Fq 'validated["cas_expected"]["status"] = status_raw' backend/scripts/build_p0f7_9d761_authorized_revised_executor_js.py
-          grep -Fq 'build_p0f7_9d761_authorized_revised_executor_js.py' scripts/p0f7_9d76_authorized_revised_execution_local.ps1
+
+      - name: Guard mongosh projection contract
+        run: |
+          grep -Fq 'build_p0f7_9d763_authorized_revised_executor_js.py' scripts/p0f7_9d76_authorized_revised_execution_local.ps1
+          grep -Fq 'MONGOSH_FINDONE_PROJECTION=DIRECT_SECOND_ARGUMENT' scripts/p0f7_9d76_authorized_revised_execution_local.ps1
+          grep -Fq 'P0F7_9D763_PROJECTION_TEMPLATE_DRIFT' backend/scripts/build_p0f7_9d763_authorized_revised_executor_js.py
+          grep -Fq 'if "{projection:" in _TEMPLATE' backend/scripts/build_p0f7_9d763_authorized_revised_executor_js.py
 
       - name: Guard receipt validator uses D7.6.1 contract
         run: |
@@ -85,4 +97,5 @@ jobs:
         run: |
           ! grep -Eiq 'pymongo|motor|requests|httpx|urllib|socket|subprocess|os\.system' backend/scripts/build_p0f7_9d76_authorized_revised_executor_js.py
           ! grep -Eiq 'pymongo|motor|requests|httpx|urllib|socket|subprocess|os\.system' backend/scripts/build_p0f7_9d761_authorized_revised_executor_js.py
+          ! grep -Eiq 'pymongo|motor|requests|httpx|urllib|socket|subprocess|os\.system' backend/scripts/build_p0f7_9d763_authorized_revised_executor_js.py
           ! grep -Eiq 'pymongo|motor|requests|httpx|urllib|socket|subprocess|os\.system' backend/scripts/validate_p0f7_9d76_execution_receipt_offline.py
