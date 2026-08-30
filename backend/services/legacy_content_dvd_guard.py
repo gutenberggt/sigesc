@@ -83,12 +83,14 @@ def _diary_matches_content_context(
     class_id: Optional[str],
     course_id: Optional[str],
 ) -> bool:
-    """Espelha o matching do ``contentDvdBridge`` para candidatos de conteúdo."""
+    """Espelha literalmente o matching do ``contentDvdBridge`` de conteúdo."""
     if class_id and item.get("class_id") != class_id:
         return False
 
-    item_component_id = item.get("component_id")
-    if course_id and item_component_id and item_component_id != course_id:
+    # O bridge exige igualdade exata quando a requisição informa componente.
+    # Vínculo class-wide (component_id nulo) só participa de leitura sem filtro
+    # de componente; não deve bloquear um GET legado component-scoped.
+    if course_id and item.get("component_id") != course_id:
         return False
 
     return (item.get("capabilities") or {}).get("content_enabled") is True
