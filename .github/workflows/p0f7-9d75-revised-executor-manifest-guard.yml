@@ -1,0 +1,63 @@
+name: P0-F7.9D7.5 Revised Executor Manifest Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py'
+      - 'backend/tests/test_p0f7_9d75_revised_executor_manifest.py'
+      - 'scripts/p0f7_9d75_revised_executor_manifest_local.ps1'
+      - '.github/workflows/p0f7-9d75-revised-executor-manifest-guard.yml'
+      - 'memory/audit/P0F7_9D75_REVISED_EXECUTOR_MANIFEST_2026-08-30.md'
+  workflow_dispatch:
+
+jobs:
+  revised-executor-manifest-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install focused test dependency
+        run: python -m pip install pytest
+
+      - name: Compile D7.5 sealer
+        run: python -m py_compile backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+
+      - name: Exercise supported CLI import path
+        run: python backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py --help >/dev/null
+
+      - name: Run focused D7.5 regressions
+        run: pytest -q --noconftest backend/tests/test_p0f7_9d75_revised_executor_manifest.py
+
+      - name: Guard exact source hashes
+        run: |
+          grep -q 'b6cfcfd3fec964fe58ebdcc7aea6e9fe1953207d7178da35b7e1bd4dea8c39fb' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'b835f5393e035dee0703f1aa0ae0dd52c779b81d5f73b8c05d0adff3fbcedc9e' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+
+      - name: Guard manifest is non-executable
+        run: |
+          grep -q 'writer_implementation_present' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'executor_materialized' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'requires_separate_explicit_production_write_authorization' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'old_23_write_authorization_reusable' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'hard_delete_allowed' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+
+      - name: Guard no writer or remote surface
+        run: |
+          ! grep -Eiq 'pymongo|motor|requests\.|httpx\.|subprocess|updateOne|updateMany|insertOne|insertMany|deleteOne|deleteMany|bulkWrite|findOneAndUpdate|replaceOne' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          ! grep -Eiq '^[[:space:]]*(ssh|scp|mongosh|docker)[[:space:]]' scripts/p0f7_9d75_revised_executor_manifest_local.ps1
+          grep -q 'PRODUCTION_WRITES=NO' scripts/p0f7_9d75_revised_executor_manifest_local.ps1
+          grep -q 'EXECUTOR_AUTHORIZED=NO' scripts/p0f7_9d75_revised_executor_manifest_local.ps1
+          grep -q 'WRITER_IMPLEMENTATION_PRESENT=NO' scripts/p0f7_9d75_revised_executor_manifest_local.ps1
+
+      - name: Guard CAS rollback strategy
+        run: |
+          grep -q 'CAS_WITH_COMPENSATING_ROLLBACK_REQUIRED' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'SEALED_OPERATION_INDEX_ASC' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'REVERSE_OPERATION_ORDER' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
+          grep -q 'RETIRE_DUPLICATE_BEFORE_CONSOLIDATE_SURVIVOR' backend/scripts/seal_p0f7_9d75_revised_executor_manifest.py
