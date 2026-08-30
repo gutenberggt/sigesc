@@ -1,0 +1,250 @@
+name: P0-F7.9D7.6.4 GitHub-only Production Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type EXECUTE_P0F79D763_23_WRITES to run the authorized 23-write remediation'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p0f7-9d764-production-execution
+  cancel-in-progress: false
+
+jobs:
+  execute-authorized-remediation:
+    name: Execute exact authorized D7.6.3 remediation
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      PINNED_CODE_SHA: a627189a5cd2b38297260a0d4360b64e17441221
+      EXPECTED_MANIFEST_SHA: 89e0f72d97f7cfa8b2d4b5dd7b5d35a01376a813d69d46f5bce7fa9c11440fcc
+      EXPECTED_REVISED_PLAN_SHA: b6cfcfd3fec964fe58ebdcc7aea6e9fe1953207d7178da35b7e1bd4dea8c39fb
+      EXPECTED_D74_SHA: b835f5393e035dee0703f1aa0ae0dd52c779b81d5f73b8c05d0adff3fbcedc9e
+      EXPECTED_EXECUTOR_SHA: aa61676f8e3841436b34d8f345d235304380eda866984319b815ceec638e4e5b
+      EXPECTED_OPERATIONS: '23'
+      DB_NAME: sigesc
+
+    steps:
+      - name: Validate explicit dispatch confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.confirm }}' = 'EXECUTE_P0F79D763_23_WRITES' || {
+            echo 'P0F79D764_DISPATCH_CONFIRMATION_INVALID'
+            exit 1
+          }
+          echo 'P0F79D764_DISPATCH_CONFIRMATION=PASS'
+
+      - name: Checkout pinned reviewed code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PINNED_CODE_SHA }}
+          persist-credentials: false
+
+      - name: Verify pinned code checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "PINNED_CODE_SHA=$PINNED_CODE_SHA"
+          echo "ACTUAL_CODE_SHA=$actual"
+          test "$actual" = "$PINNED_CODE_SHA" || {
+            echo 'P0F79D764_CODE_SHA_MISMATCH'
+            exit 1
+          }
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore exact sealed manifest from GitHub secret
+        shell: bash
+        env:
+          MANIFEST_B64: ${{ secrets.P0F79D75_MANIFEST_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$MANIFEST_B64" || {
+            echo 'P0F79D764_MANIFEST_SECRET_MISSING'
+            exit 1
+          }
+          mkdir -p evidence
+          printf '%s' "$MANIFEST_B64" | base64 --decode > evidence/manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('evidence/manifest.json').read_text(encoding='utf-8-sig'))
+          expected_manifest = '89e0f72d97f7cfa8b2d4b5dd7b5d35a01376a813d69d46f5bce7fa9c11440fcc'
+          expected_plan = 'b6cfcfd3fec964fe58ebdcc7aea6e9fe1953207d7178da35b7e1bd4dea8c39fb'
+          expected_d74 = 'b835f5393e035dee0703f1aa0ae0dd52c779b81d5f73b8c05d0adff3fbcedc9e'
+          if p.get('manifest_sha256') != expected_manifest:
+              raise SystemExit('P0F79D764_MANIFEST_SHA_FIELD_MISMATCH')
+          if p.get('source_revised_plan_sha256') != expected_plan:
+              raise SystemExit('P0F79D764_REVISED_PLAN_CHAIN_MISMATCH')
+          if p.get('source_d74_report_sha256') != expected_d74:
+              raise SystemExit('P0F79D764_D74_CHAIN_MISMATCH')
+          if len(p.get('operations') or []) != 23:
+              raise SystemExit('P0F79D764_OPERATION_COUNT_MISMATCH')
+          print('P0F79D764_MANIFEST_CHAIN=PASS')
+          PY
+
+      - name: Materialize exact D7.6.3 executor inside GitHub Actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/scripts/build_p0f7_9d763_authorized_revised_executor_js.py \
+            --manifest evidence/manifest.json \
+            --db "$DB_NAME" \
+            --js evidence/executor.js \
+            --metadata evidence/executor-metadata.json \
+            --authorize-production-writes
+
+          actual="$(sha256sum evidence/executor.js | awk '{print $1}')"
+          metadata_sha="$(python -c "import json; print(json.load(open('evidence/executor-metadata.json', encoding='utf-8'))['executor_sha256'])")"
+          manifest_sha="$(python -c "import json; print(json.load(open('evidence/executor-metadata.json', encoding='utf-8'))['manifest_sha256'])")"
+
+          echo "EXECUTOR_SHA256=$actual"
+          echo "METADATA_EXECUTOR_SHA256=$metadata_sha"
+          echo "MANIFEST_SHA256=$manifest_sha"
+
+          test "$actual" = "$EXPECTED_EXECUTOR_SHA" || {
+            echo 'P0F79D764_EXECUTOR_SHA_MISMATCH'
+            exit 1
+          }
+          test "$metadata_sha" = "$EXPECTED_EXECUTOR_SHA" || {
+            echo 'P0F79D764_METADATA_EXECUTOR_SHA_MISMATCH'
+            exit 1
+          }
+          test "$manifest_sha" = "$EXPECTED_MANIFEST_SHA" || {
+            echo 'P0F79D764_METADATA_MANIFEST_SHA_MISMATCH'
+            exit 1
+          }
+          ! grep -Fq '{projection:' evidence/executor.js || {
+            echo 'P0F79D764_LEGACY_PROJECTION_PRESENT'
+            exit 1
+          }
+          grep -Fq '{_id:0,id:1,staff_id:1,status:1,course_id:1,carga_horaria_semanal:1}' evidence/executor.js || {
+            echo 'P0F79D764_DIRECT_PROJECTION_MISSING'
+            exit 1
+          }
+          echo 'P0F79D764_EXECUTOR_MATERIALIZATION=PASS'
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+          PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+          PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+          MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || {
+              echo "P0F79D764_REQUIRED_SECRET_MISSING:$v"
+              exit 1
+            }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'P0F79D764_PROD_USER_INVALID'; exit 1; }
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'P0F79D764_MONGO_CONTAINER_INVALID'; exit 1; }
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/p0f7_prod_key
+          chmod 600 ~/.ssh/p0f7_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'P0F79D764_SSH_TRUST_CONFIGURED=YES'
+
+      - name: Execute exact authorized writer and capture immutable raw output
+        id: production_execution
+        shell: bash
+        env:
+          PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+          PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+          MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+        run: |
+          set -euo pipefail
+          raw='evidence/production-execution.log'
+          receipt='evidence/production-receipt.json'
+          : > "$raw"
+
+          remote_command="docker exec -i ${MONGO_CONTAINER} mongosh --quiet --file /dev/stdin"
+
+          set +e
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/p0f7_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            "$remote_command" \
+            < evidence/executor.js \
+            > "$raw" 2>&1
+          ssh_rc=$?
+          set -e
+
+          echo "SSH_EXIT_CODE=$ssh_rc"
+          printf '%s\n' "$ssh_rc" > evidence/ssh-exit-code.txt
+
+          prefix='P0F79D76_EXECUTION_RECEIPT='
+          receipt_line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [[ -z "$receipt_line" ]]; then
+            echo 'P0F79D764_RECEIPT_NOT_FOUND_DO_NOT_RERUN'
+            tail -n 50 "$raw" || true
+            exit 2
+          fi
+
+          printf '%s' "${receipt_line#${prefix}}" > "$receipt"
+          python -m json.tool "$receipt" >/dev/null
+          echo 'P0F79D764_RECEIPT_CAPTURED=YES'
+
+      - name: Validate receipt offline against exact chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/scripts/validate_p0f7_9d76_execution_receipt_offline.py \
+            --manifest evidence/manifest.json \
+            --executor evidence/executor.js \
+            --metadata evidence/executor-metadata.json \
+            --receipt evidence/production-receipt.json \
+            --json evidence/receipt-validation.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt = json.loads(Path('evidence/production-receipt.json').read_text(encoding='utf-8-sig'))
+          status = receipt.get('status')
+          print(f'RECEIPT_STATUS={status}')
+          print(f"FORWARD_WRITES={receipt.get('forward_writes')}")
+          print(f"ROLLBACK_WRITES={receipt.get('rollback_writes')}")
+          print(f"MUTATION_OPERATIONS={receipt.get('mutation_operations')}")
+          print(f"REMEDIATION_EXECUTED={receipt.get('remediation_executed')}")
+          print(f"ROLLBACK_COMPLETE={receipt.get('rollback_complete')}")
+          if status == 'ROLLBACK_INCOMPLETE':
+              raise SystemExit('P0F79D764_ROLLBACK_INCOMPLETE_STOP')
+          if status == 'SAFE_ROLLBACK':
+              raise SystemExit('P0F79D764_SAFE_ROLLBACK_REMEDIATION_NOT_APPLIED')
+          if status != 'APPLIED':
+              raise SystemExit('P0F79D764_RECEIPT_STATUS_UNKNOWN')
+          if receipt.get('forward_writes') != 23 or receipt.get('rollback_writes') != 0:
+              raise SystemExit('P0F79D764_APPLIED_COUNTS_INVALID')
+          if receipt.get('remediation_executed') is not True:
+              raise SystemExit('P0F79D764_APPLIED_FLAG_INVALID')
+          print('P0F79D764_PRODUCTION_EXECUTION=APPLIED')
+          PY
+
+      - name: Upload execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0f7-9d764-production-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 90
