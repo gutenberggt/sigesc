@@ -1,0 +1,77 @@
+name: SIGESC Production Topology Discovery Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sigesc-production-topology-discovery.yml'
+      - '.github/workflows/sigesc-production-topology-discovery-guard.yml'
+      - 'memory/audit/SIGESC_GITHUB_ONLY_DEPLOY_FOUNDATION_2026-08-30.md'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard manual protected production access
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='.github/workflows/sigesc-production-topology-discovery.yml'
+          grep -Fq 'workflow_dispatch:' "$workflow"
+          ! grep -Eq '^  (push|pull_request|schedule|workflow_run):' "$workflow"
+          grep -Fq 'environment: production' "$workflow"
+          grep -Fq 'DISCOVER_SIGESC_PRODUCTION_TOPOLOGY' "$workflow"
+          grep -Fq 'StrictHostKeyChecking=yes' "$workflow"
+          echo 'SIGESC_DEPLOY_DISCOVERY_TRIGGER_GUARD=PASS'
+
+      - name: Guard read-only remote contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='.github/workflows/sigesc-production-topology-discovery.yml'
+          for forbidden in \
+            'git pull' \
+            'git fetch' \
+            'git checkout' \
+            'git reset' \
+            'docker compose up' \
+            'docker compose down' \
+            'docker compose build' \
+            'docker restart' \
+            'docker stop' \
+            'docker start' \
+            'docker rm' \
+            'docker rmi' \
+            'docker exec' \
+            'systemctl restart' \
+            'supervisorctl restart'; do
+            if grep -Fq "$forbidden" "$workflow"; then
+              echo "SIGESC_DEPLOY_DISCOVERY_MUTATION_TOKEN_FOUND:$forbidden"
+              exit 1
+            fi
+          done
+          grep -Fq 'DATABASE_MUTATION=NO' "$workflow"
+          grep -Fq 'PRODUCTION_WRITES=NO' "$workflow"
+          grep -Fq 'docker inspect' "$workflow"
+          grep -Fq 'docker ps -a' "$workflow"
+          grep -Fq 'docker compose -f "$compose_path" config --services' "$workflow"
+          echo 'SIGESC_DEPLOY_DISCOVERY_READ_ONLY_GUARD=PASS'
+
+      - name: Guard no production secret disclosure contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='.github/workflows/sigesc-production-topology-discovery.yml'
+          grep -Fq 'SIGESC_PROD_SSH_PRIVATE_KEY' "$workflow"
+          grep -Fq 'SIGESC_PROD_SSH_KNOWN_HOSTS' "$workflow"
+          grep -Fq 'SIGESC_PROD_HOST' "$workflow"
+          grep -Fq 'SIGESC_PROD_USER' "$workflow"
+          grep -Fq 'SIGESC_PROD_MONGO_CONTAINER' "$workflow"
+          ! grep -Fq 'docker inspect -f {{json .Config.Env}}' "$workflow"
+          ! grep -Fq 'printenv' "$workflow"
+          ! grep -Fq 'env |' "$workflow"
+          echo 'SIGESC_DEPLOY_DISCOVERY_SECRET_DISCLOSURE_GUARD=PASS'
