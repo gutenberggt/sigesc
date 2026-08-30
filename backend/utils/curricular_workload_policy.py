@@ -1,14 +1,18 @@
 """Canonical curricular workload policy for selected curriculum components.
 
-P0-F7.9D7.3.1 — single source of truth for annual/weekly workload of
+P0-F7.9D7.3.1 — single source of truth for annual/monthly/weekly workload of
 Geografia, História and Ciências across Fundamental/EJA levels.
 
-Rules supplied institutionally on 2026-08-29:
+Institutional rules supplied on 2026-08-29:
 - applicability is determined by component + education level + series/year;
 - for multigrade classes, the greatest annual workload among represented
   series prevails;
-- canonical annual workloads are 80h or 120h, represented in
-  ``teacher_assignments.carga_horaria_semanal`` as 2h or 3h respectively.
+- workload-unit conversion follows the institutional convention:
+  ``ha / 8 = hm`` and ``hm / 5 = hs``;
+- therefore ``hs = ha / 40`` and the canonical equivalences are
+  40h/year -> 5h/month -> 1h/week,
+  80h/year -> 10h/month -> 2h/week,
+  120h/year -> 15h/month -> 3h/week.
 
 This module is pure: no DB, network, FastAPI or write side effects.
 """
@@ -20,12 +24,21 @@ from typing import Any
 from utils.curriculum_resolver import _norm_name, _norm_scalar, _series_tokens
 
 POLICY_PHASE = "P0-F7.9D7.3.1"
-POLICY_VERSION = "2026-08-29"
+POLICY_VERSION = "2026-08-29.2"
 POLICY_SOURCE = "MATRIZ_CURRICULAR_INSTITUCIONAL_2026_08_29"
 
+WORKLOAD_REFERENCE_MONTHS = 8
+WEEKS_PER_REFERENCE_MONTH = 5
+WORKLOAD_REFERENCE_WEEKS = WORKLOAD_REFERENCE_MONTHS * WEEKS_PER_REFERENCE_MONTH
+SUPPORTED_ANNUAL_WORKLOADS = (40, 80, 120)
+
+ANNUAL_TO_MONTHLY = {
+    annual: annual // WORKLOAD_REFERENCE_MONTHS
+    for annual in SUPPORTED_ANNUAL_WORKLOADS
+}
 ANNUAL_TO_WEEKLY = {
-    80: 2,
-    120: 3,
+    annual: ANNUAL_TO_MONTHLY[annual] // WEEKS_PER_REFERENCE_MONTH
+    for annual in SUPPORTED_ANNUAL_WORKLOADS
 }
 
 # Keys use curriculum_resolver normalization.
@@ -98,13 +111,24 @@ def _series_numbers(value: Any) -> list[int]:
     return sorted(numbers)
 
 
+def _workload_units(annual: int) -> tuple[int, int]:
+    if annual not in SUPPORTED_ANNUAL_WORKLOADS:
+        raise CurricularWorkloadPolicyError(
+            "CURRICULAR_WORKLOAD_ANNUAL_UNSUPPORTED",
+            f"Carga anual {annual}h não possui conversão institucional canônica.",
+        )
+    monthly = ANNUAL_TO_MONTHLY[annual]
+    weekly = ANNUAL_TO_WEEKLY[annual]
+    return monthly, weekly
+
+
 def resolve_curricular_workload(
     *,
     component_name: Any,
     class_level: Any,
     class_series: Any,
 ) -> dict[str, Any]:
-    """Resolve canonical annual and weekly workload for the institutional matrix.
+    """Resolve canonical annual, monthly and weekly workload.
 
     Components outside the policy are returned as ``applies=False`` so callers
     can preserve existing behavior. Components covered by the policy fail
@@ -148,7 +172,7 @@ def resolve_curricular_workload(
         per_series_values = {number: int(per_series[number]) for number in series_numbers}
     else:
         annual_default = rule.get("default")
-        if annual_default not in ANNUAL_TO_WEEKLY:
+        if annual_default not in SUPPORTED_ANNUAL_WORKLOADS:
             raise CurricularWorkloadPolicyError(
                 "CURRICULAR_WORKLOAD_DEFAULT_INVALID",
                 "Carga horária anual canônica ausente ou inválida.",
@@ -159,12 +183,7 @@ def resolve_curricular_workload(
             per_series_values = {0: int(annual_default)}
 
     annual = max(per_series_values.values())
-    weekly = ANNUAL_TO_WEEKLY.get(annual)
-    if weekly is None:
-        raise CurricularWorkloadPolicyError(
-            "CURRICULAR_WORKLOAD_WEEKLY_MAPPING_MISSING",
-            f"Carga anual {annual}h não possui representação semanal canônica.",
-        )
+    monthly, weekly = _workload_units(annual)
 
     return {
         "applies": True,
@@ -177,6 +196,15 @@ def resolve_curricular_workload(
         "per_series_annual_workload": per_series_values,
         "multigrade": multigrade,
         "multigrade_rule": "MAX_ANNUAL_WORKLOAD" if multigrade else "SINGLE_SERIES_OR_LEVEL_RULE",
+        "conversion_formula": {
+            "ha_definition": "horas anuais",
+            "hm_definition": "horas mensais",
+            "hs_definition": "horas semanais",
+            "annual_to_monthly": "ha / 8 = hm",
+            "monthly_to_weekly": "hm / 5 = hs",
+            "annual_to_weekly_equivalent": "ha / 40 = hs",
+        },
         "canonical_annual_workload": annual,
+        "canonical_monthly_workload": monthly,
         "canonical_weekly_workload": weekly,
     }
