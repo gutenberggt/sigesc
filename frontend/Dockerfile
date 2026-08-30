@@ -35,8 +35,15 @@ RUN yarn build
 # Production stage
 FROM nginx:alpine
 
+# Proveniência imutável do artefato implantado.
+ARG SIGESC_GIT_SHA=unknown
+LABEL org.opencontainers.image.revision=$SIGESC_GIT_SHA
+
 # Copia o build para o nginx
 COPY --from=build /app/build /usr/share/nginx/html
+
+# Endpoint estático de proveniência pública do frontend.
+RUN printf '{"git_sha":"%s"}\n' "$SIGESC_GIT_SHA" > /usr/share/nginx/html/version.json
 
 # Copia configuração customizada do nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf

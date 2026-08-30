@@ -1,0 +1,446 @@
+name: SIGESC Production Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type DEPLOY_SIGESC_PRODUCTION_MAIN to deploy the exact current main SHA'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: sigesc-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy exact main SHA to Coolify production
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    env:
+      EXPECTED_COMPOSE_PROJECT: bww8wogkcs0sws8sc80s4k4c
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Validate protected production dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.confirmation }}' = 'DEPLOY_SIGESC_PRODUCTION_MAIN' || {
+            echo 'SIGESC_PRODUCTION_DEPLOY_CONFIRMATION_INVALID'
+            exit 1
+          }
+          test '${{ github.ref_name }}' = 'main' || {
+            echo 'SIGESC_PRODUCTION_DEPLOY_MAIN_REQUIRED'
+            exit 1
+          }
+          [[ '${{ github.sha }}' =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'SIGESC_PRODUCTION_DEPLOY_SHA_INVALID'
+            exit 1
+          }
+          echo 'SIGESC_PRODUCTION_DEPLOY_DISPATCH=PASS'
+          echo 'TARGET_SHA=${{ github.sha }}'
+
+      - name: Checkout exact deployment SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Fail closed unless main and push CI are green
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY' | tee evidence/github-predeploy-gate.txt
+          import json
+          import os
+          import time
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          target = os.environ['TARGET_SHA']
+          token = os.environ['GH_TOKEN']
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {token}',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'sigesc-production-deploy',
+          }
+
+          def get_json(url):
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+
+          main = get_json(f'https://api.github.com/repos/{repo}/branches/main')
+          main_sha = main['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'MAIN_MOVED: expected {target}, current {main_sha}')
+          print(f'MAIN_SHA={main_sha}')
+
+          query = urllib.parse.urlencode({
+              'head_sha': target,
+              'event': 'push',
+              'per_page': 100,
+          })
+          url = f'https://api.github.com/repos/{repo}/actions/runs?{query}'
+          deadline = time.time() + 600
+
+          while True:
+              runs = get_json(url).get('workflow_runs', [])
+              ci = [r for r in runs if r.get('name') == 'CI - Build & Lint']
+              pending = [r for r in runs if r.get('status') != 'completed']
+              bad = [
+                  r for r in runs
+                  if r.get('status') == 'completed'
+                  and r.get('conclusion') not in {'success', 'skipped', 'neutral'}
+              ]
+
+              if bad:
+                  for r in bad:
+                      print(f"FAILED_PUSH_WORKFLOW={r.get('name')}:{r.get('conclusion')}:{r.get('id')}")
+                  raise SystemExit('PUSH_CI_NOT_GREEN')
+
+              if ci and ci[0].get('status') == 'completed' and ci[0].get('conclusion') == 'success' and not pending:
+                  break
+
+              if time.time() >= deadline:
+                  raise SystemExit('PUSH_CI_GATE_TIMEOUT')
+              time.sleep(10)
+
+          print(f'PUSH_WORKFLOW_COUNT={len(runs)}')
+          print('CI_BUILD_LINT=success')
+          print('ALL_PUSH_WORKFLOWS_GREEN=YES')
+          print('GITHUB_PREDEPLOY_GATE=PASS')
+          PY
+
+      - name: Configure pinned production SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "SIGESC_PRODUCTION_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh evidence
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/sigesc_prod_key
+          chmod 600 ~/.ssh/sigesc_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'SIGESC_PRODUCTION_SSH_TRUST=PASS'
+
+      - name: Re-discover and pin production topology
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/predeploy-topology.txt'
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash -s -- "$MONGO_CONTAINER" > "$raw" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          docker inspect "$mongo_container" >/dev/null
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          workdir="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$mongo_container")"
+          config_files="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$mongo_container")"
+          printf 'COMPOSE_PROJECT=%s\n' "$project"
+          printf 'COMPOSE_WORKING_DIR=%s\n' "$workdir"
+          printf 'COMPOSE_CONFIG_FILES=%s\n' "$config_files"
+          printf 'MONGO_HEALTH=%s\n' "$(docker inspect -f '{{.State.Health.Status}}' "$mongo_container")"
+          if [ -d "$workdir/.git" ]; then
+            printf 'WORKDIR_GIT_REPOSITORY=YES\n'
+          else
+            printf 'WORKDIR_GIT_REPOSITORY=NO\n'
+          fi
+          first_config="${config_files%%,*}"
+          case "$first_config" in
+            /*) compose_path="$first_config" ;;
+            *) compose_path="$workdir/$first_config" ;;
+          esac
+          printf 'PRIMARY_COMPOSE_PATH=%s\n' "$compose_path"
+          printf '%s\n' '--- SERVICES ---'
+          (cd "$workdir" && docker compose -f "$compose_path" config --services)
+          REMOTE
+
+          project="$(sed -n 's/^COMPOSE_PROJECT=//p' "$raw")"
+          workdir="$(sed -n 's/^COMPOSE_WORKING_DIR=//p' "$raw")"
+          compose_path="$(sed -n 's/^PRIMARY_COMPOSE_PATH=//p' "$raw")"
+          mongo_health="$(sed -n 's/^MONGO_HEALTH=//p' "$raw")"
+          git_repo="$(sed -n 's/^WORKDIR_GIT_REPOSITORY=//p' "$raw")"
+
+          test "$project" = "$EXPECTED_COMPOSE_PROJECT" || { echo "SIGESC_PRODUCTION_PROJECT_DRIFT:$project"; exit 1; }
+          test "$workdir" = "/data/coolify/applications/$EXPECTED_COMPOSE_PROJECT" || { echo "SIGESC_PRODUCTION_WORKDIR_DRIFT:$workdir"; exit 1; }
+          test "$compose_path" = "$workdir/docker-compose.yaml" || { echo "SIGESC_PRODUCTION_COMPOSE_DRIFT:$compose_path"; exit 1; }
+          test "$mongo_health" = 'healthy' || { echo 'SIGESC_PRODUCTION_MONGO_NOT_HEALTHY'; exit 1; }
+          test "$git_repo" = 'NO' || { echo 'SIGESC_PRODUCTION_UNEXPECTED_REMOTE_GIT_REPOSITORY'; exit 1; }
+
+          services="$(sed -n '/^--- SERVICES ---$/,$p' "$raw" | tail -n +2 | sort | tr '\n' ' ' | xargs)"
+          test "$services" = 'backend frontend mongo' || { echo "SIGESC_PRODUCTION_SERVICE_SET_DRIFT:$services"; exit 1; }
+
+          release_dir="$workdir/.github-deploy/releases/${{ github.sha }}-${{ github.run_id }}"
+          receipt_path="$workdir/.github-deploy/receipts/${{ github.sha }}-${{ github.run_id }}.env"
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+          echo "workdir=$workdir" >> "$GITHUB_OUTPUT"
+          echo "compose_path=$compose_path" >> "$GITHUB_OUTPUT"
+          echo "release_dir=$release_dir" >> "$GITHUB_OUTPUT"
+          echo "receipt_path=$receipt_path" >> "$GITHUB_OUTPUT"
+          echo 'SIGESC_PRODUCTION_TOPOLOGY_GATE=PASS'
+
+      - name: Stage immutable GitHub release on production host
+        shell: bash
+        env:
+          RELEASE_DIR: ${{ steps.topology.outputs.release_dir }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          archive="evidence/sigesc-release-${GITHUB_RUN_ID}.tar.gz"
+          remote_archive="/tmp/sigesc-release-${GITHUB_RUN_ID}-${TARGET_SHA}.tar.gz"
+          tar --exclude=.git --exclude=evidence -czf "$archive" .
+          archive_sha="$(sha256sum "$archive" | awk '{print $1}')"
+
+          scp -q \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "$archive" "${PROD_USER}@${PROD_HOST}:${remote_archive}"
+
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash -s -- "$RELEASE_DIR" "$TARGET_SHA" "$remote_archive" "$archive_sha" <<'REMOTE'
+          set -euo pipefail
+          release_dir="$1"
+          target_sha="$2"
+          remote_archive="$3"
+          expected_archive_sha="$4"
+          case "$release_dir" in
+            /data/coolify/applications/*/.github-deploy/releases/*) ;;
+            *) echo 'SIGESC_RELEASE_PATH_INVALID'; exit 1 ;;
+          esac
+          case "$remote_archive" in
+            /tmp/sigesc-release-*.tar.gz) ;;
+            *) echo 'SIGESC_REMOTE_ARCHIVE_PATH_INVALID'; exit 1 ;;
+          esac
+          actual_archive_sha="$(sha256sum "$remote_archive" | awk '{print $1}')"
+          test "$actual_archive_sha" = "$expected_archive_sha" || { echo 'SIGESC_RELEASE_ARCHIVE_SHA_MISMATCH'; exit 1; }
+          mkdir -p "$release_dir"
+          tar -xzf "$remote_archive" -C "$release_dir"
+          rm -f "$remote_archive"
+          printf '%s\n' "$target_sha" > "$release_dir/.sigesc-github-sha"
+          test "$(cat "$release_dir/.sigesc-github-sha")" = "$target_sha"
+          test -f "$release_dir/scripts/ops/sigesc_github_only_deploy.sh"
+          test -f "$release_dir/backend/Dockerfile"
+          test -f "$release_dir/frontend/Dockerfile"
+          printf 'STAGED_RELEASE=%s\n' "$release_dir"
+          printf 'STAGED_SHA=%s\n' "$target_sha"
+          printf 'STAGED_ARCHIVE_SHA256=%s\n' "$actual_archive_sha"
+          REMOTE
+
+          rm -f "$archive"
+          echo "RELEASE_ARCHIVE_SHA256=$archive_sha" > evidence/release-stage.txt
+          echo 'SIGESC_IMMUTABLE_RELEASE_STAGE=PASS' >> evidence/release-stage.txt
+          cat evidence/release-stage.txt
+
+      - name: Execute backend/frontend deployment with container rollback
+        id: deploy_runtime
+        continue-on-error: true
+        shell: bash
+        env:
+          PROJECT: ${{ steps.topology.outputs.project }}
+          WORKDIR: ${{ steps.topology.outputs.workdir }}
+          COMPOSE_PATH: ${{ steps.topology.outputs.compose_path }}
+          RELEASE_DIR: ${{ steps.topology.outputs.release_dir }}
+        run: |
+          set -euo pipefail
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash "$RELEASE_DIR/scripts/ops/sigesc_github_only_deploy.sh" \
+              deploy "$PROJECT" "$WORKDIR" "$COMPOSE_PATH" "$RELEASE_DIR" \
+              '${{ github.sha }}' '${{ github.run_id }}' \
+            > evidence/remote-deploy.txt 2>&1
+          cat evidence/remote-deploy.txt
+
+      - name: Public health, database connectivity and SHA smoke
+        id: public_smoke
+        if: steps.deploy_runtime.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 'https://api.sigesc.aprenderdigital.top/api/health' > evidence/public-api-health.json
+          curl --fail --silent --show-error --location --max-time 30 --head 'https://sigesc.aprenderdigital.top/' > evidence/public-frontend-headers.txt
+          curl --fail --silent --show-error --max-time 30 'https://sigesc.aprenderdigital.top/version.json' > evidence/public-frontend-version.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          health = json.loads(Path('evidence/public-api-health.json').read_text(encoding='utf-8'))
+          if health.get('status') != 'healthy' or health.get('database') != 'connected':
+              raise SystemExit('PUBLIC_API_HEALTH_INVALID')
+          version = json.loads(Path('evidence/public-frontend-version.json').read_text(encoding='utf-8'))
+          if version.get('git_sha') != os.environ['TARGET_SHA']:
+              raise SystemExit('PUBLIC_FRONTEND_SHA_MISMATCH')
+          print('PUBLIC_API_HEALTH=healthy')
+          print('PUBLIC_DATABASE=connected')
+          print('PUBLIC_FRONTEND_HTTP=PASS')
+          print(f"PUBLIC_FRONTEND_SHA={version['git_sha']}")
+          print('SIGESC_PUBLIC_POSTDEPLOY_SMOKE=PASS')
+          PY
+
+      - name: Roll back containers when public smoke fails
+        id: public_rollback
+        if: steps.deploy_runtime.outcome == 'success' && steps.public_smoke.outcome == 'failure'
+        continue-on-error: true
+        shell: bash
+        env:
+          RELEASE_DIR: ${{ steps.topology.outputs.release_dir }}
+          RECEIPT_PATH: ${{ steps.topology.outputs.receipt_path }}
+        run: |
+          set -euo pipefail
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash "$RELEASE_DIR/scripts/ops/sigesc_github_only_deploy.sh" rollback "$RECEIPT_PATH" \
+            > evidence/public-smoke-rollback.txt 2>&1
+          cat evidence/public-smoke-rollback.txt
+
+      - name: Verify public service after rollback
+        id: rollback_smoke
+        if: steps.public_rollback.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 'https://api.sigesc.aprenderdigital.top/api/health' > evidence/rollback-api-health.json
+          curl --fail --silent --show-error --location --max-time 30 --head 'https://sigesc.aprenderdigital.top/' > evidence/rollback-frontend-headers.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          health = json.loads(Path('evidence/rollback-api-health.json').read_text(encoding='utf-8'))
+          if health.get('status') != 'healthy' or health.get('database') != 'connected':
+              raise SystemExit('ROLLBACK_PUBLIC_HEALTH_INVALID')
+          print('ROLLBACK_PUBLIC_HEALTH=PASS')
+          PY
+
+      - name: Finalize successful deployment receipt
+        id: finalize
+        if: steps.deploy_runtime.outcome == 'success' && steps.public_smoke.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          RELEASE_DIR: ${{ steps.topology.outputs.release_dir }}
+          RECEIPT_PATH: ${{ steps.topology.outputs.receipt_path }}
+        run: |
+          set -euo pipefail
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/sigesc_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash "$RELEASE_DIR/scripts/ops/sigesc_github_only_deploy.sh" finalize "$RECEIPT_PATH" \
+            > evidence/finalize.txt 2>&1
+          cat evidence/finalize.txt
+
+      - name: Write deployment evidence summary
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          {
+            echo 'SIGESC_GITHUB_ONLY_DEPLOY_EVIDENCE_V1'
+            echo 'TARGET_SHA=${{ github.sha }}'
+            echo 'RUN_ID=${{ github.run_id }}'
+            echo 'COMPOSE_PROJECT=${{ steps.topology.outputs.project }}'
+            echo 'DEPLOY_RUNTIME_OUTCOME=${{ steps.deploy_runtime.outcome }}'
+            echo 'PUBLIC_SMOKE_OUTCOME=${{ steps.public_smoke.outcome }}'
+            echo 'PUBLIC_ROLLBACK_OUTCOME=${{ steps.public_rollback.outcome }}'
+            echo 'ROLLBACK_SMOKE_OUTCOME=${{ steps.rollback_smoke.outcome }}'
+            echo 'FINALIZE_OUTCOME=${{ steps.finalize.outcome }}'
+            echo 'EXPLICIT_DATABASE_MIGRATION=NO'
+            echo 'MONGO_REBUILD_OR_RESTART=FORBIDDEN'
+          } > evidence/deploy-summary.txt
+          cat evidence/deploy-summary.txt
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sigesc-production-deploy-${{ github.run_id }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Final deployment gate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          deploy='${{ steps.deploy_runtime.outcome }}'
+          smoke='${{ steps.public_smoke.outcome }}'
+          rollback='${{ steps.public_rollback.outcome }}'
+          rollback_smoke='${{ steps.rollback_smoke.outcome }}'
+          finalize='${{ steps.finalize.outcome }}'
+
+          if [ "$deploy" = 'success' ] && [ "$smoke" = 'success' ] && [ "$finalize" = 'success' ]; then
+            echo 'SIGESC_PRODUCTION_DEPLOY=APPLIED'
+            echo 'CONTAINER_ROLLBACK_WRITES=0'
+            exit 0
+          fi
+
+          if [ "$deploy" = 'success' ] && [ "$smoke" = 'failure' ] && [ "$rollback" = 'success' ] && [ "$rollback_smoke" = 'success' ]; then
+            echo 'SIGESC_PRODUCTION_DEPLOY=SAFE_ROLLBACK'
+            echo 'Do not rerun automatically.'
+            exit 1
+          fi
+
+          if [ "$deploy" = 'failure' ]; then
+            echo 'SIGESC_PRODUCTION_DEPLOY=REMOTE_EXECUTOR_FAILED'
+            echo 'Inspect remote-deploy evidence before any rerun.'
+            exit 1
+          fi
+
+          echo 'SIGESC_PRODUCTION_DEPLOY=AMBIGUOUS_OR_ROLLBACK_INCOMPLETE'
+          echo 'Hard stop. Do not rerun automatically.'
+          exit 1
