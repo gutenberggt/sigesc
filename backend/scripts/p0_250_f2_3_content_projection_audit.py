@@ -7,7 +7,10 @@ The collector compares the two effective read models involved in the reported
 - management legacy view: ``learning_objects`` for the target class/month;
 - professor DVD view: the same history composition used by
   ``list_assignment_content_history`` for the professor's content-enabled
-  assignments, aggregated like the frontend ``contentDvdBridge``.
+  assignments, aggregated like the frontend ``contentDvdBridge``;
+- when no content-enabled DVD diary exists, the professor frontend falls back to
+  the same legacy class/month reader. That fallback is modeled explicitly rather
+  than treated as an audit failure.
 
 Only structural metadata is emitted. Record ids, content text, teacher ids,
 student data and authentication material are never included in the result.
@@ -244,6 +247,65 @@ def analyze_content_projection(
     }
 
 
+def analyze_legacy_fallback_projection(
+    *,
+    management_rows: list[dict[str, Any]],
+    legacy_assignment_course_ids: list[str],
+    target_teacher_id: str,
+    course_names: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Model the effective professor read when the DVD bridge has no candidates.
+
+    In Anos Iniciais, LearningObjects.js requests class + academic_year + month
+    without a component filter. When contentDvdBridge resolves zero content
+    diaries, it leaves that GET untouched, so professor and management consume the
+    same legacy dataset for the same tenant/class/month. This helper records that
+    expected parity and adds provenance counters without emitting identities.
+    """
+    course_names = course_names or {}
+    course_ids = sorted({_sid(value) for value in legacy_assignment_course_ids if _sid(value)})
+    assignment_scopes = [
+        {"component_id": course_id, "valid_from": None, "valid_until": None}
+        for course_id in course_ids
+    ]
+    professor_rows = [dict(row, source="learning_objects") for row in management_rows]
+    analysis = analyze_content_projection(
+        management_rows=management_rows,
+        professor_rows=professor_rows,
+        assignment_scopes=assignment_scopes,
+        target_teacher_id=target_teacher_id,
+        course_names=course_names,
+    )
+    analysis["projection_mode"] = "LEGACY_FALLBACK"
+    analysis["legacy_teacher_assignment_component_count"] = len(course_ids)
+
+    by_date: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in management_rows:
+        date_value = _date(row.get("date"))
+        if date_value:
+            by_date[date_value].append(row)
+    analysis["legacy_date_provenance"] = [
+        {
+            "date": date_value,
+            "record_count": len(rows),
+            "component_count": len({_component_id(row) for row in rows if _component_id(row)}),
+            "recorded_by_target_professor_count": sum(
+                1 for row in rows if _sid(row.get("recorded_by")) == _sid(target_teacher_id)
+            ),
+            "recorded_by_other_or_unknown_count": sum(
+                1 for row in rows if _sid(row.get("recorded_by")) != _sid(target_teacher_id)
+            ),
+        }
+        for date_value, rows in sorted(by_date.items(), reverse=True)
+    ]
+
+    if len(course_ids) == EXPECTED_COMPONENTS:
+        analysis["classification"] = "CONTENT_LEGACY_FALLBACK_PARITY_EXPECTED"
+    else:
+        analysis["classification"] = "PROFESSOR_CONTENT_ENTITLEMENT_DRIFT"
+    return analysis
+
+
 async def _unique_one(collection, query: dict[str, Any], projection: dict[str, int], label: str) -> dict[str, Any]:
     docs = await collection.find(query, projection).limit(3).to_list(3)
     if len(docs) != 1:
@@ -314,23 +376,6 @@ async def _run_live_audit() -> dict[str, Any]:
             "CLASS",
         )
 
-        reference_date = datetime.now(timezone.utc).date().isoformat()
-        diaries_payload = await list_teacher_diaries(
-            db,
-            user,
-            academic_year=ACADEMIC_YEAR,
-            reference_date=reference_date,
-            active_mantenedora_id=user.get("mantenedora_id") or class_doc.get("mantenedora_id"),
-        )
-        target_diaries = [
-            item
-            for item in diaries_payload.get("items", [])
-            if _sid(item.get("class_id")) == _sid(class_doc["id"])
-            and (item.get("capabilities") or {}).get("content_enabled") is True
-        ]
-        if not target_diaries:
-            raise RuntimeError("P0_250_F2_3_NO_CONTENT_ENABLED_DIARIES")
-
         month_start = f"{ACADEMIC_YEAR}-{TARGET_MONTH:02d}-01"
         month_end = (
             f"{ACADEMIC_YEAR + 1}-01-01"
@@ -353,6 +398,34 @@ async def _run_live_audit() -> dict[str, Any]:
                 "recorded_by": 1,
             },
         ).to_list(5000)
+
+        legacy_assignments = await db.teacher_assignments.find(
+            {
+                "staff_id": staff["id"],
+                "class_id": class_doc["id"],
+                "academic_year": ACADEMIC_YEAR,
+                "status": {"$in": ["ativo", "active"]},
+            },
+            {"_id": 0, "course_id": 1},
+        ).to_list(500)
+        legacy_assignment_course_ids = [
+            _sid(row.get("course_id")) for row in legacy_assignments if _sid(row.get("course_id"))
+        ]
+
+        reference_date = datetime.now(timezone.utc).date().isoformat()
+        diaries_payload = await list_teacher_diaries(
+            db,
+            user,
+            academic_year=ACADEMIC_YEAR,
+            reference_date=reference_date,
+            active_mantenedora_id=user.get("mantenedora_id") or class_doc.get("mantenedora_id"),
+        )
+        target_diaries = [
+            item
+            for item in diaries_payload.get("items", [])
+            if _sid(item.get("class_id")) == _sid(class_doc["id"])
+            and (item.get("capabilities") or {}).get("content_enabled") is True
+        ]
 
         professor_history_rows: list[dict[str, Any]] = []
         assignment_scopes: list[dict[str, Any]] = []
@@ -380,6 +453,7 @@ async def _run_live_audit() -> dict[str, Any]:
         component_ids = {
             _component_id(row) for row in management_rows + professor_history_rows if _component_id(row)
         }
+        component_ids.update(legacy_assignment_course_ids)
         component_ids.update(
             _sid(scope.get("component_id"))
             for scope in assignment_scopes
@@ -391,30 +465,29 @@ async def _run_live_audit() -> dict[str, Any]:
         ).to_list(max(1, len(component_ids)))
         course_names = {_sid(row.get("id")): _sid(row.get("name")) for row in courses}
 
-        legacy_assignments = await db.teacher_assignments.find(
-            {
-                "staff_id": staff["id"],
-                "class_id": class_doc["id"],
-                "academic_year": ACADEMIC_YEAR,
-                "status": {"$in": ["ativo", "active"]},
-            },
-            {"_id": 0, "course_id": 1},
-        ).to_list(500)
+        if target_diaries:
+            analysis = analyze_content_projection(
+                management_rows=management_rows,
+                professor_rows=professor_history_rows,
+                assignment_scopes=assignment_scopes,
+                target_teacher_id=_sid(user["id"]),
+                course_names=course_names,
+            )
+            analysis["projection_mode"] = "DVD_HISTORY"
+            analysis["legacy_teacher_assignment_component_count"] = len(set(legacy_assignment_course_ids))
+        else:
+            analysis = analyze_legacy_fallback_projection(
+                management_rows=management_rows,
+                legacy_assignment_course_ids=legacy_assignment_course_ids,
+                target_teacher_id=_sid(user["id"]),
+                course_names=course_names,
+            )
 
-        analysis = analyze_content_projection(
-            management_rows=management_rows,
-            professor_rows=professor_history_rows,
-            assignment_scopes=assignment_scopes,
-            target_teacher_id=_sid(user["id"]),
-            course_names=course_names,
-        )
-        analysis["legacy_teacher_assignment_component_count"] = len({
-            _sid(row.get("course_id")) for row in legacy_assignments if _sid(row.get("course_id"))
-        })
+        analysis["dvd_content_diary_count"] = len(target_diaries)
         analysis["dvd_blocked_diary_count"] = int(diaries_payload.get("blocked_total") or 0)
 
         return {
-            "schema": "P0_250_F2_3_CONTENT_PROJECTION_AUDIT_V1",
+            "schema": "P0_250_F2_3_CONTENT_PROJECTION_AUDIT_V2",
             "status": "PASS",
             "classification": analysis["classification"],
             "database_mutation": False,
