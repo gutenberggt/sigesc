@@ -2,6 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Proveniência imutável do artefato implantado.
+ARG SIGESC_GIT_SHA=unknown
+LABEL org.opencontainers.image.revision=$SIGESC_GIT_SHA
+ENV SIGESC_GIT_SHA=$SIGESC_GIT_SHA
+
 # Instala dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
