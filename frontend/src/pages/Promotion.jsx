@@ -683,9 +683,13 @@ export function Promotion() {
       processed.forEach((item, index) => {
         item.number = index + 1;
       });
-      
+
+      // F2.2.1: use a mesma projeção normalizada para ambos os perfis.
+      // `allGrades` existe apenas no ramo de gestão; referenciá-lo aqui fazia o
+      // professor receber um toast falso depois que a tabela já havia sido preenchida.
+      const flattenedGrades = Array.from(gradesByStudent.values()).flat();
       setPromotionData(processed);
-      setGradesData(allGrades.flat());
+      setGradesData(flattenedGrades);
       
     } catch (error) {
       console.error('Erro ao carregar dados de promoção:', error);
