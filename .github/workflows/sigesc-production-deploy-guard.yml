@@ -51,7 +51,6 @@ jobs:
           for marker in required:
               assert marker in workflow, marker
 
-          # O workflow de produção é somente manual; não pode ganhar trigger de push/PR.
           trigger_prefix = workflow.split('permissions:', 1)[0]
           assert 'pull_request:' not in trigger_prefix
           assert '\n  push:' not in trigger_prefix
@@ -67,7 +66,6 @@ jobs:
           workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
           executor = Path('scripts/ops/sigesc_github_only_deploy.sh').read_text(encoding='utf-8')
 
-          # Não transformar o workspace Coolify em clone Git nem editar o Compose gerado.
           for forbidden in (
               'git pull', 'git reset', 'git checkout', 'git fetch',
               'docker compose down', 'docker restart', 'docker stop',
@@ -77,9 +75,9 @@ jobs:
 
           assert 'WORKDIR_GIT_REPOSITORY=NO' in workflow
           assert '.github-deploy/releases/' in workflow
-          assert '.github-deploy/overrides/' in executor
+          assert 'override_dir="$deploy_root/overrides"' in executor
+          assert 'receipt_dir="$deploy_root/receipts"' in executor
 
-          # O runtime só pode ser recriado para backend/frontend; Mongo é apenas inspecionado.
           assert 'up -d --no-deps --no-build --force-recreate backend' in executor
           assert 'up -d --no-deps --no-build --force-recreate frontend' in executor
           assert 'up -d --no-deps --no-build --force-recreate mongo' not in executor
@@ -111,6 +109,7 @@ jobs:
           assert 'RUNNING_BACKEND_REVISION_MISMATCH' in executor
           assert 'RUNNING_FRONTEND_REVISION_MISMATCH' in executor
           assert 'PUBLIC_FRONTEND_SHA_MISMATCH' in workflow
+          assert 'SIGESC_RELEASE_ARCHIVE_SHA_MISMATCH' in workflow
           print('SIGESC_DEPLOY_SHA_PROVENANCE_GUARD=PASS')
           PY
 
