@@ -63,3 +63,52 @@ export const filterPromotionGradesForClass = (
     allowedCourseIds.has(String(grade?.course_id || ''))
   );
 };
+
+export const buildPromotionGradesByStudentFromByClass = (
+  courseResponses = [],
+  studentIds = [],
+  classId,
+  allowedCourses = []
+) => {
+  const byStudent = new Map(
+    (studentIds || [])
+      .filter(Boolean)
+      .map(studentId => [String(studentId), []])
+  );
+
+  if (!classId || byStudent.size === 0) return byStudent;
+
+  const allowedCourseIds = new Set(
+    (allowedCourses || [])
+      .map(course => course?.id ?? course)
+      .filter(Boolean)
+      .map(String)
+  );
+
+  // Fail-closed: sem entitlement curricular explícito, nenhuma nota é projetada.
+  if (allowedCourseIds.size === 0) return byStudent;
+
+  const seenPairs = new Set();
+  (courseResponses || []).forEach(rows => {
+    (rows || []).forEach(row => {
+      const grade = row?.grade;
+      const studentId = row?.student?.id ?? grade?.student_id;
+      if (!grade || !studentId) return;
+
+      const normalizedStudentId = String(studentId);
+      const normalizedCourseId = String(grade?.course_id || '');
+      if (!byStudent.has(normalizedStudentId)) return;
+      if (String(grade?.class_id || '') !== String(classId)) return;
+      if (!allowedCourseIds.has(normalizedCourseId)) return;
+
+      const pairKey = `${normalizedStudentId}::${normalizedCourseId}`;
+      if (seenPairs.has(pairKey)) return;
+      seenPairs.add(pairKey);
+
+      byStudent.get(normalizedStudentId).push(grade);
+    });
+  });
+
+  return byStudent;
+};
+
