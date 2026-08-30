@@ -61,6 +61,24 @@ jobs:
           print('SIGESC_RELEASE_PROMOTION_CONTRACT_GUARD=PASS')
           PY
 
+      - name: Guard evidence workspace survives checkout
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
+          checkout = workflow.index('- name: Checkout exact release SHA')
+          evidence = workflow.index('- name: Initialize release evidence workspace')
+          gate = workflow.index('- name: Fail closed unless main and push CI are green')
+          assert checkout < evidence < gate
+          assert 'SIGESC_RELEASE_EVIDENCE_WORKSPACE=READY' in workflow
+          assert workflow.count('mkdir -p evidence') >= 3
+          assert "tee evidence/github-release-gate.txt" in workflow
+          assert "> evidence/release-summary.txt" in workflow
+          print('SIGESC_RELEASE_EVIDENCE_WORKSPACE_GUARD=PASS')
+          PY
+
       - name: Guard Coolify as sole runtime mutator
         shell: bash
         run: |
