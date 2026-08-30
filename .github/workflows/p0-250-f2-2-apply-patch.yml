@@ -1,0 +1,40 @@
+name: "P0 #250 F2.2 Apply reviewed patch"
+
+on:
+  push:
+    branches:
+      - fix/250-f2.2-professor-promotion-byclass
+    paths:
+      - '.github/workflows/p0-250-f2-2-apply-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    name: Apply F2.2 Promotion by-class patch
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/250-f2.2-professor-promotion-byclass
+          fetch-depth: 0
+
+      - name: Apply deterministic patch
+        run: python .github/scripts/p0_250_f2_2_apply_patch.py
+
+      - name: Commit reviewed F2.2 change and remove one-shot applier
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/pages/Promotion.jsx \
+                  frontend/src/utils/promotionParity.js \
+                  frontend/src/utils/promotionParity.test.js
+          git rm .github/scripts/p0_250_f2_2_apply_patch.py \
+                 .github/workflows/p0-250-f2-2-apply-patch.yml
+          git commit -m "fix(#250): use by-class grades in professor Promotion F2.2"
+          git push origin HEAD:fix/250-f2.2-professor-promotion-byclass
