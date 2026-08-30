@@ -1,6 +1,14 @@
 from pathlib import Path
 import importlib.util
+import sys
+import types
 
+
+# Unit tests exercise the pure classifier only; production supplies pymongo inside
+# the backend container. Keep this guard test independent from external packages.
+fake_pymongo = types.ModuleType("pymongo")
+fake_pymongo.MongoClient = object
+sys.modules.setdefault("pymongo", fake_pymongo)
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "p0_250_f2_6_content_component_parity_audit.py"
 spec = importlib.util.spec_from_file_location("p0_250_f2_6", SCRIPT)
