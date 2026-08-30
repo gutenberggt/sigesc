@@ -14,6 +14,12 @@ import { usaAvaliacaoConceitual, valorParaConceito, isEducacaoInfantil } from '@
 import { toast } from 'sonner';
 import { useProgressTask } from '@/contexts/ProgressContext';
 import { downloadBlobWithProgress } from '@/utils/downloadBlob';
+import {
+  buildPromotionGradeFilters,
+  filterPromotionGradesForClass,
+  getProfessorPromotionCourseIds,
+  resolveProfessorPromotionCourses,
+} from '@/utils/promotionParity';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -415,57 +421,72 @@ export function Promotion() {
       // (se aluno não tem enrollment na turma, usamos um placeholder 'active')
       const studentIds = filteredStudents.map(s => s.id);
       
-      // Buscar componentes curriculares filtrados pelas alocações de professores da turma
-      const coursesData = await coursesAPI.getAll(classInfo.education_level);
-      let filteredCourses = coursesData || [];
-      
-      // Filtrar por teacher_assignments (componentes efetivamente alocados na turma)
-      let usedTeacherAssignments = false;
-      try {
-        const assignments = await teacherAssignmentAPI.list({
-          class_id: selectedClass
-        });
-        if (assignments && assignments.length > 0) {
-          const assignedCourseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
-          // Buscar TODOS os cursos para pegar também os de integral/AEE
-          const allCourses = await coursesAPI.getAll();
-          filteredCourses = (allCourses || []).filter(c => assignedCourseIds.includes(c.id));
-          usedTeacherAssignments = true;
-        }
-      } catch (e) {
-        console.warn('Erro ao buscar alocações:', e.message);
-      }
-      
-      // Filtro por atendimento_programa (só no fallback, quando não há teacher_assignments)
-      if (!usedTeacherAssignments) {
-        const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
-        filteredCourses = filteredCourses.filter(course => {
-          const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
-          if (turmaAtendimento === 'atendimento_integral' || turmaAtendimento === 'integral') {
-            return !courseAtendimento || courseAtendimento === 'atendimento_integral' || courseAtendimento === 'integral';
-          } else if (turmaAtendimento === 'aee') {
-            return courseAtendimento === 'aee';
-          } else {
-            return !courseAtendimento;
-          }
-        });
-      }
-      
-      // Professor restrito ao vínculo: exibir SOMENTE os componentes que ele leciona nesta turma
+      // P0 #250 — paridade Notas ⇄ Promoção.
+      // Para professor, /professor/turmas é a autoridade de entitlement curricular.
+      // A rota administrativa /teacher-assignments não é consultada nesse caminho.
+      let filteredCourses = [];
       if (restrictToProfessor) {
-        const turmaVinculo = (professorTurmas || []).find(t => t.id === selectedClass);
-        const myCourseIds = new Set((turmaVinculo?.componentes || []).map(c => c.id));
-        if (myCourseIds.size > 0) {
-          filteredCourses = filteredCourses.filter(c => myCourseIds.has(c.id));
+        const professorCourseIds = getProfessorPromotionCourseIds(
+          professorTurmas,
+          selectedClass
+        );
+
+        // Fail-closed: sem course_id explicitamente vinculado, não há componente exibível.
+        if (professorCourseIds.length > 0) {
+          const allCourses = await coursesAPI.getAll();
+          filteredCourses = resolveProfessorPromotionCourses(
+            allCourses,
+            professorTurmas,
+            selectedClass
+          );
+        }
+      } else {
+        // Perfis de gestão preservam a projeção institucional existente da turma.
+        const coursesData = await coursesAPI.getAll(classInfo.education_level);
+        filteredCourses = coursesData || [];
+
+        // Filtrar por teacher_assignments (componentes efetivamente alocados na turma)
+        let usedTeacherAssignments = false;
+        try {
+          const assignments = await teacherAssignmentAPI.list({
+            class_id: selectedClass
+          });
+          if (assignments && assignments.length > 0) {
+            const assignedCourseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
+            // Buscar TODOS os cursos para pegar também os de integral/AEE
+            const allCourses = await coursesAPI.getAll();
+            filteredCourses = (allCourses || []).filter(c => assignedCourseIds.includes(c.id));
+            usedTeacherAssignments = true;
+          }
+        } catch (e) {
+          console.warn('Erro ao buscar alocações:', e.message);
+        }
+        
+        // Filtro por atendimento_programa (só no fallback, quando não há teacher_assignments)
+        if (!usedTeacherAssignments) {
+          const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
+          filteredCourses = filteredCourses.filter(course => {
+            const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
+            if (turmaAtendimento === 'atendimento_integral' || turmaAtendimento === 'integral') {
+              return !courseAtendimento || courseAtendimento === 'atendimento_integral' || courseAtendimento === 'integral';
+            } else if (turmaAtendimento === 'aee') {
+              return courseAtendimento === 'aee';
+            } else {
+              return !courseAtendimento;
+            }
+          });
         }
       }
 
       const orderedCourses = ordenarComponentes(filteredCourses, classInfo.grade_level);
       setCourses(orderedCourses);
 
-      // Buscar notas de todos os alunos da turma
+      // Buscar notas de todos os alunos PRESAS à turma selecionada.
+      // O filtro class_id elimina colisão com notas do mesmo estudante/ano em outra turma.
       const gradesPromises = studentIds.map(studentId => 
-        gradesAPI.getAll({ student_id: studentId, academic_year: selectedYear })
+        gradesAPI.getAll(
+          buildPromotionGradeFilters(studentId, selectedClass, selectedYear)
+        )
       );
       const allGrades = await Promise.all(gradesPromises);
       
@@ -475,7 +496,14 @@ export function Promotion() {
         
         // Encontrar o índice correto das notas baseado no studentId
         const studentIdIndex = studentIds.indexOf(student.id);
-        const studentGrades = studentIdIndex >= 0 ? (allGrades[studentIdIndex] || []) : [];
+        const rawStudentGrades = studentIdIndex >= 0 ? (allGrades[studentIdIndex] || []) : [];
+        // Defesa em profundidade: mesmo que a API devolva payload mais amplo,
+        // apenas turma atual + componentes exibíveis entram na projeção.
+        const studentGrades = filterPromotionGradesForClass(
+          rawStudentGrades,
+          selectedClass,
+          orderedCourses
+        );
         
         // Organizar notas por componente
         const gradesByComponent = {};
@@ -558,7 +586,7 @@ export function Promotion() {
           // lançados em todos os componentes regulares.
           const regEntries = Object.entries(gradesByComponent)
             .filter(([courseId]) => {
-              const course = courses.find(c => c.id === courseId);
+              const course = orderedCourses.find(c => c.id === courseId);
               if (!course) return true;
               const ap = (course.atendimento_programa || course.atendimento || '').toLowerCase();
               return !ap.includes('integral') && !ap.includes('aee');
@@ -576,7 +604,7 @@ export function Promotion() {
           // Só considerar componentes REGULARES (atendimento_programa diferente de regular é formativo)
           const regEntries = Object.entries(gradesByComponent)
             .filter(([courseId]) => {
-              const course = courses.find(c => c.id === courseId);
+              const course = orderedCourses.find(c => c.id === courseId);
               if (!course) return true;
               const ap = (course.atendimento_programa || course.atendimento || '').toLowerCase();
               return !ap.includes('integral') && !ap.includes('aee');
@@ -637,7 +665,16 @@ export function Promotion() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, selectedYear, classes, mediaAprovacao, aprovacaoComDependencia, maxComponentesDependencia]);
+  }, [
+    selectedClass,
+    selectedYear,
+    classes,
+    mediaAprovacao,
+    aprovacaoComDependencia,
+    maxComponentesDependencia,
+    restrictToProfessor,
+    professorTurmas,
+  ]);
 
   useEffect(() => {
     loadPromotionData();
