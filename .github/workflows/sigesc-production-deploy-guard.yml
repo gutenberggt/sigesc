@@ -10,6 +10,7 @@ on:
       - 'frontend/Dockerfile'
       - 'docs/operations/GITHUB_ONLY_PRODUCTION_DEPLOY.md'
       - 'memory/audit/SIGESC_PRODUCTION_DEPLOY_INCIDENT_2026-08-30.md'
+      - 'memory/audit/SIGESC_AUTOMATIC_PRODUCTION_RELEASE_REQUEST_2026-08-30.md'
       - 'scripts/ops/sigesc_github_only_deploy.sh'
 
 permissions:
@@ -34,14 +35,21 @@ jobs:
           required = (
               'name: SIGESC Production Release',
               'workflow_dispatch:',
+              'issues:',
+              'types: [opened]',
               'environment: production',
               'contents: write',
               'actions: read',
+              'issues: write',
               'group: sigesc-production-release',
               'cancel-in-progress: false',
               'PROMOTE_SIGESC_MAIN_TO_PRODUCTION',
-              'github.ref_name',
-              "= 'main'",
+              'SIGESC_PRODUCTION_RELEASE_REQUEST',
+              "!= 'AUTHORIZED'",
+              "github.event.issue.user.login == github.repository_owner",
+              '[SIGESC-PROD-RELEASE] ',
+              'EXPECTED_PRODUCTION_SHA',
+              'PRODUCTION_BASELINE_MOVED',
               '/git/refs/heads/production',
               "'force': False",
               "'force': True",
@@ -58,7 +66,37 @@ jobs:
           trigger_prefix = workflow.split('permissions:', 1)[0]
           assert 'pull_request:' not in trigger_prefix
           assert '\n  push:' not in trigger_prefix
+          assert 'workflow_dispatch:' in trigger_prefix
+          assert 'issues:' in trigger_prefix
           print('SIGESC_RELEASE_PROMOTION_CONTRACT_GUARD=PASS')
+          PY
+
+      - name: Guard automatic request is owner-scoped and baseline-pinned
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
+          required = (
+              "event_name == 'issues'",
+              "creator != owner",
+              'SIGESC_PRODUCTION_RELEASE_REQUEST_OWNER_REQUIRED',
+              'SIGESC_PRODUCTION_RELEASE_REQUEST_MUST_BE_OPEN',
+              'SIGESC_PRODUCTION_RELEASE_DUPLICATE_FIELD',
+              'SIGESC_PRODUCTION_RELEASE_REQUEST_INVALID',
+              'SIGESC_PRODUCTION_RELEASE_REQUEST_TITLE_MISMATCH',
+              "sha_re = re.compile(r'^[0-9a-f]{40}$')",
+              "expected_previous = values.get('EXPECTED_PRODUCTION_SHA', '')",
+              "if expected_previous and previous != expected_previous:",
+              'PRODUCTION_BASELINE_MOVED',
+              "request_mode = 'owner_issue'",
+              'Annotate automatic release request',
+              "'state': 'closed'",
+          )
+          for marker in required:
+              assert marker in workflow, marker
+          print('SIGESC_RELEASE_AUTOMATIC_REQUEST_GUARD=PASS')
           PY
 
       - name: Guard evidence workspace survives checkout
@@ -70,12 +108,13 @@ jobs:
           workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
           checkout = workflow.index('- name: Checkout exact release SHA')
           evidence = workflow.index('- name: Initialize release evidence workspace')
-          gate = workflow.index('- name: Fail closed unless main and push CI are green')
+          gate = workflow.index('- name: Fail closed unless main, production baseline and push CI are green')
           assert checkout < evidence < gate
           assert 'SIGESC_RELEASE_EVIDENCE_WORKSPACE=READY' in workflow
           assert workflow.count('mkdir -p evidence') >= 3
           assert "tee evidence/github-release-gate.txt" in workflow
           assert "> evidence/release-summary.txt" in workflow
+          assert 'SIGESC_PRODUCTION_RELEASE_EVIDENCE_V3' in workflow
           print('SIGESC_RELEASE_EVIDENCE_WORKSPACE_GUARD=PASS')
           PY
 
