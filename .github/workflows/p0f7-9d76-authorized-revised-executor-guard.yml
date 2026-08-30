@@ -37,7 +37,7 @@ jobs:
           python backend/scripts/validate_p0f7_9d76_execution_receipt_offline.py --help >/dev/null
 
       - name: Run focused D7.6 regressions
-        run: pytest -q backend/tests/test_p0f7_9d76_authorized_revised_executor.py
+        run: pytest -q --noconftest backend/tests/test_p0f7_9d76_authorized_revised_executor.py
 
       - name: Guard exact authorization chain
         run: |
