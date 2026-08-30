@@ -16,6 +16,7 @@ import { useProgressTask } from '@/contexts/ProgressContext';
 import { downloadBlobWithProgress } from '@/utils/downloadBlob';
 import {
   buildPromotionGradeFilters,
+  buildPromotionGradesByStudentFromByClass,
   filterPromotionGradesForClass,
   getProfessorPromotionCourseIds,
   resolveProfessorPromotionCourses,
@@ -481,29 +482,56 @@ export function Promotion() {
       const orderedCourses = ordenarComponentes(filteredCourses, classInfo.grade_level);
       setCourses(orderedCourses);
 
-      // Buscar notas de todos os alunos PRESAS à turma selecionada.
-      // O filtro class_id elimina colisão com notas do mesmo estudante/ano em outra turma.
-      const gradesPromises = studentIds.map(studentId => 
-        gradesAPI.getAll(
-          buildPromotionGradeFilters(studentId, selectedClass, selectedYear)
-        )
+      // P0 #250 F2.2 — paridade HTTP com a tela de Notas.
+      // Professor: usa a mesma projeção canônica por turma + componente.
+      // Perfis de gestão preservam o caminho institucional existente desta tela.
+      const gradesByStudent = new Map(
+        studentIds.map(studentId => [String(studentId), []])
       );
-      const allGrades = await Promise.all(gradesPromises);
+
+      if (restrictToProfessor) {
+        const byClassResponses = await Promise.all(
+          orderedCourses.map(course =>
+            gradesAPI.getByClass(selectedClass, course.id, selectedYear)
+          )
+        );
+
+        const projectedByStudent = buildPromotionGradesByStudentFromByClass(
+          byClassResponses,
+          studentIds,
+          selectedClass,
+          orderedCourses
+        );
+        projectedByStudent.forEach((studentGrades, studentId) => {
+          gradesByStudent.set(String(studentId), studentGrades);
+        });
+      } else {
+        const gradesPromises = studentIds.map(studentId =>
+          gradesAPI.getAll(
+            buildPromotionGradeFilters(studentId, selectedClass, selectedYear)
+          )
+        );
+        const allGrades = await Promise.all(gradesPromises);
+        studentIds.forEach((studentId, index) => {
+          gradesByStudent.set(
+            String(studentId),
+            filterPromotionGradesForClass(
+              allGrades[index] || [],
+              selectedClass,
+              orderedCourses
+            )
+          );
+        });
+      }
       
       // Processar dados de promoção
       const processed = filteredStudents.map((student) => {
         const studentEnrollment = enrollments.find(e => e.student_id === student.id);
         
-        // Encontrar o índice correto das notas baseado no studentId
-        const studentIdIndex = studentIds.indexOf(student.id);
-        const rawStudentGrades = studentIdIndex >= 0 ? (allGrades[studentIdIndex] || []) : [];
-        // Defesa em profundidade: mesmo que a API devolva payload mais amplo,
-        // apenas turma atual + componentes exibíveis entram na projeção.
-        const studentGrades = filterPromotionGradesForClass(
-          rawStudentGrades,
-          selectedClass,
-          orderedCourses
-        );
+        // A projeção já está indexada pelo roster canônico do Livro.
+        // No perfil professor, qualquer 22º aluno retornado por /grades/by-class
+        // é descartado antes desta etapa.
+        const studentGrades = gradesByStudent.get(String(student.id)) || [];
         
         // Organizar notas por componente
         const gradesByComponent = {};
