@@ -54,17 +54,22 @@ write_shell_kv() {
 restore_old_images_and_runtime() {
   local project="$1" compose_path="$2" override_path="$3"
   local old_backend_id="$4" old_backend_ref="$5" old_frontend_id="$6" old_frontend_ref="$7"
+  local backend_container frontend_container
 
-  docker image tag "$old_backend_id" "$old_backend_ref"
-  docker image tag "$old_frontend_id" "$old_frontend_ref"
-
-  docker compose -p "$project" -f "$compose_path" -f "$override_path" \
-    up -d --no-deps --no-build --force-recreate backend
-  wait_service_healthy "$project" backend 300 >/dev/null
+  docker image tag "$old_backend_id" "$old_backend_ref" || return 1
+  docker image tag "$old_frontend_id" "$old_frontend_ref" || return 1
 
   docker compose -p "$project" -f "$compose_path" -f "$override_path" \
-    up -d --no-deps --no-build --force-recreate frontend
-  wait_service_healthy "$project" frontend 180 >/dev/null
+    up -d --no-deps --no-build --force-recreate backend || return 1
+  backend_container="$(wait_service_healthy "$project" backend 300)" || return 1
+  [ "$(docker inspect -f '{{.Image}}' "$backend_container")" = "$old_backend_id" ] || return 1
+
+  docker compose -p "$project" -f "$compose_path" -f "$override_path" \
+    up -d --no-deps --no-build --force-recreate frontend || return 1
+  frontend_container="$(wait_service_healthy "$project" frontend 180)" || return 1
+  [ "$(docker inspect -f '{{.Image}}' "$frontend_container")" = "$old_frontend_id" ] || return 1
+
+  return 0
 }
 
 mode="${1:-}"
@@ -250,8 +255,20 @@ EOF
     # shellcheck disable=SC1090
     source "$receipt_path"
     [ "${RECEIPT_SCHEMA:-}" = "SIGESC_GITHUB_ONLY_DEPLOY_V1" ] || fail "RECEIPT_SCHEMA_INVALID"
+    [[ "${TARGET_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || fail "FINALIZE_TARGET_SHA_INVALID"
+
+    backend_container="$(wait_service_healthy "$PROJECT" backend 30)" || fail "FINALIZE_BACKEND_NOT_HEALTHY"
+    frontend_container="$(wait_service_healthy "$PROJECT" frontend 30)" || fail "FINALIZE_FRONTEND_NOT_HEALTHY"
+    mongo_container="$(find_service_container "$PROJECT" mongo)"
+    [ "$(docker inspect -f '{{.State.Health.Status}}' "$mongo_container")" = "healthy" ] || fail "FINALIZE_MONGO_NOT_HEALTHY"
+    [ "$(docker inspect -f '{{.Id}}' "$mongo_container")" = "$MONGO_CONTAINER_ID_BEFORE" ] || fail "FINALIZE_MONGO_CONTAINER_CHANGED"
+    [ "$(image_revision_for_container "$backend_container")" = "$TARGET_SHA" ] || fail "FINALIZE_BACKEND_SHA_MISMATCH"
+    [ "$(image_revision_for_container "$frontend_container")" = "$TARGET_SHA" ] || fail "FINALIZE_FRONTEND_SHA_MISMATCH"
+
     write_shell_kv "$receipt_path" DEPLOY_STATUS APPLIED
+    write_shell_kv "$receipt_path" FINAL_RUNTIME_VERIFICATION PASS
     echo "SIGESC_DEPLOY_FINALIZED=APPLIED"
+    echo "FINAL_RUNTIME_VERIFICATION=PASS"
     ;;
 
   rollback)
@@ -273,7 +290,8 @@ EOF
     restore_old_images_and_runtime \
       "$PROJECT" "$COMPOSE_PATH" "$OVERRIDE_PATH" \
       "$OLD_BACKEND_IMAGE_ID" "$OLD_BACKEND_IMAGE_REF" \
-      "$OLD_FRONTEND_IMAGE_ID" "$OLD_FRONTEND_IMAGE_REF"
+      "$OLD_FRONTEND_IMAGE_ID" "$OLD_FRONTEND_IMAGE_REF" \
+      || fail "ROLLBACK_RUNTIME_RESTORE_FAILED"
 
     mongo_container="$(find_service_container "$PROJECT" mongo)"
     [ "$(docker inspect -f '{{.Id}}' "$mongo_container")" = "$MONGO_CONTAINER_ID_BEFORE" ] \
@@ -283,7 +301,9 @@ EOF
 
     write_shell_kv "$receipt_path" DEPLOY_STATUS SAFE_ROLLBACK
     write_shell_kv "$receipt_path" CONTAINER_ROLLBACK APPLIED
+    write_shell_kv "$receipt_path" ROLLBACK_IMAGE_ID_VERIFICATION PASS
     echo "SIGESC_DEPLOY_ROLLBACK=APPLIED"
+    echo "ROLLBACK_IMAGE_ID_VERIFICATION=PASS"
     ;;
 
   *)
