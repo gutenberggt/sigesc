@@ -1,0 +1,52 @@
+name: "P0 #250 F2.2.1 Promotion false-toast Guard"
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/src/pages/Promotion.jsx'
+      - '.github/workflows/p0-250-f2-2-1-promotion-false-toast-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Guard Promotion finalization after by-class projection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enforce F2.2.1 finalization contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('frontend/src/pages/Promotion.jsx').read_text(encoding='utf-8')
+
+          forbidden = 'setGradesData(allGrades.flat())'
+          if forbidden in source:
+              raise SystemExit('P0_250_F2_2_1_BLOCK_SCOPED_ALLGRADES_LEAK_PRESENT')
+
+          required = [
+              'const flattenedGrades = Array.from(gradesByStudent.values()).flat();',
+              'setPromotionData(processed);',
+              'setGradesData(flattenedGrades);',
+          ]
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'P0_250_F2_2_1_MARKER_MISSING:{marker}')
+
+          flatten = source.index(required[0])
+          promotion = source.index(required[1], flatten)
+          grades = source.index(required[2], promotion)
+          catch = source.index('} catch (error) {', grades)
+          if not (flatten < promotion < grades < catch):
+              raise SystemExit('P0_250_F2_2_1_FINALIZATION_ORDER_INVALID')
+
+          print('P0_250_F2_2_1_FALSE_TOAST_GUARD=PASS')
+          PY
