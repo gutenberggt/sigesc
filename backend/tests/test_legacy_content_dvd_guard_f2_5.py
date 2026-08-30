@@ -90,7 +90,7 @@ def test_content_disabled_or_other_component_does_not_block(monkeypatch):
     ) is False
 
 
-def test_class_wide_canonical_diary_matches_specific_component(monkeypatch):
+def test_class_wide_diary_does_not_match_component_scoped_request(monkeypatch):
     async def fake_list_teacher_diaries(*args, **kwargs):
         return {"items": [_item(class_id="class-1", component_id=None, content_enabled=True)]}
 
@@ -99,6 +99,19 @@ def test_class_wide_canonical_diary_matches_specific_component(monkeypatch):
     assert _run(
         guard.professor_has_active_dvd_content(
             object(), USER, class_id="class-1", course_id="course-9"
+        )
+    ) is False
+
+
+def test_class_wide_diary_matches_class_level_request_without_component(monkeypatch):
+    async def fake_list_teacher_diaries(*args, **kwargs):
+        return {"items": [_item(class_id="class-1", component_id=None, content_enabled=True)]}
+
+    monkeypatch.setattr(guard, "list_teacher_diaries", fake_list_teacher_diaries)
+
+    assert _run(
+        guard.professor_has_active_dvd_content(
+            object(), USER, class_id="class-1"
         )
     ) is True
 
