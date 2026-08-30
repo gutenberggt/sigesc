@@ -1,0 +1,338 @@
+name: "P0 #250 F2.6 Content Component Parity Read-only Audit"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/p0_250_f2_6_content_component_parity_audit.py'
+      - 'backend/tests/test_p0_250_f2_6_content_component_parity_audit.py'
+      - '.github/workflows/p0-250-f2-6-content-component-parity-readonly-audit.yml'
+      - 'memory/audit/P0_250_F2_6_CONTENT_COMPONENT_PARITY_2026-08-30.md'
+      - 'frontend/src/pages/LearningObjects.js'
+      - 'frontend/src/services/contentDvdBridge.js'
+      - 'backend/routers/learning_objects.py'
+      - 'backend/tenant_scope.py'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: p0-250-f2-6-content-component-parity-readonly-audit
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.6 component parity collector
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and test component parity classifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/p0_250_f2_6_content_component_parity_audit.py
+          python -m py_compile backend/tests/test_p0_250_f2_6_content_component_parity_audit.py
+          pip install pytest
+          pytest -q --noconftest backend/tests/test_p0_250_f2_6_content_component_parity_audit.py
+      - name: Enforce read-only, GET-only and privacy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          path = Path('backend/scripts/p0_250_f2_6_content_component_parity_audit.py')
+          source = path.read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          forbidden = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in forbidden:
+                  raise SystemExit(f'P0_250_F2_6_MONGO_MUTATOR_CALL_FOUND:{node.func.attr}')
+          required = [
+              '"database_mutation": False', '"production_writes": False',
+              '"http_methods": ["GET"]', '"mongo_reads_only": True',
+              '"record_content_emitted": False', '"record_ids_emitted": False',
+              '"assignment_ids_emitted": False', '"teacher_ids_emitted": False',
+              '"student_data_read": False', '"student_pii_emitted": False',
+              '"access_token_emitted": False', '"access_token_persisted": False',
+              'EXPECTED_COMPONENTS = 9', 'TARGET_MONTHS = (4, 5, 6)',
+              'PORTUGUES', 'MATEMATICA', 'CONTENT_COMPONENT_TENANT_SCOPE_GAP',
+          ]
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'P0_250_F2_6_REQUIRED_CONTRACT_MISSING:{marker}')
+          print('P0_250_F2_6_STATIC_BOUNDARY=PASS')
+          PY
+      - name: Pin Anos Iniciais class-wide frontend semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('frontend/src/pages/LearningObjects.js').read_text(encoding='utf-8')
+          bridge = Path('frontend/src/services/contentDvdBridge.js').read_text(encoding='utf-8')
+          router = Path('backend/routers/learning_objects.py').read_text(encoding='utf-8')
+          tenant = Path('backend/tenant_scope.py').read_text(encoding='utf-8')
+          markers = {
+              'anos_iniciais_all_records': 'Ed. Infantil / Anos Iniciais: SEMPRE buscar TODOS os registros da turma' in page,
+              'classwide_without_course': 'month: currentMonth + 1' in page,
+              'calendar_uses_records': 'const record = records.find(r => r.date === dateStr);' in page,
+              'list_renders_records': '{records.map(record => (' in page,
+              'bridge_legacy_fallback': 'if (candidates.length === 0) return config;' in bridge,
+              'router_tenant_filter': 'query = apply_tenant_filter(query, current_user, request)' in router,
+              'non_superadmin_tenant_lock': "q['mantenedora_id'] = mid" in tenant,
+          }
+          missing = [name for name, present in markers.items() if not present]
+          if missing:
+              raise SystemExit('P0_250_F2_6_RUNTIME_MARKER_MISSING:' + ','.join(missing))
+          print('P0_250_F2_6_RUNTIME_PIN=PASS')
+          PY
+
+  production-audit:
+    name: Compare component projections in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[P0-250-F2.6-COMPONENT-AUDIT] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve owner-scoped exact-SHA authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os, re, urllib.request
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
+              event = json.load(fh)
+          issue = event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('P0_250_F2_6_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('P0_250_F2_6_ISSUE_MUST_BE_OPEN')
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              line = raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              if key.strip() in values:
+                  raise SystemExit(f'P0_250_F2_6_DUPLICATE_FIELD:{key.strip()}')
+              values[key.strip()] = value.strip()
+          if values.get('P0_250_F2_6_AUDIT') != 'AUTHORIZED':
+              raise SystemExit('P0_250_F2_6_AUTHORIZATION_INVALID')
+          if values.get('CONFIRMATION') != 'VERIFY_P0_250_F2_6_COMPONENT_PARITY_READ_ONLY':
+              raise SystemExit('P0_250_F2_6_CONFIRMATION_INVALID')
+          target = values.get('TARGET_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('P0_250_F2_6_TARGET_SHA_INVALID')
+          if issue.get('title') != f'[P0-250-F2.6-COMPONENT-AUDIT] {target}':
+              raise SystemExit('P0_250_F2_6_TITLE_MISMATCH')
+          repo = os.environ['GITHUB_REPOSITORY']
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/branches/main',
+              headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'sigesc-p0-250-f2-6-component-readonly-audit',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              main_sha = json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'P0_250_F2_6_MAIN_MOVED:{main_sha}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'issue_number={issue.get("number")}\n')
+          print('P0_250_F2_6_AUDIT_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          print('HTTP_METHODS=GET_ONLY')
+          print('MONGO_ACCESS=READ_ONLY')
+          PY
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "P0_250_F2_6_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/p0_250_f2_6_prod_key
+          chmod 600 ~/.ssh/p0_250_f2_6_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/p0_250_f2_6_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend" || { echo 'P0_250_F2_6_BACKEND_CONTAINER_NOT_FOUND'; exit 1; }
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+      - name: Execute live component parity audit inside backend container
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/p0-250-f2-6-raw.log'
+          snapshot='evidence/p0-250-f2-6-snapshot.json'
+          remote_command="timeout 240 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"p0_250_f2_6_content_component_parity_audit.py\",\"exec\"),ns); print(\"P0_250_F2_6_AUDIT_JSON=\" + json.dumps(ns[\"run_live_audit\"](), ensure_ascii=False))'"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/p0_250_f2_6_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/p0_250_f2_6_content_component_parity_audit.py > "$raw" 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            tail -n 40 "$raw" || true
+            exit "$rc"
+          fi
+          prefix='P0_250_F2_6_AUDIT_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line" || { echo 'P0_250_F2_6_SNAPSHOT_MARKER_NOT_FOUND'; tail -n 40 "$raw"; exit 2; }
+          printf '%s' "${line#${prefix}}" > "$snapshot"
+          python -m json.tool "$snapshot" >/dev/null
+          rm -f "$raw"
+      - name: Validate and summarize structural diagnosis
+        id: diagnosis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(Path('evidence/p0-250-f2-6-snapshot.json').read_text(encoding='utf-8'))
+          for key in ('database_mutation','production_writes','record_content_emitted','record_ids_emitted','assignment_ids_emitted','teacher_ids_emitted','student_data_read','student_pii_emitted','access_token_emitted','access_token_persisted'):
+              if p.get(key) is not False:
+                  raise SystemExit(f'P0_250_F2_6_BOUNDARY_FAILED:{key}')
+          if p.get('mongo_reads_only') is not True or p.get('http_methods') != ['GET']:
+              raise SystemExit('P0_250_F2_6_READ_BOUNDARY_FAILED')
+          a = p.get('analysis') or {}
+          focus = a.get('focus_components') or {}
+          compact = {key: value for key, value in focus.items()}
+          print(f"CLASSIFICATION={p.get('classification')}")
+          print(f"COMPONENT_COUNT={a.get('component_count')}")
+          print(f"PROFESSOR_TURMAS_COMPONENT_COUNT={a.get('professor_turmas_component_count')}")
+          print(f"DVD_RAW_TOTAL_ROWS={a.get('dvd_raw_total_rows')}")
+          print('FOCUS=' + json.dumps(compact, ensure_ascii=False))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f"classification={p.get('classification')}\n")
+              out.write(f"component_count={a.get('component_count')}\n")
+              out.write(f"professor_turmas_count={a.get('professor_turmas_component_count')}\n")
+              out.write(f"dvd_raw_total={a.get('dvd_raw_total_rows')}\n")
+          PY
+      - name: Upload private structural evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: p0-250-f2-6-content-component-parity-readonly-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Comment diagnosis on #250 and close gate issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.issue_number }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          p = json.loads(Path('evidence/p0-250-f2-6-snapshot.json').read_text(encoding='utf-8'))
+          a = p.get('analysis') or {}
+          focus = a.get('focus_components') or {}
+          lines = []
+          for key in ('PORTUGUES','MATEMATICA'):
+              item = focus.get(key)
+              if not item:
+                  lines.append(f'- {key}: não resolvido entre os componentes ativos')
+                  continue
+              lines.append(
+                  f"- **{item.get('component_name')}**: legacy assignments={item.get('legacy_assignment_count')}; "
+                  f"DVD raw component rows={item.get('dvd_raw_component_rows')}; "
+                  f"DVD enabled/current rows={item.get('dvd_enabled_current_component_rows')}"
+              )
+              for month in ('4','5','6'):
+                  m = (item.get('months') or {}).get(month) or {}
+                  lines.append(
+                      f"  - mês {month}: Mongo(all/tenant/missing-null/other)="
+                      f"{m.get('mongo_all_tenants')}/{m.get('mongo_target_tenant')}/"
+                      f"{m.get('mongo_missing_or_null_tenant')}/{m.get('mongo_other_tenant')}; "
+                      f"professor(class-wide/component)={m.get('professor_classwide_http')}/{m.get('professor_component_http')}; "
+                      f"superadmin(unscoped/scoped)={m.get('superadmin_unscoped_http')}/{m.get('superadmin_scoped_http')}"
+                  )
+          body = (
+              '## F2.6 — paridade de Conteúdo por componente em produção\n\n'
+              f"Target: `{os.environ['TARGET_SHA']}`\n\n"
+              f"Classificação: **{p.get('classification')}**\n\n"
+              f"- componentes legacy ativos: **{a.get('component_count')}**\n"
+              f"- componentes expostos em `/professor/turmas`: **{a.get('professor_turmas_component_count')}**\n"
+              f"- `teacher_class_assignments` raw da turma: **{a.get('dvd_raw_total_rows')}**\n\n"
+              '### Foco informado pelo teste funcional\n' + '\n'.join(lines) + '\n\n'
+              'Boundaries: MongoDB read-only; HTTP GET-only; sem login; sem conteúdo textual, IDs de registros/vínculos/docente, dados de estudante ou material de autenticação emitidos.'
+          )
+          repo = os.environ['GITHUB_REPOSITORY']; token = os.environ['GH_TOKEN']
+          def request(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode('utf-8')
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}{path}', data=data, method=method,
+                  headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-p0-250-f2-6-component-readonly-audit','Content-Type':'application/json'},
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return response.read()
+          request('POST', '/issues/250/comments', {'body': body})
+          request('PATCH', f"/issues/{os.environ['GATE_ISSUE']}", {'state':'closed','state_reason':'completed'})
+          print('P0_250_F2_6_GITHUB_REPORT=PASS')
+          PY
