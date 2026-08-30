@@ -1,5 +1,12 @@
 from pathlib import Path
 import importlib.util
+import sys
+import types
+
+# Unit tests exercise only pure analysis helpers; production provides pymongo.
+_pymongo = types.ModuleType("pymongo")
+_pymongo.MongoClient = object
+sys.modules.setdefault("pymongo", _pymongo)
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "p0_250_f2_6_1_content_component_http_status_audit.py"
 spec = importlib.util.spec_from_file_location("p0_250_f2_6_1", SCRIPT)
