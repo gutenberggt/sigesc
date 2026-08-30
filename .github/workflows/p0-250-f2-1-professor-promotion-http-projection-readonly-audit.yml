@@ -239,6 +239,7 @@ jobs:
           BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
         run: |
           set -euo pipefail
+          mkdir -p evidence
           raw='evidence/p0-250-f2-1-raw.log'
           snapshot='evidence/p0-250-f2-1-snapshot.json'
           remote_command="timeout 180 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"p0_250_f2_1_http_projection_audit.py\",\"exec\"),ns); print(\"P0_250_F2_1_AUDIT_JSON=\" + json.dumps(ns[\"run_live_audit\"](), ensure_ascii=False))'"
