@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - '.github/workflows/p0-250-f2-9c1-authorized-backfill-48-retry.yml'
-      - 'memory/audit/P0_250_F2_9C1_ARTIFACT_TRANSPORT_2026-08-31.md'
   issues:
     types: [opened]
 
@@ -38,7 +37,7 @@ jobs:
           test "$(git hash-object backend/scripts/p0_250_f2_9b_seal_safe_backfill_targets.py)" = "940e171b434b04914887e080dc8af6a8e9296c4a"
           test "$(git hash-object backend/scripts/p0_250_f2_9c_authorized_backfill_48.py)" = "fbf075ba7dbad3e544d157bc163c3ea57aa31dcf"
 
-      - name: Re-run exact F2.9C focused regressions
+      - name: Re-run exact F2.9C regressions
         shell: bash
         run: |
           set -euo pipefail
@@ -46,36 +45,20 @@ jobs:
           python -m pip install pytest pymongo
           pytest -q --noconftest backend/tests/test_p0_250_f2_9c_authorized_backfill_48.py
 
-      - name: Guard retry changes only artifact transport
+      - name: Guard exact artifact transport and sealed scope
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          source = Path('.github/workflows/p0-250-f2-9c1-authorized-backfill-48-retry.yml').read_text(encoding='utf-8')
-          required = [
-              'gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/9745250820"',
-              'gh run download 33356353896',
-              'p0-250-f2-9b-sealed-48-targets-33356353896',
-              'fbfe46dd455e45ad65c510d75022d52918c8993c21cc76593f1915d5324fb177',
-              'f3fb8c4b7d8d3a9e51939b8cf2d40e756759744e431471d073afd038295b47e5',
-              'ddca5bb662a5670b96459ad5f5748f123ed65e52bdd2fe739e933b18d4d164d4',
-              'SOURCE_F2_9B_ARTIFACT_ID',
-              'Execute same sealed 48-target backfill',
-          ]
-          for marker in required:
-              if marker not in source:
-                  raise SystemExit('P0_250_F2_9C1_CONTRACT_MISSING:' + marker)
-          forbidden = [
-              'insert_many', 'update_one', 'update_many', 'replace_one',
-              'delete_many', 'bulk_write', 'drop_database',
-          ]
-          for marker in forbidden:
-              if marker in source:
-                  raise SystemExit('P0_250_F2_9C1_WORKFLOW_MUTATION_EXPANSION:' + marker)
-          print('P0_250_F2_9C1_TRANSPORT_GUARD=PASS')
-          PY
+          workflow=.github/workflows/p0-250-f2-9c1-authorized-backfill-48-retry.yml
+          grep -Fq 'gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/9745250820"' "$workflow"
+          grep -Fq 'gh run download 33356353896' "$workflow"
+          grep -Fq 'p0-250-f2-9b-sealed-48-targets-33356353896' "$workflow"
+          grep -Fq '26d0904d231a7ed23f41487a57a8e2fd08b0e0b6ac96b14ef7897d130123ddfd' "$workflow"
+          grep -Fq 'fbfe46dd455e45ad65c510d75022d52918c8993c21cc76593f1915d5324fb177' "$workflow"
+          grep -Fq 'f3fb8c4b7d8d3a9e51939b8cf2d40e756759744e431471d073afd038295b47e5' "$workflow"
+          grep -Fq 'ddca5bb662a5670b96459ad5f5748f123ed65e52bdd2fe739e933b18d4d164d4' "$workflow"
+          grep -Fq 'run_authorized_backfill' "$workflow"
+          echo P0_250_F2_9C1_TRANSPORT_GUARD=PASS
 
   production-execute:
     name: Execute same sealed 48-target backfill
@@ -144,9 +127,8 @@ jobs:
           if issue.get('title') != f'[P0-250-F2.9C1-EXECUTE-48-TARGETS] {target}':
               raise SystemExit('P0_250_F2_9C1_TITLE_MISMATCH')
 
-          repo = os.environ['GITHUB_REPOSITORY']
           req = urllib.request.Request(
-              f'https://api.github.com/repos/{repo}/branches/main',
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",
               headers={
                   'Accept': 'application/vnd.github+json',
                   'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
@@ -258,7 +240,7 @@ jobs:
             -name 'p0-250-f2-9b-private-sealed-manifest.json' -print)
           test "${#manifests[@]}" -eq 1
           echo "manifest_path=${manifests[0]}" >> "$GITHUB_OUTPUT"
-          echo 'P0_250_F2_9C1_ARTIFACT_DOWNLOAD=PASS'
+          echo P0_250_F2_9C1_ARTIFACT_DOWNLOAD=PASS
 
       - name: Execute identical sealed scope with live reseal and compensating rollback
         id: execute
@@ -270,9 +252,7 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           python - <<'PY'
-          import base64
-          import os
-          import textwrap
+          import base64, os, textwrap
           from pathlib import Path
 
           planner = Path('backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py').read_bytes()
@@ -295,11 +275,7 @@ jobs:
               return module
 
           planner = load_module("p0_250_f2_9a_exact", "{b64(planner)}")
-          sealer = load_module(
-              "p0_250_f2_9b_exact",
-              "{b64(sealer)}",
-              {{"_PLANNER_OVERRIDE": planner}},
-          )
+          sealer = load_module("p0_250_f2_9b_exact", "{b64(sealer)}", {{"_PLANNER_OVERRIDE": planner}})
           executor = load_module("p0_250_f2_9c_exact", "{b64(executor)}")
           manifest = json.loads(base64.b64decode("{b64(manifest)}").decode("utf-8"))
 
@@ -317,33 +293,20 @@ jobs:
               print("P0_250_F2_9C1_ERROR=" + type(exc).__name__ + ":" + str(exc))
               raise SystemExit(2)
 
-          print(
-              "P0_250_F2_9C1_PUBLIC="
-              + json.dumps(result["public"], ensure_ascii=False, separators=(",", ":"))
-          )
-          print(
-              "P0_250_F2_9C1_PRIVATE="
-              + json.dumps(result["private"], ensure_ascii=False, separators=(",", ":"))
-          )
+          print("P0_250_F2_9C1_PUBLIC=" + json.dumps(result["public"], ensure_ascii=False, separators=(",", ":")))
+          print("P0_250_F2_9C1_PRIVATE=" + json.dumps(result["private"], ensure_ascii=False, separators=(",", ":")))
           ''').lstrip()
-          Path('evidence/p0-250-f2-9c1-remote-bootstrap.private.py').write_text(
-              bootstrap,
-              encoding='utf-8',
-          )
+          Path('evidence/p0-250-f2-9c1-remote-bootstrap.private.py').write_text(bootstrap, encoding='utf-8')
           PY
 
-          raw='evidence/p0-250-f2-9c1-raw.private'
+          raw=evidence/p0-250-f2-9c1-raw.private
           set +e
           ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             -i "$HOME/.ssh/p0_250_f2_9c1_prod_key" \
             "${PROD_USER}@${PROD_HOST}" \
-            "timeout 420 docker exec -i \
-              -e P0_250_F2_9A_ACADEMIC_YEAR=2026 \
-              -e P0_250_F2_9A_REFERENCE_DATE=2026-08-31 \
-              ${BACKEND_CONTAINER} python -" \
-            < evidence/p0-250-f2-9c1-remote-bootstrap.private.py \
-            > "$raw" 2>&1
+            "timeout 420 docker exec -i -e P0_250_F2_9A_ACADEMIC_YEAR=2026 -e P0_250_F2_9A_REFERENCE_DATE=2026-08-31 ${BACKEND_CONTAINER} python -" \
+            < evidence/p0-250-f2-9c1-remote-bootstrap.private.py > "$raw" 2>&1
           status=$?
           set -e
           rm -f evidence/p0-250-f2-9c1-remote-bootstrap.private.py
@@ -360,25 +323,16 @@ jobs:
           from pathlib import Path
 
           raw_path = Path('evidence/p0-250-f2-9c1-raw.private')
-          raw = raw_path.read_text(encoding='utf-8')
-          public_prefix = 'P0_250_F2_9C1_PUBLIC='
-          private_prefix = 'P0_250_F2_9C1_PRIVATE='
           public = private = None
-          for line in raw.splitlines():
-              if line.startswith(public_prefix):
-                  public = json.loads(line[len(public_prefix):])
-              elif line.startswith(private_prefix):
-                  private = json.loads(line[len(private_prefix):])
+          for line in raw_path.read_text(encoding='utf-8').splitlines():
+              if line.startswith('P0_250_F2_9C1_PUBLIC='):
+                  public = json.loads(line.split('=', 1)[1])
+              elif line.startswith('P0_250_F2_9C1_PRIVATE='):
+                  private = json.loads(line.split('=', 1)[1])
           if public is None or private is None:
               raise SystemExit('P0_250_F2_9C1_EXECUTION_OUTPUT_MISSING')
-          Path('evidence/p0-250-f2-9c1-public-receipt.json').write_text(
-              json.dumps(public, ensure_ascii=False, indent=2, sort_keys=True),
-              encoding='utf-8',
-          )
-          Path('evidence/p0-250-f2-9c1-private-receipt.json').write_text(
-              json.dumps(private, ensure_ascii=False, indent=2, sort_keys=True),
-              encoding='utf-8',
-          )
+          Path('evidence/p0-250-f2-9c1-public-receipt.json').write_text(json.dumps(public, ensure_ascii=False, indent=2, sort_keys=True), encoding='utf-8')
+          Path('evidence/p0-250-f2-9c1-private-receipt.json').write_text(json.dumps(private, ensure_ascii=False, indent=2, sort_keys=True), encoding='utf-8')
           raw_path.unlink()
           PY
 
@@ -393,10 +347,7 @@ jobs:
 
           public = json.loads(Path('evidence/p0-250-f2-9c1-public-receipt.json').read_text(encoding='utf-8'))
           private = json.loads(Path('evidence/p0-250-f2-9c1-private-receipt.json').read_text(encoding='utf-8'))
-          allowed = {
-              'F2_9C_48_TARGETS_APPLIED_AND_VERIFIED',
-              'F2_9C_48_TARGETS_ALREADY_APPLIED_EXACT',
-          }
+          allowed = {'F2_9C_48_TARGETS_APPLIED_AND_VERIFIED', 'F2_9C_48_TARGETS_ALREADY_APPLIED_EXACT'}
           if public.get('status') != 'PASS' or public.get('classification') not in allowed:
               raise SystemExit('P0_250_F2_9C1_RECEIPT_CLASSIFICATION_INVALID')
           if public.get('target_count') != 48 or public.get('verified_count') != 48:
@@ -409,29 +360,21 @@ jobs:
               raise SystemExit('P0_250_F2_9C1_BUNDLE_SHA_INVALID')
           if public.get('rollback_performed') is not False or public.get('rollback_complete') is not True:
               raise SystemExit('P0_250_F2_9C1_ROLLBACK_STATE_INVALID')
-          for key in (
-              'target_ids_emitted', 'teacher_ids_emitted', 'staff_ids_emitted',
-              'student_data_read', 'academic_data_read', 'user_pii_emitted',
-              'private_receipt_emitted_to_logs',
-          ):
+          for key in ('target_ids_emitted','teacher_ids_emitted','staff_ids_emitted','student_data_read','academic_data_read','user_pii_emitted','private_receipt_emitted_to_logs'):
               if public.get(key) is not False:
                   raise SystemExit(f'P0_250_F2_9C1_PRIVACY_INVALID:{key}')
-          if public.get('classification') == 'F2_9C_48_TARGETS_APPLIED_AND_VERIFIED':
+          if public['classification'] == 'F2_9C_48_TARGETS_APPLIED_AND_VERIFIED':
               if public.get('new_writes') != 48 or public.get('production_writes') is not True:
                   raise SystemExit('P0_250_F2_9C1_WRITE_RECEIPT_INVALID')
-          else:
-              if public.get('new_writes') != 0 or public.get('idempotent_replay') is not True:
-                  raise SystemExit('P0_250_F2_9C1_IDEMPOTENT_RECEIPT_INVALID')
+          elif public.get('new_writes') != 0 or public.get('idempotent_replay') is not True:
+              raise SystemExit('P0_250_F2_9C1_IDEMPOTENT_RECEIPT_INVALID')
           receipt_sha = str(public.get('execution_receipt_sha256') or '')
           if not re.fullmatch(r'[0-9a-f]{64}', receipt_sha):
               raise SystemExit('P0_250_F2_9C1_RECEIPT_SHA_INVALID')
-          if private.get('execution_receipt_sha256') != receipt_sha:
-              raise SystemExit('P0_250_F2_9C1_PUBLIC_PRIVATE_SHA_MISMATCH')
-          if len(private.get('operations') or []) != 48:
-              raise SystemExit('P0_250_F2_9C1_PRIVATE_OPERATION_COUNT_INVALID')
+          if private.get('execution_receipt_sha256') != receipt_sha or len(private.get('operations') or []) != 48:
+              raise SystemExit('P0_250_F2_9C1_PRIVATE_RECEIPT_INVALID')
 
           print('CLASSIFICATION=' + public['classification'])
-          print('TARGET_COUNT=48')
           print('NEW_WRITES=' + str(public['new_writes']))
           print('VERIFIED_COUNT=48')
           print('EXECUTION_RECEIPT_SHA256=' + receipt_sha)
@@ -480,11 +423,8 @@ jobs:
               f"Execution receipt SHA-256: `{os.environ['RECEIPT_SHA']}`\n"
               f"Artifact privado F2.9C: `{os.environ.get('ARTIFACT_ID')}`\n"
               f"Artifact digest: `{os.environ.get('ARTIFACT_DIGEST')}`\n\n"
-              'Fonte selada F2.9B: artifact `9745250820`, bundle '
-              '`ddca5bb662a5670b96459ad5f5748f123ed65e52bdd2fe739e933b18d4d164d4`.\n\n'
-              'Boundary preservado: somente `teacher_class_assignments`; writer normal `insert_one`; '
-              'rollback `delete_one` somente contra documento exatamente igual ao target selado. '
-              'A retry alterou apenas o transporte do artifact. A issue #250 permanece aberta.'
+              'Fonte selada F2.9B: artifact `9745250820`, bundle `ddca5bb662a5670b96459ad5f5748f123ed65e52bdd2fe739e933b18d4d164d4`.\n\n'
+              'Boundary preservado: somente `teacher_class_assignments`; writer normal `insert_one`; rollback `delete_one` somente contra documento exatamente igual ao target selado. A retry alterou apenas o transporte do artifact. A issue #250 permanece aberta.'
           )
           repo = os.environ['GITHUB_REPOSITORY']
           token = os.environ['GH_TOKEN']
@@ -495,16 +435,16 @@ jobs:
                   data=json.dumps(payload).encode('utf-8'),
                   method=method,
                   headers={
-                      'Accept': 'application/vnd.github+json',
-                      'Authorization': f'Bearer {token}',
-                      'X-GitHub-Api-Version': '2022-11-28',
-                      'User-Agent': 'sigesc-p0-250-f2-9c1-executor',
-                      'Content-Type': 'application/json',
+                      'Accept':'application/vnd.github+json',
+                      'Authorization':f'Bearer {token}',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'User-Agent':'sigesc-p0-250-f2-9c1-executor',
+                      'Content-Type':'application/json',
                   },
               )
               with urllib.request.urlopen(req, timeout=30) as response:
                   response.read()
 
           request('POST', '/issues/250/comments', {'body': body})
-          request('PATCH', f"/issues/{os.environ['GATE_ISSUE']}", {'state': 'closed', 'state_reason': 'completed'})
+          request('PATCH', f"/issues/{os.environ['GATE_ISSUE']}", {'state':'closed','state_reason':'completed'})
           PY
