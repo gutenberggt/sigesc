@@ -1,0 +1,408 @@
+name: "P0 #250 F2.9B Seal 48 Safe DVD Targets Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/p0_250_f2_9b_seal_safe_backfill_targets.py'
+      - 'backend/tests/test_p0_250_f2_9b_seal_safe_backfill_targets.py'
+      - '.github/workflows/p0-250-f2-9b-seal-48-safe-targets-readonly.yml'
+      - 'memory/audit/P0_250_F2_9B_SEALED_48_SAFE_TARGETS_2026-08-31.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: p0-250-f2-9b-seal-48-safe-targets-readonly
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.9B sealed 48-target contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify approved F2.9A planner blob is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git hash-object backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py)"
+          test "$actual" = "42178d99c479ab43d4345c4a5346cac6735eefd3" || {
+            echo "P0_250_F2_9B_F2_9A_PLANNER_BLOB_DRIFT:$actual"
+            exit 1
+          }
+
+      - name: Compile and run F2.9B regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/p0_250_f2_9b_seal_safe_backfill_targets.py
+          python -m py_compile backend/tests/test_p0_250_f2_9b_seal_safe_backfill_targets.py
+          pip install pytest pymongo
+          pytest -q --noconftest backend/tests/test_p0_250_f2_9b_seal_safe_backfill_targets.py
+
+      - name: Enforce read-only and privacy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path('backend/scripts/p0_250_f2_9b_seal_safe_backfill_targets.py')
+          source = path.read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          forbidden = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                  if node.func.attr in forbidden:
+                      raise SystemExit(f'P0_250_F2_9B_MONGO_MUTATOR_FOUND:{node.func.attr}')
+          required = [
+              'APPROVED_TARGET_COUNT = 48',
+              'SOURCE_F2_9A_MAIN_SHA = "794cf799a8f4091d35401d45d8203109b4e5dd0d"',
+              'SOURCE_PLAN_SHA256 = "fbfe46dd455e45ad65c510d75022d52918c8993c21cc76593f1915d5324fb177"',
+              'SOURCE_DECISION_SHA256 = "8dec6b3544ac01ecda5c4f84fba382816c51248e63a04704c8a79ee674877c27"',
+              'SOURCE_INPUT_SHA256 = "c080d9deb83ce3d08fa2aa2ffc5b88f11f85f19570fcf4c77771db79d6c67cca"',
+              'PLAN_CREATE_CANONICAL_ASSIGNMENT',
+              'INSERT_TEACHER_CLASS_ASSIGNMENT',
+              'DELETE_INSERTED_IF_EXACT_PROJECTED_MATCH',
+              'must_reappear_identically_in_f2_9a_plan_before_apply',
+              '"automatic_apply_authorized": False',
+              '"apply_authorized": False',
+              '"private_manifest_emitted_to_logs": False',
+          ]
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'P0_250_F2_9B_CONTRACT_MISSING:{marker}')
+          print('P0_250_F2_9B_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-seal:
+    name: Seal exact 48 safe targets in production read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[P0-250-F2.9B-SEAL-48-TARGETS] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve owner-scoped exact-SHA seal authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os, re, urllib.request
+
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
+              issue = (json.load(fh).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('P0_250_F2_9B_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('P0_250_F2_9B_ISSUE_MUST_BE_OPEN')
+
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              line = raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              if key.strip() in values:
+                  raise SystemExit(f'P0_250_F2_9B_DUPLICATE_FIELD:{key.strip()}')
+              values[key.strip()] = value.strip()
+
+          expected = {
+              'P0_250_F2_9B_SEAL': 'AUTHORIZED',
+              'CONFIRMATION': 'SEAL_P0_250_F2_9B_48_TARGETS_READ_ONLY',
+              'ACADEMIC_YEAR': '2026',
+              'REFERENCE_DATE': '2026-08-31',
+              'SOURCE_F2_9A_SHA': '794cf799a8f4091d35401d45d8203109b4e5dd0d',
+              'SOURCE_F2_9A_PLAN_SHA256': 'fbfe46dd455e45ad65c510d75022d52918c8993c21cc76593f1915d5324fb177',
+          }
+          for key, value in expected.items():
+              if values.get(key) != value:
+                  raise SystemExit(f'P0_250_F2_9B_AUTH_FIELD_INVALID:{key}')
+
+          target = values.get('TARGET_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('P0_250_F2_9B_TARGET_SHA_INVALID')
+          if issue.get('title') != f'[P0-250-F2.9B-SEAL-48-TARGETS] {target}':
+              raise SystemExit('P0_250_F2_9B_TITLE_MISMATCH')
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/branches/main',
+              headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'sigesc-p0-250-f2-9b-seal',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              main_sha = json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'P0_250_F2_9B_MAIN_MOVED:{main_sha}')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'issue_number={issue.get("number")}\n')
+          print('P0_250_F2_9B_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_DATABASE_WRITES=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify sealed source planner blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git hash-object backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py)"
+          test "$actual" = "42178d99c479ab43d4345c4a5346cac6735eefd3" || exit 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "P0_250_F2_9B_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/p0_250_f2_9b_prod_key
+          chmod 600 ~/.ssh/p0_250_f2_9b_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/p0_250_f2_9b_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Build private sealed manifest without logging target IDs
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          raw='evidence/p0-250-f2-9b-raw.private'
+          marker='# __P0_250_F2_9B_SOURCE_SPLIT__'
+          remote_command="timeout 300 docker exec -i -e P0_250_F2_9A_ACADEMIC_YEAR=2026 -e P0_250_F2_9A_REFERENCE_DATE=2026-08-31 ${BACKEND_CONTAINER} python -c 'import json,sys,types; text=sys.stdin.read(); a,b=text.split(\"\\n# __P0_250_F2_9B_SOURCE_SPLIT__\\n\",1); planner=types.ModuleType(\"p0_250_f2_9a_sealed_source\"); planner.__dict__[\"__name__\"]=\"p0_250_f2_9a_sealed_source\"; exec(compile(a,\"p0_250_f2_9a_global_dvd_reconciliation_plan.py\",\"exec\"),planner.__dict__); ns={\"__name__\":\"p0_250_f2_9b_seal\",\"_PLANNER_OVERRIDE\":planner}; exec(compile(b,\"p0_250_f2_9b_seal_safe_backfill_targets.py\",\"exec\"),ns); result=ns[\"run_live_seal\"](); print(\"P0_250_F2_9B_PUBLIC=\"+json.dumps(result[\"public\"],ensure_ascii=False,separators=(\",\",\":\"))); print(\"P0_250_F2_9B_PRIVATE=\"+json.dumps(result[\"private\"],ensure_ascii=False,separators=(\",\",\":\")))'"
+          {
+            cat backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py
+            printf '\n%s\n' "$marker"
+            cat backend/scripts/p0_250_f2_9b_seal_safe_backfill_targets.py
+          } | ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/p0_250_f2_9b_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" > "$raw" 2>&1
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          raw = Path('evidence/p0-250-f2-9b-raw.private').read_text(encoding='utf-8')
+          public_prefix = 'P0_250_F2_9B_PUBLIC='
+          private_prefix = 'P0_250_F2_9B_PRIVATE='
+          public = private = None
+          for line in raw.splitlines():
+              if line.startswith(public_prefix):
+                  public = json.loads(line[len(public_prefix):])
+              elif line.startswith(private_prefix):
+                  private = json.loads(line[len(private_prefix):])
+          if public is None or private is None:
+              raise SystemExit('P0_250_F2_9B_SEAL_OUTPUT_MISSING')
+          Path('evidence/p0-250-f2-9b-public-receipt.json').write_text(
+              json.dumps(public, ensure_ascii=False, indent=2, sort_keys=True), encoding='utf-8'
+          )
+          Path('evidence/p0-250-f2-9b-private-sealed-manifest.json').write_text(
+              json.dumps(private, ensure_ascii=False, indent=2, sort_keys=True), encoding='utf-8'
+          )
+          PY
+          rm -f "$raw"
+
+      - name: Validate sealed bundle and public receipt
+        id: seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+
+          def canonical(value):
+              return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), default=str).encode('utf-8')
+          def sha(value):
+              return hashlib.sha256(canonical(value)).hexdigest()
+
+          public = json.loads(Path('evidence/p0-250-f2-9b-public-receipt.json').read_text(encoding='utf-8'))
+          private = json.loads(Path('evidence/p0-250-f2-9b-private-sealed-manifest.json').read_text(encoding='utf-8'))
+
+          if public.get('target_count') != 48 or private.get('expected_target_count') != 48:
+              raise SystemExit('P0_250_F2_9B_TARGET_COUNT_INVALID')
+          if len(private.get('operations') or []) != 48:
+              raise SystemExit('P0_250_F2_9B_OPERATION_COUNT_INVALID')
+          if public.get('apply_authorized') is not False or private.get('automatic_apply_authorized') is not False:
+              raise SystemExit('P0_250_F2_9B_APPLY_FLAG_INVALID')
+          if public.get('database_mutation') is not False or public.get('production_writes') is not False:
+              raise SystemExit('P0_250_F2_9B_PUBLIC_BOUNDARY_INVALID')
+          if public.get('mongo_reads_only') is not True or public.get('http_methods') != []:
+              raise SystemExit('P0_250_F2_9B_READ_BOUNDARY_INVALID')
+          for key in ('target_ids_emitted','teacher_ids_emitted','staff_ids_emitted','user_pii_emitted','private_manifest_emitted_to_logs'):
+              if public.get(key) is not False:
+                  raise SystemExit(f'P0_250_F2_9B_PRIVACY_FLAG_INVALID:{key}')
+
+          targets = [op['target_assignment'] for op in private['operations']]
+          if sha(targets) != 'fbfe46dd455e45ad65c510d75022d52918c8993c21cc76593f1915d5324fb177':
+              raise SystemExit('P0_250_F2_9B_TARGETS_SHA_INVALID')
+          if private.get('sealed_targets_sha256') != sha(targets):
+              raise SystemExit('P0_250_F2_9B_TARGETS_SEAL_INVALID')
+          if private.get('sealed_operations_sha256') != sha(private['operations']):
+              raise SystemExit('P0_250_F2_9B_OPERATIONS_SEAL_INVALID')
+
+          core = dict(private)
+          bundle_sha = core.pop('sealed_bundle_sha256', None)
+          if bundle_sha != sha(core):
+              raise SystemExit('P0_250_F2_9B_BUNDLE_SEAL_INVALID')
+          if public.get('sealed_bundle_sha256') != bundle_sha:
+              raise SystemExit('P0_250_F2_9B_PUBLIC_PRIVATE_SEAL_MISMATCH')
+
+          ids = [op['target_assignment']['id'] for op in private['operations']]
+          if len(ids) != len(set(ids)):
+              raise SystemExit('P0_250_F2_9B_DUPLICATE_TARGET_ID')
+          for op in private['operations']:
+              if op.get('operation') != 'INSERT_TEACHER_CLASS_ASSIGNMENT':
+                  raise SystemExit('P0_250_F2_9B_OPERATION_INVALID')
+              if op.get('sealed_preconditions', {}).get('target_id_count') != 0:
+                  raise SystemExit('P0_250_F2_9B_PRECONDITION_INVALID')
+              if op.get('sealed_preconditions', {}).get('source_legacy_count') != 1:
+                  raise SystemExit('P0_250_F2_9B_SOURCE_PRECONDITION_INVALID')
+
+          for key in ('sealed_targets_sha256','sealed_operations_sha256','sealed_bundle_sha256'):
+              if not re.fullmatch(r'[0-9a-f]{64}', str(public.get(key) or '')):
+                  raise SystemExit(f'P0_250_F2_9B_HASH_INVALID:{key}')
+
+          print('CLASSIFICATION=' + str(public.get('classification')))
+          print('SEALED_TARGET_COUNT=48')
+          print('SEALED_TARGETS_SHA256=' + public['sealed_targets_sha256'])
+          print('SEALED_OPERATIONS_SHA256=' + public['sealed_operations_sha256'])
+          print('SEALED_BUNDLE_SHA256=' + public['sealed_bundle_sha256'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f"classification={public.get('classification')}\n")
+              out.write('target_count=48\n')
+              out.write(f"targets_sha256={public['sealed_targets_sha256']}\n")
+              out.write(f"operations_sha256={public['sealed_operations_sha256']}\n")
+              out.write(f"bundle_sha256={public['sealed_bundle_sha256']}\n")
+          PY
+
+      - name: Upload private sealed evidence
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: p0-250-f2-9b-sealed-48-targets-${{ github.run_id }}
+          path: |
+            evidence/p0-250-f2-9b-public-receipt.json
+            evidence/p0-250-f2-9b-private-sealed-manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment seal receipt on #250 and close gate issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.issue_number }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          CLASSIFICATION: ${{ steps.seal.outputs.classification }}
+          TARGET_COUNT: ${{ steps.seal.outputs.target_count }}
+          TARGETS_SHA: ${{ steps.seal.outputs.targets_sha256 }}
+          OPERATIONS_SHA: ${{ steps.seal.outputs.operations_sha256 }}
+          BUNDLE_SHA: ${{ steps.seal.outputs.bundle_sha256 }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+
+          body = (
+              '## F2.9B — seal dos 48 targets seguros para backfill\n\n'
+              f"Target da fase: `{os.environ['TARGET_SHA']}`\n"
+              f"Classificação: **{os.environ['CLASSIFICATION']}**\n"
+              f"Targets selados: **{os.environ['TARGET_COUNT']}**\n"
+              f"Targets SHA-256: `{os.environ['TARGETS_SHA']}`\n"
+              f"Operations SHA-256: `{os.environ['OPERATIONS_SHA']}`\n"
+              f"Bundle SHA-256: `{os.environ['BUNDLE_SHA']}`\n"
+              f"Artifact ID privado: `{os.environ.get('ARTIFACT_ID')}`\n"
+              f"Artifact digest: `{os.environ.get('ARTIFACT_DIGEST')}`\n\n"
+              'Fonte homologada F2.9A: `794cf799a8f4091d35401d45d8203109b4e5dd0d`, '
+              'run `33350397799`, plan `fbfe46dd455e45ad65c510d75022d52918c8993c21cc76593f1915d5324fb177`.\n\n'
+              'Boundary: MongoDB read-only; nenhum target/teacher/staff ID foi emitido em log/comentário; '
+              'o manifesto completo permanece apenas no artifact privado. Nenhum backfill foi executado e '
+              '**apply continua não autorizado**.'
+          )
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          def request(method, path, payload):
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}{path}',
+                  data=json.dumps(payload).encode('utf-8'), method=method,
+                  headers={
+                      'Accept':'application/vnd.github+json',
+                      'Authorization':f'Bearer {token}',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'User-Agent':'sigesc-p0-250-f2-9b-seal',
+                      'Content-Type':'application/json',
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  response.read()
+          request('POST', '/issues/250/comments', {'body': body})
+          request('PATCH', f"/issues/{os.environ['GATE_ISSUE']}", {'state':'closed','state_reason':'completed'})
+          PY
