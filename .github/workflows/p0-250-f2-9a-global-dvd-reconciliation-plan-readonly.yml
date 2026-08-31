@@ -1,0 +1,359 @@
+name: "P0 #250 F2.9A Global DVD Reconciliation Plan Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py'
+      - 'backend/tests/test_p0_250_f2_9a_global_dvd_reconciliation_plan.py'
+      - '.github/workflows/p0-250-f2-9a-global-dvd-reconciliation-plan-readonly.yml'
+      - 'memory/audit/P0_250_F2_9A_GLOBAL_DVD_RECONCILIATION_PLAN_2026-08-30.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: p0-250-f2-9a-global-dvd-reconciliation-plan-readonly
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.9A deterministic reconciliation planner
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run deterministic planner regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py
+          python -m py_compile backend/tests/test_p0_250_f2_9a_global_dvd_reconciliation_plan.py
+          pip install pytest pymongo
+          pytest -q --noconftest backend/tests/test_p0_250_f2_9a_global_dvd_reconciliation_plan.py
+
+      - name: Enforce read-only, fail-closed and privacy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path('backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py')
+          source = path.read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          forbidden = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in forbidden:
+                  raise SystemExit(f'P0_250_F2_9A_MONGO_MUTATOR_CALL_FOUND:{node.func.attr}')
+          forbidden_import_roots = {'requests', 'httpx', 'aiohttp'}
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Import):
+                  roots = {alias.name.split('.')[0] for alias in node.names}
+              elif isinstance(node, ast.ImportFrom):
+                  roots = {(node.module or '').split('.')[0]}
+              else:
+                  continue
+              if roots & forbidden_import_roots:
+                  raise SystemExit('P0_250_F2_9A_HTTP_CLIENT_IMPORT_FOUND')
+          required = [
+              '"database_mutation": False',
+              '"production_writes": False',
+              '"http_methods": []',
+              '"mongo_reads_only": True',
+              '"academic_data_read": False',
+              '"record_ids_emitted": False',
+              '"assignment_ids_emitted": False',
+              '"teacher_ids_emitted": False',
+              '"staff_ids_emitted": False',
+              '"student_data_read": False',
+              '"user_pii_emitted": False',
+              '"plan_payload_emitted": False',
+              '"plan_digest_emitted": True',
+              'PLAN_CREATE_CANONICAL_ASSIGNMENT',
+              'REQUIRES_REVIEW',
+              'NO_CANONICAL_TEMPLATE',
+              'AMBIGUOUS_CANONICAL_TEMPLATE',
+              'classify_teacher_class_assignment',
+              'deterministic_assignment_id',
+          ]
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'P0_250_F2_9A_CONTRACT_MISSING:{marker}')
+          print('P0_250_F2_9A_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-plan:
+    name: Build global reconciliation dry-run plan in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[P0-250-F2.9A-GLOBAL-RECONCILIATION-PLAN] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve owner-scoped exact-SHA authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os, re, urllib.request
+
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
+              issue = (json.load(fh).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('P0_250_F2_9A_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('P0_250_F2_9A_ISSUE_MUST_BE_OPEN')
+
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              line = raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              key = key.strip()
+              if key in values:
+                  raise SystemExit(f'P0_250_F2_9A_DUPLICATE_FIELD:{key}')
+              values[key] = value.strip()
+
+          if values.get('P0_250_F2_9A_PLAN') != 'AUTHORIZED':
+              raise SystemExit('P0_250_F2_9A_AUTHORIZATION_INVALID')
+          if values.get('CONFIRMATION') != 'VERIFY_P0_250_F2_9A_GLOBAL_RECONCILIATION_PLAN_READ_ONLY':
+              raise SystemExit('P0_250_F2_9A_CONFIRMATION_INVALID')
+          if values.get('ACADEMIC_YEAR') != '2026':
+              raise SystemExit('P0_250_F2_9A_ACADEMIC_YEAR_INVALID')
+
+          target = values.get('TARGET_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('P0_250_F2_9A_TARGET_SHA_INVALID')
+          if issue.get('title') != f'[P0-250-F2.9A-GLOBAL-RECONCILIATION-PLAN] {target}':
+              raise SystemExit('P0_250_F2_9A_TITLE_MISMATCH')
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/branches/main',
+              headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'sigesc-p0-250-f2-9a-readonly-plan',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              main_sha = json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'P0_250_F2_9A_MAIN_MOVED:{main_sha}')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'issue_number={issue.get("number")}\n')
+          print('P0_250_F2_9A_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          print('MONGO_ACCESS=READ_ONLY')
+          print('ACADEMIC_DATA_READ=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "P0_250_F2_9A_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/p0_250_f2_9a_prod_key
+          chmod 600 ~/.ssh/p0_250_f2_9a_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/p0_250_f2_9a_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute global reconciliation planner read-only
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/p0-250-f2-9a-raw.log'
+          snapshot='evidence/p0-250-f2-9a-snapshot.json'
+          remote_command="timeout 300 docker exec -i -e P0_250_F2_9A_ACADEMIC_YEAR=2026 ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"plan_module\"}; exec(compile(sys.stdin.read(),\"p0_250_f2_9a_global_dvd_reconciliation_plan.py\",\"exec\"),ns); print(\"P0_250_F2_9A_PLAN_JSON=\" + json.dumps(ns[\"run_live_plan\"](), ensure_ascii=False))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/p0_250_f2_9a_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py > "$raw" 2>&1
+          prefix='P0_250_F2_9A_PLAN_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line" || { tail -n 80 "$raw" || true; exit 2; }
+          printf '%s' "${line#${prefix}}" > "$snapshot"
+          python -m json.tool "$snapshot" >/dev/null
+          rm -f "$raw"
+
+      - name: Validate deterministic plan boundary
+        id: diagnosis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+
+          p = json.loads(Path('evidence/p0-250-f2-9a-snapshot.json').read_text(encoding='utf-8'))
+          for key in (
+              'database_mutation','production_writes','academic_data_read','record_content_emitted',
+              'record_ids_emitted','assignment_ids_emitted','teacher_ids_emitted','staff_ids_emitted',
+              'student_data_read','student_pii_emitted','user_pii_emitted','plan_payload_emitted',
+          ):
+              if p.get(key) is not False:
+                  raise SystemExit(f'P0_250_F2_9A_BOUNDARY_FAILED:{key}')
+          if p.get('mongo_reads_only') is not True or p.get('http_methods') != []:
+              raise SystemExit('P0_250_F2_9A_READ_BOUNDARY_FAILED')
+          if p.get('plan_digest_emitted') is not True:
+              raise SystemExit('P0_250_F2_9A_PLAN_DIGEST_MISSING')
+
+          a = p.get('analysis') or {}
+          if a.get('automatic_apply_authorized') is not False:
+              raise SystemExit('P0_250_F2_9A_APPLY_MUST_REMAIN_UNAUTHORIZED')
+          for key in ('plan_sha256','decision_manifest_sha256','input_state_sha256'):
+              if not re.fullmatch(r'[0-9a-f]{64}', str(a.get(key) or '')):
+                  raise SystemExit(f'P0_250_F2_9A_HASH_INVALID:{key}')
+          for key in ('active_legacy_component_pairs','plan_create_count','review_count'):
+              value = a.get(key)
+              if not isinstance(value, int) or value < 0:
+                  raise SystemExit(f'P0_250_F2_9A_COUNT_INVALID:{key}')
+
+          print('CLASSIFICATION=' + str(p.get('classification')))
+          print('ACTIVE_LEGACY_COMPONENT_PAIRS=' + str(a.get('active_legacy_component_pairs')))
+          print('PLAN_CREATE_COUNT=' + str(a.get('plan_create_count')))
+          print('REVIEW_COUNT=' + str(a.get('review_count')))
+          print('DECISIONS=' + json.dumps(a.get('decision_counts') or {}, sort_keys=True))
+          print('REVIEW_REASONS=' + json.dumps(a.get('review_reason_counts') or {}, sort_keys=True))
+          print('PLAN_SHA256=' + str(a.get('plan_sha256')))
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f"classification={p.get('classification')}\n")
+              out.write(f"active_pairs={a.get('active_legacy_component_pairs')}\n")
+              out.write(f"plan_count={a.get('plan_create_count')}\n")
+              out.write(f"review_count={a.get('review_count')}\n")
+              out.write(f"plan_sha256={a.get('plan_sha256')}\n")
+          PY
+
+      - name: Upload private plan evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: p0-250-f2-9a-global-reconciliation-plan-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment aggregate plan on #250 and close gate issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.issue_number }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          CLASSIFICATION: ${{ steps.diagnosis.outputs.classification }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+
+          p = json.loads(Path('evidence/p0-250-f2-9a-snapshot.json').read_text(encoding='utf-8'))
+          a = p.get('analysis') or {}
+          decisions = a.get('decision_counts') or {}
+          body = (
+              '## F2.9A — planner/dry-run global de reconciliação docente/DVD\n\n'
+              f"Target: `{os.environ['TARGET_SHA']}`\n"
+              f"Classificação: **{os.environ['CLASSIFICATION']}**\n"
+              f"Pares ativos legado: **{a.get('active_legacy_component_pairs')}**\n"
+              f"Criações canônicas planejadas com derivação unívoca: **{a.get('plan_create_count')}**\n"
+              f"Pares enviados a revisão: **{a.get('review_count')}**\n"
+              f"Já canônicos: **{decisions.get('NOOP_ALREADY_CANONICAL', 0)}**\n"
+              f"Fora do escopo DVD: **{decisions.get('NOOP_OUT_OF_DVD_SCOPE', 0)}**\n"
+              f"Estados professor+turma: `{json.dumps(a.get('teacher_class_state_counts') or {}, sort_keys=True)}`\n"
+              f"Motivos de revisão: `{json.dumps(a.get('review_reason_counts') or {}, sort_keys=True)}`\n"
+              f"Plan SHA-256: `{a.get('plan_sha256')}`\n"
+              f"Decision manifest SHA-256: `{a.get('decision_manifest_sha256')}`\n"
+              f"Input state SHA-256: `{a.get('input_state_sha256')}`\n\n"
+              'Boundaries: MongoDB read-only; sem HTTP de aplicação; sem leitura de notas, frequência, conteúdo ou estudantes; '
+              'sem IDs/PII ou payload do plano emitidos. Nenhuma escrita foi realizada e este dry-run não autoriza backfill.'
+          )
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          def request(method, path, payload):
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}{path}',
+                  data=json.dumps(payload).encode('utf-8'),
+                  method=method,
+                  headers={
+                      'Accept':'application/vnd.github+json',
+                      'Authorization':f'Bearer {token}',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'User-Agent':'sigesc-p0-250-f2-9a-readonly-plan',
+                      'Content-Type':'application/json',
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  response.read()
+
+          request('POST', '/issues/250/comments', {'body': body})
+          request('PATCH', f"/issues/{os.environ['GATE_ISSUE']}", {'state':'closed','state_reason':'completed'})
+          PY
