@@ -83,3 +83,9 @@ def test_legacy_binding_must_be_unique_when_count_is_available():
     result = decide_legacy_only_policy(_base_case(legacy_binding_count=2))
     assert result.decision is LegacyOnlyPolicyDecision.KEEP_REVIEW
     assert result.reason == "LEGACY_BINDING_NOT_UNIQUE"
+
+
+def test_invalid_legacy_binding_count_fails_closed():
+    result = decide_legacy_only_policy(_base_case(legacy_binding_count="unknown"))
+    assert result.decision is LegacyOnlyPolicyDecision.KEEP_REVIEW
+    assert result.reason == "LEGACY_BINDING_COUNT_INVALID"
