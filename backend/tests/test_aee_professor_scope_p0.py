@@ -59,10 +59,24 @@ SOURCE = Path(__file__).resolve().parents[1] / "routers" / "aee_professor_scope_
 def _project(document, projection):
     if not projection:
         return dict(document)
+
+    included = [
+        key for key, enabled in projection.items()
+        if key != "_id" and bool(enabled)
+    ]
+    if included:
+        return {
+            key: value
+            for key, value in document.items()
+            if key in included
+        }
+
+    # Mongo trata {"_id": 0} como projeção de exclusão, preservando os demais
+    # campos. O fake deve reproduzir isso para testar consultas reais do adapter.
     return {
         key: value
         for key, value in document.items()
-        if key != "_id" and projection.get(key, 0)
+        if not (key == "_id" and projection.get("_id") == 0)
     }
 
 
