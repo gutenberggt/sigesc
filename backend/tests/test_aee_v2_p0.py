@@ -76,6 +76,7 @@ def _load_p0_module():
 
 
 P0 = _load_p0_module()
+P0_SOURCE = Path(__file__).resolve().parents[1] / "routers" / "aee_v2_p0.py"
 
 
 class FakeCollection:
@@ -211,3 +212,39 @@ def test_admin_actor_is_never_used_as_responsible_professor_fallback():
     detail = exc_info.value.detail
     assert detail["code"] == "AEE_RESPONSIBLE_PROFESSOR_UNRESOLVED"
     assert "administrativo" in detail["message"].lower()
+
+
+def test_professor_attendance_history_inherits_access_from_plan():
+    query = P0.build_professor_plan_access_query(
+        "user-prof-1",
+        plano_aee_id="plan-1",
+        student_id="student-1",
+        school_id="school-1",
+        academic_year=2026,
+    )
+
+    assert query["$or"] == [
+        {"professor_aee_id": "user-prof-1"},
+        {"created_by": "user-prof-1"},
+    ]
+    assert query["id"] == "plan-1"
+    assert query["student_id"] == "student-1"
+    assert query["school_id"] == "school-1"
+    assert query["academic_year"] == 2026
+
+    source = P0_SOURCE.read_text(encoding="utf-8")
+    assert 'current_list_attendance = _remove_route(base_router, "/aee/atendimentos", "GET")' in source
+    assert '"plano_aee_id": {"$in": accessible_plan_ids}' in source
+    assert 'filter_query["professor_aee_id"] = current_user.get("id")' not in source
+
+
+def test_professor_turmas_projects_aee_without_enabling_dvd():
+    source = P0_SOURCE.read_text(encoding="utf-8")
+
+    assert 'current_get_turmas = _remove_route(base_router, "/professor/turmas", "GET")' in source
+    assert '"status": {"$in": ["ativo", "active"]}' in source
+    assert "plan_docs = await db.planos_aee.find(" in source
+    assert '"atendimento_programa_class_id": 1' in source
+    assert '.strip().lower() != "aee"' in source
+    assert 'importlib.import_module("routers.professor")' in source
+    assert "/professor/diarios" not in source
