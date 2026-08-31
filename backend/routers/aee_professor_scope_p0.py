@@ -39,7 +39,7 @@ def _remove_route(base_router, path: str, method: str):
 
 
 def _same_academic_year(value: Any, expected: int) -> bool:
-    """Aceita legado int/string e documento antigo sem academic_year."""
+    """Aceita int/string; ``None`` só é tolerado no vínculo AEE legado."""
     if value is None:
         return True
     return str(value) == str(expected)
@@ -127,7 +127,11 @@ async def resolve_professor_aee_class_ids(
     student_ids = {
         item.get("student_id")
         for item in plan_docs
-        if item.get("student_id") and _same_academic_year(item.get("academic_year"), year)
+        if (
+            item.get("student_id")
+            and item.get("academic_year") is not None
+            and str(item.get("academic_year")) == str(year)
+        )
     }
     if student_ids:
         students = await db.students.find(
@@ -195,10 +199,10 @@ async def _build_professor_turmas_projection(
 ) -> list[dict]:
     """Replica a projeção legado e acrescenta apenas AEE autorizado.
 
-    Para turmas regulares preserva-se o status legado ``ativo``. O alias
-    ``active`` só é aceito para AEE, coerente com as demais rotas AEE. Alocações
-    AEE sem ``course_id`` não derrubam mais o endpoint: a turma continua válida
-    e simplesmente não recebe componente curricular artificial.
+    Para turmas regulares preserva-se o status legado ``ativo`` e o ano exato
+    já exigido por ``/professor/turmas``. O alias ``active`` e ano ausente só
+    são tolerados para AEE. Alocações AEE sem ``course_id`` não derrubam mais o
+    endpoint: a turma continua válida e não recebe componente artificial.
     """
     year = academic_year if academic_year is not None else datetime.now().year
     staff = await _resolve_professor_staff(db, current_user)
@@ -220,7 +224,8 @@ async def _build_professor_turmas_projection(
 
     turmas_dict: dict[str, dict] = {}
     for assignment in assignments:
-        if not _same_academic_year(assignment.get("academic_year"), year):
+        assignment_year = assignment.get("academic_year")
+        if not _same_academic_year(assignment_year, year):
             continue
         class_id = assignment.get("class_id")
         if not class_id:
@@ -234,9 +239,11 @@ async def _build_professor_turmas_projection(
         if is_aee:
             if class_id not in allowed_aee_ids:
                 continue
-        elif assignment.get("status") != "ativo":
-            # Não amplia a semântica do endpoint geral para turmas regulares.
-            continue
+        else:
+            # Preserva exatamente o contrato legado para turma regular: status
+            # "ativo" e academic_year int igual ao ano solicitado.
+            if assignment.get("status") != "ativo" or assignment_year != year:
+                continue
 
         if class_id not in turmas_dict:
             school = None
