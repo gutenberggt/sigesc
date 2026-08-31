@@ -1,0 +1,117 @@
+name: "P0 #250 F2.7 Content Partial Cutover Guard"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/professor_content_projection.py'
+      - 'backend/routers/content_partial_cutover.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_p0_250_f2_7_content_partial_cutover.py'
+      - 'frontend/src/services/contentPartialCutoverResolver.js'
+      - 'frontend/src/hooks/useDiaryPrefill.js'
+      - '.github/workflows/p0-250-f2-7-content-partial-cutover-guard.yml'
+      - 'memory/audit/P0_250_F2_7_CONTENT_PARTIAL_CUTOVER_2026-08-30.md'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Guard 7 DVD + 2 legacy mixed projection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile and run F2.7 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/professor_content_projection.py
+          python -m py_compile backend/routers/content_partial_cutover.py
+          python -m py_compile backend/tests/test_p0_250_f2_7_content_partial_cutover.py
+          pip install pytest pytest-asyncio
+          PYTHONPATH=backend pytest -q --noconftest backend/tests/test_p0_250_f2_7_content_partial_cutover.py
+
+      - name: Enforce fail-closed mixed-source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          service_path = Path('backend/services/professor_content_projection.py')
+          adapter_path = Path('backend/routers/content_partial_cutover.py')
+          resolver_path = Path('frontend/src/services/contentPartialCutoverResolver.js')
+          hook_path = Path('frontend/src/hooks/useDiaryPrefill.js')
+
+          service = service_path.read_text(encoding='utf-8')
+          adapter = adapter_path.read_text(encoding='utf-8')
+          resolver = resolver_path.read_text(encoding='utf-8')
+          hook = hook_path.read_text(encoding='utf-8')
+
+          required_service = [
+              '"status": "ativo"',
+              '"class_id": class_id',
+              '"academic_year": academic_year',
+              '"mantenedora_id": mantenedora_id',
+              'legacy_only_course_ids = entitled_course_ids - canonical_course_ids',
+              '"course_id": {"$in": sorted(legacy_only_course_ids)}',
+              'await list_assignment_content_history(',
+              'await list_teacher_diaries(',
+              'CANONICAL_CONTENT_HISTORY_UNAVAILABLE',
+          ]
+          for marker in required_service:
+              if marker not in service:
+                  raise SystemExit(f'P0_250_F2_7_REQUIRED_SERVICE_MARKER_MISSING:{marker}')
+
+          required_adapter = [
+              'current_user.get("role") != "professor" or not class_id or course_id',
+              'list_professor_content_projection(',
+              'get_mantenedora_scope(current_user, request)',
+          ]
+          for marker in required_adapter:
+              if marker not in adapter:
+                  raise SystemExit(f'P0_250_F2_7_ADAPTER_SCOPE_CHANGED:{marker}')
+
+          required_frontend = [
+              "window.location.pathname === '/professor/objetos-conhecimento'",
+              'if (!classId || componentId) return config;',
+              'config.__skipContentDvdBridge = true;',
+          ]
+          for marker in required_frontend:
+              if marker not in resolver:
+                  raise SystemExit(f'P0_250_F2_7_FRONTEND_GATE_CHANGED:{marker}')
+          if "@/services/contentPartialCutoverResolver" not in hook:
+              raise SystemExit('P0_250_F2_7_FRONTEND_RESOLVER_NOT_INSTALLED')
+
+          forbidden_mutators = {
+              'insert_one', 'insert_many', 'update_one', 'update_many', 'replace_one',
+              'delete_one', 'delete_many', 'bulk_write', 'find_one_and_update',
+              'find_one_and_delete', 'find_one_and_replace', 'drop', 'drop_database',
+          }
+          for path in (service_path, adapter_path):
+              tree = ast.parse(path.read_text(encoding='utf-8'))
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                      if node.func.attr in forbidden_mutators:
+                          raise SystemExit(f'P0_250_F2_7_DB_MUTATOR_FOUND:{path}:{node.func.attr}')
+
+          # Não é permitido reabrir o legado class-wide sem um $in derivado dos
+          # teacher_assignments do professor.
+          if 'db.learning_objects.find(' in adapter:
+              raise SystemExit('P0_250_F2_7_ROUTER_MUST_NOT_REIMPLEMENT_LEGACY_QUERY')
+          if 'course_id": {"$in": sorted(legacy_only_course_ids)}' not in service:
+              raise SystemExit('P0_250_F2_7_LEGACY_FALLBACK_NOT_ENTITLEMENT_SCOPED')
+
+          print('P0_250_F2_7_PARTIAL_CUTOVER_GUARD=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('RBAC_EXPANSION=NO')
+          print('LEGACY_CLASSWIDE_UNRESTRICTED=NO')
+          PY
