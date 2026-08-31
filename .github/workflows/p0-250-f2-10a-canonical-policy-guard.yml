@@ -1,0 +1,62 @@
+name: "P0 #250 F2.10A Canonical Legacy-only Policy Guard"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/legacy_only_canonical_policy.py'
+      - 'backend/tests/test_p0_250_f2_10a_legacy_only_canonical_policy.py'
+      - 'memory/audit/P0_250_F2_10A_CANONICAL_POLICY_LEGACY_ONLY_2026-08-31.md'
+      - '.github/workflows/p0-250-f2-10a-canonical-policy-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  policy-guard:
+    name: Guard entitlement-only policy without DVD inference
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Run F2.10A policy regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          cd backend
+          PYTHONPATH=. pytest -q tests/test_p0_250_f2_10a_legacy_only_canonical_policy.py
+
+      - name: Assert F2.10A remains pure and non-mutating
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/services/legacy_only_canonical_policy.py')
+          text = path.read_text(encoding='utf-8')
+          forbidden = (
+              '.insert_one(', '.insert_many(', '.update_one(', '.update_many(',
+              '.replace_one(', '.delete_one(', '.delete_many(', '.bulk_write(',
+              'AsyncIOMotorClient', 'MongoClient', 'urllib.request', 'requests.',
+          )
+          found = [token for token in forbidden if token in text]
+          if found:
+              raise SystemExit('P0_250_F2_10A_POLICY_NOT_PURE:' + ','.join(found))
+          required = (
+              'CANONICAL_ENTITLEMENT',
+              'PLAN_CANONICAL_ENTITLEMENT_ONLY',
+              'NO_CANONICAL_TEMPLATE',
+              'storage_ready',
+          )
+          missing = [token for token in required if token not in text]
+          if missing:
+              raise SystemExit('P0_250_F2_10A_POLICY_MARKER_MISSING:' + ','.join(missing))
+          print('P0_250_F2_10A_CANONICAL_POLICY_GUARD=PASS')
+          PY
