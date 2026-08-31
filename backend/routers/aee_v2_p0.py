@@ -1,6 +1,7 @@
-"""AEE v2 — salvaguardas P0 de integridade e autoria.
+"""AEE v2 — salvaguardas P0 de integridade, autoria e leitura do professor.
 
 Autorizado explicitamente pelo proprietário do produto em 21/08/2026.
+Hotfix de leitura do professor autorizado explicitamente em 31/08/2026.
 
 Esta camada segue o padrão de hardening já usado no SIGESC: o router legado do
 Diário AEE permanece intacto e apenas os endpoints críticos são envolvidos.
@@ -11,11 +12,17 @@ Objetivos P0:
 - separar ator da alteração (created_by/updated_by) do professor AEE responsável;
 - impedir hard delete de Plano AEE que já represente documento vigente/histórico
   ou que possua atendimentos, evoluções ou articulações vinculadas;
+- preservar o histórico de atendimentos quando registros antigos carregarem
+  identidade de professor incompatível, herdando a leitura do Plano AEE;
+- restaurar a projeção das turmas AEE em /professor/turmas sem incluir o AEE no
+  DVD v1, usando vínculo AEE legado e Plano AEE como fallback compatível;
 - preservar integralmente IDs, enums e payloads legados nesta fase.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
+import importlib
 from typing import Any, Iterable, Optional
 
 from fastapi import HTTPException, Request, status
@@ -95,6 +102,37 @@ def _set_result_professor(result: Any, professor_id: str, professor_nome: Option
     except Exception:
         pass
     return result
+
+
+def build_professor_plan_access_query(
+    professor_user_id: str,
+    *,
+    plano_aee_id: Optional[str] = None,
+    student_id: Optional[str] = None,
+    school_id: Optional[str] = None,
+    academic_year: Optional[int] = None,
+) -> dict:
+    """Replica a política de leitura do Plano AEE para dependências históricas.
+
+    O Plano é a âncora de autorização. ``created_by`` permanece somente como
+    compatibilidade histórica para registros anteriores ao saneamento de
+    ``professor_aee_id``; não cria um novo conceito de ownership.
+    """
+    query: dict[str, Any] = {
+        "$or": [
+            {"professor_aee_id": professor_user_id},
+            {"created_by": professor_user_id},
+        ]
+    }
+    if plano_aee_id:
+        query["id"] = plano_aee_id
+    if student_id:
+        query["student_id"] = student_id
+    if school_id:
+        query["school_id"] = school_id
+    if academic_year is not None:
+        query["academic_year"] = academic_year
+    return query
 
 
 async def _require_write(request: Request, write_roles: Iterable[str]) -> dict:
@@ -218,6 +256,7 @@ def install_aee_v2_p0(base_router, db, audit_service, *, write_roles: Iterable[s
     current_duplicate_plan = _remove_route(base_router, "/aee/planos/{plano_id}/duplicate", "POST")
     current_from_template = _remove_route(base_router, "/aee/planos/from-template", "POST")
     current_create_attendance = _remove_route(base_router, "/aee/atendimentos", "POST")
+    current_list_attendance = _remove_route(base_router, "/aee/atendimentos", "GET")
     current_update_attendance = _remove_route(
         base_router, "/aee/atendimentos/{atendimento_id}", "PUT"
     )
@@ -229,6 +268,7 @@ def install_aee_v2_p0(base_router, db, audit_service, *, write_roles: Iterable[s
         "POST /aee/planos/{plano_id}/duplicate": current_duplicate_plan,
         "POST /aee/planos/from-template": current_from_template,
         "POST /aee/atendimentos": current_create_attendance,
+        "GET /aee/atendimentos": current_list_attendance,
         "PUT /aee/atendimentos/{atendimento_id}": current_update_attendance,
     }
     missing = [name for name, endpoint in required.items() if endpoint is None]
@@ -473,6 +513,88 @@ def install_aee_v2_p0(base_router, db, audit_service, *, write_roles: Iterable[s
             )
         return result
 
+    @base_router.get("/atendimentos")
+    async def p0_list_attendances(
+        request: Request,
+        plano_aee_id: Optional[str] = None,
+        student_id: Optional[str] = None,
+        school_id: Optional[str] = None,
+        academic_year: Optional[int] = None,
+        data_inicio: Optional[str] = None,
+        data_fim: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ):
+        """Lista atendimentos; Professor herda o escopo do Plano AEE.
+
+        Registros históricos podem ter ``professor_aee_id`` ausente, staff.id ou
+        outro identificador legado. A autorização não é inferida do atendimento:
+        primeiro resolvemos os Planos que o professor pode ler e só então
+        buscamos suas dependências. Assim o Dossiê mantém o histórico completo
+        sem ampliar acesso a Planos de outros professores.
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        if current_user.get("role") != "professor":
+            return await current_list_attendance(
+                request=request,
+                plano_aee_id=plano_aee_id,
+                student_id=student_id,
+                school_id=school_id,
+                academic_year=academic_year,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                skip=skip,
+                limit=limit,
+            )
+
+        uid = current_user.get("id")
+        if not uid:
+            return {"items": [], "total": 0}
+
+        plan_query = build_professor_plan_access_query(
+            uid,
+            plano_aee_id=plano_aee_id,
+            student_id=student_id,
+            school_id=school_id,
+            academic_year=academic_year,
+        )
+        accessible_plans = await db.planos_aee.find(
+            plan_query,
+            {"_id": 0, "id": 1},
+        ).to_list(2000)
+        accessible_plan_ids = [item.get("id") for item in accessible_plans if item.get("id")]
+
+        filter_query: dict[str, Any] = {
+            "plano_aee_id": {"$in": accessible_plan_ids}
+        }
+        if student_id:
+            filter_query["student_id"] = student_id
+        if school_id:
+            filter_query["school_id"] = school_id
+        if academic_year is not None:
+            filter_query["academic_year"] = academic_year
+        if data_inicio or data_fim:
+            filter_query["data"] = {}
+            if data_inicio:
+                filter_query["data"]["$gte"] = data_inicio
+            if data_fim:
+                filter_query["data"]["$lte"] = data_fim
+
+        atendimentos = await db.atendimentos_aee.find(
+            filter_query,
+            {"_id": 0},
+        ).sort("data", -1).skip(skip).limit(limit).to_list(limit)
+
+        for atendimento in atendimentos:
+            student = await db.students.find_one(
+                {"id": atendimento.get("student_id")},
+                {"_id": 0, "full_name": 1},
+            )
+            atendimento["student_name"] = student.get("full_name") if student else "N/A"
+
+        total = await db.atendimentos_aee.count_documents(filter_query)
+        return {"items": atendimentos, "total": total}
+
     @base_router.put("/atendimentos/{atendimento_id}")
     async def p0_update_attendance(
         atendimento_id: str,
@@ -504,8 +626,150 @@ def install_aee_v2_p0(base_router, db, audit_service, *, write_roles: Iterable[s
     return base_router
 
 
+def install_aee_professor_turmas(base_router, db):
+    """Restaura turmas AEE no endpoint legado consumido pela tela do AEE.
+
+    O AEE continua explicitamente fora do DVD v1. O endpoint geral do professor
+    segue retornando suas turmas usuais e recebe, de forma aditiva, apenas turmas
+    AEE comprovadas por ``teacher_assignments`` legado ou por Plano AEE já
+    autorizado ao próprio professor (fallback para dados históricos saneados de
+    forma incompleta).
+    """
+    if getattr(base_router, "_aee_professor_turmas_installed", False):
+        return base_router
+
+    current_get_turmas = _remove_route(base_router, "/professor/turmas", "GET")
+    if current_get_turmas is None:
+        raise RuntimeError("AEE P0 não pôde proteger GET /professor/turmas")
+
+    @base_router.get("/professor/turmas")
+    async def p0_professor_turmas(
+        request: Request,
+        academic_year: Optional[int] = None,
+    ):
+        base_items = list(await current_get_turmas(request, academic_year) or [])
+        current_user = await AuthMiddleware.get_current_user(request)
+        if current_user.get("role") != "professor" or not current_user.get("id"):
+            return base_items
+
+        staff = await db.staff.find_one(
+            {"user_id": current_user.get("id")},
+            {"_id": 0, "id": 1, "email": 1},
+        )
+        if not staff and current_user.get("email"):
+            staff = await db.staff.find_one(
+                {"email": current_user.get("email")},
+                {"_id": 0, "id": 1, "email": 1},
+            )
+        if not staff:
+            return base_items
+
+        year = academic_year if academic_year is not None else datetime.now().year
+        aee_class_ids: set[str] = set()
+
+        # Fonte operacional AEE permanece no vínculo legado, não no DVD.
+        legacy_assignments = await db.teacher_assignments.find(
+            {
+                "staff_id": staff.get("id"),
+                "status": {"$in": ["ativo", "active"]},
+            },
+            {"_id": 0, "class_id": 1, "academic_year": 1},
+        ).to_list(1000)
+        for assignment in legacy_assignments:
+            assignment_year = assignment.get("academic_year")
+            if assignment_year is not None and str(assignment_year) != str(year):
+                continue
+            if assignment.get("class_id"):
+                aee_class_ids.add(str(assignment.get("class_id")))
+
+        # Compatibilidade histórica: Planos já visíveis ao professor provam o
+        # vínculo pedagógico mesmo quando o teacher_assignment antigo foi
+        # desativado/saneado durante a evolução dos vínculos docentes.
+        plan_docs = await db.planos_aee.find(
+            {
+                "$or": [
+                    {"professor_aee_id": current_user.get("id")},
+                    {"created_by": current_user.get("id")},
+                ]
+            },
+            {"_id": 0, "student_id": 1, "academic_year": 1},
+        ).to_list(1000)
+        student_ids = {
+            item.get("student_id")
+            for item in plan_docs
+            if item.get("student_id") and str(item.get("academic_year")) == str(year)
+        }
+        if student_ids:
+            students = await db.students.find(
+                {"id": {"$in": list(student_ids)}},
+                {"_id": 0, "atendimento_programa_class_id": 1},
+            ).to_list(1000)
+            for student in students:
+                if student.get("atendimento_programa_class_id"):
+                    aee_class_ids.add(str(student.get("atendimento_programa_class_id")))
+
+        if not aee_class_ids:
+            return base_items
+
+        classes = await db.classes.find(
+            {"id": {"$in": list(aee_class_ids)}},
+            {"_id": 0},
+        ).to_list(1000)
+        existing_ids = {str(item.get("id")) for item in base_items if item.get("id")}
+
+        for turma in classes:
+            if (turma.get("atendimento_programa") or "").strip().lower() != "aee":
+                continue
+            turma_id = str(turma.get("id") or "")
+            if not turma_id or turma_id in existing_ids:
+                continue
+
+            school = None
+            if turma.get("school_id"):
+                school = await db.schools.find_one(
+                    {"id": turma.get("school_id")},
+                    {"_id": 0, "name": 1},
+                )
+            turma["school_name"] = school.get("name", "") if school else ""
+            turma["componentes"] = []
+            base_items.append(turma)
+            existing_ids.add(turma_id)
+
+        base_items.sort(
+            key=lambda item: (
+                (item.get("school_name") or "").casefold(),
+                (item.get("name") or "").casefold(),
+                str(item.get("id") or ""),
+            )
+        )
+        return base_items
+
+    setattr(base_router, "_aee_professor_turmas_installed", True)
+    return base_router
+
+
+def install_aee_professor_turmas_setup(professor_module):
+    """Envolve ``routers.professor.setup_router`` sem alterar o módulo legado."""
+    if getattr(professor_module, "_aee_professor_turmas_setup_installed", False):
+        return
+
+    original_setup = professor_module.setup_router
+
+    def wrapped_setup(db, audit_service=None, sandbox_db=None, **kwargs):
+        configured = original_setup(
+            db,
+            audit_service=audit_service,
+            sandbox_db=sandbox_db,
+            **kwargs,
+        )
+        return install_aee_professor_turmas(configured, db)
+
+    professor_module.setup_router = wrapped_setup
+    professor_module._aee_professor_turmas_setup_installed = True
+
+
 def install_aee_v2_p0_setup(aee_module):
-    """Envolve ``routers.aee.setup_aee_router`` antes de server.py importá-lo."""
+    """Envolve os setups AEE/Professor antes de ``server.py`` importá-los."""
     if getattr(aee_module, "_aee_v2_p0_setup_installed", False):
         return
 
@@ -523,3 +787,9 @@ def install_aee_v2_p0_setup(aee_module):
 
     aee_module.setup_aee_router = wrapped_setup
     aee_module._aee_v2_p0_setup_installed = True
+
+    # Import tardio evita ciclo no carregamento do pacote ``routers``. O módulo
+    # Professor continua legado; apenas seu GET /professor/turmas recebe a
+    # projeção AEE aditiva necessária à tela do Diário AEE.
+    professor_module = importlib.import_module("routers.professor")
+    install_aee_professor_turmas_setup(professor_module)
