@@ -94,6 +94,7 @@ from .assessment_policy_admin import install_assessment_policy_admin_setup
 # P0 temporal rejeita novos horários AEE fora de 06:00–22:00 ou com fim <= início.
 from . import aee as _aee_mod
 from .aee_v2_p0 import install_aee_v2_p0_setup
+from .aee_professor_scope_p0 import install_aee_professor_scope_setup
 from .aee_v2_dossier import install_aee_v2_dossier_setup
 from .aee_v2_persistence import install_aee_v2_persistence_setup
 from .aee_v2_delete_guard import install_aee_v2_delete_guard_setup
@@ -132,6 +133,9 @@ install_aee_v2_plano_effective_read_setup(_aee_mod)
 install_aee_v2_plano_pdf_effective_setup(_aee_mod)
 install_aee_v2_plan_list_effective_cutover_setup(_aee_mod)
 install_aee_v2_plan_write_governance_setup(_aee_mod)
+# P0 31/08/2026 — última camada de leitura AEE: fecha o roster do Professor por
+# Turma AEE autorizada e mantém o seletor compatível com user.id/staff.id legado.
+install_aee_professor_scope_setup(_aee_mod)
 
 
 def setup_auth_router(db, audit_service):
