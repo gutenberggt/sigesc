@@ -1,0 +1,60 @@
+name: "P0 #250 F2.9C Closure Guard"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'backend/scripts/p0_250_f2_9c_authorized_backfill_48.py'
+      - 'memory/audit/P0_250_F2_9C_CLOSURE_2026-08-31.md'
+
+permissions:
+  contents: read
+
+jobs:
+  closure-guard:
+    name: Guard retired one-time F2.9C production writers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Ensure completed write workflows remain retired
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/p0-250-f2-9c-authorized-backfill-48.yml
+          test ! -e .github/workflows/p0-250-f2-9c1-authorized-backfill-48-retry.yml
+
+      - name: Ensure no F2.9C issue-triggered write gate remains active
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          forbidden = (
+              '[P0-250-F2.9C-EXECUTE-48-TARGETS]',
+              '[P0-250-F2.9C1-EXECUTE-48-TARGETS]',
+              'APPLY_P0_250_F2_9C_SEALED_48_TARGETS',
+              'APPLY_P0_250_F2_9C1_SAME_SEALED_48_TARGETS',
+          )
+          violations = []
+          for path in Path('.github/workflows').glob('*.y*ml'):
+              if path.name == 'p0-250-f2-9c-closure-guard.yml':
+                  continue
+              text = path.read_text(encoding='utf-8')
+              if any(marker in text for marker in forbidden):
+                  violations.append(path.as_posix())
+          if violations:
+              raise SystemExit('P0_250_F2_9C_RETIRED_WRITER_REINTRODUCED:' + ','.join(sorted(violations)))
+          print('P0_250_F2_9C_CLOSURE_GUARD=PASS')
+          PY
+
+      - name: Preserve executor and source blobs for forensic reproducibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py)" = "42178d99c479ab43d4345c4a5346cac6735eefd3"
+          test "$(git hash-object backend/scripts/p0_250_f2_9b_seal_safe_backfill_targets.py)" = "940e171b434b04914887e080dc8af6a8e9296c4a"
+          test "$(git hash-object backend/scripts/p0_250_f2_9c_authorized_backfill_48.py)" = "fbf075ba7dbad3e544d157bc163c3ea57aa31dcf"
