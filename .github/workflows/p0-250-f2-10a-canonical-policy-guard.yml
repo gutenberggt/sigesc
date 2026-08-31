@@ -24,13 +24,32 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run F2.10A policy regressions
+      - name: Run F2.10A pure policy regressions
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check pytest
           cd backend
-          PYTHONPATH=. pytest -q tests/test_p0_250_f2_10a_legacy_only_canonical_policy.py
+          PYTHONPATH=. python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('tests/test_p0_250_f2_10a_legacy_only_canonical_policy.py')
+          spec = importlib.util.spec_from_file_location('f2_10a_policy_tests', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(module)
+
+          tests = [
+              getattr(module, name)
+              for name in sorted(dir(module))
+              if name.startswith('test_') and callable(getattr(module, name))
+          ]
+          if not tests:
+              raise SystemExit('P0_250_F2_10A_TESTS_NOT_FOUND')
+          for test in tests:
+              test()
+          print(f'P0_250_F2_10A_POLICY_TESTS=PASS count={len(tests)}')
+          PY
 
       - name: Assert F2.10A remains pure and non-mutating
         shell: bash
