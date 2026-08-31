@@ -232,6 +232,7 @@ jobs:
           BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
         run: |
           set -euo pipefail
+          mkdir -p evidence
           raw='evidence/p0-250-f2-9b-raw.private'
           marker='# __P0_250_F2_9B_SOURCE_SPLIT__'
           remote_command="timeout 300 docker exec -i -e P0_250_F2_9A_ACADEMIC_YEAR=2026 -e P0_250_F2_9A_REFERENCE_DATE=2026-08-31 ${BACKEND_CONTAINER} python -c 'import json,sys,types; text=sys.stdin.read(); a,b=text.split(\"\\n# __P0_250_F2_9B_SOURCE_SPLIT__\\n\",1); planner=types.ModuleType(\"p0_250_f2_9a_sealed_source\"); planner.__dict__[\"__name__\"]=\"p0_250_f2_9a_sealed_source\"; exec(compile(a,\"p0_250_f2_9a_global_dvd_reconciliation_plan.py\",\"exec\"),planner.__dict__); ns={\"__name__\":\"p0_250_f2_9b_seal\",\"_PLANNER_OVERRIDE\":planner}; exec(compile(b,\"p0_250_f2_9b_seal_safe_backfill_targets.py\",\"exec\"),ns); result=ns[\"run_live_seal\"](); print(\"P0_250_F2_9B_PUBLIC=\"+json.dumps(result[\"public\"],ensure_ascii=False,separators=(\",\",\":\"))); print(\"P0_250_F2_9B_PRIVATE=\"+json.dumps(result[\"private\"],ensure_ascii=False,separators=(\",\",\":\")))'"
