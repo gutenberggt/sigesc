@@ -118,11 +118,19 @@ def decide_legacy_only_policy(case: Mapping[str, Any]) -> LegacyOnlyPolicyResult
         )
 
     legacy_binding_count = case.get("legacy_binding_count")
-    if legacy_binding_count is not None and int(legacy_binding_count) != 1:
-        return LegacyOnlyPolicyResult(
-            LegacyOnlyPolicyDecision.KEEP_REVIEW,
-            "LEGACY_BINDING_NOT_UNIQUE",
-        )
+    if legacy_binding_count is not None:
+        try:
+            count = int(legacy_binding_count)
+        except (TypeError, ValueError):
+            return LegacyOnlyPolicyResult(
+                LegacyOnlyPolicyDecision.KEEP_REVIEW,
+                "LEGACY_BINDING_COUNT_INVALID",
+            )
+        if count != 1:
+            return LegacyOnlyPolicyResult(
+                LegacyOnlyPolicyDecision.KEEP_REVIEW,
+                "LEGACY_BINDING_NOT_UNIQUE",
+            )
 
     return LegacyOnlyPolicyResult(
         LegacyOnlyPolicyDecision.PLAN_CANONICAL_ENTITLEMENT_ONLY,
