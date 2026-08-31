@@ -303,7 +303,12 @@ def apply_tenant_filter(
     if mid is None and is_control_plane_request(user, request):
         return q
 
-    q["mantenedora_id"] = mid or INVALID_TENANT_SENTINEL
+    # Mantém o contrato estático pré-existente dos guards F2.6 e aplica a
+    # sentinela fail-closed quando a resolução operacional não produz tenant.
+    if mid:
+        q['mantenedora_id'] = mid
+    else:
+        q['mantenedora_id'] = INVALID_TENANT_SENTINEL
     return q
 
 
