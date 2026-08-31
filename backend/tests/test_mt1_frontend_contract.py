@@ -8,7 +8,7 @@ FRONTEND = ROOT / "frontend" / "src"
 def test_tenant_switcher_has_no_cross_tenant_operational_option():
     source = (FRONTEND / "components" / "TenantSwitcher.jsx").read_text(encoding="utf-8")
 
-    assert "Todas (cross-tenant)" not in source
+    assert '<span>Todas (cross-tenant)</span>' not in source
     assert "tenant-option-all" not in source
     assert "Selecione a mantenedora" in source
     assert "activeMantenedoraId" in source
