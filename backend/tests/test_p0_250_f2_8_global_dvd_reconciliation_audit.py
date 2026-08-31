@@ -1,8 +1,13 @@
 from pathlib import Path
 import importlib.util
+import sys
 
 
-SCRIPT = Path(__file__).parents[1] / "scripts" / "p0_250_f2_8_global_dvd_reconciliation_audit.py"
+BACKEND = Path(__file__).parents[1]
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
+
+SCRIPT = BACKEND / "scripts" / "p0_250_f2_8_global_dvd_reconciliation_audit.py"
 spec = importlib.util.spec_from_file_location("p0_250_f2_8", SCRIPT)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
