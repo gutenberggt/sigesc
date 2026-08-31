@@ -15,9 +15,44 @@ COORDINATOR_EDIT_AREAS = ['grades', 'attendance', 'learning_objects', 'conteudo'
 # Recursos que o Coordenador pode apenas VISUALIZAR (tudo da sua escola)
 COORDINATOR_VIEW_ONLY_AREAS = ['students', 'classes', 'courses', 'enrollments', 'staff', 'school_assignments', 'teacher_assignments']
 
+
 class AuthMiddleware:
     """Middleware para autenticação e autorização"""
-    
+
+    @staticmethod
+    async def _resolve_request_tenant(user: dict, request: Request) -> dict:
+        """MT-1: resolve tenant operacional ANTES de RBAC/escopo escolar.
+
+        Endpoints de sessão e control plane explicitamente autorizados são
+        isentos. Em qualquer rota operacional, ausência/tenant inválido/inativo
+        falham fechados.
+        """
+        from tenant_scope import (
+            requires_operational_tenant_context,
+            resolve_operational_tenant_context,
+        )
+
+        if not requires_operational_tenant_context(user, request):
+            return user
+
+        # `audit_service` já recebe o db canônico durante o bootstrap do server.
+        # Reutilizar essa referência evita importar server.py de volta (ciclo).
+        from audit_service import audit_service
+        tenant_db = audit_service.db
+        if tenant_db is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    'code': 'TENANT_CONTEXT_UNAVAILABLE',
+                    'message': 'Contexto multi-tenant indisponível no momento.',
+                },
+            )
+
+        ctx = await resolve_operational_tenant_context(tenant_db, user, request)
+        enriched = dict(user)
+        enriched['active_mantenedora_id'] = ctx.id
+        return enriched
+
     @staticmethod
     async def get_current_user(request: Request) -> dict:
         """Extrai e valida usuário do token JWT.
@@ -26,6 +61,10 @@ class AuthMiddleware:
           1. Cookie HttpOnly `sigesc_access` (novo padrão seguro).
           2. Header `Authorization: Bearer ...` (retrocompat durante migração).
           3. Query param `?token=...` (necessário p/ window.open em PDFs).
+
+        MT-1: depois da identidade JWT, a mantenedora operacional é resolvida e
+        validada antes de qualquer RBAC, salvo endpoints explícitos de sessão ou
+        control plane.
         """
         token = request.cookies.get(ACCESS_COOKIE_NAME)
 
@@ -46,14 +85,14 @@ class AuthMiddleware:
                 headers={'WWW-Authenticate': 'Bearer'},
             )
         payload = decode_token(token)
-        
+
         if not payload:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Token inválido ou expirado',
                 headers={'WWW-Authenticate': 'Bearer'},
             )
-        
+
         if payload.get('type') != 'access':
             log_tenant_event(
                 'invalid_token', {'id': payload.get('sub'), 'role': payload.get('role')}, request,
@@ -63,14 +102,14 @@ class AuthMiddleware:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Tipo de token inválido',
             )
-        
+
         user_id = payload.get('sub')
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Token inválido',
             )
-        
+
         # Consulta blacklist: token revogado individualmente (jti) OU dentro
         # da janela de revoke_all (logout). O comparador usa iat (issued at) do
         # access_token. Tokens emitidos antes do fix (sem iat) ignoram o
@@ -86,8 +125,8 @@ class AuthMiddleware:
                     detail='Token revogado',
                     headers={'WWW-Authenticate': 'Bearer'},
                 )
-        
-        return {
+
+        user = {
             'id': user_id,
             'role': payload.get('role'),
             'school_ids': payload.get('school_ids', []),
@@ -95,17 +134,19 @@ class AuthMiddleware:
             'is_sandbox': payload.get('is_sandbox', False),
             'mantenedora_id': payload.get('mantenedora_id'),
         }
-    
+        return await AuthMiddleware._resolve_request_tenant(user, request)
+
     @staticmethod
     def require_roles(allowed_roles: List[str]):
         """Decorator para verificar se o usuário tem um dos papéis permitidos"""
         async def role_checker(request: Request):
+            # get_current_user já validou o tenant operacional (MT-1).
             user = await AuthMiddleware.get_current_user(request)
-            
-            # super_admin tem acesso total (cross-tenant) — Multi-tenancy Fase 1
+
+            # super_admin mantém bypass FUNCIONAL, nunca bypass de tenant.
             if user['role'] == 'super_admin':
                 return user
-            
+
             # admin_teste tem as mesmas permissões que admin
             # apoio_pedagogico tem as mesmas permissões que coordenador
             # gerente é admin escopado à sua mantenedora
@@ -116,17 +157,16 @@ class AuthMiddleware:
                 effective_role = 'coordenador'
             elif effective_role == 'gerente':
                 effective_role = 'admin'
-            
+
             if effective_role not in allowed_roles:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f'Acesso negado. Papel requerido: {", ".join(allowed_roles)}'
                 )
-            
+
             return user
-        
         return role_checker
-    
+
     @staticmethod
     def require_permission(db, menu_item_key: str, default_roles: List[str]):
         """Apr 2026: Verificação de permissão sensível à Matriz de Permissões.
@@ -137,13 +177,13 @@ class AuthMiddleware:
         - Se houver override `visible=False` → bloqueia (mesmo que papel esteja em default_roles).
         - Se não houver override → cai no `require_roles(default_roles)` tradicional.
 
-        Isso faz da Matriz de Permissões a fonte de verdade tanto para visibilidade
-        no menu quanto para acesso na API, sem precisar editar código a cada mudança.
+        MT-1: o tenant operacional já foi validado por get_current_user antes
+        de qualquer decisão da Matriz/RBAC.
         """
         async def permission_checker(request: Request):
             user = await AuthMiddleware.get_current_user(request)
             role = user.get('role')
-            # super_admin SEMPRE passa: evita lock-out acidental via Matriz.
+            # super_admin passa no RBAC funcional; o tenant já foi validado.
             if role == 'super_admin':
                 return user
             try:
@@ -176,10 +216,10 @@ class AuthMiddleware:
         """
         async def role_checker(request: Request):
             user = await AuthMiddleware.get_current_user(request)
-            
+
             # Se não for coordenador/apoio_pedagogico, verifica normalmente
             if user['role'] not in ('coordenador', 'apoio_pedagogico'):
-                # super_admin tem acesso total (cross-tenant)
+                # super_admin mantém bypass funcional; tenant já validado.
                 if user['role'] == 'super_admin':
                     return user
                 # gerente é admin escopado à mantenedora
@@ -190,26 +230,25 @@ class AuthMiddleware:
                         detail=f'Acesso negado. Papel requerido: {", ".join(allowed_roles)}'
                     )
                 return user
-            
+
             # É coordenador - verifica se pode editar esta área
             if resource_area in COORDINATOR_EDIT_AREAS:
                 return user
-            
+
             # Coordenador tentando editar área não permitida
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='Coordenadores podem apenas visualizar este recurso. Edição permitida somente para notas, frequência e conteúdos.'
             )
-        
+
         return role_checker
-    
+
     @staticmethod
     def check_school_access(user: dict, school_id: str) -> bool:
         """Verifica se o usuário tem acesso (LEITURA) à escola.
 
-        Papéis globais da mantenedora têm visão total (alinhado com
-        `routers/schools.py::list_schools` e o mapa do frontend `Users.js`).
-        Escrita é validada por endpoint (não passa por aqui).
+        Papéis globais da mantenedora têm visão total DENTRO do tenant ativo.
+        A validação cross-tenant final ocorre em verify_school_access.
         """
         global_tenant_roles = {
             'super_admin', 'admin', 'admin_teste', 'gerente',
@@ -221,17 +260,19 @@ class AuthMiddleware:
 
         # Outros papéis precisam ter a escola vinculada
         return school_id in user['school_ids']
-    
+
     @staticmethod
     async def verify_school_access(request: Request, school_id: str):
-        """Verifica acesso à escola e retorna usuário.
+        """Verifica acesso escolar com tenant obrigatório e fail-closed.
 
-        Cross-tenant guard (Feb 2026): para gerente/admin/etc., também valida
-        que a escola pertence à mantenedora do usuário (a partir do JWT).
-        Super_admin pode atuar cross-tenant ou no tenant ativo via header
-        X-Mantenedora-Id (resolvido por get_mantenedora_scope).
+        MT-1:
+        - tenant operacional é resolvido antes do escopo escolar;
+        - escola inexistente não é autorizada;
+        - escola sem mantenedora_id é bloqueada para saneamento governado;
+        - tenant divergente é sempre 403, inclusive para super_admin.
         """
-        from tenant_scope import is_super_admin, get_mantenedora_scope
+        from audit_service import audit_service
+        from tenant_scope import resolve_operational_tenant_context
 
         user = await AuthMiddleware.get_current_user(request)
 
@@ -241,31 +282,52 @@ class AuthMiddleware:
                 detail='Acesso negado a esta escola'
             )
 
-        # Cross-tenant check: a escola precisa pertencer ao tenant ativo do user.
-        # super_admin atuando cross-tenant (sem header) ignora; com header,
-        # também é validado pela mesma rota.
-        active_tenant = get_mantenedora_scope(user, request)
-        if active_tenant is not None:
-            # Importação preguiçosa para evitar ciclo no startup
-            from server import db as _db  # noqa: WPS433
-            school = await _db.schools.find_one(
-                {"id": school_id}, {"_id": 0, "mantenedora_id": 1}
+        tenant_db = audit_service.db
+        if tenant_db is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail='Contexto multi-tenant indisponível'
             )
-            school_tenant = (school or {}).get('mantenedora_id')
-            # Se a escola tem mantenedora declarada, força o match.
-            # Escolas legadas sem mantenedora_id passam (não é campo obrigatório
-            # para coleções ainda não migradas).
-            if school_tenant and school_tenant != active_tenant:
-                # super_admin acessando seu próprio tenant ativo passa por aqui
-                # apenas se o header bater com o tenant da escola.
-                if not (is_super_admin(user) and active_tenant is None):
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail='Escola pertence a outra mantenedora'
-                    )
+
+        ctx = await resolve_operational_tenant_context(tenant_db, user, request)
+        school = await tenant_db.schools.find_one(
+            {"id": school_id},
+            {"_id": 0, "id": 1, "mantenedora_id": 1},
+        )
+        if not school:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Escola não encontrada'
+            )
+
+        school_tenant = school.get('mantenedora_id')
+        if not school_tenant:
+            log_tenant_event(
+                'missing_document_tenant',
+                user,
+                request,
+                extra={'collection': 'schools', 'document_id': school_id},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Escola sem mantenedora_id; saneamento governado é necessário'
+            )
+
+        if str(school_tenant) != str(ctx.id):
+            log_tenant_event(
+                'cross_tenant_attempt',
+                user,
+                request,
+                requested_mantenedora=str(school_tenant),
+                extra={'collection': 'schools', 'document_id': school_id},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Escola pertence a outra mantenedora'
+            )
 
         return user
-    
+
     @staticmethod
     def is_coordinator_read_only(user: dict, resource_area: str) -> bool:
         """
@@ -274,9 +336,9 @@ class AuthMiddleware:
         """
         if user['role'] != 'coordenador':
             return False
-        
+
         return resource_area not in COORDINATOR_EDIT_AREAS
-    
+
     @staticmethod
     def get_user_permissions(user: dict) -> dict:
         """
