@@ -1,0 +1,50 @@
+name: Multi-Tenant Isolation Guard (MT-1)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  mt1-operational-tenant:
+    name: MT-1 - Operational tenant fail-closed
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      JWT_SECRET_KEY: ci-mt1-secret-key-not-for-production
+      COOKIE_SECURE: "false"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install isolated dependencies
+        run: |
+          pip install \
+            pytest \
+            fastapi \
+            python-dotenv \
+            "python-jose[cryptography]" \
+            bcrypt
+
+      - name: Compile MT-1 foundation
+        run: |
+          python -m py_compile tenant_scope.py auth_middleware.py
+
+      - name: Run MT-1 tenant isolation contract
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_mt1_operational_tenant_context.py \
+            tests/test_mt1_frontend_contract.py
