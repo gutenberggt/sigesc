@@ -30,10 +30,11 @@ jobs:
           set -euo pipefail
           python -m py_compile backend/scripts/ana_lucia_f2_5_adjudication_readonly.py
           python - <<'PY'
+          import ast
           from pathlib import Path
 
-          p=Path('.github/workflows/ana-lucia-f2-5-runtime-diagnostic-readonly.yml')
-          source=p.read_text(encoding='utf-8')
+          workflow_path=Path('.github/workflows/ana-lucia-f2-5-runtime-diagnostic-readonly.yml')
+          workflow=workflow_path.read_text(encoding='utf-8')
           required=(
               'ANA_LUCIA_F2_5_DIAGNOSTIC=AUTHORIZED',
               'RUNTIME_ERROR_DIAGNOSTIC_READ_ONLY',
@@ -45,16 +46,41 @@ jobs:
               'database_mutation=false',
           )
           for marker in required:
-              if marker not in source:
+              if marker not in workflow:
                   raise SystemExit(f'ANA_LUCIA_F2_5_DIAG_MARKER_MISSING:{marker}')
-          forbidden=(
-              'docker cp ', 'mongosh ', 'mongoimport ', 'mongoexport ',
-              'update_one(', 'update_many(', 'insert_one(', 'insert_many(',
-              'delete_one(', 'delete_many(', 'bulk_write(',
+
+          # Keep workflow shell free of direct persistence/mutation commands.  Build
+          # the signatures from fragments so this guard cannot match its own list.
+          shell_forbidden=(
+              'docker' + ' cp ',
+              'mongo' + 'sh ',
+              'mongo' + 'import ',
+              'mongo' + 'export ',
+              '.update' + '_one(',
+              '.update' + '_many(',
+              '.insert' + '_one(',
+              '.insert' + '_many(',
+              '.delete' + '_one(',
+              '.delete' + '_many(',
+              '.bulk' + '_write(',
           )
-          for marker in forbidden:
-              if marker in source:
-                  raise SystemExit(f'ANA_LUCIA_F2_5_DIAG_FORBIDDEN:{marker}')
+          for marker in shell_forbidden:
+              if marker in workflow:
+                  raise SystemExit(f'ANA_LUCIA_F2_5_DIAG_WORKFLOW_MUTATION_MARKER:{marker}')
+
+          collector=Path('backend/scripts/ana_lucia_f2_5_adjudication_readonly.py').read_text(encoding='utf-8')
+          tree=ast.parse(collector)
+          mutators={
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr in mutators:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_COLLECTOR_MUTATOR:'+','.join(sorted(set(hits))))
           print('ANA_LUCIA_F2_5_DIAGNOSTIC_BOUNDARY=PASS')
           PY
 
