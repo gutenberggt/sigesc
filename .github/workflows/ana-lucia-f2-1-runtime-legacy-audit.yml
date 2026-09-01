@@ -150,6 +150,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p evidence
           python - <<'PY'
           import json
           from pathlib import Path
