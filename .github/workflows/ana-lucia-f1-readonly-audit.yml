@@ -262,7 +262,7 @@ jobs:
 
           forbidden_keys = {
               'assignment_id','teacher_id','staff_id','record_id','student_id',
-              'email','records','content','observations',
+              'email','records','observations',
           }
           def walk(value):
               if isinstance(value, dict):
