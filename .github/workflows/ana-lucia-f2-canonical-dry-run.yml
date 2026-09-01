@@ -1,0 +1,391 @@
+name: "ANA-LUCIA-F2 Canonical Remediation Dry-run"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/ana_lucia_f2_canonical_remediation_dry_run.py'
+      - 'backend/tests/test_ana_lucia_f2_canonical_remediation_dry_run.py'
+      - '.github/workflows/ana-lucia-f2-canonical-dry-run.yml'
+      - 'memory/audit/ANA_LUCIA_F2_CANONICAL_REMEDIATION_DRY_RUN_2026-09-01.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ana-lucia-f2-canonical-remediation-dry-run
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard ANA-LUCIA-F2 read-only planner
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Compile and test F2 classifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/ana_lucia_f2_canonical_remediation_dry_run.py
+          python -m py_compile backend/tests/test_ana_lucia_f2_canonical_remediation_dry_run.py
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q --noconftest backend/tests/test_ana_lucia_f2_canonical_remediation_dry_run.py
+
+      - name: Enforce read-only, SSoT pin and privacy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          import re
+          import subprocess
+          from pathlib import Path
+
+          f2_path = Path('backend/scripts/ana_lucia_f2_canonical_remediation_dry_run.py')
+          planner_path = Path('backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py')
+          source = f2_path.read_text(encoding='utf-8')
+          planner_source = planner_path.read_text(encoding='utf-8')
+          forbidden_attrs = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for label, text in [('f2', source), ('planner', planner_source)]:
+              tree = ast.parse(text)
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                      if node.func.attr in forbidden_attrs:
+                          raise SystemExit(f'ANA_LUCIA_F2_MONGO_MUTATOR_FOUND:{label}:{node.func.attr}')
+
+          match = re.search(r'EXPECTED_PLANNER_BLOB_SHA\s*=\s*"([0-9a-f]{40})"', source)
+          if not match:
+              raise SystemExit('ANA_LUCIA_F2_PLANNER_PIN_MISSING')
+          actual = subprocess.check_output(['git','hash-object',str(planner_path)], text=True).strip()
+          if actual != match.group(1):
+              raise SystemExit(f'ANA_LUCIA_F2_PLANNER_BLOB_DRIFT:{actual}')
+
+          required = [
+              '"database_mutation": False',
+              '"production_writes": False',
+              '"mongo_reads_only": True',
+              '"attendance_records_read": False',
+              '"student_data_read": False',
+              '"student_pii_emitted": False',
+              '"pedagogical_text_read": False',
+              '"record_ids_emitted": False',
+              '"automatic_apply_authorized": False',
+              'planner._decision_manifest_rows = capture',
+          ]
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'ANA_LUCIA_F2_REQUIRED_CONTRACT_MISSING:{marker}')
+          print('ANA_LUCIA_F2_STATIC_READ_ONLY_SSOT_GATE=PASS')
+          PY
+
+  production-dry-run:
+    name: Dry-run Ana Lucia canonical remediation in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ANA-LUCIA-F2-DRY-RUN] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped exact-SHA authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os, re, urllib.request
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
+              issue = (json.load(fh).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('ANA_LUCIA_F2_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('ANA_LUCIA_F2_ISSUE_MUST_BE_OPEN')
+
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              line = raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              key, value = key.strip(), value.strip()
+              if key in values:
+                  raise SystemExit(f'ANA_LUCIA_F2_DUPLICATE_FIELD:{key}')
+              values[key] = value
+
+          if values.get('ANA_LUCIA_F2_DRY_RUN') != 'AUTHORIZED':
+              raise SystemExit('ANA_LUCIA_F2_AUTHORIZATION_INVALID')
+          if values.get('CONFIRMATION') != 'PLAN_ANA_LUCIA_F2_READ_ONLY':
+              raise SystemExit('ANA_LUCIA_F2_CONFIRMATION_INVALID')
+          if values.get('ACADEMIC_YEAR') != '2026':
+              raise SystemExit('ANA_LUCIA_F2_ACADEMIC_YEAR_INVALID')
+          if values.get('TRACKING_ISSUE') != '311':
+              raise SystemExit('ANA_LUCIA_F2_TRACKING_ISSUE_INVALID')
+
+          target = values.get('TARGET_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('ANA_LUCIA_F2_TARGET_SHA_INVALID')
+          if issue.get('title') != f'[ANA-LUCIA-F2-DRY-RUN] {target}':
+              raise SystemExit('ANA_LUCIA_F2_TITLE_MISMATCH')
+
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",
+              headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'sigesc-ana-lucia-f2-dry-run',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              main_sha = json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'ANA_LUCIA_F2_MAIN_MOVED:{main_sha}')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+              out.write('tracking_issue=311\n')
+          print('ANA_LUCIA_F2_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          print('MONGO_ACCESS=READ_ONLY')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify pinned planner SSoT
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python - <<'PY'
+          import re
+          source=open('backend/scripts/ana_lucia_f2_canonical_remediation_dry_run.py',encoding='utf-8').read()
+          print(re.search(r'EXPECTED_PLANNER_BLOB_SHA\s*=\s*"([0-9a-f]{40})"', source).group(1))
+          PY
+          )"
+          actual="$(git hash-object backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py)"
+          test "$actual" = "$expected" || { echo "ANA_LUCIA_F2_PLANNER_BLOB_DRIFT:$actual"; exit 1; }
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "ANA_LUCIA_F2_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/ana_lucia_f2_prod_key
+          chmod 600 ~/.ssh/ana_lucia_f2_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute live F2 dry-run inside backend container
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY' > evidence/ana-lucia-f2-bundle.json
+          import json
+          print(json.dumps({
+              'planner': open('backend/scripts/p0_250_f2_9a_global_dvd_reconciliation_plan.py', encoding='utf-8').read(),
+              'f2': open('backend/scripts/ana_lucia_f2_canonical_remediation_dry_run.py', encoding='utf-8').read(),
+          }, ensure_ascii=False))
+          PY
+
+          raw='evidence/ana-lucia-f2-raw.log'
+          remote_command="timeout 420 docker exec -i -e ANA_LUCIA_F2_ACADEMIC_YEAR=2026 -e ANA_LUCIA_F2_REFERENCE_DATE=2026-09-01 ${BACKEND_CONTAINER} python -c 'import json,sys,types; b=json.load(sys.stdin); name=\"p0_250_f2_9a_global_dvd_reconciliation_plan\"; m=types.ModuleType(name); m.__dict__[\"__file__\"]=\"p0_250_f2_9a_global_dvd_reconciliation_plan.py\"; sys.modules[name]=m; exec(compile(b[\"planner\"],\"p0_250_f2_9a_global_dvd_reconciliation_plan.py\",\"exec\"),m.__dict__); ns={\"__name__\":\"ana_lucia_f2\",\"__file__\":\"ana_lucia_f2_canonical_remediation_dry_run.py\"}; exec(compile(b[\"f2\"],\"ana_lucia_f2_canonical_remediation_dry_run.py\",\"exec\"),ns); public,private=ns[\"run_live_dry_run\"](); print(\"ANA_LUCIA_F2_PUBLIC_JSON=\"+json.dumps(public,ensure_ascii=False)); print(\"ANA_LUCIA_F2_PRIVATE_JSON=\"+json.dumps(private,ensure_ascii=False))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < evidence/ana-lucia-f2-bundle.json > "$raw" 2>&1
+
+          public_prefix='ANA_LUCIA_F2_PUBLIC_JSON='
+          private_prefix='ANA_LUCIA_F2_PRIVATE_JSON='
+          public_line="$(grep -F "$public_prefix" "$raw" | tail -n 1 || true)"
+          private_line="$(grep -F "$private_prefix" "$raw" | tail -n 1 || true)"
+          if [ -z "$public_line" ] || [ -z "$private_line" ]; then
+            tail -n 100 "$raw" || true
+            exit 2
+          fi
+          printf '%s' "${public_line#${public_prefix}}" > evidence/ana-lucia-f2-public.json
+          printf '%s' "${private_line#${private_prefix}}" > evidence/ana-lucia-f2-private.json
+          python -m json.tool evidence/ana-lucia-f2-public.json >/dev/null
+          python -m json.tool evidence/ana-lucia-f2-private.json >/dev/null
+          rm -f "$raw" evidence/ana-lucia-f2-bundle.json
+
+      - name: Validate F2 read-only/privacy boundary and sealed private manifest
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+
+          def canonical(value):
+              return json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(',',':'),default=str).encode('utf-8')
+
+          public=json.loads(Path('evidence/ana-lucia-f2-public.json').read_text(encoding='utf-8'))
+          private=json.loads(Path('evidence/ana-lucia-f2-private.json').read_text(encoding='utf-8'))
+          for key in (
+              'database_mutation','production_writes','attendance_records_read','student_data_read',
+              'student_pii_emitted','pedagogical_text_read','record_ids_emitted','assignment_ids_emitted',
+              'teacher_ids_emitted','staff_ids_emitted','private_manifest_emitted','automatic_apply_authorized',
+          ):
+              if public.get(key) is not False:
+                  raise SystemExit(f'ANA_LUCIA_F2_BOUNDARY_FAILED:{key}')
+          if public.get('mongo_reads_only') is not True or public.get('http_methods') != []:
+              raise SystemExit('ANA_LUCIA_F2_READ_BOUNDARY_FAILED')
+          if (public.get('target') or {}).get('target_pair_count') != 17 or len(public.get('pairs') or []) != 17:
+              raise SystemExit('ANA_LUCIA_F2_TARGET_COVERAGE_INVALID')
+          if public.get('status') != 'PASS' or private.get('status') != 'PASS':
+              raise SystemExit('ANA_LUCIA_F2_STATUS_INVALID')
+          if private.get('database_mutation') is not False or private.get('production_writes') is not False:
+              raise SystemExit('ANA_LUCIA_F2_PRIVATE_MUTATION_FLAG_INVALID')
+          declared=private.get('manifest_sha256')
+          core=dict(private); core.pop('manifest_sha256',None)
+          actual=hashlib.sha256(canonical(core)).hexdigest()
+          if declared != actual:
+              raise SystemExit('ANA_LUCIA_F2_PRIVATE_MANIFEST_HASH_INVALID')
+          if (public.get('summary') or {}).get('private_manifest_sha256') != declared:
+              raise SystemExit('ANA_LUCIA_F2_PUBLIC_PRIVATE_HASH_MISMATCH')
+
+          forbidden={'id','staff_id','teacher_id','class_id','course_id','component_id','source_key','source_assignment_id','target_assignment'}
+          def walk(value):
+              if isinstance(value,dict):
+                  for key,child in value.items():
+                      if key in forbidden:
+                          raise SystemExit(f'ANA_LUCIA_F2_FORBIDDEN_PUBLIC_KEY:{key}')
+                      walk(child)
+              elif isinstance(value,list):
+                  for child in value: walk(child)
+          walk(public)
+
+          summary=public.get('summary') or {}
+          print('ANA_LUCIA_F2_DRY_RUN=PASS')
+          print('CLASSIFICATION=' + str(public.get('classification')))
+          print('CANONICAL_DECISIONS=' + json.dumps(summary.get('canonical_decision_counts') or {},sort_keys=True))
+          print('REVIEW_REASONS=' + json.dumps(summary.get('review_reason_counts') or {},sort_keys=True))
+          print('CONTENT_ACTIONS=' + json.dumps(summary.get('content_action_counts') or {},sort_keys=True))
+          print('ATTENDANCE_ACTIONS=' + json.dumps(summary.get('attendance_action_counts') or {},sort_keys=True))
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write('classification=' + str(public.get('classification')) + '\n')
+              out.write('planned_assignment_creates=' + str(summary.get('planned_assignment_creates') or 0) + '\n')
+              out.write('manifest_sha256=' + str(declared) + '\n')
+          PY
+
+      - name: Upload private F2 structural plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ana-lucia-f2-dry-run-${{ github.run_id }}
+          path: |
+            evidence/ana-lucia-f2-public.json
+            evidence/ana-lucia-f2-private.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment F2 diagnosis on tracking issue and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACKING_ISSUE: ${{ steps.context.outputs.tracking_issue }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/ana-lucia-f2-public.json').read_text(encoding='utf-8'))
+          s=p.get('summary') or {}
+          lines=[
+              '## ANA-LUCIA-F2 — dry-run de saneamento canônico', '',
+              f"Target: `{os.environ['TARGET_SHA']}`",
+              f"Classificação: **{p.get('classification')}**",
+              f"Pares avaliados: **{len(p.get('pairs') or [])}**; creates canônicos planejados: **{s.get('planned_assignment_creates',0)}**.",
+              f"Manifesto privado SHA-256: `{s.get('private_manifest_sha256')}`", '',
+              '| Turma / Componente | Decisão canônica | Envelope | Conteúdo legado | Frequência legado | Revisão |',
+              '|---|---|---|---|---|---|',
+          ]
+          for row in p.get('pairs') or []:
+              env=row.get('target_envelope') or {}
+              env_text=(f"{env.get('valid_from') or '—'} → {env.get('valid_until') or 'aberto'}; "
+                        f"{env.get('profile') or '—'}/{env.get('student_scope') or '—'}") if env else '—'
+              rp=row.get('record_plan') or {}
+              content=json.dumps(rp.get('content_action_counts') or {},ensure_ascii=False,sort_keys=True)
+              attendance=json.dumps(rp.get('attendance_action_counts') or {},ensure_ascii=False,sort_keys=True)
+              review=', '.join(f'`{x}`' for x in (row.get('review_reasons') or [])) or '—'
+              lines.append(
+                  f"| {row.get('class')} / {row.get('component')} | `{row.get('canonical_decision')}` | {env_text} | `{content}` | `{attendance}` | {review} |"
+              )
+          lines += ['',
+              f"Decisões agregadas: `{json.dumps(s.get('canonical_decision_counts') or {},ensure_ascii=False,sort_keys=True)}`",
+              f"Motivos de revisão: `{json.dumps(s.get('review_reason_counts') or {},ensure_ascii=False,sort_keys=True)}`",
+              f"Ações de conteúdo: `{json.dumps(s.get('content_action_counts') or {},ensure_ascii=False,sort_keys=True)}`",
+              f"Ações de frequência: `{json.dumps(s.get('attendance_action_counts') or {},ensure_ascii=False,sort_keys=True)}`", '',
+              'Boundary: MongoDB read-only; nenhum `attendance.records`; nenhum texto pedagógico; nenhuma PII de aluno; nenhuma mutação/backfill/reconciliação; apply continua **não autorizado**.'
+          ]
+          body='\n'.join(lines)
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          def request(method,path,payload):
+              req=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}{path}',
+                  data=json.dumps(payload).encode('utf-8'),method=method,
+                  headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-ana-lucia-f2-dry-run','Content-Type':'application/json'},
+              )
+              with urllib.request.urlopen(req,timeout=30) as response: response.read()
+          request('POST',f"/issues/{os.environ['TRACKING_ISSUE']}/comments",{'body':body})
+          request('PATCH',f"/issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          PY
