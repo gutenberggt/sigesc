@@ -1,20 +1,24 @@
 /**
- * TenantSwitcher — Seletor visual de Mantenedora para super_admin.
+ * TenantSwitcher — seletor operacional de Mantenedora para super_admin.
  *
- * Mostra um dropdown compacto no header (somente quando user.role === 'super_admin')
- * permitindo alternar o contexto de tenant ativo. A seleção é persistida em
- * localStorage como `activeMantenedoraId` e enviada automaticamente via
- * header `X-Mantenedora-Id` pelo interceptor do axios (services/api.js).
- *
- * "Todas" (sem seleção) faz o super_admin operar cross-tenant (None no backend).
+ * MT-1: o Super Administrador pode enxergar qualquer mantenedora, mas opera
+ * exatamente uma por vez. Não existe mais a opção "Todas (cross-tenant)" no
+ * plano operacional.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ChevronDown, Building2, Check, Settings } from 'lucide-react';
+import { ChevronDown, Building2, Check, Settings, ShieldAlert } from 'lucide-react';
 import { getActiveTenantId } from '@/services/api';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const isTenantActive = (tenant) => {
+  if (!tenant) return false;
+  if (tenant.ativo === false || tenant.ativa === false) return false;
+  const status = String(tenant.status || '').trim().toLowerCase();
+  return !['inactive', 'inativo', 'disabled', 'desativado', 'desativada'].includes(status);
+};
 
 export const TenantSwitcher = () => {
   const navigate = useNavigate();
@@ -27,8 +31,21 @@ export const TenantSwitcher = () => {
     const load = async () => {
       setLoading(true);
       try {
+        // /api/mantenedoras é CONTROL PLANE explícito: super_admin pode listar
+        // tenants mesmo antes de selecionar o contexto operacional.
         const { data } = await axios.get(`${API}/mantenedoras`);
-        setMantenedoras(Array.isArray(data) ? data : []);
+        const items = Array.isArray(data) ? data : [];
+        setMantenedoras(items);
+
+        const stored = getActiveTenantId();
+        if (stored) {
+          const selected = items.find((m) => m.id === stored);
+          if (!selected || !isTenantActive(selected)) {
+            localStorage.removeItem('activeMantenedoraId');
+            setActiveId('');
+            window.dispatchEvent(new Event('tenant-changed'));
+          }
+        }
       } catch (_e) {
         setMantenedoras([]);
       } finally {
@@ -38,66 +55,77 @@ export const TenantSwitcher = () => {
     load();
   }, []);
 
-  const selectTenant = (id) => {
-    if (id) {
-      localStorage.setItem('activeMantenedoraId', id);
-    } else {
-      localStorage.removeItem('activeMantenedoraId');
-    }
-    setActiveId(id || '');
+  const selectTenant = (tenant) => {
+    if (!tenant?.id || !isTenantActive(tenant)) return;
+    localStorage.setItem('activeMantenedoraId', tenant.id);
+    setActiveId(tenant.id);
     setOpen(false);
-    // Dispara evento global — componentes sob TenantSyncBoundary serão remontados
+    // Componentes sob TenantSyncBoundary são remontados/refazem suas consultas.
     window.dispatchEvent(new Event('tenant-changed'));
   };
 
-  const active = mantenedoras.find((m) => m.id === activeId);
-  const label = active ? active.nome : 'Todas as mantenedoras';
+  const active = mantenedoras.find((m) => m.id === activeId && isTenantActive(m));
+  const label = active ? active.nome : 'Selecione a mantenedora';
 
   return (
     <div className="relative" data-testid="tenant-switcher">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors text-xs font-medium max-w-[240px]"
-        title="Alternar mantenedora ativa (super_admin)"
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors text-xs font-medium max-w-[260px] ${
+          active
+            ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+            : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+        }`}
+        title="Selecionar mantenedora operacional"
         data-testid="tenant-switcher-button"
       >
-        <Building2 size={14} />
+        {active ? <Building2 size={14} /> : <ShieldAlert size={14} />}
         <span className="truncate">{label}</span>
         <ChevronDown size={14} />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto" data-testid="tenant-switcher-menu">
+        <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto" data-testid="tenant-switcher-menu">
           <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 border-b border-gray-100">
-            Contexto Multi-Tenant
+            Contexto Operacional Multi-Tenant
           </div>
-          <button
-            onClick={() => selectTenant('')}
-            className={`w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm ${!activeId ? 'bg-indigo-50 text-indigo-700 font-medium' : ''}`}
-            data-testid="tenant-option-all"
-          >
-            <span>Todas (cross-tenant)</span>
-            {!activeId && <Check size={14} />}
-          </button>
+          {!activeId && (
+            <div className="px-3 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+              Selecione uma mantenedora para acessar os módulos institucionais.
+            </div>
+          )}
           {loading && (
             <div className="px-3 py-2 text-xs text-gray-500">Carregando...</div>
           )}
           {!loading && mantenedoras.length === 0 && (
             <div className="px-3 py-2 text-xs text-gray-500">Nenhuma mantenedora cadastrada.</div>
           )}
-          {mantenedoras.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => selectTenant(m.id)}
-              className={`w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm ${activeId === m.id ? 'bg-indigo-50 text-indigo-700 font-medium' : ''}`}
-              data-testid={`tenant-option-${m.id}`}
-            >
-              <span className="truncate">{m.nome}</span>
-              {activeId === m.id && <Check size={14} className="shrink-0" />}
-            </button>
-          ))}
-          
-          {/* Ação: gerenciar mantenedoras (criar, editar, excluir) */}
+          {mantenedoras.map((m) => {
+            const enabled = isTenantActive(m);
+            return (
+              <button
+                key={m.id}
+                onClick={() => selectTenant(m)}
+                disabled={!enabled}
+                className={`w-full text-left px-3 py-2 flex items-center justify-between text-sm ${
+                  !enabled
+                    ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                    : activeId === m.id
+                      ? 'bg-indigo-50 text-indigo-700 font-medium hover:bg-indigo-100'
+                      : 'hover:bg-gray-50'
+                }`}
+                data-testid={`tenant-option-${m.id}`}
+              >
+                <span className="truncate">
+                  {m.nome}
+                  {!enabled && <span className="ml-2 text-[10px] uppercase">(inativa)</span>}
+                </span>
+                {activeId === m.id && enabled && <Check size={14} className="shrink-0" />}
+              </button>
+            );
+          })}
+
+          {/* CONTROL PLANE: gestão global de mantenedoras continua permitida. */}
           <div className="border-t border-gray-100 mt-1">
             <button
               onClick={() => { setOpen(false); navigate('/admin/mantenedoras'); }}
