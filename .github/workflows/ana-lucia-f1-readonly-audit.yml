@@ -1,0 +1,16 @@
+name: "ANA-LUCIA-F1 Read-only Content/Frequency Audit"
+
+# Placeholder under explicit authorization; completed before merge.
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/ana_lucia_f1_readonly_audit.py'
+      - 'backend/tests/test_ana_lucia_f1_readonly_audit.py'
+      - '.github/workflows/ana-lucia-f1-readonly-audit.yml'
+      - 'memory/audit/ANA_LUCIA_F1_READONLY_2026-09-01.md'
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ANA_LUCIA_F1_PLACEHOLDER
