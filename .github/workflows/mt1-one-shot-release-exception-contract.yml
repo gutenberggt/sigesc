@@ -1,0 +1,46 @@
+name: MT-1 One-shot Release Exception Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/sigesc-production-deploy.yml'
+      - '.github/workflows/mt1-one-shot-release-exception-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sigesc-production-deploy.yml'
+      - '.github/workflows/mt1-one-shot-release-exception-contract.yml'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate one-shot exception is exact and fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('.github/workflows/sigesc-production-deploy.yml')
+          text = p.read_text(encoding='utf-8')
+
+          required = [
+              "one_shot_target = '0bcf9c073259427ae125d7ca52a1e89a0a640813'",
+              "one_shot_workflow = 'Gate - Transferência (Regressão)'",
+              "one_shot_token = 'MT1_TRANSFER_GATE_DEFERRED_0BCF9C0'",
+              "r.get('conclusion') == 'failure'",
+              "allowed_paths = {'.github/workflows/sigesc-production-deploy.yml'}",
+              "raise SystemExit('PUSH_CI_NOT_GREEN')",
+          ]
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit(f'MT1_ONE_SHOT_RELEASE_EXCEPTION_CONTRACT_MISSING:{missing}')
+
+          if "Gate - Transferência (Regressão)" not in text:
+              raise SystemExit('TRANSFER_GATE_EXCEPTION_NAME_MISSING')
+
+          print('MT1_ONE_SHOT_RELEASE_EXCEPTION_CONTRACT=PASS')
+          PY
