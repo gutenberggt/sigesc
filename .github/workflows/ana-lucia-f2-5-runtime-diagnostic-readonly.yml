@@ -1,0 +1,277 @@
+name: "ANA-LUCIA-F2.5 Runtime Diagnostic Read-only"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ana-lucia-f2-5-runtime-diagnostic-readonly.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ana-lucia-f2-5-runtime-diagnostic-readonly
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.5 diagnostic read-only boundary
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate diagnostic boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/ana_lucia_f2_5_adjudication_readonly.py
+          python - <<'PY'
+          from pathlib import Path
+
+          p=Path('.github/workflows/ana-lucia-f2-5-runtime-diagnostic-readonly.yml')
+          source=p.read_text(encoding='utf-8')
+          required=(
+              'ANA_LUCIA_F2_5_DIAGNOSTIC=AUTHORIZED',
+              'RUNTIME_ERROR_DIAGNOSTIC_READ_ONLY',
+              'persist-credentials: false',
+              'StrictHostKeyChecking=yes',
+              'ANA_LUCIA_F2_5_JSON=',
+              'raw_log_sha256',
+              'production_writes=false',
+              'database_mutation=false',
+          )
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'ANA_LUCIA_F2_5_DIAG_MARKER_MISSING:{marker}')
+          forbidden=(
+              'docker cp ', 'mongosh ', 'mongoimport ', 'mongoexport ',
+              'update_one(', 'update_many(', 'insert_one(', 'insert_many(',
+              'delete_one(', 'delete_many(', 'bulk_write(',
+          )
+          for marker in forbidden:
+              if marker in source:
+                  raise SystemExit(f'ANA_LUCIA_F2_5_DIAG_FORBIDDEN:{marker}')
+          print('ANA_LUCIA_F2_5_DIAGNOSTIC_BOUNDARY=PASS')
+          PY
+
+  production-diagnostic:
+    name: Diagnose F2.5 collector failure in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ANA-LUCIA-F2.5-DIAG] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped exact-SHA diagnostic authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_GATE_MUST_BE_OPEN')
+
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              line=raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key,value=line.split('=',1)
+              key=key.strip(); value=value.strip()
+              if key in values:
+                  raise SystemExit(f'ANA_LUCIA_F2_5_DIAG_DUPLICATE_FIELD:{key}')
+              values[key]=value
+
+          if values.get('ANA_LUCIA_F2_5_DIAGNOSTIC') != 'AUTHORIZED':
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'RUNTIME_ERROR_DIAGNOSTIC_READ_ONLY':
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_CONFIRMATION_INVALID')
+          if values.get('ACADEMIC_YEAR') != '2026':
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_YEAR_INVALID')
+
+          target=values.get('TARGET_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target):
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_SHA_INVALID')
+          if issue.get('title') != f'[ANA-LUCIA-F2.5-DIAG] {target}':
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_TITLE_MISMATCH')
+
+          req=urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",
+              headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'sigesc-ana-lucia-f2-5-diag',
+              },
+          )
+          with urllib.request.urlopen(req,timeout=30) as response:
+              main_sha=json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'ANA_LUCIA_F2_5_DIAG_MAIN_MOVED:{main_sha}')
+
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+          print('ANA_LUCIA_F2_5_DIAG_CONTEXT=PASS')
+          print('database_mutation=false')
+          print('production_writes=false')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Re-seal collector at runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/ana_lucia_f2_5_adjudication_readonly.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          source=Path('backend/scripts/ana_lucia_f2_5_adjudication_readonly.py').read_text(encoding='utf-8')
+          tree=ast.parse(source)
+          forbidden={
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr in forbidden:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit('ANA_LUCIA_F2_5_DIAG_RUNTIME_MUTATOR:'+','.join(sorted(set(hits))))
+          print('ANA_LUCIA_F2_5_DIAG_RUNTIME_SEAL=PASS')
+          PY
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "ANA_LUCIA_F2_5_DIAG_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/ana_lucia_f2_5_diag_prod_key
+          chmod 600 ~/.ssh/ana_lucia_f2_5_diag_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_5_diag_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute collector and emit sanitized failure envelope
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/ana-lucia-f2-5-diagnostic-raw.log'
+          remote_command="timeout 760 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"ana_lucia_f2_5_adjudication_readonly.py\",\"exec\"),ns); print(\"ANA_LUCIA_F2_5_JSON=\"+json.dumps(ns[\"run_live_audit\"](),ensure_ascii=False,sort_keys=True))'"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_5_diag_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/ana_lucia_f2_5_adjudication_readonly.py > "$raw" 2>&1
+          remote_rc=$?
+          set -e
+
+          REMOTE_RC="$remote_rc" python - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+
+          path=Path('evidence/ana-lucia-f2-5-diagnostic-raw.log')
+          data=path.read_bytes()
+          text=data.decode('utf-8',errors='replace')
+          frames=re.findall(
+              r'File "ana_lucia_f2_5_adjudication_readonly\.py", line (\d+), in ([A-Za-z_][A-Za-z0-9_]*)',
+              text,
+          )
+          exception_matches=re.findall(
+              r'(?m)^([A-Za-z_][A-Za-z0-9_.]*(?:Error|Exception)):\s*(.*)$',
+              text,
+          )
+          exception_type=exception_matches[-1][0] if exception_matches else None
+          exception_message=exception_matches[-1][1].strip() if exception_matches else ''
+          controlled_error=(
+              exception_message[:500]
+              if exception_message.startswith('ANA_LUCIA_F2_5_')
+              else None
+          )
+          payload={
+              'schema':'ANA_LUCIA_F2_5_RUNTIME_DIAGNOSTIC_V1',
+              'remote_exit_code':int(os.environ['REMOTE_RC']),
+              'collector_json_present':'ANA_LUCIA_F2_5_JSON=' in text,
+              'collector_frame':(
+                  {'line':int(frames[-1][0]),'function':frames[-1][1]}
+                  if frames else None
+              ),
+              'exception_type':exception_type,
+              'controlled_error':controlled_error,
+              'raw_log_sha256':hashlib.sha256(data).hexdigest(),
+              'raw_log_bytes':len(data),
+              'database_mutation':False,
+              'production_writes':False,
+              'raw_log_emitted':False,
+              'technical_ids_emitted':False,
+          }
+          Path('evidence/diagnostic.json').write_text(
+              json.dumps(payload,ensure_ascii=False,indent=2,sort_keys=True),
+              encoding='utf-8',
+          )
+          print('ANA_LUCIA_F2_5_DIAGNOSTIC='+json.dumps(payload,ensure_ascii=False,sort_keys=True))
+          PY
+          rm -f "$raw"
+
+      - name: Upload sanitized diagnostic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ana-lucia-f2-5-runtime-diagnostic-${{ steps.context.outputs.target_sha }}
+          path: evidence/diagnostic.json
+          if-no-files-found: error
+          retention-days: 30
