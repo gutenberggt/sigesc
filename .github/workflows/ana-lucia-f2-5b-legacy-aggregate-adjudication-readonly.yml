@@ -1,0 +1,379 @@
+name: "ANA-LUCIA-F2.5B Legacy Aggregate Adjudication Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py'
+      - 'backend/tests/test_ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py'
+      - '.github/workflows/ana-lucia-f2-5b-legacy-aggregate-adjudication-readonly.yml'
+      - 'memory/audit/ANA_LUCIA_F2_5B_LEGACY_AGGREGATE_ADJUDICATION_READONLY_2026-09-01.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ana-lucia-f2-5b-legacy-aggregate-adjudication-readonly
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard ANA-LUCIA-F2.5B read-only adjudication
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Compile and run focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          python -m py_compile backend/scripts/ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py
+          python -m py_compile backend/tests/test_ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py
+          pytest -q --noconftest backend/tests/test_ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py
+
+      - name: Enforce read-only privacy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          p=Path('backend/scripts/ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py')
+          source=p.read_text(encoding='utf-8')
+          tree=ast.parse(source)
+          forbidden={
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr in forbidden:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit('ANA_LUCIA_F2_5B_MONGO_MUTATOR:'+','.join(sorted(set(hits))))
+
+          for forbidden_text in (
+              'db.students','db.enrollments','db.student_health_profiles',
+              '"records": 1',"'records': 1",'"content": 1',"'content': 1",
+              '"observations": 1',"'observations': 1",'"methodology": 1',
+              '"student_id": 1',"'student_id': 1",'"b1": 1','"b2": 1','"b3": 1','"b4": 1',
+              '"old_value": 1',"'old_value': 1",'"new_value": 1',"'new_value': 1",
+              '"description": 1',"'description': 1",
+          ):
+              if forbidden_text in source:
+                  raise SystemExit(f'ANA_LUCIA_F2_5B_FORBIDDEN_READ:{forbidden_text}')
+
+          for marker in (
+              '"database_mutation": False','"production_writes": False','"mongo_reads_only": True',
+              '"http_methods": []','"login_endpoint_used": False','"attendance_records_read": False',
+              '"student_data_read": False','"student_pii_emitted": False','"grade_values_read": False',
+              '"attendance_status_values_read": False','"pedagogical_text_read": False',
+              '"technical_ids_emitted": False','"audit_old_new_description_read": False',
+              '"automatic_remap_authorized": False','"aula_numero_backfill_authorized": False',
+          ):
+              if marker not in source:
+                  raise SystemExit(f'ANA_LUCIA_F2_5B_BOUNDARY_MARKER_MISSING:{marker}')
+          print('ANA_LUCIA_F2_5B_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Adjudicate tenant/legacy aggregate/lineage in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ANA-LUCIA-F2.5B-RUNTIME] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped exact-SHA authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,re,urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('ANA_LUCIA_F2_5B_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('ANA_LUCIA_F2_5B_GATE_MUST_BE_OPEN')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              line=raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key,value=line.split('=',1)
+              key=key.strip(); value=value.strip()
+              if key in values:
+                  raise SystemExit(f'ANA_LUCIA_F2_5B_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          if values.get('ANA_LUCIA_F2_5B_RUNTIME') != 'AUTHORIZED':
+              raise SystemExit('ANA_LUCIA_F2_5B_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'TENANT_LEGACY_AGGREGATE_LINEAGE_ADJUDICATION_READ_ONLY':
+              raise SystemExit('ANA_LUCIA_F2_5B_CONFIRMATION_INVALID')
+          if values.get('ACADEMIC_YEAR') != '2026':
+              raise SystemExit('ANA_LUCIA_F2_5B_YEAR_INVALID')
+          if values.get('TRACKING_ISSUE') != '314':
+              raise SystemExit('ANA_LUCIA_F2_5B_TRACKING_INVALID')
+          target=values.get('TARGET_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target):
+              raise SystemExit('ANA_LUCIA_F2_5B_SHA_INVALID')
+          if issue.get('title') != f'[ANA-LUCIA-F2.5B-RUNTIME] {target}':
+              raise SystemExit('ANA_LUCIA_F2_5B_TITLE_MISMATCH')
+          req=urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",
+              headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'sigesc-ana-lucia-f2-5b',
+              },
+          )
+          with urllib.request.urlopen(req,timeout=30) as response:
+              main_sha=json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'ANA_LUCIA_F2_5B_MAIN_MOVED:{main_sha}')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+          print('ANA_LUCIA_F2_5B_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare evidence directory
+        run: mkdir -p evidence
+
+      - name: Re-seal collector at runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          p=Path('backend/scripts/ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py')
+          tree=ast.parse(p.read_text(encoding='utf-8'))
+          forbidden={
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr in forbidden:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit('ANA_LUCIA_F2_5B_RUNTIME_MUTATOR:'+','.join(sorted(set(hits))))
+          print('ANA_LUCIA_F2_5B_RUNTIME_SEAL=PASS')
+          PY
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "ANA_LUCIA_F2_5B_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/ana_lucia_f2_5b_prod_key
+          chmod 600 ~/.ssh/ana_lucia_f2_5b_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_5b_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute metadata-only F2.5B collector
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          raw='evidence/ana-lucia-f2-5b-raw.log'
+          remote_command="timeout 760 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py\",\"exec\"),ns); print(\"ANA_LUCIA_F2_5B_JSON=\"+json.dumps(ns[\"run_live_audit\"](),ensure_ascii=False,sort_keys=True))'"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_5b_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/ana_lucia_f2_5b_legacy_aggregate_adjudication_readonly.py > "$raw" 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            python - "$raw" "$rc" <<'PY'
+          import hashlib,re,sys
+          from pathlib import Path
+          p=Path(sys.argv[1]); rc=int(sys.argv[2]); data=p.read_bytes(); text=data.decode('utf-8','replace')
+          controlled=re.findall(r'ANA_LUCIA_F2_5B_[A-Z0-9_:.ºª -]+',text)
+          print('ANA_LUCIA_F2_5B_REMOTE_EXIT='+str(rc))
+          print('ANA_LUCIA_F2_5B_CONTROLLED_ERROR='+(controlled[-1].strip() if controlled else '<none>'))
+          print('ANA_LUCIA_F2_5B_RAW_SHA256='+hashlib.sha256(data).hexdigest())
+          print('ANA_LUCIA_F2_5B_RAW_BYTES='+str(len(data)))
+          PY
+            rm -f "$raw"
+            exit "$rc"
+          fi
+          prefix='ANA_LUCIA_F2_5B_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [ -z "$line" ]; then
+            sha="$(sha256sum "$raw" | awk '{print $1}')"
+            bytes="$(wc -c < "$raw")"
+            echo "ANA_LUCIA_F2_5B_JSON_MISSING raw_sha256=$sha raw_bytes=$bytes"
+            rm -f "$raw"
+            exit 2
+          fi
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw"
+
+      - name: Validate boundaries and build diagnosis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'ANA_LUCIA_F2_5B_LEGACY_AGGREGATE_ADJUDICATION_READ_ONLY_V1':
+              raise SystemExit('ANA_LUCIA_F2_5B_SCHEMA_INVALID')
+          for key in (
+              'database_mutation','production_writes','login_endpoint_used','attendance_records_read',
+              'student_data_read','student_pii_emitted','grade_values_read','attendance_status_values_read',
+              'pedagogical_text_read','technical_ids_emitted','audit_old_new_description_read',
+              'automatic_remap_authorized',
+          ):
+              if p.get(key) is not False:
+                  raise SystemExit(f'ANA_LUCIA_F2_5B_BOUNDARY_FAILED:{key}')
+          if p.get('mongo_reads_only') is not True or p.get('http_methods') != []:
+              raise SystemExit('ANA_LUCIA_F2_5B_READ_ONLY_FAILED')
+          if (p.get('target') or {}).get('target_pair_count') != 8:
+              raise SystemExit('ANA_LUCIA_F2_5B_TARGET_COUNT_FAILED')
+          safety=p.get('safety_decision') or {}
+          for key in ('write_authorized','tenant_backfill_authorized','aula_numero_backfill_authorized','course_id_remap_authorized'):
+              if safety.get(key) is not False:
+                  raise SystemExit(f'ANA_LUCIA_F2_5B_WRITE_GUARD_FAILED:{key}')
+
+          target=p.get('target') or {}
+          anchors=p.get('structural_anchor_inventory') or {}
+          scope=p.get('candidate_scope') or {}
+          tenant=p.get('tenant_adjudication') or {}
+          natural=p.get('natural_key_adjudication') or {}
+          lineage=p.get('copy_lineage_adjudication') or {}
+          lines=[
+              '## ANA-LUCIA-F2.5B — adjudicação read-only de tenant e chave agregada legada',
+              '',
+              f"**Classificação geral:** `{p.get('classification')}`",
+              f"Identidades: `{target.get('legacy_course_fingerprint')}` ({target.get('legacy_level')}) → `{target.get('current_course_fingerprint')}` ({target.get('current_level')})",
+              '',
+              '### Âncoras estruturais',
+              '```json', json.dumps(anchors,ensure_ascii=False,sort_keys=True), '```',
+              '',
+              '### Baseline',
+              '```json', json.dumps(scope,ensure_ascii=False,sort_keys=True), '```',
+              '',
+              '### Tenant',
+              '```json', json.dumps(tenant,ensure_ascii=False,sort_keys=True), '```',
+              '',
+              '### Chaves agregadas legadas',
+              '```json', json.dumps(natural,ensure_ascii=False,sort_keys=True), '```',
+              '',
+              '### Linhagem copied_from_id',
+              '```json', json.dumps(lineage,ensure_ascii=False,sort_keys=True), '```',
+              '',
+              '**Boundary:** Mongo read-only; sem HTTP/login; sem attendance.records; sem estudante/matrícula; sem valores acadêmicos ou texto pedagógico; sem IDs técnicos brutos; nenhum backfill/remap/write autorizado.',
+          ]
+          Path('evidence/diagnosis.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+          print('ANA_LUCIA_F2_5B_BOUNDARY=PASS')
+          print('ANA_LUCIA_F2_5B_CLASSIFICATION='+str(p.get('classification')))
+          PY
+
+      - name: Upload read-only evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ana-lucia-f2-5b-legacy-aggregate-${{ steps.context.outputs.target_sha }}
+          path: |
+            evidence/runtime.json
+            evidence/diagnosis.md
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Comment tracking issue and close gate
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          body=Path('evidence/diagnosis.md').read_text(encoding='utf-8')
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f'Bearer {token}',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-ana-lucia-f2-5b',
+              'Content-Type':'application/json',
+          }
+          req=urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/issues/314/comments',
+              data=json.dumps({'body':body},ensure_ascii=False).encode('utf-8'),
+              headers=headers,method='POST')
+          with urllib.request.urlopen(req,timeout=30):
+              pass
+          gate=int(os.environ['GATE_ISSUE'])
+          req=urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/issues/{gate}',
+              data=json.dumps({'state':'closed','state_reason':'completed'}).encode('utf-8'),
+              headers=headers,method='PATCH')
+          with urllib.request.urlopen(req,timeout=30):
+              pass
+          print('ANA_LUCIA_F2_5B_TRACKING_COMMENTED_AND_GATE_CLOSED=YES')
+          PY
