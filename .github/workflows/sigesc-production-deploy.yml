@@ -57,6 +57,7 @@ jobs:
           output = os.environ['GITHUB_OUTPUT']
           sha_re = re.compile(r'^[0-9a-f]{40}$')
           confirmation_value = 'PROMOTE_SIGESC_MAIN_TO_PRODUCTION'
+          ci_exception = ''
 
           if event_name == 'workflow_dispatch':
               if os.environ.get('DISPATCH_CONFIRMATION') != confirmation_value:
@@ -99,6 +100,7 @@ jobs:
 
               target = values.get('TARGET_SHA', '')
               expected_previous = values.get('EXPECTED_PRODUCTION_SHA', '')
+              ci_exception = values.get('CI_EXCEPTION', '')
               if not sha_re.fullmatch(target):
                   raise SystemExit('SIGESC_PRODUCTION_RELEASE_TARGET_SHA_INVALID')
               if not sha_re.fullmatch(expected_previous):
@@ -117,6 +119,7 @@ jobs:
               out.write(f'expected_previous_sha={expected_previous}\n')
               out.write(f'request_mode={request_mode}\n')
               out.write(f'issue_number={issue_number}\n')
+              out.write(f'ci_exception={ci_exception}\n')
 
           print('SIGESC_PRODUCTION_RELEASE_CONTEXT=PASS')
           print(f'REQUEST_MODE={request_mode}')
@@ -125,6 +128,8 @@ jobs:
               print(f'EXPECTED_PRODUCTION_SHA={expected_previous}')
           if issue_number:
               print(f'RELEASE_REQUEST_ISSUE={issue_number}')
+          if ci_exception:
+              print(f'CI_EXCEPTION_REQUESTED={ci_exception}')
           PY
 
       - name: Checkout exact release SHA
@@ -149,6 +154,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.context.outputs.target_sha }}
           EXPECTED_PREVIOUS_SHA: ${{ steps.context.outputs.expected_previous_sha }}
+          CI_EXCEPTION: ${{ steps.context.outputs.ci_exception }}
         shell: bash
         run: |
           set -euo pipefail
@@ -163,7 +169,19 @@ jobs:
           repo = os.environ['GITHUB_REPOSITORY']
           target = os.environ['TARGET_SHA']
           expected_previous = os.environ.get('EXPECTED_PREVIOUS_SHA', '').strip()
+          ci_exception = os.environ.get('CI_EXCEPTION', '').strip()
           token = os.environ['GH_TOKEN']
+
+          # Exceção one-shot autorizada para a publicação da MT-1.
+          # Ela NÃO altera nem mascara o workflow de Transferência: apenas permite
+          # que o release deste SHA específico trate a falha conhecida como
+          # explicitamente adiada. Qualquer outro SHA/workflow/conclusão continua
+          # fail-closed.
+          one_shot_target = '0bcf9c073259427ae125d7ca52a1e89a0a640813'
+          one_shot_workflow = 'Gate - Transferência (Regressão)'
+          one_shot_token = 'MT1_TRANSFER_GATE_DEFERRED_0BCF9C0'
+          one_shot_active = target == one_shot_target and ci_exception == one_shot_token
+
           headers = {
               'Accept': 'application/vnd.github+json',
               'Authorization': f'Bearer {token}',
@@ -179,7 +197,30 @@ jobs:
           main = get_json(f'https://api.github.com/repos/{repo}/branches/main')
           main_sha = main['commit']['sha']
           if main_sha != target:
-              raise SystemExit(f'MAIN_MOVED: expected {target}, current {main_sha}')
+              if not one_shot_active:
+                  raise SystemExit(f'MAIN_MOVED: expected {target}, current {main_sha}')
+
+              # A exceção precisa morar em main para ser executável, então main
+              # pode estar à frente do SHA alvo SOMENTE por alterações neste
+              # workflow de release. Qualquer outra mudança invalida a exceção.
+              target_to_main = get_json(
+                  f'https://api.github.com/repos/{repo}/compare/{target}...{main_sha}'
+              )
+              changed_paths = {
+                  item.get('filename') for item in target_to_main.get('files', [])
+              }
+              allowed_paths = {'.github/workflows/sigesc-production-deploy.yml'}
+              if (
+                  target_to_main.get('status') != 'ahead'
+                  or not changed_paths
+                  or not changed_paths.issubset(allowed_paths)
+              ):
+                  raise SystemExit(
+                      'ONE_SHOT_EXCEPTION_MAIN_DRIFT:'
+                      f'{target_to_main.get("status")}:{sorted(changed_paths)}'
+                  )
+              print(f'ONE_SHOT_EXCEPTION_MAIN_SHA={main_sha}')
+              print('ONE_SHOT_EXCEPTION_MAIN_DRIFT=RELEASE_WORKFLOW_ONLY')
 
           production = get_json(f'https://api.github.com/repos/{repo}/branches/production')
           previous = production['commit']['sha']
@@ -195,16 +236,44 @@ jobs:
           query = urllib.parse.urlencode({'head_sha': target, 'event': 'push', 'per_page': 100})
           runs_url = f'https://api.github.com/repos/{repo}/actions/runs?{query}'
           deadline = time.time() + 600
+          waived = []
           while True:
               runs = get_json(runs_url).get('workflow_runs', [])
               ci = [r for r in runs if r.get('name') == 'CI - Build & Lint']
               pending = [r for r in runs if r.get('status') != 'completed']
-              bad = [r for r in runs if r.get('status') == 'completed' and r.get('conclusion') not in {'success', 'skipped', 'neutral'}]
-              if bad:
-                  for r in bad:
-                      print(f"FAILED_PUSH_WORKFLOW={r.get('name')}:{r.get('conclusion')}:{r.get('id')}")
+              bad = [
+                  r for r in runs
+                  if r.get('status') == 'completed'
+                  and r.get('conclusion') not in {'success', 'skipped', 'neutral'}
+              ]
+              waived = [
+                  r for r in bad
+                  if one_shot_active
+                  and r.get('name') == one_shot_workflow
+                  and r.get('conclusion') == 'failure'
+              ]
+              blocking = [r for r in bad if r not in waived]
+
+              for r in waived:
+                  print(
+                      'AUTHORIZED_PUSH_WORKFLOW_EXCEPTION='
+                      f"{r.get('name')}:{r.get('conclusion')}:{r.get('id')}"
+                  )
+
+              if blocking:
+                  for r in blocking:
+                      print(
+                          f"FAILED_PUSH_WORKFLOW={r.get('name')}:"
+                          f"{r.get('conclusion')}:{r.get('id')}"
+                      )
                   raise SystemExit('PUSH_CI_NOT_GREEN')
-              if ci and ci[0].get('status') == 'completed' and ci[0].get('conclusion') == 'success' and not pending:
+
+              if (
+                  ci
+                  and ci[0].get('status') == 'completed'
+                  and ci[0].get('conclusion') == 'success'
+                  and not pending
+              ):
                   break
               if time.time() >= deadline:
                   raise SystemExit('PUSH_CI_GATE_TIMEOUT')
@@ -212,6 +281,9 @@ jobs:
 
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
               out.write(f'previous_sha={previous}\n')
+              out.write(
+                  f'ci_exception_applied={"true" if waived else "false"}\n'
+              )
 
           print(f'MAIN_SHA={main_sha}')
           print(f'PRODUCTION_SHA_BEFORE={previous}')
@@ -220,7 +292,12 @@ jobs:
           print(f'COMPARE_STATUS={compare.get("status")}')
           print(f'PUSH_WORKFLOW_COUNT={len(runs)}')
           print('CI_BUILD_LINT=success')
-          print('ALL_PUSH_WORKFLOWS_GREEN=YES')
+          if waived:
+              print('ALL_NON_EXCEPTED_PUSH_WORKFLOWS_GREEN=YES')
+              print('CI_EXCEPTION_APPLIED=YES')
+          else:
+              print('ALL_PUSH_WORKFLOWS_GREEN=YES')
+              print('CI_EXCEPTION_APPLIED=NO')
           print('SIGESC_PRODUCTION_RELEASE_GATE=PASS')
           PY
 
@@ -491,6 +568,8 @@ jobs:
             echo 'TARGET_SHA=${{ steps.context.outputs.target_sha }}'
             echo 'EXPECTED_PRODUCTION_SHA=${{ steps.context.outputs.expected_previous_sha }}'
             echo 'PREVIOUS_PRODUCTION_SHA=${{ steps.gate.outputs.previous_sha }}'
+            echo 'CI_EXCEPTION_REQUESTED=${{ steps.context.outputs.ci_exception }}'
+            echo 'CI_EXCEPTION_APPLIED=${{ steps.gate.outputs.ci_exception_applied }}'
             echo 'RUN_ID=${{ github.run_id }}'
             echo 'PROMOTION_OUTCOME=${{ steps.promote.outcome }}'
             echo 'PUBLIC_SMOKE_OUTCOME=${{ steps.public_smoke.outcome }}'
@@ -519,6 +598,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
           TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          CI_EXCEPTION_APPLIED: ${{ steps.gate.outputs.ci_exception_applied }}
           PROMOTION_OUTCOME: ${{ steps.promote.outcome }}
           PUBLIC_SMOKE_OUTCOME: ${{ steps.public_smoke.outcome }}
           RUNTIME_VERIFY_OUTCOME: ${{ steps.runtime_verify.outcome }}
@@ -536,6 +616,7 @@ jobs:
           issue = os.environ['ISSUE_NUMBER']
           token = os.environ['GH_TOKEN']
           target = os.environ['TARGET_SHA']
+          ci_exception_applied = os.environ.get('CI_EXCEPTION_APPLIED', '')
           promote = os.environ.get('PROMOTION_OUTCOME', '')
           smoke = os.environ.get('PUBLIC_SMOKE_OUTCOME', '')
           runtime = os.environ.get('RUNTIME_VERIFY_OUTCOME', '')
@@ -563,6 +644,7 @@ jobs:
                   f'Automated production release result: **{state}**\n\n'
                   f'- Target SHA: `{target}`\n'
                   f'- Workflow run: `{os.environ["GITHUB_RUN_ID"]}`\n'
+                  f'- CI exception applied: `{ci_exception_applied or "false"}`\n'
                   f'- Runtime mutator: Coolify\n'
                   f'- Explicit database migration: NO'
               )
