@@ -1,1 +1,0 @@
-Authorized scope: read-only production audit for 2026 teacher/class/component content and attendance projection; no mutations, no student PII, no content text.
