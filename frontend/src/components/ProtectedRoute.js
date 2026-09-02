@@ -1,8 +1,24 @@
+import { cloneElement, isValidElement, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
+  const [tenantRevision, setTenantRevision] = useState(0);
+
+  // MT-1: a troca de mantenedora precisa remontar a PÁGINA protegida inteira.
+  // O TenantSyncBoundary vive dentro de Layout e, sozinho, remonta apenas o
+  // subtree visual recebido por Layout. Estados/effects pertencentes à página
+  // (ex.: os cards do Dashboard) ficam acima desse boundary e não eram refeitos,
+  // preservando resultados vazios obtidos antes da seleção do tenant.
+  useEffect(() => {
+    const handleTenantChange = () => {
+      setTenantRevision((revision) => revision + 1);
+    };
+
+    window.addEventListener('tenant-changed', handleTenantChange);
+    return () => window.removeEventListener('tenant-changed', handleTenantChange);
+  }, []);
 
   if (loading) {
     return (
@@ -35,6 +51,13 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
         </div>
       </div>
     );
+  }
+
+  // Trocar a key desmonta/remonta o elemento de página sem hard reload do browser.
+  // Assim todos os useEffect([]) da rota executam novamente já com
+  // X-Mantenedora-Id atualizado pelo TenantSwitcher.
+  if (isValidElement(children)) {
+    return cloneElement(children, { key: `tenant-${tenantRevision}` });
   }
 
   return children;
