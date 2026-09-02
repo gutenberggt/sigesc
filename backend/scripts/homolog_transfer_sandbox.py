@@ -267,7 +267,9 @@ def _login(email, password):
     d = r.json()
     s = requests.Session()
     s.headers.update({"Authorization": f"Bearer {d.get('access_token') or d.get('token')}",
-                      "X-CSRF-Token": d.get("csrf_token") or "", "Content-Type": "application/json"})
+                      "X-CSRF-Token": d.get("csrf_token") or "",
+                      "X-Mantenedora-Id": MANT_ID,
+                      "Content-Type": "application/json"})
     return s
 
 
