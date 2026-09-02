@@ -267,7 +267,12 @@ def _login(email, password):
     d = r.json()
     s = requests.Session()
     s.headers.update({"Authorization": f"Bearer {d.get('access_token') or d.get('token')}",
-                      "X-CSRF-Token": d.get("csrf_token") or "", "Content-Type": "application/json"})
+                      "X-CSRF-Token": d.get("csrf_token") or "", "Content-Type": "application/json",
+                      # MT-1: fail-closed exige tenant operacional selecionado para
+                      # super_admin em rotas operacionais (ver tenant_scope.py). Sem
+                      # este header, /admin/school-transfer/dry-run responde 409
+                      # TENANT_CONTEXT_REQUIRED antes de qualquer verificacao de negocio.
+                      "X-Mantenedora-Id": MANT_ID})
     return s
 
 
