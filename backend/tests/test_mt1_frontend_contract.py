@@ -26,6 +26,15 @@ def test_operational_pages_are_gated_until_super_admin_selects_tenant():
     assert "getActiveTenantId" in source
 
 
+def test_protected_page_is_remounted_when_operational_tenant_changes():
+    source = (FRONTEND / "components" / "ProtectedRoute.js").read_text(encoding="utf-8")
+
+    assert "window.addEventListener('tenant-changed'" in source
+    assert "window.removeEventListener('tenant-changed'" in source
+    assert "setTenantRevision((revision) => revision + 1)" in source
+    assert "cloneElement(children, { key: `tenant-${tenantRevision}` })" in source
+
+
 def test_mantenedora_context_does_not_fetch_operational_data_without_selection():
     source = (FRONTEND / "contexts" / "MantenedoraContext.js").read_text(encoding="utf-8")
 
