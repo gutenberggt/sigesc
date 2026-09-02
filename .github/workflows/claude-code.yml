@@ -33,17 +33,32 @@ jobs:
       issues: write
       actions: read
 
+    env:
+      HAS_CLAUDE_OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      HAS_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
+      - name: Validate Claude authentication
+        if: env.HAS_CLAUDE_OAUTH != 'true' && env.HAS_ANTHROPIC_API_KEY != 'true'
+        shell: bash
+        run: |
+          echo "::error::Configure CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in GitHub Actions Secrets."
+          exit 1
+
+      # OAuth wins when both secrets exist, avoiding accidental API-key billing.
+      - name: Run Claude Code with OAuth
+        if: env.HAS_CLAUDE_OAUTH == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          # Configure exactly one authentication secret when possible.
-          # OAuth: CLAUDE_CODE_OAUTH_TOKEN
-          # API:   ANTHROPIC_API_KEY
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Run Claude Code with Anthropic API key
+        if: env.HAS_CLAUDE_OAUTH != 'true' && env.HAS_ANTHROPIC_API_KEY == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
