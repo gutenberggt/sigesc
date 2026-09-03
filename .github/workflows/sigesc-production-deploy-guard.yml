@@ -8,6 +8,7 @@ on:
       - 'docker-compose.coolify.yml'
       - 'backend/Dockerfile'
       - 'frontend/Dockerfile'
+      - 'frontend/public/sw.js'
       - 'docs/operations/GITHUB_ONLY_PRODUCTION_DEPLOY.md'
       - 'memory/audit/SIGESC_PRODUCTION_DEPLOY_INCIDENT_2026-08-30.md'
       - 'memory/audit/SIGESC_AUTOMATIC_PRODUCTION_RELEASE_REQUEST_2026-08-30.md'
@@ -164,6 +165,7 @@ jobs:
           compose = Path('docker-compose.coolify.yml').read_text(encoding='utf-8')
           backend = Path('backend/Dockerfile').read_text(encoding='utf-8')
           frontend = Path('frontend/Dockerfile').read_text(encoding='utf-8')
+          sw = Path('frontend/public/sw.js').read_text(encoding='utf-8')
           workflow = Path('.github/workflows/sigesc-production-deploy.yml').read_text(encoding='utf-8')
 
           assert compose.count('SIGESC_GIT_SHA') >= 2
@@ -173,8 +175,19 @@ jobs:
               assert 'org.opencontainers.image.revision=$SIGESC_GIT_SHA' in text
 
           assert '/usr/share/nginx/html/version.json' in frontend
+          assert "const RELEASE_SHA = '__SIGESC_GIT_SHA__';" in sw
+          assert 'sigesc-cache-v22-${RELEASE_SHA.slice(0, 12)}' in sw
+          assert "grep -Fq '__SIGESC_GIT_SHA__' /usr/share/nginx/html/sw.js" in frontend
+          assert 'sed -i "s/__SIGESC_GIT_SHA__/${SIGESC_GIT_SHA}/g" /usr/share/nginx/html/sw.js' in frontend
+          assert "! grep -Fq '__SIGESC_GIT_SHA__' /usr/share/nginx/html/sw.js" in frontend
           assert 'PUBLIC_FRONTEND_SHA' in workflow
           assert "printf '%s_IMAGE_REVISION=%s" in workflow
+
+          # Prova local do contrato de renderização do SW por release.
+          sample_sha = 'a' * 40
+          rendered_sw = sw.replace('__SIGESC_GIT_SHA__', sample_sha)
+          assert '__SIGESC_GIT_SHA__' not in rendered_sw
+          assert f"const RELEASE_SHA = '{sample_sha}';" in rendered_sw
 
           # Runtime verification must tolerate only bounded transient startup.
           required_runtime = (
