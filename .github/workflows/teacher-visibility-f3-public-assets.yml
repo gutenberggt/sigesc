@@ -34,10 +34,13 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           source = Path('backend/scripts/teacher_visibility_f3_frontend_assets.py').read_text(encoding='utf-8')
+          workflow = Path('.github/workflows/teacher-visibility-f3-public-assets.yml').read_text(encoding='utf-8')
           forbidden = ('pymongo', 'MongoClient', 'insert_one', 'update_one', 'delete_one', 'requests.post', 'method="POST"')
           found = [item for item in forbidden if item in source]
           assert not found, found
           assert 'method="GET"' in source
+          assert "os.environ['GITHUB_EVENT_PATH']" in workflow
+          assert ('github.' + 'event_path') not in workflow
           print('TEACHER_VISIBILITY_F3_READ_ONLY_GUARD=PASS')
           PY
 
@@ -53,12 +56,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
-          EVENT_PATH: ${{ github.event_path }}
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, os, re, urllib.request
-          with open(os.environ['EVENT_PATH'], encoding='utf-8') as fh:
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
               event = json.load(fh)
           issue = event.get('issue') or {}
           if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
