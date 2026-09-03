@@ -39,6 +39,8 @@ O Chromium baixa somente os recursos públicos necessários para executar a SPA 
 - `service_workers="block"` impede que um Service Worker intercepte ou origine tráfego fora do controle do coletor;
 - qualquer request cujo path contenha `/api/` é respondida localmente por fixture sintética;
 - qualquer método diferente de GET é abortado antes da rede;
+- `fetch`/XHR GET fora de `/api/` só pode alcançar, no mesmo origin público, a allowlist explícita `/version.json`, `/asset-manifest.json` e `/manifest.json`; qualquer outro tráfego dinâmico é abortado;
+- todo WebSocket é roteado antes da criação da página e fechado localmente sem conexão com o servidor;
 - nenhuma request `/api/` é encaminhada à produção.
 
 A sessão é sintética dentro do navegador. Não existe login, senha, cookie autenticado, JWT real ou chamada real a `/auth/me`.
@@ -65,7 +67,7 @@ Para cada uma das seis turmas:
 
 1. abre `/professor/objetos-conhecimento` com `academic_year`, escola, turma e componente sintéticos na query string;
 2. confirma que o prefill selecionou a turma esperada e `Matemática`;
-3. confirma que as três datas sintéticas aparecem no calendário com o estado visual de registro existente usado pela tela.
+3. aguarda explicitamente e confirma que as três datas sintéticas aparecem no calendário com o estado visual de registro existente usado pela tela.
 
 ### Frequência
 
@@ -94,7 +96,9 @@ A F4 deliberadamente **não** reproduz o cache, localStorage ou Service Worker d
 ## Boundary
 
 - produção: recursos públicos GET somente;
-- API real de produção: zero requests;
+- `/api/`: 100% local/sintética, zero requests à produção;
+- fetch/XHR dinâmico não-API: allowlist explícita e same-origin; demais tentativas abortadas;
+- WebSocket: bloqueado antes de conexão ao servidor;
 - autenticação real: não;
 - MongoDB: não;
 - estudantes/matrículas/notas: não;
