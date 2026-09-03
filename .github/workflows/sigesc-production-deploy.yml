@@ -29,7 +29,7 @@ jobs:
        github.event.issue.user.login == github.repository_owner)
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 50
+    timeout-minutes: 65
     env:
       SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
@@ -475,22 +475,62 @@ jobs:
           expected_volume="$3"
           project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo")"
 
+          wait_seconds=180
+          poll_interval=5
+
           for service in mongo backend frontend; do
             upper="$(printf '%s' "$service" | tr '[:lower:]' '[:upper:]')"
-            cname="$(docker ps -a --filter "label=com.docker.compose.project=$project" --filter "label=com.docker.compose.service=$service" --format '{{.Names}}' | head -n 1)"
-            test -n "$cname"
-            state="$(docker inspect -f '{{.State.Status}}' "$cname")"
-            health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cname")"
+            deadline=$(( $(date +%s) + wait_seconds ))
+            cname=''
+            state=''
+            health=''
+            revision=''
+            settled=0
+
+            while true; do
+              cname="$(docker ps --filter "label=com.docker.compose.project=$project" --filter "label=com.docker.compose.service=$service" --format '{{.Names}}' | head -n 1)"
+              state=''
+              health=''
+              revision=''
+              if [ -n "$cname" ]; then
+                state="$(docker inspect -f '{{.State.Status}}' "$cname" 2>/dev/null || true)"
+                health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cname" 2>/dev/null || true)"
+                if [ "$service" != 'mongo' ]; then
+                  image_id="$(docker inspect -f '{{.Image}}' "$cname" 2>/dev/null || true)"
+                  if [ -n "$image_id" ]; then
+                    revision="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image_id" 2>/dev/null || true)"
+                  fi
+                fi
+              fi
+
+              revision_ok=1
+              if [ "$service" != 'mongo' ] && [ "$revision" != "$target" ]; then
+                revision_ok=0
+              fi
+
+              if [ "$state" = 'running' ] && [ "$health" = 'healthy' ] && [ "$revision_ok" -eq 1 ]; then
+                settled=1
+                break
+              fi
+
+              printf 'RUNTIME_WAIT service=%s state=%s health=%s revision=%s\n' \
+                "$service" "${state:-absent}" "${health:-absent}" "${revision:-none}"
+
+              [ "$(date +%s)" -lt "$deadline" ] || break
+              sleep "$poll_interval"
+            done
+
+            if [ "$settled" -ne 1 ]; then
+              printf 'RUNTIME_HEALTH_TIMEOUT:%s:%s:%s:%s\n' \
+                "$service" "${state:-absent}" "${health:-absent}" "${revision:-none}"
+              exit 1
+            fi
+
             printf '%s_CONTAINER=%s\n' "$upper" "$cname"
             printf '%s_STATE=%s\n' "$upper" "$state"
             printf '%s_HEALTH=%s\n' "$upper" "$health"
-            test "$state" = 'running'
-            test "$health" = 'healthy'
             if [ "$service" != 'mongo' ]; then
-              image_id="$(docker inspect -f '{{.Image}}' "$cname")"
-              revision="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image_id")"
               printf '%s_IMAGE_REVISION=%s\n' "$upper" "$revision"
-              test "$revision" = "$target"
             fi
           done
 
