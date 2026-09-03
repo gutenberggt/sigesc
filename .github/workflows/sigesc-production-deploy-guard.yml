@@ -148,14 +148,14 @@ jobs:
               assert token not in workflow, token
 
           assert 'docker inspect' in workflow
-          assert 'docker ps -a' in workflow
+          assert 'docker ps --filter' in workflow
           assert 'RUNTIME_MUTATION_OWNER=COOLIFY' in workflow
           assert 'DIRECT_DOCKER_MUTATION=NO' in workflow
           assert 'EXPLICIT_DATABASE_MIGRATION=NO' in workflow
           print('SIGESC_RELEASE_COOLIFY_OWNERSHIP_GUARD=PASS')
           PY
 
-      - name: Guard source commit provenance
+      - name: Guard bounded runtime stabilization and source commit provenance
         shell: bash
         run: |
           python - <<'PY'
@@ -171,11 +171,35 @@ jobs:
           for text in (backend, frontend):
               assert 'ARG SIGESC_GIT_SHA=unknown' in text
               assert 'org.opencontainers.image.revision=$SIGESC_GIT_SHA' in text
+
           assert '/usr/share/nginx/html/version.json' in frontend
           assert 'PUBLIC_FRONTEND_SHA' in workflow
           assert "printf '%s_IMAGE_REVISION=%s" in workflow
-          assert 'test "$revision" = "$target"' in workflow
-          print('SIGESC_RELEASE_SHA_PROVENANCE_GUARD=PASS')
+
+          # Runtime verification must tolerate only bounded transient startup.
+          required_runtime = (
+              'wait_seconds=180',
+              'poll_interval=5',
+              'docker ps --filter',
+              'revision_ok=1',
+              'revision_ok=0',
+              '"$state" = \'running\'',
+              '"$health" = \'healthy\'',
+              '[ "$revision" != "$target" ]',
+              'RUNTIME_WAIT service=',
+              'RUNTIME_HEALTH_TIMEOUT:',
+              'exit 1',
+          )
+          for marker in required_runtime:
+              assert marker in workflow, marker
+
+          # Backend/frontend revision mismatch can never settle successfully.
+          revision_mismatch = workflow.index('if [ "$service" != \'mongo\' ] && [ "$revision" != "$target" ]; then')
+          revision_reject = workflow.index('revision_ok=0', revision_mismatch)
+          settle = workflow.index('if [ "$state" = \'running\' ] && [ "$health" = \'healthy\' ] && [ "$revision_ok" -eq 1 ]; then')
+          assert revision_mismatch < revision_reject < settle
+
+          print('SIGESC_RELEASE_RUNTIME_STABILIZATION_AND_SHA_GUARD=PASS')
           PY
 
       - name: Guard Mongo persistence and source rollback
