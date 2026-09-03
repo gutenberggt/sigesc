@@ -37,6 +37,28 @@ def test_fingerprint_never_exposes_raw_identifier():
     assert len(value) == 12
 
 
+def test_teacher_attribution_matches_actor_or_assignment_only():
+    actor_ids = {"user-1", "staff-1"}
+    assignment_ids = {"assignment-1", "assignment-old"}
+    assert mod._teacher_attributed(
+        {"recorded_by": "user-1"}, actor_ids=actor_ids, teacher_assignment_ids=assignment_ids
+    )
+    assert mod._teacher_attributed(
+        {"staff_id": "staff-1"}, actor_ids=actor_ids, teacher_assignment_ids=assignment_ids
+    )
+    assert mod._teacher_attributed(
+        {"assignment_id": "assignment-old"}, actor_ids=actor_ids, teacher_assignment_ids=assignment_ids
+    )
+    assert not mod._teacher_attributed(
+        {"recorded_by": "other", "assignment_id": "foreign"},
+        actor_ids=actor_ids,
+        teacher_assignment_ids=assignment_ids,
+    )
+    assert not mod._teacher_attributed(
+        {}, actor_ids=actor_ids, teacher_assignment_ids=assignment_ids
+    )
+
+
 def test_assignment_partition_distinguishes_current_historical_and_legacy():
     rows = [
         {"assignment_id": "current"},
@@ -57,74 +79,129 @@ def test_assignment_partition_distinguishes_current_historical_and_legacy():
     }
 
 
-def test_classify_detects_same_name_identity_split():
+def test_effective_binding_prefers_canonical_then_legacy_then_dvd():
+    ids, source = mod._effective_binding(
+        current_ids={"canonical"}, legacy_active_ids={"legacy"}, dvd_current_ids={"dvd"}
+    )
+    assert ids == {"canonical"}
+    assert source == "canonical_diary"
+
+    ids, source = mod._effective_binding(
+        current_ids=set(), legacy_active_ids={"legacy"}, dvd_current_ids={"dvd"}
+    )
+    assert ids == {"legacy"}
+    assert source == "legacy_active_teacher_assignment"
+
+    ids, source = mod._effective_binding(
+        current_ids=set(), legacy_active_ids=set(), dvd_current_ids={"dvd"}
+    )
+    assert ids == {"dvd"}
+    assert source == "dvd_structural"
+
+
+def test_classify_reproduces_ana_positive_control_identity_split_with_legacy_effective_binding():
     codes = mod._classify_pair(
-        current_ids={"current"},
-        dvd_current_ids={"current"},
-        legacy_active_ids={"current"},
-        same_name_tenant_ids={"current", "legacy-data"},
-        data_ids={"legacy-data"},
-        data_counts={"legacy-data": 24},
+        current_ids=set(),
+        effective_binding_ids={"current-fundamental"},
+        effective_binding_source="legacy_active_teacher_assignment",
+        dvd_current_ids=set(),
+        legacy_active_ids={"current-fundamental"},
+        same_name_tenant_ids={"current-fundamental", "legacy-eja"},
+        raw_data_ids={"legacy-eja"},
+        attributed_data_ids={"legacy-eja"},
+        attributed_counts={"legacy-eja": 24},
         assignment_drift_present=False,
         assignmentless_present=True,
-        unknown_course_refs=0,
-        cross_tenant_same_name_refs=0,
+        unresolved_attributed_refs=0,
+        cross_tenant_attributed_refs=0,
+        teacher_class_daily_without_course=0,
     )
+    assert "NO_CURRENT_AUTHORIZED_DIARY" in codes
+    assert "EFFECTIVE_BINDING_FROM_LEGACY_ASSIGNMENT" in codes
     assert "MULTIPLE_SAME_NAME_COMPONENT_IDENTITIES_IN_TENANT" in codes
     assert "CURRENT_BINDING_VS_SAME_NAME_DATA_IDENTITY_SPLIT" in codes
     assert "CURRENT_IDENTITY_EMPTY_ALT_IDENTITY_HAS_DATA" in codes
     assert "LEGACY_RECORDS_WITHOUT_ASSIGNMENT" in codes
 
 
+def test_classify_does_not_attribute_other_teacher_data_to_target_teacher():
+    codes = mod._classify_pair(
+        current_ids={"current"},
+        effective_binding_ids={"current"},
+        effective_binding_source="canonical_diary",
+        dvd_current_ids={"current"},
+        legacy_active_ids={"current"},
+        same_name_tenant_ids={"current", "other-id"},
+        raw_data_ids={"other-id"},
+        attributed_data_ids=set(),
+        attributed_counts={},
+        assignment_drift_present=False,
+        assignmentless_present=False,
+        unresolved_attributed_refs=0,
+        cross_tenant_attributed_refs=0,
+        teacher_class_daily_without_course=0,
+    )
+    assert "SAME_NAME_DATA_PRESENT_BUT_NOT_ATTRIBUTABLE_TO_TEACHER" in codes
+    assert "CURRENT_BINDING_VS_SAME_NAME_DATA_IDENTITY_SPLIT" not in codes
+    assert "CURRENT_IDENTITY_EMPTY_ALT_IDENTITY_HAS_DATA" not in codes
+
+
 def test_classify_detects_aligned_current_identity():
     codes = mod._classify_pair(
         current_ids={"current"},
+        effective_binding_ids={"current"},
+        effective_binding_source="canonical_diary",
         dvd_current_ids={"current"},
         legacy_active_ids={"current"},
         same_name_tenant_ids={"current"},
-        data_ids={"current"},
-        data_counts={"current": 15},
+        raw_data_ids={"current"},
+        attributed_data_ids={"current"},
+        attributed_counts={"current": 15},
         assignment_drift_present=False,
         assignmentless_present=False,
-        unknown_course_refs=0,
-        cross_tenant_same_name_refs=0,
+        unresolved_attributed_refs=0,
+        cross_tenant_attributed_refs=0,
+        teacher_class_daily_without_course=0,
     )
     assert "DATA_IDENTITY_ALIGNED_TO_CURRENT_BINDING" in codes
     assert "CURRENT_BINDING_VS_SAME_NAME_DATA_IDENTITY_SPLIT" not in codes
 
 
-def test_classify_detects_binding_and_assignment_drift():
+def test_classify_detects_binding_assignment_and_legacy_attendance_shape_risks():
     codes = mod._classify_pair(
         current_ids={"current"},
+        effective_binding_ids={"current"},
+        effective_binding_source="canonical_diary",
         dvd_current_ids={"current"},
         legacy_active_ids={"old"},
         same_name_tenant_ids={"current", "old"},
-        data_ids={"current", "old"},
-        data_counts={"current": 2, "old": 20},
+        raw_data_ids={"current", "old"},
+        attributed_data_ids={"current", "old"},
+        attributed_counts={"current": 2, "old": 20},
         assignment_drift_present=True,
         assignmentless_present=False,
-        unknown_course_refs=0,
-        cross_tenant_same_name_refs=0,
+        unresolved_attributed_refs=1,
+        cross_tenant_attributed_refs=1,
+        teacher_class_daily_without_course=3,
     )
     assert "LEGACY_BINDING_DIFFERS_FROM_CURRENT_BINDING" in codes
     assert "RECORDS_ON_HISTORICAL_SAME_TEACHER_ASSIGNMENT" in codes
     assert "CURRENT_BINDING_VS_SAME_NAME_DATA_IDENTITY_SPLIT" in codes
-
-
-def test_classify_flags_unknown_and_cross_tenant_references():
-    codes = mod._classify_pair(
-        current_ids=set(),
-        dvd_current_ids=set(),
-        legacy_active_ids=set(),
-        same_name_tenant_ids=set(),
-        data_ids=set(),
-        data_counts={},
-        assignment_drift_present=False,
-        assignmentless_present=False,
-        unknown_course_refs=2,
-        cross_tenant_same_name_refs=1,
-    )
-    assert "NO_CURRENT_AUTHORIZED_DIARY" in codes
-    assert "TARGET_COMPONENT_DATA_NOT_FOUND" in codes
-    assert "CLASS_HAS_DATA_WITH_UNRESOLVED_COURSE_ID" in codes
+    assert "TEACHER_HAS_DATA_WITH_UNRESOLVED_COURSE_ID_IN_CLASS" in codes
     assert "CROSS_TENANT_SAME_NAME_COMPONENT_REFERENCE" in codes
+    assert "TEACHER_ATTRIBUTED_CLASS_DAILY_ATTENDANCE_UNATTRIBUTED_TO_COMPONENT" in codes
+
+
+def test_attendance_shape_preserves_legacy_aggregate_signal_without_inventing_aula_numero():
+    result = mod._attendance_shape(
+        [
+            {"aula_numero": 1, "number_of_classes": None},
+            {"aula_numero": None, "number_of_classes": 2},
+            {"aula_numero": "", "number_of_classes": 1},
+        ]
+    )
+    assert result == {
+        "with_aula_numero": 1,
+        "with_number_of_classes": 2,
+        "without_aula_numero": 2,
+    }
