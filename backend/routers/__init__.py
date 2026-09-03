@@ -14,7 +14,8 @@ from .schools import router as schools_router, setup_router as setup_schools_rou
 from .courses import router as courses_router, setup_router as setup_courses_router
 from .classes import router as classes_router, setup_router as setup_classes_router
 from .guardians import router as guardians_router, setup_router as setup_guardians_router
-from .enrollments import router as enrollments_router, setup_router as setup_enrollments_router
+from .enrollments import router as enrollments_router, setup_router as _setup_enrollments_router
+from .enrollment_rectification import setup_router as setup_enrollment_rectification_router
 from .students import router as students_router, setup_students_router as _setup_students_router
 from .student_enrollment_identity_guard import install_student_enrollment_identity_guard
 from .student_enrollment_identity_continuity import install_student_enrollment_identity_continuity
@@ -144,6 +145,13 @@ def setup_auth_router(db, audit_service):
     configured = install_auth_impersonation(configured, db, audit_service)
     configured = install_auth_impersonation_search(configured, db)
     install_impersonation_request_audit_policy(audit_service)
+    return configured
+
+
+def setup_enrollments_router(db, audit_service):
+    """Configura Matrículas + Retificação F1.0 exclusivamente read-only."""
+    configured = _setup_enrollments_router(db, audit_service)
+    configured.include_router(setup_enrollment_rectification_router(db))
     return configured
 
 
