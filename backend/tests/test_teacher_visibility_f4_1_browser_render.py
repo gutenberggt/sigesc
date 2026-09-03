@@ -137,6 +137,9 @@ def test_source_seals_timeout_semantics_pair_isolation_and_boundary():
         '"timeout_is_product_gap": False',
         '"pair_isolation": True',
         "TEACHER_VISIBILITY_F4_1_CHECKPOINT=",
+        "if not _poll(lambda: selects.count() >= 2)",
+        "if not _poll(lambda: heading.count() >= 1)",
+        "if not _poll(lambda: registros.count() >= 1)",
         "PUBLIC_BROWSER_RENDER_PROBE_ERROR",
     ]
     for marker in required:

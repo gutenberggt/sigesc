@@ -124,8 +124,8 @@ def _selected_option_texts(page: Any) -> list[str]:
 
 def _probe_prefill(page: Any, class_name: str, surface: dict[str, Any], prefix: str) -> None:
     try:
-        select_count = page.locator("select").count()
-        if select_count < 2:
+        selects = page.locator("select")
+        if not _poll(lambda: selects.count() >= 2):
             _append_probe_error(surface, f"{prefix}_SELECT_ANCHOR_MISSING")
             return
         matched = _poll(
@@ -160,7 +160,7 @@ def _probe_content(page: Any, target: Any, pair: dict[str, Any]) -> None:
 
     try:
         heading = page.get_by_role("heading", name="Objetos de Conhecimento")
-        if heading.count() < 1:
+        if not _poll(lambda: heading.count() >= 1):
             _append_probe_error(surface, "CONTENT_HEADING_ANCHOR_MISSING")
         else:
             wanted = {str(int(date[-2:])) for date in f4.PROBE_DATES}
@@ -215,7 +215,7 @@ def _probe_attendance(page: Any, target: Any, pair: dict[str, Any]) -> None:
 
     try:
         registros = page.get_by_role("button", name="Registros", exact=True)
-        if registros.count() < 1:
+        if not _poll(lambda: registros.count() >= 1):
             _append_probe_error(surface, "ATTENDANCE_REGISTROS_BUTTON_MISSING")
         else:
             registros.click(timeout=ACTION_TIMEOUT_MS)
