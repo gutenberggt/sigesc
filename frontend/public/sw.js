@@ -1,4 +1,7 @@
-// SIGESC Service Worker - Versão 2.11.0
+// SIGESC Service Worker - Versão 2.12.8
+// [Set/2026] O Dockerfile substitui __SIGESC_GIT_SHA__ pelo SHA real da release.
+// Isso faz /sw.js mudar em todo deploy, força o ciclo install/activate e permite
+// que o OfflineContext recarregue automaticamente abas que ainda executam bundle antigo.
 // [Jun/2026] LOGIN OFFLINE SEMPRE: o app shell (index.html) é pré-cacheado já na
 // instalação do SW (visita online) e também a cada navegação online. Offline, a
 // navegação serve o shell cacheado → React inicia → tela de LOGIN, nunca a página
@@ -8,7 +11,8 @@
 // [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
 // Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
 // (impedindo que bundles JS antigos quebrem o app após deploy).
-const CACHE_NAME = 'sigesc-cache-v21';
+const RELEASE_SHA = '__SIGESC_GIT_SHA__';
+const CACHE_NAME = `sigesc-cache-v22-${RELEASE_SHA.slice(0, 12)}`;
 const OFFLINE_URL = '/offline.html';
 // Chave fixa onde o app shell (index.html) é cacheado dinamicamente a cada visita online.
 const APP_SHELL_URL = '/index.html';
@@ -160,7 +164,7 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.12.7...');
+  console.log(`[SW] Instalando Service Worker 2.12.8 — release ${RELEASE_SHA.slice(0, 12)}...`);
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -568,7 +572,7 @@ async function sendToServer(operations) {
     return { 
       success: false, 
       error: error.message, 
-      succeeded: [], 
+      succeeded: [],
       failed: operations.map(op => ({ ...op, error: error.message }))
     };
   }
@@ -678,4 +682,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-console.log('[SW] Service Worker v2.12.7 carregado (login offline + cold-start robusto + storage persistente + banner instalar PWA + logout preserva sessão + pré-cache chunks + TTL 30d + diagnóstico visível)');
+console.log(`[SW] Service Worker 2.12.8 carregado — release ${RELEASE_SHA.slice(0, 12)} (cache versionado por release + offline robusto)`);
