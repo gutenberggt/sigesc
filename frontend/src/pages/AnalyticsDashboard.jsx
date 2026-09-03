@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { schoolsAPI, classesAPI, studentsAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, studentsAPI, getActiveTenantId } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/utils/downloadBlob';
@@ -570,13 +570,22 @@ export function AnalyticsDashboard() {
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
+  // MT-1: estas chamadas usam fetch() nativo (fora do axios de services/api.js),
+  // então não recebem o X-Mantenedora-Id injetado pelo interceptor. Sem esse
+  // header, o backend cai no sentinela fail-closed e devolve conjunto vazio
+  // mesmo com a mantenedora certa selecionada no TenantSwitcher.
+  const tenantHeaders = () => {
+    const tenantId = getActiveTenantId();
+    return tenantId ? { 'X-Mantenedora-Id': tenantId } : {};
+  };
+
   // Carrega o brasão da mantenedora (base64 via backend, evitando CORS) p/ os PDFs
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         const res = await fetch(`${API_URL}/api/mantenedora/brasao-base64`, {
-          headers: { 'Authorization': `Bearer ${tokenRef.current}` },
+          headers: { 'Authorization': `Bearer ${tokenRef.current}`, ...tenantHeaders() },
         });
         if (!res.ok) { if (active) setLogoDataUrl(null); return; }
         const data = await res.json();
@@ -711,7 +720,7 @@ export function AnalyticsDashboard() {
       
       try {
         const response = await fetch(`${API_URL}/api/analytics/semed/check-terms`, {
-          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
+          headers: { 'Authorization': `Bearer ${tokenRef.current}`, ...tenantHeaders() }
         });
         const data = await response.json();
         
@@ -734,9 +743,10 @@ export function AnalyticsDashboard() {
     try {
       const response = await fetch(`${API_URL}/api/analytics/semed/accept-terms`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...tenantHeaders()
         }
       });
       
@@ -787,8 +797,8 @@ export function AnalyticsDashboard() {
         if (selectedClass) params.append('class_id', selectedClass);
         if (selectedStudent) params.append('student_id', selectedStudent);
         
-        const headers = { 'Authorization': `Bearer ${tokenRef.current}` };
-        
+        const headers = { 'Authorization': `Bearer ${tokenRef.current}`, ...tenantHeaders() };
+
         const safeFetch = async (url) => {
           try {
             const res = await fetch(url, { headers });
@@ -866,7 +876,7 @@ export function AnalyticsDashboard() {
       
       try {
         const response = await fetch(`${API_URL}/api/classes/${selectedClass}/details`, {
-          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
+          headers: { 'Authorization': `Bearer ${tokenRef.current}`, ...tenantHeaders() }
         });
         
         if (response.ok) {

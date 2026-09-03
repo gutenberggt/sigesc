@@ -14,7 +14,7 @@ import {
   Calendar,
   Filter
 } from 'lucide-react';
-import { schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, coursesAPI, getActiveTenantId } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
 import { useNavigate } from 'react-router-dom';
@@ -109,9 +109,10 @@ export const DiaryDashboard = () => {
       }
       try {
         const token = localStorage.getItem('accessToken');
+        const tenantId = getActiveTenantId();
         // Usar o novo endpoint que busca componentes específicos da turma
         const response = await fetch(`${API_URL}/api/diary-dashboard/courses-by-class/${selectedClass}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) }
         });
         if (response.ok) {
           const data = await response.json();
@@ -136,7 +137,8 @@ export const DiaryDashboard = () => {
       setLoading(true);
       try {
         const token = localStorage.getItem('accessToken');
-        const headers = { 'Authorization': `Bearer ${token}` };
+        const tenantId = getActiveTenantId();
+        const headers = { 'Authorization': `Bearer ${token}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) };
         
         // Construir query params
         const params = new URLSearchParams({ academic_year: academicYear });

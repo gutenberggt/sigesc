@@ -4,7 +4,7 @@ import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, STATUS_SERVIDOR, TIPOS_VINCULO, SEXOS, COR_RACA } from './constants';
 import { isValidCPF } from '@/utils/formatters';
-import { cpfAPI } from '@/services/api';
+import { cpfAPI, getActiveTenantId } from '@/services/api';
 
 export const StaffModal = ({
   isOpen,
@@ -113,11 +113,13 @@ export const StaffModal = ({
       
       const API_URL = process.env.REACT_APP_BACKEND_URL;
       const token = localStorage.getItem('token');
-      
+      const tenantId = getActiveTenantId();
+
       const response = await fetch(`${API_URL}/api/upload/certificado`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}),
         },
         body: formData
       });

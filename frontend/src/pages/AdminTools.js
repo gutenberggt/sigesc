@@ -2,12 +2,21 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2, Clock, UserX, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getActiveTenantId } from '@/services/api';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const AdminTools = () => {
   const { accessToken } = useAuth();
   const navigate = useNavigate();
+
+  // MT-1: estas ferramentas chamam rotas operacionais via fetch() nativo, fora
+  // do axios de services/api.js — sem este header, o backend cai no sentinela
+  // fail-closed e a chamada falha mesmo com a mantenedora certa selecionada.
+  const tenantHeader = () => {
+    const tenantId = getActiveTenantId();
+    return tenantId ? { 'X-Mantenedora-Id': tenantId } : {};
+  };
   
   const [loading, setLoading] = useState(false);
   const [loadingType, setLoadingType] = useState(null);
@@ -34,6 +43,7 @@ const AdminTools = () => {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
+          ...tenantHeader(),
         },
         body: JSON.stringify({ apply }),
       });
@@ -89,7 +99,8 @@ const AdminTools = () => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...tenantHeader(),
         }
       });
       
@@ -120,7 +131,8 @@ const AdminTools = () => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...tenantHeader(),
         }
       });
       

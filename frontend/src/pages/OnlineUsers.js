@@ -4,6 +4,7 @@ import { Users, Wifi, Clock, RefreshCw, Home, LogOut, AlertTriangle, History } f
 import { useNavigate } from 'react-router-dom';
 import { hasRole } from '@/utils/permissions';
 import { CONNECTION_CATEGORIES } from '@/config/connectionCategories';
+import { getActiveTenantId } from '@/services/api';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -50,10 +51,17 @@ export default function OnlineUsers() {
   
   const isSuperAdmin = hasRole(currentUser, ['super_admin']);
 
+  // MT-1: rota operacional — sem X-Mantenedora-Id, get_current_user() falha
+  // com 409 (tenant não resolvido) para super_admin, deixando a lista vazia.
+  const authHeaders = () => {
+    const tenantId = getActiveTenantId();
+    return { 'Authorization': `Bearer ${tokenRef.current}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) };
+  };
+
   const fetchOnlineUsers = async () => {
     try {
       const response = await fetch(`${API_URL}/api/admin/online-users`, {
-        headers: { 'Authorization': `Bearer ${tokenRef.current}` }
+        headers: authHeaders()
       });
       if (response.ok) {
         const data = await response.json();
@@ -70,7 +78,7 @@ export default function OnlineUsers() {
   const fetchLoginCount = async () => {
     try {
       const response = await fetch(`${API_URL}/api/admin/online-users/login-count`, {
-        headers: { 'Authorization': `Bearer ${tokenRef.current}` }
+        headers: authHeaders()
       });
       if (response.ok) {
         const data = await response.json();
@@ -89,7 +97,7 @@ export default function OnlineUsers() {
         `${API_URL}/api/admin/sessions/revoke/${confirmTarget.id}`,
         {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
+          headers: authHeaders()
         }
       );
       if (response.ok) {

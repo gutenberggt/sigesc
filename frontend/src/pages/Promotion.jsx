@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home } from 'lucide-react';
-import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI, professorAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI, professorAPI, getActiveTenantId } from '@/services/api';
 import { usePermissions } from '@/hooks/usePermissions';
 import { usaAvaliacaoConceitual, valorParaConceito, isEducacaoInfantil } from '@/components/grades/gradeHelpers';
 import { toast } from 'sonner';
@@ -29,9 +29,11 @@ const fetchEnrollments = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.class_id) params.append('class_id', filters.class_id);
   if (filters.student_id) params.append('student_id', filters.student_id);
+  const tenantId = getActiveTenantId();
   const response = await fetch(`${API_URL}/api/enrollments?${params.toString()}`, {
     headers: {
-      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}),
     }
   });
   if (!response.ok) throw new Error('Erro ao buscar matrículas');
@@ -729,8 +731,9 @@ export function Promotion() {
       return;
     }
     const token = localStorage.getItem('accessToken');
+    const tenantId = getActiveTenantId();
     fetch(`${API_URL}/api/documents/promotion/${selectedClass}/book-number?academic_year=${selectedYear}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) }
     })
       .then(r => r.ok ? r.json() : null)
       .then(data => setBookNumber(data?.book_number || ''))

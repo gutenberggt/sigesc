@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
+import { getActiveTenantId } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -90,11 +91,16 @@ export default function HRPayroll() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
+  const tenantId = getActiveTenantId();
   const isAdmin = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   const isAnalista = ['semed2'].includes(user?.role);
   const isSemedViewer = ['semed3'].includes(user?.role);
   const isGlobal = isAdmin || isAnalista || isSemedViewer;
-  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}),
+  };
 
   const [view, setView] = useState('dashboard');
   const [loading, setLoading] = useState(false);
@@ -297,7 +303,7 @@ export default function HRPayroll() {
       formData.append('file', file);
       const res = await fetch(`${API_URL}/api/hr/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) },
         body: formData
       });
       if (res.ok) {
