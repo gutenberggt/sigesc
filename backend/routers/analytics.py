@@ -180,6 +180,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             }
             if not is_global and user_school_ids:
                 student_transfer_filter['school_id'] = {'$in': user_school_ids}
+            student_transfer_filter = apply_tenant_filter(student_transfer_filter, user, request)
             transfer_count = await current_db.students.count_documents(student_transfer_filter)
         
         # Calcular porcentagem de transferências
@@ -200,6 +201,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             }
             if not is_global and user_school_ids:
                 student_desistencia_filter['school_id'] = {'$in': user_school_ids}
+            student_desistencia_filter = apply_tenant_filter(student_desistencia_filter, user, request)
             desistencia_count = await current_db.students.count_documents(student_desistencia_filter)
         
         # Calcular porcentagem de desistências
@@ -213,7 +215,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             attendance_match['academic_year'] = year_filter(academic_year)
         if class_id:
             attendance_match['class_id'] = class_id
-        elif school_id or (not is_global and user_school_ids):
+        attendance_match = apply_tenant_filter(attendance_match, user, request)
+        if not class_id and (school_id or (not is_global and user_school_ids)):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
             # [Fase 1.5] Escopo TEMPORAL por escola: cada registro é atribuído à
             # escola dona da turma NA DATA do registro (honra school_history).
@@ -254,7 +257,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             grades_filter['class_id'] = class_id
         if academic_year:
             grades_filter['academic_year'] = year_filter(academic_year)
-        
+        grades_filter = apply_tenant_filter(grades_filter, user, request)
+
         # Se tem filtro de escola, buscar turmas da escola primeiro
         if school_id or (not is_global and user_school_ids):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
@@ -370,10 +374,12 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             match_filter['school_id'] = school_id
         elif not is_global and user_school_ids:
             match_filter['school_id'] = {'$in': user_school_ids}
-        
+
         if class_id:
             match_filter['class_id'] = class_id
-        
+
+        match_filter = apply_tenant_filter(match_filter, user, request)
+
         pipeline = [
             {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$group': {
@@ -440,7 +446,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         match_filter = {
             'date': {'$regex': f'^{academic_year}'}
         }
-        
+        match_filter = apply_tenant_filter(match_filter, user, request)
+
         # IMPORTANTE: documentos de `attendance` NÃO possuem campo `school_id`.
         # Para filtrar por escola é preciso resolver as turmas da escola e
         # filtrar por `class_id` (mesmo padrão do /overview). Filtrar por
@@ -549,6 +556,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         class_filter = {'academic_year': year_filter(academic_year)}
         if class_id:
             class_filter['id'] = class_id
+        class_filter = apply_tenant_filter(class_filter, user, request)
         # [Fase 1.5] Notas (ano-base): resolve as turmas da escola pela atribuição
         # temporal (school_history) no INÍCIO do ano letivo, não pelo school_id atual.
         _rank_school_ids = ([school_id] if school_id else
@@ -662,12 +670,13 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         match_filter = {
             'academic_year': year_filter(academic_year)
         }
-        
+
         if student_id:
             match_filter['student_id'] = student_id
         if class_id:
             match_filter['class_id'] = class_id
-        
+        match_filter = apply_tenant_filter(match_filter, user, request)
+
         if school_id or (not is_global and user_school_ids):
             school_ids_to_filter = [school_id] if school_id else user_school_ids
             # [Fase 1.5] Notas por período (ano-base): atribuição temporal no início do ano.
@@ -784,7 +793,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         school_filter = {'status': 'active'}
         if not is_global and user_school_ids:
             school_filter['id'] = {'$in': user_school_ids}
-        
+        school_filter = apply_tenant_filter(school_filter, user, request)
+
         schools = {}
         async for school in current_db.schools.find(school_filter, {'id': 1, 'name': 1}):
             schools[school['id']] = {
@@ -1338,7 +1348,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             class_filter['school_id'] = school_id
         elif not is_global and user_school_ids:
             class_filter['school_id'] = {'$in': user_school_ids}
-        
+        class_filter = apply_tenant_filter(class_filter, user, request)
+
         eligible_classes = []
         async for cls in current_db.classes.find(class_filter, {'_id': 0, 'id': 1, 'education_level': 1, 'grade_level': 1, 'name': 1}):
             ed_level = cls.get('education_level', '')
@@ -1527,7 +1538,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 user_school_ids = [l.get('school_id') for l in user.get('school_links', [])]
             if user_school_ids:
                 alloc_filter['school_id'] = {'$in': user_school_ids}
-        
+        alloc_filter = apply_tenant_filter(alloc_filter, user, request)
+
         allocations = await current_db.teacher_assignments.find(
             alloc_filter, {'_id': 0, 'staff_id': 1, 'staff_name': 1, 'class_id': 1, 'course_id': 1}
         ).to_list(5000)
@@ -1576,7 +1588,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         # Buscar calendário letivo para contar dias letivos
         calendario = await current_db.calendario_letivo.find_one(
-            {"ano_letivo": academic_year}, {"_id": 0}
+            apply_tenant_filter({"ano_letivo": academic_year}, user, request), {"_id": 0}
         )
         
         # Calcular total de dias letivos no ano (e os já VENCIDOS = prazo de 3 dias expirado)
@@ -1592,7 +1604,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if calendario:
             from datetime import datetime as dt, timedelta
             events = await current_db.calendar_events.find(
-                {"academic_year": academic_year}, {"_id": 0, "event_type": 1, "start_date": 1, "end_date": 1, "is_school_day": 1}
+                apply_tenant_filter({"academic_year": academic_year}, user, request),
+                {"_id": 0, "event_type": 1, "start_date": 1, "end_date": 1, "is_school_day": 1}
             ).to_list(1000)
             blocked = set()
             sab_letivos = set()
@@ -2221,7 +2234,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         match_filter = {
             'academic_year': year_filter(academic_year)
         }
-        
+        match_filter = apply_tenant_filter(match_filter, user, request)
+
         if class_id:
             match_filter['class_id'] = class_id
         elif school_id or (not is_global and user_school_ids):
