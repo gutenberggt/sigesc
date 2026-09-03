@@ -7,6 +7,7 @@ on:
       - 'backend/routers/students.py'
       - 'backend/routers/__init__.py'
       - 'backend/tests/test_students_list_filters.py'
+      - 'backend/tests/test_student_transfer_destination_access.py'
       - 'frontend/src/pages/StudentsComplete.js'
       - 'frontend/src/utils/specialEducation.js'
       - '.github/workflows/student-list-filters-guard.yml'
