@@ -44,11 +44,12 @@ jobs:
       - name: Run F1 read-only regression
         working-directory: backend
         env:
-          # O conftest global constrói um MongoClient no import e exige estas
-          # variáveis, mas esta suíte usa exclusivamente AsyncMongoMockClient.
-          # MongoClient é lazy; nenhum servidor Mongo real é iniciado/usado aqui.
+          # O bootstrap global dos testes exige estas variáveis no import.
+          # A suíte F1 usa exclusivamente AsyncMongoMockClient: MongoClient é lazy
+          # e nenhum servidor Mongo real é iniciado ou consultado neste guard.
           MONGO_URL: 'mongodb://127.0.0.1:27017'
           DB_NAME: 'sigesc_rectification_f1_conftest_unused'
+          JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
           ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
         run: |
           python -m pytest tests/test_enrollment_rectification_f1_dry_run.py -q --asyncio-mode=auto
