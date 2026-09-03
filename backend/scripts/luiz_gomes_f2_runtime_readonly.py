@@ -8,9 +8,9 @@ para conteúdo e frequência sem ler attendance.records nem texto pedagógico.
 from __future__ import annotations
 
 from collections import defaultdict
+import importlib.util
+from pathlib import Path
 from typing import Any
-
-from scripts import ana_lucia_f2_1_runtime_legacy_audit as base
 
 ACADEMIC_YEAR = 2026
 TEACHER_NAME = "Luiz Gomes dos Santos"
@@ -23,6 +23,26 @@ TARGET_PAIRS: tuple[tuple[str, str], ...] = (
     ("8º ANO A", "Matemática"),
     ("9º ANO A", "Matemática"),
 )
+
+
+def _load_base_engine():
+    candidates = (
+        Path.cwd() / "backend/scripts/ana_lucia_f2_1_runtime_legacy_audit.py",
+        Path.cwd() / "scripts/ana_lucia_f2_1_runtime_legacy_audit.py",
+        Path("/app/backend/scripts/ana_lucia_f2_1_runtime_legacy_audit.py"),
+    )
+    path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
+        raise RuntimeError("LUIZ_GOMES_F2_BASE_ENGINE_NOT_FOUND")
+    spec = importlib.util.spec_from_file_location("ana_lucia_f2_1_runtime_engine", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("LUIZ_GOMES_F2_BASE_ENGINE_LOAD_FAILED")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+base = _load_base_engine()
 
 
 def _resolve_targets_exact_school(db, staff: dict[str, Any]) -> list[dict[str, Any]]:
