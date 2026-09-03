@@ -42,6 +42,14 @@ LABEL org.opencontainers.image.revision=$SIGESC_GIT_SHA
 # Copia o build para o nginx
 COPY --from=build /app/build /usr/share/nginx/html
 
+# Faz o Service Worker variar em TODA release. O browser compara os bytes de /sw.js;
+# ao enxergar o SHA novo, instala/ativa o novo worker e o OfflineContext recarrega a
+# SPA uma vez via controllerchange, evitando manter bundle antigo em abas já abertas.
+# O SHA só contém hexadecimal (ou "unknown" fora do release), portanto é seguro no sed.
+RUN grep -Fq '__SIGESC_GIT_SHA__' /usr/share/nginx/html/sw.js \
+    && sed -i "s/__SIGESC_GIT_SHA__/${SIGESC_GIT_SHA}/g" /usr/share/nginx/html/sw.js \
+    && ! grep -Fq '__SIGESC_GIT_SHA__' /usr/share/nginx/html/sw.js
+
 # Endpoint estático de proveniência pública do frontend.
 RUN printf '{"git_sha":"%s"}\n' "$SIGESC_GIT_SHA" > /usr/share/nginx/html/version.json
 
