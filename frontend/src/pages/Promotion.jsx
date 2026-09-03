@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home } from 'lucide-react';
-import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI, professorAPI, getActiveTenantId } from '@/services/api';
+import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI, professorAPI, buildFetchAuthHeaders } from '@/services/api';
 import { usePermissions } from '@/hooks/usePermissions';
 import { usaAvaliacaoConceitual, valorParaConceito, isEducacaoInfantil } from '@/components/grades/gradeHelpers';
 import { toast } from 'sonner';
@@ -29,12 +29,9 @@ const fetchEnrollments = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.class_id) params.append('class_id', filters.class_id);
   if (filters.student_id) params.append('student_id', filters.student_id);
-  const tenantId = getActiveTenantId();
   const response = await fetch(`${API_URL}/api/enrollments?${params.toString()}`, {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-      ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}),
-    }
+    headers: buildFetchAuthHeaders('GET'),
+    credentials: 'include',
   });
   if (!response.ok) throw new Error('Erro ao buscar matrículas');
   return response.json();
@@ -202,7 +199,7 @@ const STUDENTS_PER_PAGE = 10;
 
 export function Promotion() {
   const navigate = useNavigate();
-  const { accessToken, user } = useAuth();
+  const { user } = useAuth();
   const { isProfessor, isSchoolStaff, isAdmin, isSuperAdmin, isSemed } = usePermissions();
   // Professor: acesso restrito às turmas/componentes em que tem vínculo.
   // Demais perfis de gestão veem todas as escolas/turmas normalmente.
@@ -730,10 +727,9 @@ export function Promotion() {
       setBookNumber('');
       return;
     }
-    const token = localStorage.getItem('accessToken');
-    const tenantId = getActiveTenantId();
     fetch(`${API_URL}/api/documents/promotion/${selectedClass}/book-number?academic_year=${selectedYear}`, {
-      headers: { Authorization: `Bearer ${token}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) }
+      headers: buildFetchAuthHeaders('GET'),
+      credentials: 'include',
     })
       .then(r => r.ok ? r.json() : null)
       .then(data => setBookNumber(data?.book_number || ''))
@@ -780,14 +776,14 @@ export function Promotion() {
       return;
     }
 
-    const authHeaders = { 'Authorization': `Bearer ${accessToken}` };
+    const authHeaders = buildFetchAuthHeaders('POST');
     progress.startTask({ title: 'Gerando Livro de Promoção', message: 'Enfileirando...' });
 
     try {
       // 1) Dispara o job
       const startResp = await fetch(
         `${API_URL}/api/documents/jobs/promotion/${selectedClass}?academic_year=${selectedYear}`,
-        { method: 'POST', headers: authHeaders }
+        { method: 'POST', headers: authHeaders, credentials: 'include' }
       );
       if (!startResp.ok) throw new Error('Falha ao iniciar a geração');
       const { job_id } = await startResp.json();
@@ -800,7 +796,7 @@ export function Promotion() {
         await new Promise(r => setTimeout(r, 500));
         const stResp = await fetch(
           `${API_URL}/api/documents/jobs/${job_id}/status`,
-          { headers: authHeaders }
+          { headers: authHeaders, credentials: 'include' }
         );
         if (!stResp.ok) throw new Error('Erro ao verificar status do PDF');
         lastStatus = await stResp.json();

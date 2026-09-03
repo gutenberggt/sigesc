@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Users, Wifi, Clock, RefreshCw, Home, LogOut, AlertTriangle, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hasRole } from '@/utils/permissions';
 import { CONNECTION_CATEGORIES } from '@/config/connectionCategories';
-import { getActiveTenantId } from '@/services/api';
+import { buildFetchAuthHeaders } from '@/services/api';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -37,10 +37,8 @@ const ROLE_COLORS = {
 };
 
 export default function OnlineUsers() {
-  const { user: currentUser, accessToken } = useAuth();
+  const { user: currentUser } = useAuth();
   const navigate = useNavigate();
-  const tokenRef = useRef(accessToken);
-  tokenRef.current = accessToken;
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -51,17 +49,11 @@ export default function OnlineUsers() {
   
   const isSuperAdmin = hasRole(currentUser, ['super_admin']);
 
-  // MT-1: rota operacional — sem X-Mantenedora-Id, get_current_user() falha
-  // com 409 (tenant não resolvido) para super_admin, deixando a lista vazia.
-  const authHeaders = () => {
-    const tenantId = getActiveTenantId();
-    return { 'Authorization': `Bearer ${tokenRef.current}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) };
-  };
-
   const fetchOnlineUsers = async () => {
     try {
       const response = await fetch(`${API_URL}/api/admin/online-users`, {
-        headers: authHeaders()
+        headers: buildFetchAuthHeaders('GET'),
+        credentials: 'include',
       });
       if (response.ok) {
         const data = await response.json();
@@ -78,7 +70,8 @@ export default function OnlineUsers() {
   const fetchLoginCount = async () => {
     try {
       const response = await fetch(`${API_URL}/api/admin/online-users/login-count`, {
-        headers: authHeaders()
+        headers: buildFetchAuthHeaders('GET'),
+        credentials: 'include',
       });
       if (response.ok) {
         const data = await response.json();
@@ -97,7 +90,8 @@ export default function OnlineUsers() {
         `${API_URL}/api/admin/sessions/revoke/${confirmTarget.id}`,
         {
           method: 'POST',
-          headers: authHeaders()
+          headers: buildFetchAuthHeaders('POST'),
+          credentials: 'include',
         }
       );
       if (response.ok) {

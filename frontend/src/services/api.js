@@ -103,6 +103,34 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// G2 + MT-1: helper canônico para chamadas fetch() nativas (fora do axios
+// acima) que precisam de autenticação, tenant e CSRF — ex.: upload de
+// arquivos multipart, streams de PDF, endpoints ainda não migrados para o
+// axios. Espelha exatamente o interceptor acima; reaproveite este helper em
+// vez de duplicar a lógica de Authorization/X-Mantenedora-Id/X-CSRF-Token.
+//
+// IMPORTANTE: sempre combine com `credentials: 'include'` na chamada
+// fetch() — só o header não basta para enviar o cookie HttpOnly `sigesc_access`
+// em deploys cross-origin (frontend e backend em domínios diferentes).
+export function buildFetchAuthHeaders(method = 'GET', extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+  const token = getToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const tenantId = getActiveTenantId();
+  if (tenantId) {
+    headers['X-Mantenedora-Id'] = tenantId;
+  }
+  if (CSRF_WRITE_METHODS.has((method || 'get').toLowerCase())) {
+    const csrf = getCsrfToken();
+    if (csrf) {
+      headers['X-CSRF-Token'] = csrf;
+    }
+  }
+  return headers;
+}
+
 // ============= AUTH & PERMISSIONS =============
 export const authAPI = {
   getPermissions: async () => {

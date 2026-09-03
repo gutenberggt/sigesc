@@ -14,7 +14,7 @@ import {
   Calendar,
   Filter
 } from 'lucide-react';
-import { schoolsAPI, classesAPI, coursesAPI, getActiveTenantId } from '@/services/api';
+import { schoolsAPI, classesAPI, coursesAPI, buildFetchAuthHeaders } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
 import { useNavigate } from 'react-router-dom';
@@ -108,11 +108,10 @@ export const DiaryDashboard = () => {
         return;
       }
       try {
-        const token = localStorage.getItem('accessToken');
-        const tenantId = getActiveTenantId();
         // Usar o novo endpoint que busca componentes específicos da turma
         const response = await fetch(`${API_URL}/api/diary-dashboard/courses-by-class/${selectedClass}`, {
-          headers: { 'Authorization': `Bearer ${token}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) }
+          headers: buildFetchAuthHeaders('GET'),
+          credentials: 'include',
         });
         if (response.ok) {
           const data = await response.json();
@@ -136,9 +135,8 @@ export const DiaryDashboard = () => {
     const loadStats = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('accessToken');
-        const tenantId = getActiveTenantId();
-        const headers = { 'Authorization': `Bearer ${token}`, ...(tenantId ? { 'X-Mantenedora-Id': tenantId } : {}) };
+        const headers = buildFetchAuthHeaders('GET');
+        const fetchOpts = { headers, credentials: 'include' };
         
         // Construir query params
         const params = new URLSearchParams({ academic_year: academicYear });
@@ -148,7 +146,7 @@ export const DiaryDashboard = () => {
 
         // Buscar estatísticas de frequência
         try {
-          const attResponse = await fetch(`${API_URL}/api/diary-dashboard/attendance?${params}`, { headers });
+          const attResponse = await fetch(`${API_URL}/api/diary-dashboard/attendance?${params}`, fetchOpts);
           if (attResponse.ok) {
             const attData = await attResponse.json();
             setAttendanceStats(attData);
@@ -159,7 +157,7 @@ export const DiaryDashboard = () => {
 
         // Buscar estatísticas de notas
         try {
-          const gradesResponse = await fetch(`${API_URL}/api/diary-dashboard/grades?${params}`, { headers });
+          const gradesResponse = await fetch(`${API_URL}/api/diary-dashboard/grades?${params}`, fetchOpts);
           if (gradesResponse.ok) {
             const gradesData = await gradesResponse.json();
             setGradesStats(gradesData);
@@ -170,7 +168,7 @@ export const DiaryDashboard = () => {
 
         // Buscar estatísticas de conteúdos
         try {
-          const contentResponse = await fetch(`${API_URL}/api/diary-dashboard/content?${params}`, { headers });
+          const contentResponse = await fetch(`${API_URL}/api/diary-dashboard/content?${params}`, fetchOpts);
           if (contentResponse.ok) {
             const contentData = await contentResponse.json();
             setContentStats(contentData);
