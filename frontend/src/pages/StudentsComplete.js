@@ -360,6 +360,13 @@ export function StudentsComplete() {
   const [filterSchoolId, setFilterSchoolId] = useState('');
   const [filterClassId, setFilterClassId] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+
+  // Filtros: Cor/Raça, Comunidade Tradicional, Nível de Ensino, Modalidade e Condição Especial
+  const [filterColorRace, setFilterColorRace] = useState('');
+  const [filterComunidadeTradicional, setFilterComunidadeTradicional] = useState('');
+  const [filterEducationLevel, setFilterEducationLevel] = useState('');
+  const [filterModalidade, setFilterModalidade] = useState('');
+  const [filterDisability, setFilterDisability] = useState('');
   const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
 
   // Estado para modal de relatório PDF
@@ -579,7 +586,12 @@ export function StudentsComplete() {
         if (filterStatus) params.status = filterStatus;
         if (debouncedSearch) params.search = debouncedSearch;
         if (completenessBand) params.completeness_band = completenessBand;
-        
+        if (filterColorRace) params.color_race = filterColorRace;
+        if (filterComunidadeTradicional) params.comunidade_tradicional = filterComunidadeTradicional;
+        if (filterEducationLevel) params.education_level = filterEducationLevel;
+        if (filterModalidade) params.modalidade = filterModalidade;
+        if (filterDisability) params.disability = filterDisability;
+
         const result = await studentsAPI.getAll(params);
         setStudents(result.items || []);
         setServerTotal(result.total || 0);
@@ -599,7 +611,7 @@ export function StudentsComplete() {
       }
     };
     fetchStudents();
-  }, [filterSchoolId, filterClassId, filterStatus, currentPage, debouncedSearch, completenessBand, reloadTrigger]);
+  }, [filterSchoolId, filterClassId, filterStatus, currentPage, debouncedSearch, completenessBand, reloadTrigger, filterColorRace, filterComunidadeTradicional, filterEducationLevel, filterModalidade, filterDisability]);
 
   const reloadData = () => setReloadTrigger(prev => prev + 1);
 
@@ -1800,6 +1812,11 @@ export function StudentsComplete() {
     setFilterSchoolId('');
     setFilterClassId('');
     setFilterStatus('');
+    setFilterColorRace('');
+    setFilterComunidadeTradicional('');
+    setFilterEducationLevel('');
+    setFilterModalidade('');
+    setFilterDisability('');
     setCurrentPage(1);
   };
 
@@ -3879,7 +3896,7 @@ export function StudentsComplete() {
             </div>
 
             {/* Botão Limpar Consulta */}
-            {(searchName || searchCpf || filterSchoolId || filterClassId) && (
+            {(searchName || searchCpf || filterSchoolId || filterClassId || filterColorRace || filterComunidadeTradicional || filterEducationLevel || filterModalidade || filterDisability) && (
               <button
                 onClick={handleClearSearch}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
@@ -3960,6 +3977,104 @@ export function StudentsComplete() {
                 <option value="transferred">Transferido</option>
                 <option value="cancelled">Cancelado</option>
                 <option value="deceased">Falecido</option>
+              </select>
+            </div>
+
+            {/* Filtro por Cor/Raça */}
+            <div className="flex-1 min-w-[170px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <User size={14} className="inline mr-1" />
+                Cor / Raça
+              </label>
+              <select
+                value={filterColorRace}
+                onChange={(e) => { setFilterColorRace(e.target.value); setCurrentPage(1); }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todas</option>
+                <option value="branca">Branca</option>
+                <option value="preta">Preta</option>
+                <option value="parda">Parda</option>
+                <option value="amarela">Amarela</option>
+                <option value="indigena">Indígena</option>
+                <option value="nao_declarada">Não Declarada</option>
+              </select>
+            </div>
+
+            {/* Filtro por Comunidade Tradicional */}
+            <div className="flex-1 min-w-[190px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Home size={14} className="inline mr-1" />
+                Comunidades Tradicionais
+              </label>
+              <select
+                value={filterComunidadeTradicional}
+                onChange={(e) => { setFilterComunidadeTradicional(e.target.value); setCurrentPage(1); }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todas</option>
+                <option value="nao_pertence">Não Pertence</option>
+                <option value="quilombola">Quilombola</option>
+                <option value="cigano">Cigano</option>
+                <option value="ribeirinho">Ribeirinho</option>
+                <option value="extrativista">Extrativista</option>
+              </select>
+            </div>
+
+            {/* Filtro por Nível de Ensino */}
+            <div className="flex-1 min-w-[170px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <GraduationCap size={14} className="inline mr-1" />
+                Nível de Ensino
+              </label>
+              <select
+                value={filterEducationLevel}
+                onChange={(e) => { setFilterEducationLevel(e.target.value); setCurrentPage(1); }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todos</option>
+                <option value="educacao_infantil">Ed. Inf.</option>
+                <option value="fundamental_anos_iniciais">Ens. Fund. Inic.</option>
+                <option value="fundamental_anos_finais">Ens. Fund. Fin.</option>
+                <option value="eja">EJA Inic.</option>
+                <option value="eja_final">EJA Fin.</option>
+              </select>
+            </div>
+
+            {/* Filtro por Modalidade */}
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <BarChart3 size={14} className="inline mr-1" />
+                Modalidades
+              </label>
+              <select
+                value={filterModalidade}
+                onChange={(e) => { setFilterModalidade(e.target.value); setCurrentPage(1); }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todas</option>
+                <option value="regular">Regular</option>
+                <option value="atendimento_integral">Integral</option>
+                <option value="aee">AEE</option>
+                <option value="recomposicao_aprendizagem">Recomposição</option>
+              </select>
+            </div>
+
+            {/* Filtro por Condição Especial */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Stethoscope size={14} className="inline mr-1" />
+                Condição Especial
+              </label>
+              <select
+                value={filterDisability}
+                onChange={(e) => { setFilterDisability(e.target.value); setCurrentPage(1); }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todas</option>
+                {[...SPECIAL_EDUCATION_TARGET_OPTIONS, ...LEARNING_DISORDER_OPTIONS, ...OTHER_CONDITION_OPTIONS].map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
 
@@ -4055,7 +4170,7 @@ export function StudentsComplete() {
           )}
 
           {/* Indicador de filtro por escola/turma/status */}
-          {(filterSchoolId || filterClassId || filterStatus || debouncedSearch) && (
+          {(filterSchoolId || filterClassId || filterStatus || debouncedSearch || filterColorRace || filterComunidadeTradicional || filterEducationLevel || filterModalidade || filterDisability) && (
             <div className="mt-3 flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
               <span>Filtro ativo:</span>
               {filterSchoolId && <strong>{getSchoolName(filterSchoolId)}</strong>}
@@ -4075,6 +4190,36 @@ export function StudentsComplete() {
                 <>
                   <span className="text-gray-400">→</span>
                   <strong>Busca: "{debouncedSearch}"</strong>
+                </>
+              )}
+              {filterColorRace && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>{{ branca: 'Branca', preta: 'Preta', parda: 'Parda', amarela: 'Amarela', indigena: 'Indígena', nao_declarada: 'Não Declarada' }[filterColorRace] || filterColorRace}</strong>
+                </>
+              )}
+              {filterComunidadeTradicional && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>{{ nao_pertence: 'Não Pertence', quilombola: 'Quilombola', cigano: 'Cigano', ribeirinho: 'Ribeirinho', extrativista: 'Extrativista' }[filterComunidadeTradicional] || filterComunidadeTradicional}</strong>
+                </>
+              )}
+              {filterEducationLevel && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>{{ educacao_infantil: 'Ed. Inf.', fundamental_anos_iniciais: 'Ens. Fund. Inic.', fundamental_anos_finais: 'Ens. Fund. Fin.', eja: 'EJA Inic.', eja_final: 'EJA Fin.' }[filterEducationLevel] || filterEducationLevel}</strong>
+                </>
+              )}
+              {filterModalidade && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>{{ regular: 'Regular', atendimento_integral: 'Integral', aee: 'AEE', recomposicao_aprendizagem: 'Recomposição' }[filterModalidade] || filterModalidade}</strong>
+                </>
+              )}
+              {filterDisability && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>{filterDisability}</strong>
                 </>
               )}
               <span className="text-gray-400">|</span>
