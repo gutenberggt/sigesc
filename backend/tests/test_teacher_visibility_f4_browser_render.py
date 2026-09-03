@@ -1,11 +1,13 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import sys
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "teacher_visibility_f4_browser_render.py"
 spec = spec_from_file_location("teacher_visibility_f4", SCRIPT)
 module = module_from_spec(spec)
 assert spec and spec.loader
+sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 
