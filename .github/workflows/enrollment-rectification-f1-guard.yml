@@ -1,0 +1,72 @@
+name: Enrollment Rectification F1 - Read-only Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/enrollment_rectification.py'
+      - 'backend/routers/enrollment_rectification.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_enrollment_rectification_f1_dry_run.py'
+      - '.github/workflows/enrollment-rectification-f1-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f1-read-only-contract:
+    name: F1 - Retificação dry-run read-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio mongomock mongomock-motor
+
+      - name: Compile F1 contract
+        working-directory: backend
+        run: |
+          python -m py_compile services/enrollment_rectification.py routers/enrollment_rectification.py
+
+      - name: Run F1 read-only regression
+        working-directory: backend
+        env:
+          # O bootstrap global dos testes exige estas variáveis no import.
+          # A suíte F1 usa exclusivamente AsyncMongoMockClient: MongoClient é lazy
+          # e nenhum servidor Mongo real é iniciado ou consultado neste guard.
+          MONGO_URL: 'mongodb://127.0.0.1:27017'
+          DB_NAME: 'sigesc_rectification_f1_conftest_unused'
+          JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
+        run: |
+          python -m pytest tests/test_enrollment_rectification_f1_dry_run.py -q --asyncio-mode=auto
+
+      - name: Structural writer guard
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src = Path('services/enrollment_rectification.py').read_text(encoding='utf-8')
+          forbidden = [
+              '.insert_one(', '.insert_many(', '.update_one(', '.update_many(',
+              '.replace_one(', '.delete_one(', '.delete_many(',
+              '.find_one_and_update(', '.bulk_write(',
+          ]
+          found = [token for token in forbidden if token in src]
+          if found:
+              raise SystemExit(f'F1.0 deixou de ser read-only: {found}')
+          print('F1.0 read-only writer guard: PASS')
+          PY
