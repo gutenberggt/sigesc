@@ -11,6 +11,8 @@ Boundary forte:
   escape da interceptação do Playwright;
 - TODA URL contendo /api/ é respondida localmente com fixture sintética;
 - qualquer método diferente de GET é abortado antes da rede;
+- fetch/XHR não-API só pode alcançar uma allowlist pública e explícita;
+- WebSockets são fechados antes de qualquer conexão com servidor;
 - não há login, JWT, senha, Mongo, estudante, attendance.records ou texto pedagógico;
 - nenhuma mutação de produção é possível por este coletor.
 """
@@ -39,6 +41,11 @@ TARGET_CLASSES = (
 COMPONENT_NAME = "Matemática"
 PROBE_DATES = ("2026-09-01", "2026-09-02", "2026-09-03")
 FIXED_BROWSER_NOW = "2026-09-03T15:00:00.000Z"
+PUBLIC_DYNAMIC_GET_PATHS = frozenset({
+    "/version.json",
+    "/asset-manifest.json",
+    "/manifest.json",
+})
 
 
 @dataclass(frozen=True)
@@ -273,12 +280,22 @@ def _wait_prefill(page, class_name: str) -> bool:
 
 def _content_visible_probe_dates(page) -> int:
     page.get_by_role("heading", name="Objetos de Conhecimento").wait_for(timeout=15000)
-    page.wait_for_timeout(500)
+    wanted = sorted({str(int(date[-2:])) for date in PROBE_DATES})
+    page.wait_for_function(
+        """wanted => {
+          const visible = new Set(
+            Array.from(document.querySelectorAll('div.bg-green-100'))
+              .map(el => (el.textContent || '').trim())
+          );
+          return wanted.every(day => visible.has(day));
+        }""",
+        arg=wanted,
+        timeout=15000,
+    )
     values = page.locator("div.bg-green-100").evaluate_all(
         "els => els.map(el => (el.textContent || '').trim()).filter(Boolean)"
     )
-    wanted = {str(int(date[-2:])) for date in PROBE_DATES}
-    return len(wanted.intersection(set(values)))
+    return len(set(wanted).intersection(set(values)))
 
 
 def _attendance_visible_probe_dates(page) -> int:
@@ -312,9 +329,12 @@ def run_live_audit() -> dict[str, Any]:
     # Import tardio: testes unitários das fixtures não exigem Playwright instalado.
     from playwright.sync_api import sync_playwright  # pylint: disable=import-outside-toplevel
 
+    base_origin = urllib.parse.urlsplit(BASE_URL)
     intercepted_api: list[str] = []
     fixture_keys: list[str] = []
     blocked_non_get: list[str] = []
+    blocked_dynamic_get: list[str] = []
+    blocked_websocket: list[str] = []
     pairs: list[dict[str, Any]] = []
 
     with sync_playwright() as playwright:
@@ -339,17 +359,41 @@ def run_live_audit() -> dict[str, Any]:
                     body=json.dumps(body, ensure_ascii=False),
                 )
                 return
+            if request.resource_type in {"xhr", "fetch"}:
+                same_public_origin = (
+                    parsed.scheme == base_origin.scheme
+                    and parsed.netloc == base_origin.netloc
+                )
+                if same_public_origin and parsed.path in PUBLIC_DYNAMIC_GET_PATHS:
+                    route.continue_()
+                    return
+                blocked_dynamic_get.append(f"{request.resource_type} {parsed.netloc}{parsed.path}")
+                route.abort()
+                return
             route.continue_()
 
+        def websocket_handler(web_socket_route):
+            blocked_websocket.append(web_socket_route.url)
+            web_socket_route.close(code=1000, reason="F4 read-only audit blocks WebSockets")
+
         context.route("**/*", route_handler)
+        context.route_web_socket("**/*", websocket_handler)
         page = context.new_page()
 
         for target in TARGETS:
-            page.goto(_target_url("/professor/objetos-conhecimento", target), wait_until="domcontentloaded", timeout=45000)
+            page.goto(
+                _target_url("/professor/objetos-conhecimento", target),
+                wait_until="domcontentloaded",
+                timeout=45000,
+            )
             content_prefill = _wait_prefill(page, target.class_name)
             content_visible = _content_visible_probe_dates(page)
 
-            page.goto(_target_url("/professor/frequencia", target), wait_until="domcontentloaded", timeout=45000)
+            page.goto(
+                _target_url("/professor/frequencia", target),
+                wait_until="domcontentloaded",
+                timeout=45000,
+            )
             attendance_prefill = _wait_prefill(page, target.class_name)
             attendance_visible = _attendance_visible_probe_dates(page)
 
@@ -379,6 +423,8 @@ def run_live_audit() -> dict[str, Any]:
         "production_http_methods": ["GET"],
         "service_workers_blocked": True,
         "all_api_requests_intercepted_locally": True,
+        "dynamic_non_api_gets_allowlisted": True,
+        "websockets_blocked": True,
         "live_api_requests": 0,
         "real_authentication_used": False,
         "database_access": False,
@@ -390,6 +436,10 @@ def run_live_audit() -> dict[str, Any]:
         "unknown_api_fixture_count": unknown_count,
         "blocked_non_get_attempt_count": len(blocked_non_get),
         "blocked_non_get_attempts": sorted(set(blocked_non_get)),
+        "blocked_dynamic_get_attempt_count": len(blocked_dynamic_get),
+        "blocked_dynamic_get_attempts": sorted(set(blocked_dynamic_get)),
+        "blocked_websocket_attempt_count": len(blocked_websocket),
+        "blocked_websocket_attempts": sorted(set(blocked_websocket)),
         "pairs": pairs,
         **evaluation,
     }
