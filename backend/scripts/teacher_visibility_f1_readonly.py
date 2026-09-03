@@ -132,6 +132,18 @@ def _academic_year_types(rows: Iterable[Mapping[str, Any]]) -> dict[str, int]:
     return dict(sorted(result.items()))
 
 
+def _attendance_shape(rows: Iterable[Mapping[str, Any]]) -> dict[str, int]:
+    result: Counter[str] = Counter()
+    for row in rows:
+        if _sid(row.get("aula_numero")):
+            result["with_aula_numero"] += 1
+        else:
+            result["without_aula_numero"] += 1
+        if row.get("number_of_classes") not in (None, ""):
+            result["with_number_of_classes"] += 1
+    return dict(sorted(result.items()))
+
+
 def _is_dvd_current(row: Mapping[str, Any]) -> bool:
     if row.get("deleted") is True:
         return False
@@ -147,6 +159,26 @@ def _is_dvd_current(row: Mapping[str, Any]) -> bool:
 
 def _record_course_id(row: Mapping[str, Any]) -> str:
     return _sid(row.get("course_id") or row.get("component_id"))
+
+
+def _teacher_actor(row: Mapping[str, Any], actor_ids: set[str]) -> bool:
+    return any(
+        _sid(row.get(field)) in actor_ids
+        for field in ("staff_id", "teacher_id", "recorded_by", "created_by", "updated_by")
+        if _sid(row.get(field))
+    )
+
+
+def _teacher_attributed(
+    row: Mapping[str, Any],
+    *,
+    actor_ids: set[str],
+    teacher_assignment_ids: set[str],
+) -> bool:
+    if _teacher_actor(row, actor_ids):
+        return True
+    assignment_id = _sid(row.get("assignment_id"))
+    return bool(assignment_id and assignment_id in teacher_assignment_ids)
 
 
 def _partition_assignment_rows(
@@ -177,51 +209,85 @@ def _partition_assignment_rows(
     }
 
 
+def _effective_binding(
+    *,
+    current_ids: set[str],
+    legacy_active_ids: set[str],
+    dvd_current_ids: set[str],
+) -> tuple[set[str], str | None]:
+    if current_ids:
+        return set(current_ids), "canonical_diary"
+    if legacy_active_ids:
+        return set(legacy_active_ids), "legacy_active_teacher_assignment"
+    if dvd_current_ids:
+        return set(dvd_current_ids), "dvd_structural"
+    return set(), None
+
+
 def _classify_pair(
     *,
     current_ids: set[str],
+    effective_binding_ids: set[str],
+    effective_binding_source: str | None,
     dvd_current_ids: set[str],
     legacy_active_ids: set[str],
     same_name_tenant_ids: set[str],
-    data_ids: set[str],
-    data_counts: Mapping[str, int],
+    raw_data_ids: set[str],
+    attributed_data_ids: set[str],
+    attributed_counts: Mapping[str, int],
     assignment_drift_present: bool,
     assignmentless_present: bool,
-    unknown_course_refs: int,
-    cross_tenant_same_name_refs: int,
+    unresolved_attributed_refs: int,
+    cross_tenant_attributed_refs: int,
+    teacher_class_daily_without_course: int,
 ) -> list[str]:
     codes: list[str] = []
     if not current_ids:
         codes.append("NO_CURRENT_AUTHORIZED_DIARY")
+    if effective_binding_source == "legacy_active_teacher_assignment":
+        codes.append("EFFECTIVE_BINDING_FROM_LEGACY_ASSIGNMENT")
+    elif effective_binding_source == "dvd_structural":
+        codes.append("EFFECTIVE_BINDING_FROM_DVD_STRUCTURAL")
     if len(current_ids) > 1:
         codes.append("MULTIPLE_CURRENT_AUTHORIZED_COMPONENT_IDENTITIES")
+    if len(effective_binding_ids) > 1:
+        codes.append("MULTIPLE_EFFECTIVE_COMPONENT_IDENTITIES")
     if len(dvd_current_ids) > 1:
         codes.append("MULTIPLE_CURRENT_DVD_COMPONENT_IDENTITIES")
     if len(same_name_tenant_ids) > 1:
         codes.append("MULTIPLE_SAME_NAME_COMPONENT_IDENTITIES_IN_TENANT")
 
-    total_data = sum(int(data_counts.get(cid, 0)) for cid in data_ids)
-    if not data_ids or total_data == 0:
+    if not raw_data_ids:
         codes.append("TARGET_COMPONENT_DATA_NOT_FOUND")
+    elif not attributed_data_ids:
+        codes.append("SAME_NAME_DATA_PRESENT_BUT_NOT_ATTRIBUTABLE_TO_TEACHER")
 
-    alt_data_ids = {cid for cid in data_ids if cid not in current_ids and int(data_counts.get(cid, 0)) > 0}
-    current_data_ids = {cid for cid in data_ids if cid in current_ids and int(data_counts.get(cid, 0)) > 0}
-    if current_ids and alt_data_ids:
+    alt_data_ids = {
+        cid for cid in attributed_data_ids
+        if cid not in effective_binding_ids and int(attributed_counts.get(cid, 0)) > 0
+    }
+    effective_data_ids = {
+        cid for cid in attributed_data_ids
+        if cid in effective_binding_ids and int(attributed_counts.get(cid, 0)) > 0
+    }
+    if effective_binding_ids and alt_data_ids:
         codes.append("CURRENT_BINDING_VS_SAME_NAME_DATA_IDENTITY_SPLIT")
-    if current_ids and alt_data_ids and not current_data_ids:
+    if effective_binding_ids and alt_data_ids and not effective_data_ids:
         codes.append("CURRENT_IDENTITY_EMPTY_ALT_IDENTITY_HAS_DATA")
-    if current_ids and current_data_ids and not alt_data_ids:
+    if effective_binding_ids and effective_data_ids and not alt_data_ids:
         codes.append("DATA_IDENTITY_ALIGNED_TO_CURRENT_BINDING")
-    if legacy_active_ids and current_ids and legacy_active_ids != current_ids:
+    if current_ids and legacy_active_ids and legacy_active_ids != current_ids:
         codes.append("LEGACY_BINDING_DIFFERS_FROM_CURRENT_BINDING")
     if assignment_drift_present:
         codes.append("RECORDS_ON_HISTORICAL_SAME_TEACHER_ASSIGNMENT")
     if assignmentless_present:
         codes.append("LEGACY_RECORDS_WITHOUT_ASSIGNMENT")
-    if unknown_course_refs:
-        codes.append("CLASS_HAS_DATA_WITH_UNRESOLVED_COURSE_ID")
-    if cross_tenant_same_name_refs:
+    if unresolved_attributed_refs:
+        codes.append("TEACHER_HAS_DATA_WITH_UNRESOLVED_COURSE_ID_IN_CLASS")
+    if cross_tenant_attributed_refs:
         codes.append("CROSS_TENANT_SAME_NAME_COMPONENT_REFERENCE")
+    if teacher_class_daily_without_course:
+        codes.append("TEACHER_ATTRIBUTED_CLASS_DAILY_ATTENDANCE_UNATTRIBUTED_TO_COMPONENT")
     return list(dict.fromkeys(codes))
 
 
@@ -299,7 +365,7 @@ async def _resolve_school(db, *, target_name: str, user: Mapping[str, Any], staf
     if not matches:
         raise RuntimeError("TEACHER_VISIBILITY_F1_TARGET_SCHOOL_NOT_FOUND")
 
-    school_ids: set[str] = set(_sid(value) for value in (user.get("school_ids") or []) if _sid(value))
+    school_ids: set[str] = {_sid(value) for value in (user.get("school_ids") or []) if _sid(value)}
     for link in user.get("school_links") or []:
         if isinstance(link, Mapping) and _sid(link.get("school_id")):
             school_ids.add(_sid(link.get("school_id")))
@@ -329,6 +395,9 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
     user, staff_rows = await _resolve_teacher(db, tuple(case["teacher_aliases"]))
     teacher_id = _sid(user.get("id"))
     staff_ids = {_sid(row.get("id")) for row in staff_rows if _sid(row.get("id"))}
+    actor_ids = {teacher_id, *staff_ids}
+    actor_ids.discard("")
+
     school = await _resolve_school(db, target_name=str(case["school"]), user=user, staff_rows=staff_rows)
     school_id = _sid(school.get("id"))
     tenant_id = _sid(school.get("mantenedora_id"))
@@ -453,15 +522,43 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
         current_assignment_ids = {
             _sid(row.get("assignment_id")) for row in diary_target if _sid(row.get("assignment_id"))
         }
+        effective_binding_ids, effective_binding_source = _effective_binding(
+            current_ids=current_ids,
+            legacy_active_ids=legacy_active_ids,
+            dvd_current_ids=dvd_current_ids,
+        )
 
         year_scope = _year_scope()
         learning_rows = await db.learning_objects.find(
             {"$and": [{"class_id": class_id}, year_scope]},
-            {"_id": 0, "date": 1, "academic_year": 1, "course_id": 1, "recorded_by": 1, "created_by": 1, "teacher_id": 1},
+            {
+                "_id": 0,
+                "date": 1,
+                "academic_year": 1,
+                "course_id": 1,
+                "staff_id": 1,
+                "recorded_by": 1,
+                "created_by": 1,
+                "updated_by": 1,
+                "teacher_id": 1,
+            },
         ).to_list(30000)
         content_rows = await db.content_entries.find(
             {"$and": [{"class_id": class_id}, year_scope]},
-            {"_id": 0, "date": 1, "academic_year": 1, "component_id": 1, "course_id": 1, "assignment_id": 1, "teacher_id": 1, "created_by": 1, "recorded_by": 1, "deleted": 1},
+            {
+                "_id": 0,
+                "date": 1,
+                "academic_year": 1,
+                "component_id": 1,
+                "course_id": 1,
+                "assignment_id": 1,
+                "staff_id": 1,
+                "teacher_id": 1,
+                "created_by": 1,
+                "recorded_by": 1,
+                "updated_by": 1,
+                "deleted": 1,
+            },
         ).to_list(30000)
         content_rows = [row for row in content_rows if row.get("deleted") is not True]
         attendance_projection = {
@@ -470,13 +567,20 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
             "academic_year": 1,
             "course_id": 1,
             "assignment_id": 1,
+            "staff_id": 1,
             "teacher_id": 1,
+            "recorded_by": 1,
             "created_by": 1,
             "updated_by": 1,
             "school_id": 1,
             "mantenedora_id": 1,
             "assignment_profile_at_record": 1,
             "assignment_schema_version_at_record": 1,
+            "aula_numero": 1,
+            "period": 1,
+            "number_of_classes": 1,
+            "attendance_mode": 1,
+            "attendance_purpose": 1,
         }
         attendance_rows = await db.attendance.find(
             {"$and": [{"class_id": class_id}, year_scope]}, attendance_projection
@@ -487,30 +591,70 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
 
         all_rows = [*learning_rows, *content_rows, *attendance_rows, *documentary_rows]
         all_data_course_ids = {_record_course_id(row) for row in all_rows if _record_course_id(row)}
-        target_data_ids = {
-            cid for cid in all_data_course_ids
-            if is_target_course_id(cid)
-        }
+        raw_target_data_ids = {cid for cid in all_data_course_ids if is_target_course_id(cid)}
+
+        attributed_rows = [
+            row for row in all_rows
+            if _teacher_attributed(
+                row,
+                actor_ids=actor_ids,
+                teacher_assignment_ids=same_teacher_assignment_ids,
+            )
+        ]
+        attributed_course_ids = {_record_course_id(row) for row in attributed_rows if _record_course_id(row)}
+        attributed_target_data_ids = {cid for cid in attributed_course_ids if is_target_course_id(cid)}
+
         cross_tenant_same_name_ids = {
-            cid for cid in all_data_course_ids
+            cid for cid in attributed_course_ids
             if cid in course_by_id
             and _norm(course_by_id[cid].get("name")) == _norm(component_name)
             and _sid(course_by_id[cid].get("mantenedora_id")) not in {"", tenant_id}
         }
-        unknown_course_ids = {cid for cid in all_data_course_ids if cid not in course_by_id}
+        unresolved_attributed_ids = {cid for cid in attributed_course_ids if cid not in course_by_id}
+        teacher_class_daily_without_course_rows = [
+            row for row in [*attendance_rows, *documentary_rows]
+            if not _record_course_id(row)
+            and _teacher_attributed(
+                row,
+                actor_ids=actor_ids,
+                teacher_assignment_ids=same_teacher_assignment_ids,
+            )
+        ]
 
-        identity_ids = sorted(catalog_same_name_ids | target_data_ids | current_ids | dvd_current_ids | legacy_active_ids)
+        identity_ids = sorted(
+            catalog_same_name_ids
+            | raw_target_data_ids
+            | attributed_target_data_ids
+            | current_ids
+            | dvd_current_ids
+            | legacy_active_ids
+        )
         identity_rows: list[dict[str, Any]] = []
-        data_counts: dict[str, int] = {}
+        attributed_counts: dict[str, int] = {}
         assignment_drift_present = False
         assignmentless_present = False
 
         for cid in identity_ids:
             course = course_by_id.get(cid) or {}
-            lo = [row for row in learning_rows if _record_course_id(row) == cid]
-            ce = [row for row in content_rows if _record_course_id(row) == cid]
-            att = [row for row in attendance_rows if _record_course_id(row) == cid]
-            doc = [row for row in documentary_rows if _record_course_id(row) == cid]
+            lo_all = [row for row in learning_rows if _record_course_id(row) == cid]
+            ce_all = [row for row in content_rows if _record_course_id(row) == cid]
+            att_all = [row for row in attendance_rows if _record_course_id(row) == cid]
+            doc_all = [row for row in documentary_rows if _record_course_id(row) == cid]
+
+            def attributed(rows: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+                return [
+                    row for row in rows
+                    if _teacher_attributed(
+                        row,
+                        actor_ids=actor_ids,
+                        teacher_assignment_ids=same_teacher_assignment_ids,
+                    )
+                ]
+
+            lo = attributed(lo_all)
+            ce = attributed(ce_all)
+            att = attributed(att_all)
+            doc = attributed(doc_all)
             ce_assignment = _partition_assignment_rows(
                 ce,
                 current_assignment_ids=current_assignment_ids,
@@ -525,8 +669,10 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
                 assignment_drift_present = True
             if ce_assignment["without_assignment"] or att_assignment["without_assignment"]:
                 assignmentless_present = True
-            total = len(lo) + len(ce) + len(att) + len(doc)
-            data_counts[cid] = total
+
+            attributed_total = len(lo) + len(ce) + len(att) + len(doc)
+            raw_total = len(lo_all) + len(ce_all) + len(att_all) + len(doc_all)
+            attributed_counts[cid] = attributed_total
             identity_rows.append(
                 {
                     "course_fingerprint": _fp(cid),
@@ -539,33 +685,57 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
                     ),
                     "roles": {
                         "current_authorized_diary": cid in current_ids,
+                        "effective_binding": cid in effective_binding_ids,
                         "current_dvd": cid in dvd_current_ids,
                         "legacy_active_binding": cid in legacy_active_ids,
                         "catalog_same_name": cid in catalog_same_name_ids,
-                        "data_present": total > 0,
+                        "raw_data_present": raw_total > 0,
+                        "teacher_attributed_data_present": attributed_total > 0,
                     },
                     "records": {
-                        "learning_objects": _date_summary(lo),
-                        "content_entries": {**_date_summary(ce), "assignment_partition": ce_assignment},
-                        "attendance": {**_date_summary(att), "academic_year_types": _academic_year_types(att)},
-                        "attendance_documentary": {**_date_summary(doc), "academic_year_types": _academic_year_types(doc)},
-                        "attendance_assignment_partition": att_assignment,
-                        "total_metadata_records": total,
+                        "raw_total_metadata_records": raw_total,
+                        "teacher_attributed_total_metadata_records": attributed_total,
+                        "learning_objects": {
+                            "raw": _date_summary(lo_all),
+                            "teacher_attributed": _date_summary(lo),
+                        },
+                        "content_entries": {
+                            "raw": _date_summary(ce_all),
+                            "teacher_attributed": _date_summary(ce),
+                            "teacher_assignment_partition": ce_assignment,
+                        },
+                        "attendance": {
+                            "raw": _date_summary(att_all),
+                            "teacher_attributed": _date_summary(att),
+                            "academic_year_types": _academic_year_types(att),
+                            "shape": _attendance_shape(att),
+                        },
+                        "attendance_documentary": {
+                            "raw": _date_summary(doc_all),
+                            "teacher_attributed": _date_summary(doc),
+                            "academic_year_types": _academic_year_types(doc),
+                            "shape": _attendance_shape(doc),
+                        },
+                        "teacher_attendance_assignment_partition": att_assignment,
                     },
                 }
             )
 
         codes = _classify_pair(
             current_ids=current_ids,
+            effective_binding_ids=effective_binding_ids,
+            effective_binding_source=effective_binding_source,
             dvd_current_ids=dvd_current_ids,
             legacy_active_ids=legacy_active_ids,
             same_name_tenant_ids=catalog_same_name_ids,
-            data_ids=target_data_ids,
-            data_counts=data_counts,
+            raw_data_ids=raw_target_data_ids,
+            attributed_data_ids=attributed_target_data_ids,
+            attributed_counts=attributed_counts,
             assignment_drift_present=assignment_drift_present,
             assignmentless_present=assignmentless_present,
-            unknown_course_refs=len(unknown_course_ids),
-            cross_tenant_same_name_refs=len(cross_tenant_same_name_ids),
+            unresolved_attributed_refs=len(unresolved_attributed_ids),
+            cross_tenant_attributed_refs=len(cross_tenant_same_name_ids),
+            teacher_class_daily_without_course=len(teacher_class_daily_without_course_rows),
         )
 
         pair_results.append(
@@ -579,9 +749,14 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
                     "legacy_active": sum(1 for row in legacy_target if _norm(row.get("status")) in ACTIVE_LEGACY_STATUSES),
                     "same_name_catalog_identities": len(catalog_same_name_ids),
                 },
+                "effective_binding_source": effective_binding_source,
+                "effective_binding_fingerprints": sorted(
+                    fp for fp in (_fp(cid) for cid in effective_binding_ids) if fp
+                ),
                 "identity_matrix": identity_rows,
-                "unresolved_course_refs_in_class": len(unknown_course_ids),
-                "cross_tenant_same_name_refs_in_class": len(cross_tenant_same_name_ids),
+                "teacher_attributed_class_daily_without_course": len(teacher_class_daily_without_course_rows),
+                "unresolved_teacher_attributed_course_refs_in_class": len(unresolved_attributed_ids),
+                "cross_tenant_teacher_attributed_same_name_refs_in_class": len(cross_tenant_same_name_ids),
                 "root_cause_codes": codes,
             }
         )
@@ -607,6 +782,9 @@ async def _case_audit(db, case: Mapping[str, Any]) -> dict[str, Any]:
             "pairs_with_identity_split": cause_counts.get("CURRENT_BINDING_VS_SAME_NAME_DATA_IDENTITY_SPLIT", 0),
             "pairs_with_assignment_drift": cause_counts.get("RECORDS_ON_HISTORICAL_SAME_TEACHER_ASSIGNMENT", 0),
             "pairs_without_target_data": cause_counts.get("TARGET_COMPONENT_DATA_NOT_FOUND", 0),
+            "pairs_with_only_unattributed_same_name_data": cause_counts.get(
+                "SAME_NAME_DATA_PRESENT_BUT_NOT_ATTRIBUTABLE_TO_TEACHER", 0
+            ),
         },
         "pairs": pair_results,
     }
