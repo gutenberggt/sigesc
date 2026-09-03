@@ -44,9 +44,7 @@ jobs:
           python - <<'PY'
           import ast
           from pathlib import Path
-
-          path=Path('backend/scripts/teacher_visibility_f1_readonly.py')
-          source=path.read_text(encoding='utf-8')
+          source=Path('backend/scripts/teacher_visibility_f1_readonly.py').read_text(encoding='utf-8')
           tree=ast.parse(source)
           forbidden={
               'insert_one','insert_many','update_one','update_many','replace_one',
@@ -59,7 +57,6 @@ jobs:
                   hits.append(node.func.attr)
           if hits:
               raise SystemExit('TEACHER_VISIBILITY_F1_MONGO_MUTATOR:'+','.join(sorted(set(hits))))
-
           for forbidden_text in (
               'db.students','db.enrollments','db.student_health_profiles','db.grades',
               '"records": 1',"'records': 1",'"content": 1',"'content': 1",
@@ -68,7 +65,6 @@ jobs:
           ):
               if forbidden_text in source:
                   raise SystemExit(f'TEACHER_VISIBILITY_F1_FORBIDDEN_READ:{forbidden_text}')
-
           for marker in (
               '"database_mutation": False','"production_writes": False','"mongo_reads_only": True',
               '"http_methods": []','"attendance_records_read": False','"student_data_read": False',
@@ -77,6 +73,11 @@ jobs:
           ):
               if marker not in source:
                   raise SystemExit(f'TEACHER_VISIBILITY_F1_BOUNDARY_MARKER_MISSING:{marker}')
+          workflow=Path('.github/workflows/teacher-visibility-f1-readonly.yml').read_text(encoding='utf-8')
+          if '- name: Prepare evidence directory after checkout' not in workflow:
+              raise SystemExit('TEACHER_VISIBILITY_F1_EVIDENCE_STEP_MISSING')
+          if workflow.count('mkdir -p evidence') < 2:
+              raise SystemExit('TEACHER_VISIBILITY_F1_EVIDENCE_DEFENSE_IN_DEPTH_MISSING')
           print('TEACHER_VISIBILITY_F1_STATIC_BOUNDARY=PASS')
           PY
 
@@ -105,7 +106,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p evidence
           python - <<'PY'
           import json,os,re,urllib.request
           issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
@@ -136,7 +136,6 @@ jobs:
               raise SystemExit('TEACHER_VISIBILITY_F1_SHA_INVALID')
           if issue.get('title') != f'[TEACHER-VISIBILITY-F1] {target}':
               raise SystemExit('TEACHER_VISIBILITY_F1_TITLE_MISMATCH')
-
           headers={
               'Accept':'application/vnd.github+json',
               'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
@@ -151,7 +150,6 @@ jobs:
               main_sha=json.load(response)['commit']['sha']
           if main_sha != target:
               raise SystemExit(f'TEACHER_VISIBILITY_F1_MAIN_MOVED:{main_sha}')
-
           track=urllib.request.Request(
               f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/357",
               headers=headers,
@@ -160,7 +158,6 @@ jobs:
               tracking=json.load(response)
           if tracking.get('state') != 'open':
               raise SystemExit('TEACHER_VISIBILITY_F1_TRACKING_ISSUE_NOT_OPEN')
-
           with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
               out.write(f'target_sha={target}\n')
               out.write(f'gate_issue={issue.get("number")}\n')
@@ -176,6 +173,13 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
+      - name: Prepare evidence directory after checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test -d evidence
+
       - name: Re-seal collector at runtime
         shell: bash
         run: |
@@ -184,8 +188,7 @@ jobs:
           python - <<'PY'
           import ast
           from pathlib import Path
-          p=Path('backend/scripts/teacher_visibility_f1_readonly.py')
-          tree=ast.parse(p.read_text(encoding='utf-8'))
+          tree=ast.parse(Path('backend/scripts/teacher_visibility_f1_readonly.py').read_text(encoding='utf-8'))
           forbidden={
               'insert_one','insert_many','update_one','update_many','replace_one',
               'delete_one','delete_many','bulk_write','find_one_and_update',
@@ -241,6 +244,7 @@ jobs:
           BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
         run: |
           set -euo pipefail
+          mkdir -p evidence
           raw='evidence/teacher-visibility-f1-raw.log'
           remote_command="timeout 900 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"teacher_visibility_f1_readonly.py\",\"exec\"),ns); print(\"TEACHER_VISIBILITY_F1_JSON=\"+json.dumps(ns[\"run_live_audit\"](),ensure_ascii=False,sort_keys=True))'"
           set +e
