@@ -409,8 +409,10 @@ def test_installation_is_idempotent_no_direct_writes_and_wired_after_legacy_comp
         assert f'"{expected}"' in source
 
     legacy_call = "configured = install_student_legacy_compat(configured, db, sandbox_db)"
-    destination_call = "return install_student_transfer_destination_access(configured, db, sandbox_db)"
+    destination_call = "configured = install_student_transfer_destination_access(configured, db, sandbox_db)"
+    filters_call = "return install_student_list_filters(configured, db, sandbox_db)"
     assert "install_student_transfer_destination_access" in init_source
     assert legacy_call in init_source
     assert destination_call in init_source
-    assert init_source.index(legacy_call) < init_source.index(destination_call)
+    assert filters_call in init_source
+    assert init_source.index(legacy_call) < init_source.index(destination_call) < init_source.index(filters_call)
