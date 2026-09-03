@@ -1,0 +1,292 @@
+name: "LUIZ-GOMES-F1 Read-only Forensic Audit"
+
+# Mesmo padrão de ana-lucia-f2-1-runtime-legacy-audit.yml: um job de CI
+# (compila, testa e valida o contrato read-only estaticamente em toda PR) e um
+# job de produção que só executa quando o DONO do repositório abre uma issue
+# owner-scoped com SHA exato de main e a confirmação literal do caso.
+#
+# Nenhuma execução de produção é autorizada só por este arquivo existir —
+# consulte memory/audit/LUIZ_GOMES_F1_READONLY_2026-09-03.md para o contrato
+# completo de autorização.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_f1_readonly_audit.py'
+      - 'backend/tests/test_luiz_gomes_f1_readonly_audit.py'
+      - '.github/workflows/luiz-gomes-f1-readonly-audit.yml'
+      - 'memory/audit/LUIZ_GOMES_F1_READONLY_2026-09-03.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-f1-readonly-audit
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard LUIZ-GOMES-F1 read-only collector
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Compile and test classifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          python -m py_compile backend/scripts/luiz_gomes_f1_readonly_audit.py
+          python -m py_compile backend/tests/test_luiz_gomes_f1_readonly_audit.py
+          pytest -q --noconftest backend/tests/test_luiz_gomes_f1_readonly_audit.py
+
+      - name: Enforce read-only and privacy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path('backend/scripts/luiz_gomes_f1_readonly_audit.py')
+          source = path.read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          forbidden = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                  if node.func.attr in forbidden:
+                      raise SystemExit(f'LUIZ_GOMES_F1_MONGO_MUTATOR:{node.func.attr}')
+          for marker in (
+              '"database_mutation": False',
+              '"production_writes": False',
+              '"mongo_reads_only": True',
+              '"attendance_records_read": False',
+              '"student_data_read": False',
+              '"student_pii_emitted": False',
+              '"record_ids_emitted": False',
+              '"assignment_ids_emitted": False',
+              '"teacher_ids_emitted": False',
+              '"staff_ids_emitted": False',
+          ):
+              if marker not in source:
+                  raise SystemExit(f'LUIZ_GOMES_F1_BOUNDARY_MARKER_MISSING:{marker}')
+          if 'method="POST"' in source or 'method="PUT"' in source or 'method="DELETE"' in source or 'method="PATCH"' in source:
+              raise SystemExit('LUIZ_GOMES_F1_HTTP_WRITE_METHOD_FOUND')
+          print('LUIZ_GOMES_F1_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Audit Luiz Gomes case in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-F1] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped exact-SHA authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('LUIZ_GOMES_F1_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('LUIZ_GOMES_F1_GATE_MUST_BE_OPEN')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              line=raw.strip()
+              if not line or '=' not in line: continue
+              key,value=line.split('=',1)
+              if key.strip() in values: raise SystemExit(f'LUIZ_GOMES_F1_DUPLICATE_FIELD:{key.strip()}')
+              values[key.strip()]=value.strip()
+          if values.get('LUIZ_GOMES_F1') != 'AUTHORIZED': raise SystemExit('LUIZ_GOMES_F1_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'AUDIT_LUIZ_GOMES_READ_ONLY': raise SystemExit('LUIZ_GOMES_F1_CONFIRMATION_INVALID')
+          if values.get('ACADEMIC_YEAR') != '2026': raise SystemExit('LUIZ_GOMES_F1_YEAR_INVALID')
+          tracking = values.get('TRACKING_ISSUE', '')
+          if not re.fullmatch(r'[1-9][0-9]*', tracking): raise SystemExit('LUIZ_GOMES_F1_TRACKING_INVALID')
+          target=values.get('TARGET_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target): raise SystemExit('LUIZ_GOMES_F1_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F1] {target}': raise SystemExit('LUIZ_GOMES_F1_TITLE_MISMATCH')
+          req=urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",
+              headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f1'},
+          )
+          with urllib.request.urlopen(req,timeout=30) as response:
+              main_sha=json.load(response)['commit']['sha']
+          if main_sha != target: raise SystemExit(f'LUIZ_GOMES_F1_MAIN_MOVED:{main_sha}')
+          # A issue de rastreamento precisa existir e estar aberta antes de comentar nela.
+          track_req=urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/{tracking}",
+              headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f1'},
+          )
+          with urllib.request.urlopen(track_req,timeout=30) as response:
+              track_issue=json.load(response)
+          if track_issue.get('state') != 'open': raise SystemExit('LUIZ_GOMES_F1_TRACKING_ISSUE_NOT_OPEN')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+              out.write(f'tracking_issue={tracking}\n')
+          print('LUIZ_GOMES_F1_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "LUIZ_GOMES_F1_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/luiz_gomes_f1_prod_key
+          chmod 600 ~/.ssh/luiz_gomes_f1_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f1_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute live read-only audit inside backend container
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/luiz-gomes-f1-raw.log'
+          remote_command="timeout 600 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"luiz_gomes_f1_readonly_audit.py\",\"exec\"),ns); print(\"LUIZ_GOMES_F1_JSON=\"+json.dumps(ns[\"run_live_audit\"](),ensure_ascii=False,sort_keys=True))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f1_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/luiz_gomes_f1_readonly_audit.py > "$raw" 2>&1
+          prefix='LUIZ_GOMES_F1_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [ -z "$line" ]; then tail -n 120 "$raw" || true; exit 2; fi
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw"
+
+      - name: Validate boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          for key in ('database_mutation','production_writes','attendance_records_read','student_data_read','student_pii_emitted','record_ids_emitted','assignment_ids_emitted','teacher_ids_emitted','staff_ids_emitted'):
+              if p.get(key) is not False: raise SystemExit(f'LUIZ_GOMES_F1_BOUNDARY_FAILED:{key}')
+          if p.get('mongo_reads_only') is not True:
+              raise SystemExit('LUIZ_GOMES_F1_READ_ONLY_FAILED')
+          if p.get('target', {}).get('target_pair_count') != 6 or len(p.get('pairs') or []) != 6:
+              raise SystemExit('LUIZ_GOMES_F1_TARGET_COUNT_FAILED')
+          print('LUIZ_GOMES_F1_AUDIT=PASS')
+          PY
+
+      - name: Upload read-only evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: luiz-gomes-f1-readonly-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment diagnosis and close execution gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACKING_ISSUE: ${{ steps.context.outputs.tracking_issue }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          s=p.get('summary') or {}
+          lines=[
+              '## LUIZ-GOMES-F1 — diagnóstico read-only (conteúdo/frequência)', '',
+              f"Target: `{os.environ['TARGET_SHA']}`",
+              f"Pares auditados: **{p.get('target', {}).get('target_pair_count')}**", '',
+              f"- pares resolvidos exatamente: {s.get('pairs_exactly_resolved')}",
+              f"- pares sem vínculo (`NOT_BOUND`): {s.get('pairs_not_bound')}",
+              f"- pares com vínculo ambíguo (`AMBIGUOUS_BINDING`): {s.get('pairs_ambiguous')}",
+              f"- contagem de causas raiz: `{json.dumps(s.get('root_cause_counts'), ensure_ascii=False, sort_keys=True)}`",
+              '',
+              '| Turma / Componente | Resolução | Causas estruturais |',
+              '|---|---|---|',
+          ]
+          for row in p.get('pairs') or []:
+              pair=f"{row.get('class')} / {row.get('component')}"
+              causes=', '.join(f"`{c}`" for c in (row.get('root_cause_codes') or [])) or '—'
+              lines.append(f"| {pair} | {row.get('resolution')} | {causes} |")
+          lines += [
+              '', '**Boundary:** Mongo read-only; nenhuma chamada HTTP da aplicação; sem login; '
+              'sem `attendance.records`; sem PII de aluno; nenhum texto pedagógico lido; '
+              'nenhuma mutação/backfill/reconciliação. Artefato completo em anexo ao run (90 dias).',
+              '',
+              'Nenhuma correção de dados foi executada ou autorizada por este gate. '
+              'Qualquer saneamento exige uma fase F2+ separada, com autorização explícita própria.',
+          ]
+          body='\n'.join(lines)
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          def req(method,path,payload):
+              r=urllib.request.Request(f'https://api.github.com/repos/{repo}{path}',data=json.dumps(payload).encode(),method=method,headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f1','Content-Type':'application/json'})
+              with urllib.request.urlopen(r,timeout=30) as response: response.read()
+          req('POST',f"/issues/{os.environ['TRACKING_ISSUE']}/comments",{'body':body})
+          req('PATCH',f"/issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          PY
