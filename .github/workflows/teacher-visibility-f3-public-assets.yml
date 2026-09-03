@@ -40,7 +40,7 @@ jobs:
           assert not found, found
           assert 'method="GET"' in source
           assert "os.environ['GITHUB_EVENT_PATH']" in workflow
-          assert 'github.event_path' not in workflow
+          assert ('github.' + 'event_path') not in workflow
           print('TEACHER_VISIBILITY_F3_READ_ONLY_GUARD=PASS')
           PY
 
