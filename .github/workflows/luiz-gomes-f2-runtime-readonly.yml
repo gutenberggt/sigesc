@@ -1,0 +1,282 @@
+name: "Luiz Gomes F2 Runtime Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_f2_runtime_readonly.py'
+      - 'backend/tests/test_luiz_gomes_f2_runtime_readonly.py'
+      - '.github/workflows/luiz-gomes-f2-runtime-readonly.yml'
+      - 'memory/audit/LUIZ_GOMES_F2_RUNTIME_READONLY_2026-09-03.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-f2-runtime-readonly
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard Luiz Gomes F2 runtime read-only
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Compile and focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          python -m py_compile backend/scripts/ana_lucia_f2_1_runtime_legacy_audit.py
+          python -m py_compile backend/scripts/luiz_gomes_f2_runtime_readonly.py
+          pytest -q --noconftest backend/tests/test_luiz_gomes_f2_runtime_readonly.py
+      - name: Enforce read-only contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          files=[
+              Path('backend/scripts/ana_lucia_f2_1_runtime_legacy_audit.py'),
+              Path('backend/scripts/luiz_gomes_f2_runtime_readonly.py'),
+          ]
+          forbidden={
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for path in files:
+              source=path.read_text(encoding='utf-8')
+              tree=ast.parse(source)
+              hits=[]
+              for node in ast.walk(tree):
+                  if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr in forbidden:
+                      hits.append(node.func.attr)
+              if hits:
+                  raise SystemExit(f'LUIZ_GOMES_F2_MONGO_MUTATOR:{path}:{sorted(set(hits))}')
+              for bad in ('method="POST"','method="PUT"','method="PATCH"','method="DELETE"'):
+                  if bad in source:
+                      raise SystemExit(f'LUIZ_GOMES_F2_HTTP_WRITE:{path}:{bad}')
+          wrapper=files[1].read_text(encoding='utf-8')
+          for marker in (
+              'TEACHER_NAME = "Luiz Gomes dos Santos"',
+              'TARGET_SCHOOL = "E M E I E F Jose Pereira Barbosa"',
+              'base._resolve_targets = _resolve_targets_exact_school',
+          ):
+              if marker not in wrapper:
+                  raise SystemExit(f'LUIZ_GOMES_F2_MARKER_MISSING:{marker}')
+          print('LUIZ_GOMES_F2_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Audit Luiz Gomes runtime in production read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-F2-RUNTIME] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,re,urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('LUIZ_GOMES_F2_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'LUIZ_GOMES_F2_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          if values.get('LUIZ_GOMES_F2_RUNTIME') != 'AUTHORIZED': raise SystemExit('LUIZ_GOMES_F2_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'AUDIT_LUIZ_RUNTIME_READ_ONLY': raise SystemExit('LUIZ_GOMES_F2_CONFIRMATION_INVALID')
+          if values.get('ACADEMIC_YEAR') != '2026': raise SystemExit('LUIZ_GOMES_F2_YEAR_INVALID')
+          if values.get('TRACKING_ISSUE') != '357': raise SystemExit('LUIZ_GOMES_F2_TRACKING_INVALID')
+          target=values.get('TARGET_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target): raise SystemExit('LUIZ_GOMES_F2_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F2-RUNTIME] {target}': raise SystemExit('LUIZ_GOMES_F2_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f2'}
+          req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",headers=headers)
+          with urllib.request.urlopen(req,timeout=30) as response: main_sha=json.load(response)['commit']['sha']
+          if main_sha != target: raise SystemExit(f'LUIZ_GOMES_F2_MAIN_MOVED:{main_sha}')
+          req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/357",headers=headers)
+          with urllib.request.urlopen(req,timeout=30) as response: tracking=json.load(response)
+          if tracking.get('state') != 'open': raise SystemExit('LUIZ_GOMES_F2_TRACKING_NOT_OPEN')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_F2_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare evidence directory
+        shell: bash
+        run: mkdir -p evidence
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "LUIZ_GOMES_F2_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/luiz_gomes_f2_prod_key
+          chmod 600 ~/.ssh/luiz_gomes_f2_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f2_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute Mongo plus HTTP GET runtime audit
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/luiz-gomes-f2-raw.log'
+          remote_command="timeout 900 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"luiz_gomes_f2_runtime_readonly.py\",\"exec\"),ns); print(\"LUIZ_GOMES_F2_JSON=\"+json.dumps(ns[\"run_live_audit\"](),ensure_ascii=False,sort_keys=True))'"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f2_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/luiz_gomes_f2_runtime_readonly.py > "$raw" 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            python - "$raw" "$rc" <<'PY'
+          import hashlib,re,sys
+          from pathlib import Path
+          data=Path(sys.argv[1]).read_bytes(); text=data.decode('utf-8','replace')
+          controlled=re.findall(r'(?:LUIZ_GOMES_F2|ANA_LUCIA_F2_1)_[A-Z0-9_:.ºª -]+',text)
+          print('LUIZ_GOMES_F2_REMOTE_EXIT='+sys.argv[2])
+          print('LUIZ_GOMES_F2_CONTROLLED_ERROR='+(controlled[-1].strip() if controlled else '<none>'))
+          print('LUIZ_GOMES_F2_RAW_SHA256='+hashlib.sha256(data).hexdigest())
+          PY
+            rm -f "$raw"
+            exit "$rc"
+          fi
+          prefix='LUIZ_GOMES_F2_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line"
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw"
+
+      - name: Validate read-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'LUIZ_GOMES_F2_RUNTIME_READ_ONLY_V1': raise SystemExit('LUIZ_GOMES_F2_SCHEMA_INVALID')
+          if p.get('target_pair_count') != 6: raise SystemExit('LUIZ_GOMES_F2_SCOPE_INVALID')
+          if p.get('target_school') != 'E M E I E F Jose Pereira Barbosa': raise SystemExit('LUIZ_GOMES_F2_SCHOOL_INVALID')
+          for key in ('database_mutation','production_writes','attendance_records_read','student_data_read','student_pii_emitted','pedagogical_text_decoded','technical_ids_emitted'):
+              if p.get(key) is not False: raise SystemExit(f'LUIZ_GOMES_F2_BOUNDARY_FAILED:{key}')
+          if p.get('mongo_reads_only') is not True or p.get('http_methods') != ['GET'] or p.get('login_endpoint_used') is not False:
+              raise SystemExit('LUIZ_GOMES_F2_READ_ONLY_INVALID')
+          print('LUIZ_GOMES_F2_AUDIT=PASS')
+          PY
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: luiz-gomes-f2-runtime-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          s=p.get('summary') or {}
+          lines=[
+              '## LUIZ-GOMES-F2 — runtime read-only Mongo → HTTP → tela','',
+              f"Target: `{os.environ['TARGET_SHA']}`",
+              f"Pares: **{p.get('target_pair_count')}** — {p.get('target_school')}",
+              f"- conteúdo: `{json.dumps(s.get('content_diagnoses'),ensure_ascii=False,sort_keys=True)}`",
+              f"- frequência: `{json.dumps(s.get('attendance_diagnoses'),ensure_ascii=False,sort_keys=True)}`",
+              f"- conteúdo Mongo: {s.get('content_mongo_total')} docs",
+              f"- frequência oficial: {s.get('attendance_official_documents_total')} docs",'',
+              '| Turma / Matemática | Conteúdo Mongo | HTTP P/G | Diagnóstico conteúdo | Freq docs/datas | HTTP datas P/G | Diagnóstico frequência |',
+              '|---|---:|---:|---|---:|---:|---|',
+          ]
+          for row in p.get('pairs') or []:
+              c=row.get('content') or {}; a=row.get('attendance') or {}
+              cm=c.get('mongo') or {}; ch=c.get('professor_http') or {}; cg=c.get('management_http') or {}
+              ac=(a.get('mongo') or {}).get('collections',{}).get('attendance',{})
+              ah=a.get('professor_dates_http') or {}; ag=a.get('management_dates_http') or {}
+              lines.append(
+                  f"| {row.get('class')} | {cm.get('total')} | {ch.get('status')}:{ch.get('count')}/{cg.get('status')}:{cg.get('count')} | `{c.get('diagnosis')}` | {ac.get('documents')}/{ac.get('distinct_dates')} | {ah.get('status')}:{ah.get('count')}/{ag.get('status')}:{ag.get('count')} | `{a.get('diagnosis')}` |"
+              )
+          lines += ['', '**Boundary:** Mongo read-only; HTTP GET somente; sem login; sem `attendance.records`; sem PII de estudante; texto pedagógico não decodificado; nenhuma mutação.']
+          body='\n'.join(lines)
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f2','Content-Type':'application/json'}
+          def req(method,path,payload):
+              r=urllib.request.Request(f'https://api.github.com/repos/{repo}{path}',data=json.dumps(payload).encode(),method=method,headers=headers)
+              with urllib.request.urlopen(r,timeout=30) as response: response.read()
+          req('POST','/issues/357/comments',{'body':body})
+          req('PATCH',f"/issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          PY
