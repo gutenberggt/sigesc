@@ -32,6 +32,7 @@ jobs:
       pull-requests: write
       issues: write
       actions: read
+      id-token: write
 
     env:
       HAS_CLAUDE_OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
