@@ -21,10 +21,10 @@ Invariantes:
 from __future__ import annotations
 
 import logging
-from collections import Counter, defaultdict
+from collections import defaultdict
 from typing import Any, Optional
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, status as http_status
 
 from aee_v2.plan_list_effective import resolve_plan_list_effective_batch
 from auth_middleware import AuthMiddleware
@@ -211,7 +211,7 @@ async def _effective_aee_student_ids(
     except Exception as exc:
         logger.exception("[students-filter] falha ao resolver Fonte Efetiva AEE")
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=http_status.HTTP_409_CONFLICT,
             detail="AEE_EFFECTIVE_FILTER_INTEGRITY_BLOCKED",
         ) from exc
 
@@ -325,7 +325,7 @@ def install_student_list_filters(base_router: Any, db, sandbox_db=None):
         base_total = int(base_result.get("total") or 0)
         if base_total > MAX_FILTER_CANDIDATES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
                     "Filtro avançado excede o limite seguro de candidatos. "
                     "Restrinja por escola, turma ou busca antes de aplicar o filtro."
@@ -424,16 +424,12 @@ def install_student_list_filters(base_router: Any, db, sandbox_db=None):
             for sid in candidate_ids
         }
 
-        need_aee = modalidade == "aee" or True  # também recalcula o indicador AEE com a mesma SSoT
-        aee_ids = (
-            await _effective_aee_student_ids(
-                current_db,
-                candidate_ids=candidate_ids,
-                current_user=current_user,
-                request=request,
-            )
-            if need_aee
-            else set()
+        # O indicador AEE e o filtro AEE compartilham a mesma Fonte Efetiva.
+        aee_ids = await _effective_aee_student_ids(
+            current_db,
+            candidate_ids=candidate_ids,
+            current_user=current_user,
+            request=request,
         )
 
         disability_values = _condition_query_values(disability) if disability else frozenset()
