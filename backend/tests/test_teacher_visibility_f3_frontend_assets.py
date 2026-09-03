@@ -24,6 +24,34 @@ def test_extract_script_sources_deduplicates_and_preserves_order():
     ]
 
 
+def test_extract_manifest_js_assets_includes_lazy_chunks_and_deduplicates():
+    manifest = {
+        "files": {
+            "main.js": "/static/js/main.abc.js",
+            "chunk.js": "/static/js/123.def.chunk.js",
+            "main.css": "/static/css/main.css",
+        },
+        "entrypoints": [
+            "/static/js/main.abc.js",
+            "/static/js/runtime.xyz.js",
+            "/static/css/main.css",
+        ],
+    }
+    assert mod.extract_manifest_js_assets(manifest) == [
+        "/static/js/main.abc.js",
+        "/static/js/123.def.chunk.js",
+        "/static/js/runtime.xyz.js",
+    ]
+
+
+def test_signature_paths_reports_only_chunks_that_contain_contract():
+    rows = [
+        ("/static/js/main.js", "abc"),
+        ("/static/js/42.chunk.js", "prefix BRIDGE_SIGNATURE suffix"),
+    ]
+    assert mod._signature_paths(rows, ("BRIDGE_SIGNATURE",)) == ["/static/js/42.chunk.js"]
+
+
 def _good_snapshot():
     return {
         "version": {"git_sha": "a" * 40},
@@ -35,8 +63,12 @@ def _good_snapshot():
             "sha_cache_name": True,
             "headers": {"cache-control": "no-cache"},
         },
+        "asset_manifest": {
+            "status": 200,
+            "javascript_asset_count": 3,
+        },
         "javascript": {
-            "asset_count": 1,
+            "asset_count": 3,
             "content_bridge_signature": True,
             "attendance_bridge_signature": True,
         },
@@ -58,6 +90,15 @@ def test_evaluate_snapshot_fails_on_version_and_bridge_drift():
     assert result["status"] == "FAIL"
     assert "PUBLIC_VERSION_SHA_MISMATCH" in result["failures"]
     assert "CONTENT_BRIDGE_SIGNATURE_MISSING" in result["failures"]
+
+
+def test_evaluate_snapshot_fails_when_manifest_is_unavailable():
+    snapshot = _good_snapshot()
+    snapshot["asset_manifest"] = {"status": 404, "javascript_asset_count": 0}
+    result = mod.evaluate_snapshot(snapshot, "a" * 40)
+    assert result["status"] == "FAIL"
+    assert "ASSET_MANIFEST_UNAVAILABLE" in result["failures"]
+    assert "ASSET_MANIFEST_NO_JS_ASSETS" in result["failures"]
 
 
 def test_evaluate_snapshot_warns_on_immutable_service_worker_cache():
