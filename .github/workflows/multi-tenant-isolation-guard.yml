@@ -37,14 +37,18 @@ jobs:
             fastapi \
             python-dotenv \
             "python-jose[cryptography]" \
-            bcrypt
+            bcrypt \
+            motor \
+            mongomock \
+            mongomock-motor
 
       - name: Compile MT-1 foundation
         run: |
-          python -m py_compile tenant_scope.py auth_middleware.py
+          python -m py_compile tenant_scope.py auth_middleware.py routers/analytics.py
 
       - name: Run MT-1 tenant isolation contract
         run: |
           PYTHONPATH=. pytest -q --noconftest \
             tests/test_mt1_operational_tenant_context.py \
-            tests/test_mt1_frontend_contract.py
+            tests/test_mt1_frontend_contract.py \
+            tests/test_analytics_multi_tenant_isolation.py
