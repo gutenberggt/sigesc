@@ -22,7 +22,7 @@ def test_target_contract_is_exact_school_six_math_pairs():
 
 
 def test_reuses_homologated_f2_1_runtime_engine():
-    assert mod.base.__name__.endswith("ana_lucia_f2_1_runtime_legacy_audit")
+    assert mod.base.__name__ == "ana_lucia_f2_1_runtime_engine"
     assert callable(mod.base.classify_content)
     assert callable(mod.base.classify_attendance)
 
