@@ -149,10 +149,12 @@ def setup_auth_router(db, audit_service):
 
 
 def setup_enrollments_router(db, audit_service):
-    """Configura Matrículas + Retificação F1.0 exclusivamente read-only."""
+    """Configura Matrículas + Retificação F1.0 como routers irmãos."""
     configured = _setup_enrollments_router(db, audit_service)
-    configured.include_router(setup_enrollment_rectification_router(db))
-    return configured
+    aggregate = type(configured)()
+    aggregate.include_router(configured)
+    aggregate.include_router(setup_enrollment_rectification_router(db))
+    return aggregate
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):

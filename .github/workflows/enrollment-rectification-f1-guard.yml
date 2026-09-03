@@ -7,6 +7,7 @@ on:
       - 'backend/routers/enrollment_rectification.py'
       - 'backend/routers/__init__.py'
       - 'backend/tests/test_enrollment_rectification_f1_dry_run.py'
+      - 'backend/tests/test_enrollment_rectification_f1_route_composition.py'
       - '.github/workflows/enrollment-rectification-f1-guard.yml'
   workflow_dispatch:
 
@@ -52,7 +53,10 @@ jobs:
           JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
           ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
         run: |
-          python -m pytest tests/test_enrollment_rectification_f1_dry_run.py -q --asyncio-mode=auto
+          python -m pytest \
+            tests/test_enrollment_rectification_f1_dry_run.py \
+            tests/test_enrollment_rectification_f1_route_composition.py \
+            -q --asyncio-mode=auto
 
       - name: Structural writer guard
         working-directory: backend
