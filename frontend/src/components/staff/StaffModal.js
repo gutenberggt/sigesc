@@ -4,7 +4,7 @@ import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, STATUS_SERVIDOR, TIPOS_VINCULO, SEXOS, COR_RACA } from './constants';
 import { isValidCPF } from '@/utils/formatters';
-import { cpfAPI, buildFetchAuthHeaders } from '@/services/api';
+import { cpfAPI, apiFetch } from '@/services/api';
 
 export const StaffModal = ({
   isOpen,
@@ -113,10 +113,8 @@ export const StaffModal = ({
       
       const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-      const response = await fetch(`${API_URL}/api/upload/certificado`, {
+      const response = await apiFetch(`${API_URL}/api/upload/certificado`, {
         method: 'POST',
-        headers: buildFetchAuthHeaders('POST'),
-        credentials: 'include',
         body: formData
       });
       

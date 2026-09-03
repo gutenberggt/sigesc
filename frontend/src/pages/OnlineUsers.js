@@ -4,7 +4,7 @@ import { Users, Wifi, Clock, RefreshCw, Home, LogOut, AlertTriangle, History } f
 import { useNavigate } from 'react-router-dom';
 import { hasRole } from '@/utils/permissions';
 import { CONNECTION_CATEGORIES } from '@/config/connectionCategories';
-import { buildFetchAuthHeaders } from '@/services/api';
+import { apiFetch } from '@/services/api';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -51,10 +51,7 @@ export default function OnlineUsers() {
 
   const fetchOnlineUsers = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/admin/online-users`, {
-        headers: buildFetchAuthHeaders('GET'),
-        credentials: 'include',
-      });
+      const response = await apiFetch(`${API_URL}/api/admin/online-users`);
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
@@ -69,10 +66,7 @@ export default function OnlineUsers() {
 
   const fetchLoginCount = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/admin/online-users/login-count`, {
-        headers: buildFetchAuthHeaders('GET'),
-        credentials: 'include',
-      });
+      const response = await apiFetch(`${API_URL}/api/admin/online-users/login-count`);
       if (response.ok) {
         const data = await response.json();
         setLoginCount(data);
@@ -86,13 +80,9 @@ export default function OnlineUsers() {
     if (!confirmTarget) return;
     setRevoking(true);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/admin/sessions/revoke/${confirmTarget.id}`,
-        {
-          method: 'POST',
-          headers: buildFetchAuthHeaders('POST'),
-          credentials: 'include',
-        }
+        { method: 'POST' }
       );
       if (response.ok) {
         setFeedback({ type: 'success', message: `Sessões de ${confirmTarget.full_name} encerradas com sucesso.` });

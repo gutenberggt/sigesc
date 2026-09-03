@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { schoolsAPI, classesAPI, studentsAPI, buildFetchAuthHeaders } from '@/services/api';
+import { schoolsAPI, classesAPI, studentsAPI, apiFetch, buildFetchAuthHeaders } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/utils/downloadBlob';
@@ -575,10 +575,7 @@ export function AnalyticsDashboard() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/api/mantenedora/brasao-base64`, {
-          headers: buildFetchAuthHeaders('GET'),
-          credentials: 'include',
-        });
+        const res = await apiFetch(`${API_URL}/api/mantenedora/brasao-base64`);
         if (!res.ok) { if (active) setLogoDataUrl(null); return; }
         const data = await res.json();
         if (active) setLogoDataUrl(data?.data_url || null);
@@ -713,10 +710,7 @@ export function AnalyticsDashboard() {
       if (!isSemed || !tokenRef.current) return;
       
       try {
-        const response = await fetch(`${API_URL}/api/analytics/semed/check-terms`, {
-          headers: buildFetchAuthHeaders('GET'),
-          credentials: 'include',
-        });
+        const response = await apiFetch(`${API_URL}/api/analytics/semed/check-terms`);
         const data = await response.json();
         
         if (data.needs_acceptance) {
@@ -736,10 +730,9 @@ export function AnalyticsDashboard() {
   // Função para aceitar o termo SEMED
   const handleAcceptSemedTerms = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/analytics/semed/accept-terms`, {
+      const response = await apiFetch(`${API_URL}/api/analytics/semed/accept-terms`, {
         method: 'POST',
-        headers: buildFetchAuthHeaders('POST', { 'Content-Type': 'application/json' }),
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (response.ok) {
@@ -789,11 +782,9 @@ export function AnalyticsDashboard() {
         if (selectedClass) params.append('class_id', selectedClass);
         if (selectedStudent) params.append('student_id', selectedStudent);
         
-        const headers = buildFetchAuthHeaders('GET');
-
         const safeFetch = async (url) => {
           try {
-            const res = await fetch(url, { headers, credentials: 'include' });
+            const res = await apiFetch(url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return await res.json();
           } catch (e) {
@@ -867,10 +858,7 @@ export function AnalyticsDashboard() {
       }
       
       try {
-        const response = await fetch(`${API_URL}/api/classes/${selectedClass}/details`, {
-          headers: buildFetchAuthHeaders('GET'),
-          credentials: 'include',
-        });
+        const response = await apiFetch(`${API_URL}/api/classes/${selectedClass}/details`);
         
         if (response.ok) {
           const data = await response.json();

@@ -131,6 +131,28 @@ export function buildFetchAuthHeaders(method = 'GET', extraHeaders = {}) {
   return headers;
 }
 
+// G2 + MT-1: wrapper canônico sobre fetch() nativo. Constrói Authorization/
+// X-Mantenedora-Id/X-CSRF-Token NO MOMENTO EFETIVO da chamada (nunca antes) —
+// elimina por construção qualquer risco de closure/memoização (useCallback,
+// const de escopo de componente, etc.) capturar um tenant ou CSRF obsoletos
+// de uma renderização anterior. Prefira este helper a montar `headers`
+// manualmente; ele também aplica `credentials: 'include'` automaticamente
+// (obrigatório para o cookie HttpOnly `sigesc_access` em deploy cross-origin).
+//
+// Uso: apiFetch(url) // GET
+//      apiFetch(url, { method: 'POST', body: JSON.stringify(x), headers: { 'Content-Type': 'application/json' } })
+//      apiFetch(url, { method: 'POST', body: formData }) // multipart — não passe Content-Type
+export async function apiFetch(url, options = {}) {
+  const { headers: extraHeaders, method, ...rest } = options;
+  const finalMethod = method || 'GET';
+  return fetch(url, {
+    ...rest,
+    method: finalMethod,
+    headers: buildFetchAuthHeaders(finalMethod, extraHeaders || {}),
+    credentials: 'include',
+  });
+}
+
 // ============= AUTH & PERMISSIONS =============
 export const authAPI = {
   getPermissions: async () => {
