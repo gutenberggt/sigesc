@@ -78,6 +78,9 @@ def _dest_with_calendar():
 def _make_world(auth, n_classes=1):
     """Cria escola origem isolada + n turmas (cada uma com 2 alunos) via API."""
     dest, year = _dest_with_calendar()
+    # MT-1 (fail-closed): super_admin precisa do contexto operacional explícito
+    # via X-Mantenedora-Id para acessar módulos como /api/classes e /api/students.
+    auth.headers["X-Mantenedora-Id"] = dest["mantenedora_id"]
     sfx = uuid.uuid4().hex[:8]
     origin_id = f"transftest-origin-{sfx}"
     _db.schools.insert_one({

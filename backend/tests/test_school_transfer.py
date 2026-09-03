@@ -73,6 +73,10 @@ def _calendar_year_for(school_id):
 @pytest.fixture
 def world(auth):
     origin, dest = _pick_two_schools_same_mantenedora()
+    # MT-1 (fail-closed): super_admin precisa do contexto operacional explícito
+    # via X-Mantenedora-Id para acessar módulos como /api/classes e /api/students.
+    tenant = _db.schools.find_one({"id": origin}, {"_id": 0, "mantenedora_id": 1})["mantenedora_id"]
+    auth.headers["X-Mantenedora-Id"] = tenant
     year = _calendar_year_for(dest)
     sfx = uuid.uuid4().hex[:8]
 
