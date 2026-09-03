@@ -1,0 +1,208 @@
+name: Teacher Visibility F3 Public Frontend Assets
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/teacher_visibility_f3_frontend_assets.py'
+      - 'backend/tests/test_teacher_visibility_f3_frontend_assets.py'
+      - '.github/workflows/teacher-visibility-f3-public-assets.yml'
+      - 'memory/audit/TEACHER_VISIBILITY_F3_PUBLIC_ASSETS_2026-09-03.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile and focused tests
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          python -m py_compile backend/scripts/teacher_visibility_f3_frontend_assets.py
+          pytest -q --noconftest backend/tests/test_teacher_visibility_f3_frontend_assets.py
+      - name: Enforce public read-only boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('backend/scripts/teacher_visibility_f3_frontend_assets.py').read_text(encoding='utf-8')
+          forbidden = ('pymongo', 'MongoClient', 'insert_one', 'update_one', 'delete_one', 'requests.post', 'method="POST"')
+          found = [item for item in forbidden if item in source]
+          assert not found, found
+          assert 'method="GET"' in source
+          print('TEACHER_VISIBILITY_F3_READ_ONLY_GUARD=PASS')
+          PY
+
+  audit-production-public-assets:
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[TEACHER-VISIBILITY-F3-ASSETS] ')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: auth
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          EVENT_PATH: ${{ github.event_path }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          with open(os.environ['EVENT_PATH'], encoding='utf-8') as fh:
+              event = json.load(fh)
+          issue = event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('TEACHER_VISIBILITY_F3_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('TEACHER_VISIBILITY_F3_GATE_MUST_BE_OPEN')
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              line = raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              if key in values:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F3_DUPLICATE_FIELD:{key}')
+              values[key] = value.strip()
+          required = {
+              'TEACHER_VISIBILITY_F3': 'AUTHORIZED',
+              'CONFIRMATION': 'AUDIT_PUBLIC_FRONTEND_ASSETS_READ_ONLY',
+              'TRACKING_ISSUE': '357',
+          }
+          for key, expected in required.items():
+              if values.get(key) != expected:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F3_INVALID:{key}')
+          target = values.get('TARGET_SHA', '')
+          expected_prod = values.get('EXPECTED_PRODUCTION_SHA', '')
+          sha_re = re.compile(r'^[0-9a-f]{40}$')
+          if not sha_re.fullmatch(target) or not sha_re.fullmatch(expected_prod):
+              raise SystemExit('TEACHER_VISIBILITY_F3_SHA_INVALID')
+          if issue.get('title') != f'[TEACHER-VISIBILITY-F3-ASSETS] {target}':
+              raise SystemExit('TEACHER_VISIBILITY_F3_TITLE_MISMATCH')
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/branches/main",
+              headers={'Authorization': f"Bearer {os.environ['GH_TOKEN']}", 'Accept': 'application/vnd.github+json'},
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              main = json.load(response)
+          if main['commit']['sha'] != target:
+              raise SystemExit(f"TEACHER_VISIBILITY_F3_MAIN_MOVED:{main['commit']['sha']}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'expected_prod_sha={expected_prod}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+          print('TEACHER_VISIBILITY_F3_AUTH=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.auth.outputs.target_sha }}
+          persist-credentials: false
+
+      - name: Execute public HTTP GET audit
+        id: audit
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.auth.outputs.expected_prod_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          set +e
+          python backend/scripts/teacher_visibility_f3_frontend_assets.py > evidence/f3-public-assets.log 2>&1
+          rc=$?
+          set -e
+          cat evidence/f3-public-assets.log
+          python - <<'PY'
+          import json, os
+          prefix = 'TEACHER_VISIBILITY_F3_JSON='
+          lines = open('evidence/f3-public-assets.log', encoding='utf-8').read().splitlines()
+          matches = [line[len(prefix):] for line in lines if line.startswith(prefix)]
+          if len(matches) != 1:
+              raise SystemExit(f'TEACHER_VISIBILITY_F3_RESULT_COUNT:{len(matches)}')
+          result = json.loads(matches[0])
+          for key, expected in {
+              'authentication_used': False,
+              'database_access': False,
+              'production_writes': False,
+          }.items():
+              if result.get(key) is not expected:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F3_BOUNDARY:{key}')
+          with open('evidence/f3-public-assets.json', 'w', encoding='utf-8') as fh:
+              json.dump(result, fh, ensure_ascii=False, indent=2, sort_keys=True)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f"status={result['status']}\n")
+              out.write(f"classification={result['classification']}\n")
+          print(f"TEACHER_VISIBILITY_F3_CLASSIFICATION={result['classification']}")
+          PY
+          echo "collector_exit_code=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: teacher-visibility-f3-public-assets-${{ github.run_id }}
+          path: evidence/
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate
+        if: always() && steps.audit.outputs.classification != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          GATE_ISSUE: ${{ steps.auth.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.auth.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          result = json.load(open('evidence/f3-public-assets.json', encoding='utf-8'))
+          js = result.get('javascript') or {}
+          sw = result.get('service_worker') or {}
+          version = result.get('version') or {}
+          lines = [
+              '## F3 — assets públicos do frontend em produção',
+              '',
+              f"Target audit code: `{os.environ['TARGET_SHA']}`",
+              f"Release pública: `{version.get('git_sha')}`",
+              f"Classificação: **`{result.get('classification')}`**",
+              '',
+              f"- Service Worker com SHA esperado: `{sw.get('expected_release_sha_present')}`",
+              f"- placeholder removido: `{sw.get('placeholder_absent')}`",
+              f"- `skipWaiting` + `clients.claim`: `{bool(sw.get('skip_waiting') and sw.get('clients_claim'))}`",
+              f"- assets JS lidos: `{js.get('asset_count')}`",
+              f"- assinatura bridge Conteúdo: `{js.get('content_bridge_signature')}`",
+              f"- assinatura bridge Frequência: `{js.get('attendance_bridge_signature')}`",
+              f"- warnings: `{json.dumps(result.get('warnings') or [], ensure_ascii=False)}`",
+              f"- failures: `{json.dumps(result.get('failures') or [], ensure_ascii=False)}`",
+              '',
+              '**Boundary:** HTTP GET público somente; sem autenticação; sem Mongo; sem dados pedagógicos; nenhuma mutação.',
+          ]
+          body = '\n'.join(lines)
+          headers = {
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+          }
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/issues/357/comments",
+              data=json.dumps({'body': body}).encode(), method='POST', headers=headers,
+          )
+          with urllib.request.urlopen(req, timeout=30):
+              pass
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/issues/{os.environ['GATE_ISSUE']}",
+              data=json.dumps({'state': 'closed'}).encode(), method='PATCH', headers=headers,
+          )
+          with urllib.request.urlopen(req, timeout=30):
+              pass
+          PY
