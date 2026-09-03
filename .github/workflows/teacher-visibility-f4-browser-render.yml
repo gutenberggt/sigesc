@@ -53,7 +53,13 @@ jobs:
               'if "/api/" in parsed.path:',
               'fixture_for_api(request.url)',
               'route.fulfill(',
+              'request.resource_type in {"xhr", "fetch"}',
+              'parsed.path in PUBLIC_DYNAMIC_GET_PATHS',
+              'context.route_web_socket("**/*", websocket_handler)',
+              'web_socket_route.close(',
               'all_api_requests_intercepted_locally',
+              'dynamic_non_api_gets_allowlisted',
+              'websockets_blocked',
               'live_api_requests": 0',
               'real_authentication_used": False',
               'production_writes": False',
@@ -66,6 +72,7 @@ jobs:
               'MongoClient', 'pymongo', 'create_access_token',
               '/auth/login', 'SIGESC_PROD_SSH', 'docker exec',
               'method="POST"', 'method="PUT"', 'method="PATCH"', 'method="DELETE"',
+              'connect_to_server',
           )
           for marker in forbidden:
               if marker in source:
@@ -215,7 +222,12 @@ jobs:
               raise SystemExit('TEACHER_VISIBILITY_F4_SCOPE_INVALID')
           if p.get('production_http_methods') != ['GET']:
               raise SystemExit('TEACHER_VISIBILITY_F4_HTTP_METHOD_INVALID')
-          required_true = ('service_workers_blocked', 'all_api_requests_intercepted_locally')
+          required_true = (
+              'service_workers_blocked',
+              'all_api_requests_intercepted_locally',
+              'dynamic_non_api_gets_allowlisted',
+              'websockets_blocked',
+          )
           required_false = (
               'real_authentication_used', 'database_access', 'student_data_read',
               'attendance_records_read', 'pedagogical_text_read', 'production_writes',
@@ -266,6 +278,8 @@ jobs:
               f"Pares: **{p.get('target_pair_count')}** — {p.get('target_school')}",
               f"API real de produção: **0** requests; APIs interceptadas localmente: {p.get('intercepted_api_request_count')}",
               f"Tentativas não-GET bloqueadas antes da rede: {p.get('blocked_non_get_attempt_count')}",
+              f"Fetch/XHR dinâmico fora da allowlist bloqueado: {p.get('blocked_dynamic_get_attempt_count')}",
+              f"WebSockets fechados sem conexão ao servidor: {p.get('blocked_websocket_attempt_count')}",
               '',
               '| Turma / Matemática | Conteúdo: prefill | Datas sintéticas visíveis | Frequência: prefill | Datas sintéticas visíveis |',
               '|---|---:|---:|---:|---:|',
@@ -278,7 +292,7 @@ jobs:
               lines += ['', 'Falhas diagnósticas: `' + json.dumps(p.get('failures'), ensure_ascii=False) + '`']
           lines += [
               '',
-              '**Boundary:** somente assets públicos GET; Service Worker bloqueado; `/api/` integralmente sintética/local; sem login/JWT real; sem Mongo; sem estudantes; sem `attendance.records`; sem texto pedagógico; nenhuma escrita.',
+              '**Boundary:** somente assets públicos GET; Service Worker bloqueado; `/api/` integralmente sintética/local; fetch/XHR não-API sob allowlist explícita; WebSocket sem conexão ao servidor; sem login/JWT real; sem Mongo; sem estudantes; sem `attendance.records`; sem texto pedagógico; nenhuma escrita.',
               '',
               'Interpretação: esta fase mede a execução do build público em Chromium limpo. Ela não reproduz cache/localStorage/Service Worker de um dispositivo real já usado pelo professor.',
           ]
