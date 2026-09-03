@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""TEACHER-VISIBILITY-F3 — auditoria pública read-only dos assets do frontend.
+"""TEACHER-VISIBILITY-F3.1 — auditoria pública read-only dos assets do frontend.
 
 Confirma se produção entrega a release esperada, um Service Worker versionado por
-SHA e bundles contendo os bridges atuais de conteúdo/frequência. Não autentica,
-não consulta Mongo e executa somente HTTP GET em recursos públicos.
+SHA e TODOS os chunks JS do build contendo os bridges atuais de conteúdo/frequência.
+Rotas React são code-split/lazy; por isso o inventário canônico vem de
+``asset-manifest.json`` e é unido aos scripts iniciais do ``index.html``.
+
+Não autentica, não consulta Mongo e executa somente HTTP GET em recursos públicos.
 """
 from __future__ import annotations
 
@@ -14,11 +17,11 @@ import re
 import time
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, Iterable
 
 DEFAULT_BASE_URL = "https://sigesc.aprenderdigital.top"
 MAX_TEXT_BYTES = 8 * 1024 * 1024
-MAX_JS_ASSETS = 20
+MAX_JS_ASSETS = 250
 
 
 def _headers_subset(headers: Any) -> dict[str, str]:
@@ -53,17 +56,45 @@ def _http_get(url: str, *, max_bytes: int = MAX_TEXT_BYTES) -> dict[str, Any]:
         }
 
 
-def extract_script_sources(html: str) -> list[str]:
-    sources = re.findall(
-        r"<script\b[^>]*\bsrc=[\"']([^\"']+\.js(?:\?[^\"']*)?)[\"']",
-        html,
-        flags=re.IGNORECASE,
-    )
+def _dedupe(values: Iterable[str]) -> list[str]:
     out: list[str] = []
-    for source in sources:
-        if source not in out:
-            out.append(source)
+    seen: set[str] = set()
+    for value in values:
+        raw = str(value or "").strip()
+        if raw and raw not in seen:
+            seen.add(raw)
+            out.append(raw)
     return out
+
+
+def extract_script_sources(html: str) -> list[str]:
+    return _dedupe(
+        re.findall(
+            r"<script\b[^>]*\bsrc=[\"']([^\"']+\.js(?:\?[^\"']*)?)[\"']",
+            html,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def extract_manifest_js_assets(manifest: dict[str, Any]) -> list[str]:
+    """Retorna todos os JS publicados pelo build, inclusive chunks lazy."""
+    values: list[str] = []
+    files = manifest.get("files") or {}
+    if isinstance(files, dict):
+        values.extend(str(value) for value in files.values() if isinstance(value, str))
+    entrypoints = manifest.get("entrypoints") or []
+    if isinstance(entrypoints, list):
+        values.extend(str(value) for value in entrypoints if isinstance(value, str))
+    return _dedupe(value for value in values if re.search(r"\.js(?:\?|$)", value))
+
+
+def _signature_paths(asset_texts: list[tuple[str, str]], signatures: tuple[str, ...]) -> list[str]:
+    return [
+        path
+        for path, text in asset_texts
+        if any(signature in text for signature in signatures)
+    ]
 
 
 def evaluate_snapshot(snapshot: dict[str, Any], expected_sha: str) -> dict[str, Any]:
@@ -81,9 +112,15 @@ def evaluate_snapshot(snapshot: dict[str, Any], expected_sha: str) -> dict[str, 
     if not (sw.get("skip_waiting") and sw.get("clients_claim") and sw.get("sha_cache_name")):
         failures.append("SERVICE_WORKER_UPDATE_CONTRACT_MISSING")
 
+    manifest = snapshot.get("asset_manifest", {})
+    if manifest.get("status") != 200:
+        failures.append("ASSET_MANIFEST_UNAVAILABLE")
+    if int(manifest.get("javascript_asset_count") or 0) <= 0:
+        failures.append("ASSET_MANIFEST_NO_JS_ASSETS")
+
     js = snapshot.get("javascript", {})
     if int(js.get("asset_count") or 0) <= 0:
-        failures.append("INDEX_NO_JS_ASSETS")
+        failures.append("NO_PUBLIC_JS_ASSETS")
     if not js.get("content_bridge_signature"):
         failures.append("CONTENT_BRIDGE_SIGNATURE_MISSING")
     if not js.get("attendance_bridge_signature"):
@@ -121,42 +158,46 @@ def run_live_audit() -> dict[str, Any]:
 
     index_response = _http_get(f"{base}/?f3={nonce}")
     index_text = index_response["body"].decode("utf-8", errors="replace")
-    script_sources = extract_script_sources(index_text)
+    index_script_sources = extract_script_sources(index_text)
+
+    manifest_response = _http_get(f"{base}/asset-manifest.json?f3={nonce}")
+    manifest_payload = json.loads(manifest_response["body"].decode("utf-8"))
+    manifest_js_sources = extract_manifest_js_assets(manifest_payload)
+
+    script_sources = _dedupe([*index_script_sources, *manifest_js_sources])
     if len(script_sources) > MAX_JS_ASSETS:
         raise RuntimeError(f"TEACHER_VISIBILITY_F3_TOO_MANY_JS_ASSETS:{len(script_sources)}")
 
     assets: list[dict[str, Any]] = []
-    combined_parts: list[str] = []
+    asset_texts: list[tuple[str, str]] = []
     for source in script_sources:
         absolute = urllib.parse.urljoin(f"{base}/", source)
         separator = "&" if "?" in absolute else "?"
         response = _http_get(f"{absolute}{separator}f3={nonce}")
         body = response["body"]
-        combined_parts.append(body.decode("utf-8", errors="ignore"))
+        path = urllib.parse.urlsplit(absolute).path
+        asset_texts.append((path, body.decode("utf-8", errors="ignore")))
         assets.append({
-            "path": urllib.parse.urlsplit(absolute).path,
+            "path": path,
             "status": response["status"],
             "bytes": len(body),
             "sha256": hashlib.sha256(body).hexdigest(),
             "headers": response["headers"],
+            "listed_by_index": source in index_script_sources,
+            "listed_by_manifest": source in manifest_js_sources,
         })
 
-    combined_js = "\n".join(combined_parts)
-    content_bridge_signature = any(
-        signature in combined_js
-        for signature in (
-            "DVD_LEGACY_CONTENT_READ_ONLY",
-            "CONTENT_RELOAD_REQUIRED",
-            "Este conteúdo pertence ao histórico anterior ao Diário por Vínculo",
-        )
+    content_signatures = (
+        "DVD_LEGACY_CONTENT_READ_ONLY",
+        "CONTENT_RELOAD_REQUIRED",
+        "Este conteúdo pertence ao histórico anterior ao Diário por Vínculo",
     )
-    attendance_bridge_signature = any(
-        signature in combined_js
-        for signature in (
-            "__sigescAttendanceDvdBridgeInstalled",
-            "/attendance/dvd/context/",
-        )
+    attendance_signatures = (
+        "__sigescAttendanceDvdBridgeInstalled",
+        "/attendance/dvd/context/",
     )
+    content_paths = _signature_paths(asset_texts, content_signatures)
+    attendance_paths = _signature_paths(asset_texts, attendance_signatures)
 
     snapshot = {
         "version": {
@@ -177,19 +218,27 @@ def run_live_audit() -> dict[str, Any]:
         "index": {
             "status": index_response["status"],
             "headers": index_response["headers"],
-            "script_count": len(script_sources),
+            "script_count": len(index_script_sources),
+        },
+        "asset_manifest": {
+            "status": manifest_response["status"],
+            "headers": manifest_response["headers"],
+            "javascript_asset_count": len(manifest_js_sources),
+            "sha256": hashlib.sha256(manifest_response["body"]).hexdigest(),
         },
         "javascript": {
             "asset_count": len(assets),
             "assets": assets,
-            "content_bridge_signature": content_bridge_signature,
-            "attendance_bridge_signature": attendance_bridge_signature,
+            "content_bridge_signature": bool(content_paths),
+            "content_bridge_asset_paths": content_paths,
+            "attendance_bridge_signature": bool(attendance_paths),
+            "attendance_bridge_asset_paths": attendance_paths,
         },
     }
     evaluation = evaluate_snapshot(snapshot, expected_sha)
 
     return {
-        "schema": "TEACHER_VISIBILITY_F3_PUBLIC_FRONTEND_ASSETS_V1",
+        "schema": "TEACHER_VISIBILITY_F3_PUBLIC_FRONTEND_ASSETS_V2_ALL_CHUNKS",
         "target": "production-public-frontend",
         "expected_production_sha": expected_sha,
         "http_methods": ["GET"],
