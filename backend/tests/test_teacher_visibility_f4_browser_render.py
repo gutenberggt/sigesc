@@ -27,6 +27,14 @@ def test_exact_target_scope_has_six_luiz_math_pairs():
     assert module.TARGET_SCHOOL == "E M E I E F Jose Pereira Barbosa"
 
 
+def test_public_dynamic_get_allowlist_is_narrow_and_explicit():
+    assert module.PUBLIC_DYNAMIC_GET_PATHS == frozenset({
+        "/version.json",
+        "/asset-manifest.json",
+        "/manifest.json",
+    })
+
+
 def test_learning_object_fixture_is_metadata_only_and_synthetic():
     target = module.TARGETS[0]
     status, payload, key = module.fixture_for_api(
@@ -110,9 +118,15 @@ def test_source_seals_no_real_api_and_no_production_write_boundary():
     assert 'if "/api/" in parsed.path:' in source
     assert "route.fulfill(" in source
     assert 'if method != "GET":' in source
+    assert 'request.resource_type in {"xhr", "fetch"}' in source
+    assert "parsed.path in PUBLIC_DYNAMIC_GET_PATHS" in source
+    assert "blocked_dynamic_get.append" in source
+    assert 'context.route_web_socket("**/*", websocket_handler)' in source
+    assert "web_socket_route.close(" in source
     assert "route.abort()" in source
     assert "route.continue_()" in source
     assert "MongoClient" not in source
     assert "create_access_token" not in source
     assert "/auth/login" not in source
+    assert "connect_to_server" not in source
     assert "attendance.records" in source  # boundary declaration only
