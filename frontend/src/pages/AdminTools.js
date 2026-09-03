@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2, Clock, UserX, UserPlus } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/services/api';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const AdminTools = () => {
-  const { accessToken } = useAuth();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(false);
   const [loadingType, setLoadingType] = useState(null);
   const [result, setResult] = useState(null);
@@ -29,12 +28,9 @@ const AdminTools = () => {
       setBulkStudentResult(null);
     }
     try {
-      const response = await fetch(`${API_URL}/api/admin/student-users/bulk-create`, {
+      const response = await apiFetch(`${API_URL}/api/admin/student-users/bulk-create`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apply }),
       });
       if (!response.ok) {
@@ -85,12 +81,9 @@ const AdminTools = () => {
           throw new Error('Tipo de migração inválido');
       }
       
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await apiFetch(`${API_URL}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (!response.ok) {
@@ -116,12 +109,9 @@ const AdminTools = () => {
     if (!dryRun) setPreviewData(null);
     
     try {
-      const response = await fetch(`${API_URL}/api/maintenance/cleanup-cancelled-enrollments?dry_run=${dryRun}`, {
+      const response = await apiFetch(`${API_URL}/api/maintenance/cleanup-cancelled-enrollments?dry_run=${dryRun}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (!response.ok) {

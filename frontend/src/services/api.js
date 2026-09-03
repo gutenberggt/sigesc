@@ -103,6 +103,56 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// G2 + MT-1: helper canônico para chamadas fetch() nativas (fora do axios
+// acima) que precisam de autenticação, tenant e CSRF — ex.: upload de
+// arquivos multipart, streams de PDF, endpoints ainda não migrados para o
+// axios. Espelha exatamente o interceptor acima; reaproveite este helper em
+// vez de duplicar a lógica de Authorization/X-Mantenedora-Id/X-CSRF-Token.
+//
+// IMPORTANTE: sempre combine com `credentials: 'include'` na chamada
+// fetch() — só o header não basta para enviar o cookie HttpOnly `sigesc_access`
+// em deploys cross-origin (frontend e backend em domínios diferentes).
+export function buildFetchAuthHeaders(method = 'GET', extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+  const token = getToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const tenantId = getActiveTenantId();
+  if (tenantId) {
+    headers['X-Mantenedora-Id'] = tenantId;
+  }
+  if (CSRF_WRITE_METHODS.has((method || 'get').toLowerCase())) {
+    const csrf = getCsrfToken();
+    if (csrf) {
+      headers['X-CSRF-Token'] = csrf;
+    }
+  }
+  return headers;
+}
+
+// G2 + MT-1: wrapper canônico sobre fetch() nativo. Constrói Authorization/
+// X-Mantenedora-Id/X-CSRF-Token NO MOMENTO EFETIVO da chamada (nunca antes) —
+// elimina por construção qualquer risco de closure/memoização (useCallback,
+// const de escopo de componente, etc.) capturar um tenant ou CSRF obsoletos
+// de uma renderização anterior. Prefira este helper a montar `headers`
+// manualmente; ele também aplica `credentials: 'include'` automaticamente
+// (obrigatório para o cookie HttpOnly `sigesc_access` em deploy cross-origin).
+//
+// Uso: apiFetch(url) // GET
+//      apiFetch(url, { method: 'POST', body: JSON.stringify(x), headers: { 'Content-Type': 'application/json' } })
+//      apiFetch(url, { method: 'POST', body: formData }) // multipart — não passe Content-Type
+export async function apiFetch(url, options = {}) {
+  const { headers: extraHeaders, method, ...rest } = options;
+  const finalMethod = method || 'GET';
+  return fetch(url, {
+    ...rest,
+    method: finalMethod,
+    headers: buildFetchAuthHeaders(finalMethod, extraHeaders || {}),
+    credentials: 'include',
+  });
+}
+
 // ============= AUTH & PERMISSIONS =============
 export const authAPI = {
   getPermissions: async () => {

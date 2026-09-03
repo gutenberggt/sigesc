@@ -65,21 +65,15 @@ export function filenameFromContentDisposition(headerValue, fallback) {
 // Reutilizável em qualquer fluxo (PDF, CSV, etc). API preparada para SSE.
 // ============================================================================
 
-import { getToken, getActiveTenantId, getCsrfToken } from '@/services/api';
+import { buildFetchAuthHeaders } from '@/services/api';
 
-const _WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
+// SSoT: Authorization/X-Mantenedora-Id/X-CSRF-Token vêm de buildFetchAuthHeaders
+// (services/api.js) — não duplicar a lógica de auth/tenant/CSRF aqui. Esta
+// função só acrescenta o Content-Type quando há corpo JSON, que é uma
+// responsabilidade específica de quem monta o request, não do helper canônico.
 function _buildAuthHeaders(method, hasJsonBody) {
-  const headers = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const tenantId = getActiveTenantId();
-  if (tenantId) headers['X-Mantenedora-Id'] = tenantId;
-  if (_WRITE_METHODS.has(method.toUpperCase())) {
-    const csrf = getCsrfToken();
-    if (csrf) headers['X-CSRF-Token'] = csrf; // fetch não passa pelo interceptor axios
-    if (hasJsonBody) headers['Content-Type'] = 'application/json';
-  }
+  const headers = buildFetchAuthHeaders(method);
+  if (hasJsonBody) headers['Content-Type'] = 'application/json';
   return headers;
 }
 

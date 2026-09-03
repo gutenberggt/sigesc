@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
+import { apiFetch } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -89,12 +90,14 @@ function SummaryCard({ icon, label, value, color }) {
 export default function HRPayroll() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const token = localStorage.getItem('accessToken');
   const isAdmin = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   const isAnalista = ['semed2'].includes(user?.role);
   const isSemedViewer = ['semed3'].includes(user?.role);
   const isGlobal = isAdmin || isAnalista || isSemedViewer;
-  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  // Revisão MT-1: NÃO pré-computar headers aqui. `apiFetch()` (services/api.js)
+  // resolve Authorization/X-Mantenedora-Id/X-CSRF-Token no momento de CADA
+  // chamada abaixo — evita que um useCallback memoizado capture um tenant
+  // obsoleto quando activeMantenedoraId mudar sem o token mudar.
 
   const [view, setView] = useState('dashboard');
   const [loading, setLoading] = useState(false);
@@ -141,71 +144,71 @@ export default function HRPayroll() {
 
   const fetchCompetencies = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/hr/competencies`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/competencies`);
       if (res.ok) setCompetencies(await res.json());
     } catch (e) { console.error(e); }
-  }, [token]);
+  }, []);
 
   const fetchPayrolls = useCallback(async (compId) => {
     try {
-      const res = await fetch(`${API_URL}/api/hr/school-payrolls?competency_id=${compId}`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/school-payrolls?competency_id=${compId}`);
       if (res.ok) setPayrolls(await res.json());
     } catch (e) { console.error(e); }
-  }, [token]);
+  }, []);
 
   const fetchDashboard = useCallback(async (compId) => {
     try {
-      const res = await fetch(`${API_URL}/api/hr/dashboard?competency_id=${compId}`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/dashboard?competency_id=${compId}`);
       if (res.ok) setDashboardData(await res.json());
     } catch (e) { console.error(e); }
-  }, [token]);
+  }, []);
 
   const fetchPayrollDetail = useCallback(async (payrollId) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/hr/school-payrolls/${payrollId}`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/school-payrolls/${payrollId}`);
       if (res.ok) setCurrentPayroll(await res.json());
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [token]);
+  }, []);
 
   const fetchOccurrences = useCallback(async (itemId) => {
     try {
-      const res = await fetch(`${API_URL}/api/hr/occurrences?payroll_item_id=${itemId}`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/occurrences?payroll_item_id=${itemId}`);
       if (res.ok) setOccurrences(await res.json());
     } catch (e) { console.error(e); }
-  }, [token]);
+  }, []);
 
   const fetchEnums = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/hr/enums`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/enums`);
       if (res.ok) setEnums(await res.json());
     } catch (e) { console.error(e); }
-  }, [token]);
+  }, []);
 
   const fetchSchoolEmployees = useCallback(async (payrollId) => {
     try {
-      const res = await fetch(`${API_URL}/api/hr/school-employees/${payrollId}`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/school-employees/${payrollId}`);
       if (res.ok) setSchoolEmployees(await res.json());
     } catch (e) { console.error(e); }
-  }, [token]);
+  }, []);
 
   const fetchHistory = useCallback(async (itemId) => {
     try {
-      const res = await fetch(`${API_URL}/api/hr/payroll-items/${itemId}/history`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/payroll-items/${itemId}/history`);
       if (res.ok) setHistory(await res.json());
     } catch (e) { console.error(e); }
-  }, [token]);
+  }, []);
 
   const fetchAnalytics = useCallback(async (compId) => {
     if (!isGlobal) return;
     setAnalyticsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/hr/dashboard/analytics?competency_id=${compId}`, { headers });
+      const res = await apiFetch(`${API_URL}/api/hr/dashboard/analytics?competency_id=${compId}`);
       if (res.ok) setAnalytics(await res.json());
     } catch (e) { console.error(e); }
     setAnalyticsLoading(false);
-  }, [token, isGlobal]);
+  }, [isGlobal]);
 
   useEffect(() => { fetchCompetencies(); fetchEnums(); }, []);
 
@@ -222,7 +225,9 @@ export default function HRPayroll() {
   const handleCreateCompetency = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/hr/competencies`, { method: 'POST', headers, body: JSON.stringify(newComp) });
+      const res = await apiFetch(`${API_URL}/api/hr/competencies`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newComp),
+      });
       if (res.ok) {
         const created = await res.json();
         await fetchCompetencies();
@@ -235,7 +240,7 @@ export default function HRPayroll() {
 
   const handleSubmitPayroll = async (payrollId) => {
     if (!confirm('Confirma o envio desta folha para análise da Secretaria?')) return;
-    const res = await fetch(`${API_URL}/api/hr/school-payrolls/${payrollId}/submit`, { method: 'PUT', headers });
+    const res = await apiFetch(`${API_URL}/api/hr/school-payrolls/${payrollId}/submit`, { method: 'PUT' });
     if (res.ok) {
       const data = await res.json();
       if (data.warnings && data.warnings.length > 0) {
@@ -251,12 +256,14 @@ export default function HRPayroll() {
 
   const handleApprovePayroll = async (payrollId) => {
     if (!confirm('Confirma a aprovação desta folha?')) return;
-    const res = await fetch(`${API_URL}/api/hr/school-payrolls/${payrollId}/approve`, { method: 'PUT', headers });
+    const res = await apiFetch(`${API_URL}/api/hr/school-payrolls/${payrollId}/approve`, { method: 'PUT' });
     if (res.ok) { if (currentPayroll) fetchPayrollDetail(payrollId); if (selectedCompetency) { fetchPayrolls(selectedCompetency.id); fetchDashboard(selectedCompetency.id); } }
   };
 
   const handleReturnPayroll = async () => {
-    const res = await fetch(`${API_URL}/api/hr/school-payrolls/${returnPayrollId}/return`, { method: 'PUT', headers, body: JSON.stringify({ reason: returnReason }) });
+    const res = await apiFetch(`${API_URL}/api/hr/school-payrolls/${returnPayrollId}/return`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: returnReason }),
+    });
     if (res.ok) {
       const data = await res.json();
       alert(data.message || 'Folha devolvida com sucesso');
@@ -281,7 +288,9 @@ export default function HRPayroll() {
       complementary_authorized_by: editingItem.complementary_authorized_by || '',
       observations: editingItem.observations || '',
     };
-    const res = await fetch(`${API_URL}/api/hr/payroll-items/${editingItem.id}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+    const res = await apiFetch(`${API_URL}/api/hr/payroll-items/${editingItem.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
     if (res.ok) {
       const updated = await res.json();
       setCurrentItem(updated);
@@ -295,10 +304,9 @@ export default function HRPayroll() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${API_URL}/api/hr/upload`, {
+      const res = await apiFetch(`${API_URL}/api/hr/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        body: formData,
       });
       if (res.ok) {
         const data = await res.json();
@@ -310,8 +318,8 @@ export default function HRPayroll() {
 
   const handleCreateOccurrence = async () => {
     if (!currentItem) return;
-    const res = await fetch(`${API_URL}/api/hr/occurrences`, {
-      method: 'POST', headers,
+    const res = await apiFetch(`${API_URL}/api/hr/occurrences`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         payroll_item_id: currentItem.id, ...occForm,
         days: parseInt(occForm.days) || 1, hours: parseFloat(occForm.hours) || 0,
@@ -326,14 +334,14 @@ export default function HRPayroll() {
 
   const handleCancelOccurrence = async (occId) => {
     if (!confirm('Cancelar esta ocorrência?')) return;
-    await fetch(`${API_URL}/api/hr/occurrences/${occId}`, { method: 'DELETE', headers });
+    await apiFetch(`${API_URL}/api/hr/occurrences/${occId}`, { method: 'DELETE' });
     fetchOccurrences(currentItem.id);
     fetchPayrollDetail(currentPayroll.id);
   };
 
   const handleDownloadPdf = async (url, fallbackName) => {
     try {
-      const res = await fetch(`${API_URL}${url}`, { headers });
+      const res = await apiFetch(`${API_URL}${url}`);
       if (!res.ok) throw new Error('Erro ao gerar PDF');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -352,7 +360,7 @@ export default function HRPayroll() {
 
   const handleCloseCompetency = async () => {
     if (!selectedCompetency || !confirm('Fechar esta competência? As folhas aprovadas serão bloqueadas.')) return;
-    await fetch(`${API_URL}/api/hr/competencies/${selectedCompetency.id}/close`, { method: 'PUT', headers });
+    await apiFetch(`${API_URL}/api/hr/competencies/${selectedCompetency.id}/close`, { method: 'PUT' });
     fetchCompetencies();
     setSelectedCompetency(prev => ({ ...prev, status: 'closed' }));
     fetchDashboard(selectedCompetency.id);
@@ -363,8 +371,8 @@ export default function HRPayroll() {
       alert('Justificativa obrigatória (mínimo 5 caracteres)');
       return;
     }
-    const res = await fetch(`${API_URL}/api/hr/competencies/${selectedCompetency.id}/reopen`, {
-      method: 'PUT', headers,
+    const res = await apiFetch(`${API_URL}/api/hr/competencies/${selectedCompetency.id}/reopen`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ justification: reopenJustification })
     });
     if (res.ok) {

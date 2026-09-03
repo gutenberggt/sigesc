@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { schoolsAPI, classesAPI, studentsAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, studentsAPI, apiFetch, buildFetchAuthHeaders } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/utils/downloadBlob';
@@ -575,9 +575,7 @@ export function AnalyticsDashboard() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/api/mantenedora/brasao-base64`, {
-          headers: { 'Authorization': `Bearer ${tokenRef.current}` },
-        });
+        const res = await apiFetch(`${API_URL}/api/mantenedora/brasao-base64`);
         if (!res.ok) { if (active) setLogoDataUrl(null); return; }
         const data = await res.json();
         if (active) setLogoDataUrl(data?.data_url || null);
@@ -628,9 +626,11 @@ export function AnalyticsDashboard() {
       if (selectedSchool) params.append('school_id', selectedSchool);
       params.append('limit', teacherLimit === 'all' ? 100000 : teacherLimit);
       const filename = `desempenho_professores_${selectedYear}.pdf`;
-      await downloadBlob(`${API_URL}/api/analytics/teachers/performance/pdf?${params}`, filename, {
-        Authorization: accessToken ? `Bearer ${accessToken}` : ''
-      });
+      await downloadBlob(
+        `${API_URL}/api/analytics/teachers/performance/pdf?${params}`,
+        filename,
+        buildFetchAuthHeaders('GET'),
+      );
     } catch (e) {
       console.error('Erro ao gerar PDF de professores:', e);
       alert('Não foi possível gerar o PDF. Tente novamente.');
@@ -710,9 +710,7 @@ export function AnalyticsDashboard() {
       if (!isSemed || !tokenRef.current) return;
       
       try {
-        const response = await fetch(`${API_URL}/api/analytics/semed/check-terms`, {
-          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
-        });
+        const response = await apiFetch(`${API_URL}/api/analytics/semed/check-terms`);
         const data = await response.json();
         
         if (data.needs_acceptance) {
@@ -732,12 +730,9 @@ export function AnalyticsDashboard() {
   // Função para aceitar o termo SEMED
   const handleAcceptSemedTerms = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/analytics/semed/accept-terms`, {
+      const response = await apiFetch(`${API_URL}/api/analytics/semed/accept-terms`, {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (response.ok) {
@@ -787,11 +782,9 @@ export function AnalyticsDashboard() {
         if (selectedClass) params.append('class_id', selectedClass);
         if (selectedStudent) params.append('student_id', selectedStudent);
         
-        const headers = { 'Authorization': `Bearer ${tokenRef.current}` };
-        
         const safeFetch = async (url) => {
           try {
-            const res = await fetch(url, { headers });
+            const res = await apiFetch(url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return await res.json();
           } catch (e) {
@@ -865,9 +858,7 @@ export function AnalyticsDashboard() {
       }
       
       try {
-        const response = await fetch(`${API_URL}/api/classes/${selectedClass}/details`, {
-          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
-        });
+        const response = await apiFetch(`${API_URL}/api/classes/${selectedClass}/details`);
         
         if (response.ok) {
           const data = await response.json();
