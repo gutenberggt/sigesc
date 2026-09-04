@@ -3,8 +3,8 @@
 
 Purpose:
 - keep the exact F4/F4.1 diagnostic scope and read-only production boundary;
-- prevent a Playwright call or routing callback from consuming the whole GitHub job;
-- isolate each class/surface in its own OS process;
+- prevent Playwright or public-version network calls from consuming the whole GitHub job;
+- isolate each external probe operation in its own OS process;
 - classify any worker timeout/crash as PROBE_ERROR, never as PRODUCT_GAP.
 
 No product code, data, authentication, database, or production write path is used.
@@ -32,17 +32,24 @@ import teacher_visibility_f4_1_browser_render as f41  # noqa: E402
 
 SCHEMA = "TEACHER_VISIBILITY_F4_1_1_PUBLIC_BROWSER_RENDER_V3"
 WORKER_PREFIX = "TEACHER_VISIBILITY_F4_1_1_WORKER_JSON="
+VERSION_PREFIX = "TEACHER_VISIBILITY_F4_1_1_VERSION_JSON="
 FINAL_PREFIX = "TEACHER_VISIBILITY_F4_1_1_JSON="
 CHECKPOINT_PREFIX = "TEACHER_VISIBILITY_F4_1_1_CHECKPOINT="
 
 SURFACE_WALL_TIMEOUT_SECONDS = int(os.environ.get("F4_1_1_SURFACE_WALL_TIMEOUT_SECONDS", "40"))
+PUBLIC_VERSION_WALL_TIMEOUT_SECONDS = int(
+    os.environ.get("F4_1_1_PUBLIC_VERSION_WALL_TIMEOUT_SECONDS", "35")
+)
 WORKER_NAVIGATION_TIMEOUT_MS = int(os.environ.get("F4_1_1_NAVIGATION_TIMEOUT_MS", "10000"))
 WORKER_ACTION_TIMEOUT_MS = int(os.environ.get("F4_1_1_ACTION_TIMEOUT_MS", "5000"))
 WORKER_POLL_TIMEOUT_SECONDS = float(os.environ.get("F4_1_1_POLL_TIMEOUT_SECONDS", "4"))
 WORKER_KILL_GRACE_SECONDS = float(os.environ.get("F4_1_1_KILL_GRACE_SECONDS", "2"))
-PUBLIC_VERSION_TIMEOUT_BUDGET_SECONDS = 35
 EXPECTED_SURFACE_COUNT = len(f4.TARGETS) * 2
-NOMINAL_WORST_CASE_SECONDS = EXPECTED_SURFACE_COUNT * SURFACE_WALL_TIMEOUT_SECONDS + PUBLIC_VERSION_TIMEOUT_BUDGET_SECONDS
+NOMINAL_WORST_CASE_SECONDS = (
+    EXPECTED_SURFACE_COUNT * (SURFACE_WALL_TIMEOUT_SECONDS + WORKER_KILL_GRACE_SECONDS)
+    + PUBLIC_VERSION_WALL_TIMEOUT_SECONDS
+    + WORKER_KILL_GRACE_SECONDS
+)
 
 
 def checkpoint(target_class: str, surface: str, stage: str, status: str) -> None:
@@ -211,6 +218,17 @@ def _run_worker(class_name: str, surface_name: str) -> dict[str, Any]:
     }
 
 
+def _run_public_version_worker(expected_sha: str) -> dict[str, Any]:
+    actual_sha = f4._public_version(expected_sha)
+    return {
+        "schema": SCHEMA,
+        "version_worker": True,
+        "status": "PASS",
+        "expected_production_sha": expected_sha,
+        "public_version_sha": actual_sha,
+    }
+
+
 def _worker_env(expected_sha: str) -> dict[str, str]:
     env = dict(os.environ)
     env["EXPECTED_PRODUCTION_SHA"] = expected_sha
@@ -237,17 +255,21 @@ def _kill_worker_group(proc: subprocess.Popen[str]) -> None:
             pass
 
 
-def _extract_worker_json(output: str) -> dict[str, Any] | None:
+def _extract_prefixed_json(output: str, prefix: str) -> dict[str, Any] | None:
     payload: dict[str, Any] | None = None
     for raw in output.splitlines():
-        if raw.startswith(WORKER_PREFIX):
+        if raw.startswith(prefix):
             try:
-                candidate = json.loads(raw[len(WORKER_PREFIX):])
+                candidate = json.loads(raw[len(prefix):])
             except json.JSONDecodeError:
                 continue
             if isinstance(candidate, dict):
                 payload = candidate
     return payload
+
+
+def _extract_worker_json(output: str) -> dict[str, Any] | None:
+    return _extract_prefixed_json(output, WORKER_PREFIX)
 
 
 def _forward_worker_checkpoints(output: str) -> None:
@@ -258,6 +280,53 @@ def _forward_worker_checkpoints(output: str) -> None:
                 CHECKPOINT_PREFIX,
                 1,
             ), flush=True)
+
+
+def _validate_public_version_with_wall_clock(expected_sha: str) -> str:
+    checkpoint("PUBLIC_VERSION", "version", "worker_start", "RUNNING")
+    cmd = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--version-worker",
+    ]
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=_worker_env(expected_sha),
+        start_new_session=True,
+    )
+
+    try:
+        stdout, _ = proc.communicate(timeout=PUBLIC_VERSION_WALL_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        _kill_worker_group(proc)
+        try:
+            proc.communicate(timeout=WORKER_KILL_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            pass
+        checkpoint("PUBLIC_VERSION", "version", "wall_timeout", "PROBE_ERROR")
+        raise RuntimeError("PUBLIC_VERSION_WALL_TIMEOUT")
+
+    payload = _extract_prefixed_json(stdout or "", VERSION_PREFIX)
+    if proc.returncode != 0:
+        checkpoint("PUBLIC_VERSION", "version", "worker_exit", "PROBE_ERROR")
+        raise RuntimeError(f"PUBLIC_VERSION_WORKER_EXIT_{proc.returncode}")
+    if not payload or payload.get("schema") != SCHEMA:
+        checkpoint("PUBLIC_VERSION", "version", "worker_json", "PROBE_ERROR")
+        raise RuntimeError("PUBLIC_VERSION_WORKER_NO_STRUCTURED_JSON")
+    if payload.get("status") != "PASS":
+        checkpoint("PUBLIC_VERSION", "version", "worker_result", "PROBE_ERROR")
+        raise RuntimeError("PUBLIC_VERSION_WORKER_PROBE_ERROR")
+
+    actual_sha = str(payload.get("public_version_sha") or "").strip()
+    if actual_sha != expected_sha:
+        checkpoint("PUBLIC_VERSION", "version", "sha_mismatch", "PROBE_ERROR")
+        raise RuntimeError("PUBLIC_VERSION_SHA_MISMATCH")
+
+    checkpoint("PUBLIC_VERSION", "version", "worker_complete", "PASS")
+    return actual_sha
 
 
 def _supervise_surface(target: Any, surface_name: str, expected_sha: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -374,15 +443,24 @@ def _aggregate_worker_meta(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _validate_policy_ranges() -> None:
+    if SURFACE_WALL_TIMEOUT_SECONDS < 5 or SURFACE_WALL_TIMEOUT_SECONDS > 60:
+        raise RuntimeError("TEACHER_VISIBILITY_F4_1_1_WALL_TIMEOUT_OUT_OF_RANGE")
+    if PUBLIC_VERSION_WALL_TIMEOUT_SECONDS < 5 or PUBLIC_VERSION_WALL_TIMEOUT_SECONDS > 60:
+        raise RuntimeError("TEACHER_VISIBILITY_F4_1_1_VERSION_WALL_TIMEOUT_OUT_OF_RANGE")
+    if WORKER_KILL_GRACE_SECONDS < 0 or WORKER_KILL_GRACE_SECONDS > 5:
+        raise RuntimeError("TEACHER_VISIBILITY_F4_1_1_KILL_GRACE_OUT_OF_RANGE")
+    if NOMINAL_WORST_CASE_SECONDS >= 15 * 60:
+        raise RuntimeError("TEACHER_VISIBILITY_F4_1_1_WORST_CASE_EXCEEDS_JOB_TIMEOUT")
+
+
 def run_supervisor() -> dict[str, Any]:
     expected_sha = os.environ.get("EXPECTED_PRODUCTION_SHA", "").strip()
     if not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
         raise RuntimeError("TEACHER_VISIBILITY_F4_1_1_EXPECTED_SHA_INVALID")
 
-    if SURFACE_WALL_TIMEOUT_SECONDS < 5 or SURFACE_WALL_TIMEOUT_SECONDS > 60:
-        raise RuntimeError("TEACHER_VISIBILITY_F4_1_1_WALL_TIMEOUT_OUT_OF_RANGE")
-
-    public_sha = f4._public_version(expected_sha)
+    _validate_policy_ranges()
+    public_sha = _validate_public_version_with_wall_clock(expected_sha)
     pairs: list[dict[str, Any]] = []
     worker_meta: list[dict[str, Any]] = []
 
@@ -411,7 +489,10 @@ def run_supervisor() -> dict[str, Any]:
         "probe_policy": {
             "process_isolation": True,
             "surface_isolation": True,
+            "public_version_process_isolation": True,
             "surface_wall_timeout_seconds": SURFACE_WALL_TIMEOUT_SECONDS,
+            "public_version_wall_timeout_seconds": PUBLIC_VERSION_WALL_TIMEOUT_SECONDS,
+            "worker_kill_grace_seconds": WORKER_KILL_GRACE_SECONDS,
             "worker_navigation_timeout_ms": WORKER_NAVIGATION_TIMEOUT_MS,
             "worker_action_timeout_ms": WORKER_ACTION_TIMEOUT_MS,
             "worker_poll_timeout_seconds": WORKER_POLL_TIMEOUT_SECONDS,
@@ -441,7 +522,10 @@ def _catastrophic_result(exc: BaseException) -> dict[str, Any]:
         "probe_policy": {
             "process_isolation": True,
             "surface_isolation": True,
+            "public_version_process_isolation": True,
             "surface_wall_timeout_seconds": SURFACE_WALL_TIMEOUT_SECONDS,
+            "public_version_wall_timeout_seconds": PUBLIC_VERSION_WALL_TIMEOUT_SECONDS,
+            "worker_kill_grace_seconds": WORKER_KILL_GRACE_SECONDS,
             "timeout_is_product_gap": False,
         },
         **_worker_boundary_template(),
@@ -452,6 +536,7 @@ def _catastrophic_result(exc: BaseException) -> dict[str, Any]:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--worker", action="store_true")
+    parser.add_argument("--version-worker", action="store_true")
     parser.add_argument("--class-name")
     parser.add_argument("--surface", choices=("content", "attendance"))
     return parser.parse_args()
@@ -459,6 +544,23 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
+
+    if args.version_worker:
+        try:
+            expected_sha = os.environ.get("EXPECTED_PRODUCTION_SHA", "").strip()
+            if not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
+                raise ValueError("VERSION_WORKER_EXPECTED_SHA_INVALID")
+            result = _run_public_version_worker(expected_sha)
+        except BaseException as exc:
+            result = {
+                "schema": SCHEMA,
+                "version_worker": True,
+                "status": "PROBE_ERROR",
+                "error": _safe_code(exc),
+            }
+        print(VERSION_PREFIX + json.dumps(result, ensure_ascii=False, sort_keys=True), flush=True)
+        return 0
+
     if args.worker:
         try:
             if not args.class_name or not args.surface:
