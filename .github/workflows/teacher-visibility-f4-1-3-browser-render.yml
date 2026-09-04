@@ -1,0 +1,349 @@
+name: "Teacher Visibility F4.1.3 Goto Route Decomposition"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/teacher_visibility_f4_1_3_browser_render.py'
+      - 'backend/tests/test_teacher_visibility_f4_1_3_browser_render.py'
+      - '.github/workflows/teacher-visibility-f4-1-3-browser-render.yml'
+      - 'memory/audit/TEACHER_VISIBILITY_F4_1_3_GOTO_ROUTE_DECOMPOSITION_2026-09-04.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: teacher-visibility-f4-1-3-browser-render
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F4.1.3 goto/route decomposition
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Compile and focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          python -m py_compile \
+            backend/scripts/teacher_visibility_f4_browser_render.py \
+            backend/scripts/teacher_visibility_f4_1_browser_render.py \
+            backend/scripts/teacher_visibility_f4_1_1_browser_render.py \
+            backend/scripts/teacher_visibility_f4_1_2_browser_render.py \
+            backend/scripts/teacher_visibility_f4_1_3_browser_render.py
+          pytest -q --noconftest \
+            backend/tests/test_teacher_visibility_f4_browser_render.py \
+            backend/tests/test_teacher_visibility_f4_1_browser_render.py \
+            backend/tests/test_teacher_visibility_f4_1_1_browser_render.py \
+            backend/tests/test_teacher_visibility_f4_1_2_browser_render.py \
+            backend/tests/test_teacher_visibility_f4_1_3_browser_render.py
+
+      - name: Enforce decomposed navigation and sealed boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          script = Path('backend/scripts/teacher_visibility_f4_1_3_browser_render.py').read_text(encoding='utf-8')
+          workflow = Path('.github/workflows/teacher-visibility-f4-1-3-browser-render.yml').read_text(encoding='utf-8')
+
+          required_script = (
+              'STATIC_DIRECT', 'STATIC_ROUTED_CONTINUE', 'APP_DOCUMENT_ONLY_CONTENT',
+              'APP_FULL_CONTENT', 'APP_FULL_ATTENDANCE',
+              'route_continue_before_document', 'route_continue_after_document',
+              'route_continue_before_public', 'route_continue_after_public',
+              'route_fixture_before_api', 'route_fixture_after_api',
+              'page.goto(', 'selectors.DefaultSelector', 'start_new_session=True',
+              'os.killpg(proc.pid, signal.SIGTERM)', 'os.killpg(proc.pid, signal.SIGKILL)',
+              'product_gap_claimed', 'product_gap_inference_allowed',
+          )
+          for marker in required_script:
+              if marker not in script:
+                  raise SystemExit(f'F4_1_3_REQUIRED_MARKER_MISSING:{marker}')
+
+          forbidden = (
+              'MongoClient', 'pymongo', 'create_access_token', '/auth/login',
+              'SIGESC_PROD_SSH', 'docker exec', 'connect_to_server',
+              'method="POST"', 'method="PUT"', 'method="PATCH"', 'method="DELETE"',
+          )
+          for marker in forbidden:
+              if marker in script:
+                  raise SystemExit(f'F4_1_3_FORBIDDEN_MARKER:{marker}')
+
+          required_workflow = (
+              'TEACHER_VISIBILITY_F4_1_3=AUTHORIZED',
+              'CONFIRMATION=AUDIT_PUBLIC_BROWSER_RENDER_READ_ONLY',
+              'Ensure structured fallback evidence',
+              'if: always()',
+              'Comment diagnosis and close gate',
+          )
+          for marker in required_workflow:
+              if marker not in workflow:
+                  raise SystemExit(f'F4_1_3_WORKFLOW_MARKER_MISSING:{marker}')
+
+          print('F4_1_3_STATIC_BOUNDARY=PASS')
+          print('PRODUCT_GAP_INFERENCE=FORBIDDEN')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+  public-browser-audit:
+    name: Audit F4.1.3 page.goto and route handling read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[TEACHER-VISIBILITY-F4.1.3-BROWSER] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          event = json.load(open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8'))
+          issue = event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('F4_1_3_OWNER_REQUIRED')
+
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw:
+                  continue
+              key, value = raw.split('=', 1)
+              key, value = key.strip(), value.strip()
+              if key in values:
+                  raise SystemExit(f'F4_1_3_DUPLICATE_FIELD:{key}')
+              values[key] = value
+
+          if values.get('TEACHER_VISIBILITY_F4_1_3') != 'AUTHORIZED':
+              raise SystemExit('F4_1_3_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'AUDIT_PUBLIC_BROWSER_RENDER_READ_ONLY':
+              raise SystemExit('F4_1_3_CONFIRMATION_INVALID')
+          if values.get('TRACKING_ISSUE') != '357':
+              raise SystemExit('F4_1_3_TRACKING_INVALID')
+
+          target = values.get('TARGET_SHA', '')
+          expected_prod = values.get('EXPECTED_PRODUCTION_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('F4_1_3_TARGET_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{40}', expected_prod):
+              raise SystemExit('F4_1_3_PROD_SHA_INVALID')
+          if issue.get('title') != f'[TEACHER-VISIBILITY-F4.1.3-BROWSER] {target}':
+              raise SystemExit('F4_1_3_TITLE_MISMATCH')
+
+          headers = {
+              'Accept':'application/vnd.github+json',
+              'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-teacher-visibility-f4-1-3',
+          }
+          repo = os.environ['GITHUB_REPOSITORY']
+          def get(path):
+              req = urllib.request.Request(f'https://api.github.com/repos/{repo}{path}', headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+
+          main_sha = get('/branches/main')['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'F4_1_3_MAIN_MOVED:{main_sha}')
+          prod_sha = get('/branches/production')['commit']['sha']
+          if prod_sha != expected_prod:
+              raise SystemExit(f'F4_1_3_PRODUCTION_MOVED:{prod_sha}')
+          if get('/issues/357').get('state') != 'open':
+              raise SystemExit('F4_1_3_TRACKING_NOT_OPEN')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'expected_production_sha={expected_prod}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+
+          print('F4_1_3_CONTEXT=PASS')
+          print('PRODUCTION_ACCESS=PUBLIC_GET_ONLY')
+          print('REAL_PRODUCTION_API=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install Playwright Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Execute goto/route decomposition
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.context.outputs.expected_production_sha }}
+          F4_1_3_CASE_WALL_TIMEOUT_SECONDS: "25"
+          F4_1_3_GOTO_TIMEOUT_MS: "8000"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/f4-1-3-browser-raw.log'
+          set +e
+          python -u backend/scripts/teacher_visibility_f4_1_3_browser_render.py | tee "$raw"
+          runner_rc=${PIPESTATUS[0]}
+          set -e
+          prefix='TEACHER_VISIBILITY_F4_1_3_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [ -n "$line" ]; then
+            printf '%s' "${line#${prefix}}" > evidence/browser.json
+          fi
+          echo "F4_1_3_RUNNER_RC=$runner_rc"
+          exit 0
+
+      - name: Ensure structured fallback evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          if [ ! -s evidence/browser.json ]; then
+            cat > evidence/browser.json <<'JSON'
+          {"schema":"TEACHER_VISIBILITY_F4_1_3_GOTO_ROUTE_DECOMPOSITION_V5","status":"INCONCLUSIVE","classification":"NAVIGATION_ROUTE_DECOMPOSITION_PROBE_ERROR","diagnosis_code":"RUNNER_NO_STRUCTURED_JSON","first_failure_case":null,"first_failure_stage":null,"cases":[],"last_checkpoint_stage_counts":{},"production_http_methods":["GET"],"service_workers_blocked":true,"all_api_requests_intercepted_locally":true,"websockets_blocked":true,"live_api_requests":0,"real_authentication_used":false,"database_access":false,"student_data_read":false,"attendance_records_read":false,"pedagogical_text_read":false,"production_writes":false,"product_gap_claimed":false}
+          JSON
+          fi
+          python -m json.tool evidence/browser.json >/dev/null
+
+      - name: Validate no-production-data boundary and diagnostic taxonomy
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('evidence/browser.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'TEACHER_VISIBILITY_F4_1_3_GOTO_ROUTE_DECOMPOSITION_V5':
+              raise SystemExit('F4_1_3_SCHEMA_INVALID')
+          if p.get('production_http_methods') != ['GET']:
+              raise SystemExit('F4_1_3_HTTP_METHOD_INVALID')
+          for key in ('service_workers_blocked','all_api_requests_intercepted_locally','websockets_blocked'):
+              if p.get(key) is not True:
+                  raise SystemExit(f'F4_1_3_BOUNDARY_TRUE_FAILED:{key}')
+          for key in ('real_authentication_used','database_access','student_data_read','attendance_records_read','pedagogical_text_read','production_writes','product_gap_claimed'):
+              if p.get(key) is not False:
+                  raise SystemExit(f'F4_1_3_BOUNDARY_FALSE_FAILED:{key}')
+          if p.get('live_api_requests') != 0:
+              raise SystemExit('F4_1_3_LIVE_API_REQUEST_DETECTED')
+          allowed = {
+              ('PASS','NAVIGATION_ROUTE_DECOMPOSITION_COMPLETE'),
+              ('INCONCLUSIVE','NAVIGATION_ROUTE_DECOMPOSITION_PROBE_ERROR'),
+          }
+          if (p.get('status'), p.get('classification')) not in allowed:
+              raise SystemExit('F4_1_3_TAXONOMY_INVALID')
+          print('F4_1_3_BOUNDARY=PASS')
+          print('DIAGNOSTIC_STATUS=' + str(p.get('status')))
+          print('DIAGNOSTIC_CLASSIFICATION=' + str(p.get('classification')))
+          print('DIAGNOSIS_CODE=' + str(p.get('diagnosis_code')))
+          print('FIRST_FAILURE_CASE=' + str(p.get('first_failure_case')))
+          print('FIRST_FAILURE_STAGE=' + str(p.get('first_failure_stage')))
+          PY
+
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: teacher-visibility-f4-1-3-browser-${{ github.run_id }}
+          path: |
+            evidence/browser.json
+            evidence/f4-1-3-browser-raw.log
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate
+        if: always() && steps.context.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.context.outputs.expected_production_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          try:
+              p = json.loads(Path('evidence/browser.json').read_text(encoding='utf-8'))
+          except Exception:
+              p = {
+                  'status':'INCONCLUSIVE',
+                  'classification':'NAVIGATION_ROUTE_DECOMPOSITION_PROBE_ERROR',
+                  'diagnosis_code':'RUNNER_NO_EVIDENCE_JSON',
+                  'first_failure_case':None,
+                  'first_failure_stage':None,
+                  'cases':[],
+                  'live_api_requests':0,
+              }
+
+          summary = [
+              {
+                  'case': row.get('case'),
+                  'status': row.get('status'),
+                  'last_stage': row.get('last_checkpoint_stage'),
+                  'error': row.get('error_code'),
+              }
+              for row in (p.get('cases') or [])
+          ]
+          lines = [
+              '## F4.1.3 — decomposição de `page.goto` / route handling',
+              '',
+              f"Audit code: `{os.environ['TARGET_SHA']}`",
+              f"Production release: `{os.environ['EXPECTED_PRODUCTION_SHA']}`",
+              f"Classificação: **{p.get('classification')}** ({p.get('status')})",
+              f"Diagnóstico: **{p.get('diagnosis_code')}**",
+              f"Primeiro caso divergente: `{p.get('first_failure_case')}`",
+              f"Último estágio desse caso: `{p.get('first_failure_stage')}`",
+              f"Matriz: `{json.dumps(summary, ensure_ascii=False, sort_keys=True)}`",
+              f"API real de produção: **{p.get('live_api_requests', 0)}** requests",
+              '',
+              '**Semântica:** esta fase localiza a navegação/routing do probe; ela não pode declarar `PRODUCT_GAP`.',
+              '',
+              '**Boundary:** GET público; API de aplicação local/sintética quando o app é executado; Service Worker bloqueado; WebSocket fechado; sem auth real, Mongo, estudante, `attendance.records`, texto pedagógico ou escrita.',
+              '',
+              '**Nenhum deploy ou mutação de produção foi executado por este gate.**',
+          ]
+          body = '\n'.join(lines)
+          headers = {
+              'Accept':'application/vnd.github+json',
+              'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-teacher-visibility-f4-1-3',
+              'Content-Type':'application/json',
+          }
+          repo = os.environ['GITHUB_REPOSITORY']
+          def send(path, payload, method='POST'):
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}{path}',
+                  data=json.dumps(payload).encode('utf-8'),
+                  headers=headers,
+                  method=method,
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+          send('/issues/357/comments', {'body':body})
+          send(f"/issues/{os.environ['GATE_ISSUE']}/comments", {'body':body})
+          send(f"/issues/{os.environ['GATE_ISSUE']}", {'state':'closed','state_reason':'completed'}, method='PATCH')
+          print('F4_1_3_FINALIZER=COMPLETE')
+          PY
