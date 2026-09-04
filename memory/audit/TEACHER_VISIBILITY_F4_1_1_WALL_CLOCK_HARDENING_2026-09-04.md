@@ -52,7 +52,7 @@ A F4.1 configurava `page.goto(..., timeout=15000)`, mas o controle não retornou
 
 A causa interna específica do bloqueio Playwright/CDP/routing não está demonstrada e não precisa ser presumida para corrigir o instrumento. A propriedade necessária é mais simples:
 
-> qualquer chamada Playwright pode, em princípio, bloquear além do timeout lógico e deve ficar subordinada a um supervisor de processo externo.
+> qualquer operação externa pode, em princípio, bloquear além do timeout lógico da biblioteca e deve ficar subordinada a um supervisor de processo externo.
 
 ## 4. Decisão F4.1.1
 
@@ -60,42 +60,42 @@ A F4.1.1 preserva F4 e F4.1 como histórico e adiciona um coletor novo:
 
 `backend/scripts/teacher_visibility_f4_1_1_browser_render.py`
 
-Estratégia:
+Estratégia final:
 
-1. o processo supervisor valida o SHA público esperado;
-2. cada par/tela é executado em **processo de sistema operacional independente**;
-3. cada superfície recebe wall-clock externo de 40 segundos;
-4. o worker usa timeouts internos menores:
+1. a leitura pública de `version.json` é executada em **processo independente**;
+2. esse processo recebe wall-clock externo de 35 segundos;
+3. somente após validar o SHA público esperado, o supervisor inicia os probes browser;
+4. cada par/tela é executado em **processo de sistema operacional independente**;
+5. cada superfície recebe wall-clock externo de 40 segundos;
+6. o worker browser usa timeouts internos menores:
    - navegação: 10 s;
    - ação: 5 s;
    - polling: 4 s;
-5. se o worker não retornar:
+7. se qualquer worker não retornar:
    - SIGTERM no grupo de processos;
-   - pequena janela de grace;
+   - até 2 s de grace;
    - SIGKILL no grupo se necessário;
-   - classificação da superfície como `PROBE_ERROR`;
-6. o supervisor continua para a próxima superfície;
-7. timeout/crash/JSON ausente do worker jamais vira `PRODUCT_GAP`.
+   - classificação como `PROBE_ERROR`;
+8. o supervisor continua para a próxima superfície quando o timeout for de uma superfície;
+9. timeout/crash/JSON ausente de worker jamais vira `PRODUCT_GAP`.
 
-O grupo de processos é iniciado com `start_new_session=True`, permitindo eliminar Chromium e subprocessos descendentes sem cancelar o job inteiro.
+Os processos são iniciados com `start_new_session=True`, permitindo eliminar o processo filho e seus descendentes sem cancelar o job inteiro.
 
 ## 5. Orçamento de execução
 
-Escopo:
+Escopo browser:
 
 - 6 turmas;
 - 2 superfícies por turma;
 - 12 workers.
 
-Wall-clock máximo nominal dos workers:
+Pior caso nominal configurado, incluindo grace de terminação:
 
-`12 × 40 s = 480 s`
+`12 × (40 s + 2 s) + 35 s + 2 s = 541 s`
 
-Reserva para verificação pública e overhead:
+Isto equivale a aproximadamente 9 minutos e 1 segundo antes de overhead pequeno do supervisor, permanecendo abaixo do teto global de 15 minutos.
 
-aproximadamente 35 s + criação/encerramento de processos.
-
-O orçamento nominal permanece abaixo do teto de 15 minutos do job.
+O próprio coletor rejeita configuração cujo orçamento nominal alcance ou ultrapasse 15 minutos.
 
 ## 6. Taxonomia preservada
 
@@ -117,7 +117,8 @@ Somente quando o probe completar tecnicamente e houver mismatch determinístico 
 
 Inclui:
 
-- wall timeout;
+- wall timeout do `version.json`;
+- wall timeout de superfície;
 - crash do worker;
 - exit code anormal;
 - JSON estruturado ausente/inválido;
@@ -133,7 +134,7 @@ Regra invariável:
 Permanece igual à F4/F4.1:
 
 - produção acessível somente por GET de recursos públicos;
-- Service Worker bloqueado;
+- Service Worker bloqueado nos workers browser;
 - toda URL `/api/` respondida localmente por fixtures sintéticas;
 - métodos não-GET abortados;
 - fetch/XHR não-API limitado à allowlist pública;
