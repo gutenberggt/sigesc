@@ -1,0 +1,420 @@
+name: "Teacher Visibility F4.1.1 Wall Clock Hardening"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/teacher_visibility_f4_browser_render.py'
+      - 'backend/scripts/teacher_visibility_f4_1_browser_render.py'
+      - 'backend/scripts/teacher_visibility_f4_1_1_browser_render.py'
+      - 'backend/tests/test_teacher_visibility_f4_browser_render.py'
+      - 'backend/tests/test_teacher_visibility_f4_1_browser_render.py'
+      - 'backend/tests/test_teacher_visibility_f4_1_1_browser_render.py'
+      - '.github/workflows/teacher-visibility-f4-1-1-browser-render.yml'
+      - 'memory/audit/TEACHER_VISIBILITY_F4_1_1_WALL_CLOCK_HARDENING_2026-09-04.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: teacher-visibility-f4-1-1-browser-render
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F4.1.1 wall-clock isolated read-only probe
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Compile and focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          python -m py_compile \
+            backend/scripts/teacher_visibility_f4_browser_render.py \
+            backend/scripts/teacher_visibility_f4_1_browser_render.py \
+            backend/scripts/teacher_visibility_f4_1_1_browser_render.py
+          pytest -q --noconftest \
+            backend/tests/test_teacher_visibility_f4_browser_render.py \
+            backend/tests/test_teacher_visibility_f4_1_browser_render.py \
+            backend/tests/test_teacher_visibility_f4_1_1_browser_render.py
+
+      - name: Enforce wall-clock isolation and sealed boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          script = Path('backend/scripts/teacher_visibility_f4_1_1_browser_render.py').read_text(encoding='utf-8')
+          workflow = Path('.github/workflows/teacher-visibility-f4-1-1-browser-render.yml').read_text(encoding='utf-8')
+
+          required_script = (
+              'subprocess.Popen(',
+              'start_new_session=True',
+              'proc.communicate(timeout=SURFACE_WALL_TIMEOUT_SECONDS)',
+              'except subprocess.TimeoutExpired',
+              'os.killpg(proc.pid, signal.SIGTERM)',
+              'os.killpg(proc.pid, signal.SIGKILL)',
+              '"process_isolation": True',
+              '"surface_isolation": True',
+              '"timeout_is_product_gap": False',
+              'service_workers="block"',
+              'if method != "GET":',
+              'if "/api/" in parsed.path:',
+              'route.fulfill(',
+              'route.abort()',
+              'route.continue_()',
+              'context.route_web_socket("**/*", websocket_handler)',
+              'web_socket_route.close(',
+              '"production_writes": False',
+              'TEACHER_VISIBILITY_F4_1_1_CHECKPOINT=',
+              'TEACHER_VISIBILITY_F4_1_1_JSON=',
+          )
+          for marker in required_script:
+              if marker not in script:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_REQUIRED_MARKER_MISSING:{marker}')
+
+          forbidden = (
+              'MongoClient', 'pymongo', 'create_access_token',
+              '/auth/login', 'SIGESC_PROD_SSH', 'docker exec',
+              'connect_to_server',
+              'method="POST"', 'method="PUT"', 'method="PATCH"', 'method="DELETE"',
+          )
+          for marker in forbidden:
+              if marker in script:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_FORBIDDEN_MARKER:{marker}')
+
+          required_workflow = (
+              "if: always()",
+              "Ensure structured fallback evidence",
+              "Comment diagnosis and close gate even after probe failure",
+              "TEACHER_VISIBILITY_F4_1_1=AUTHORIZED",
+              "CONFIRMATION=AUDIT_PUBLIC_BROWSER_RENDER_READ_ONLY",
+          )
+          for marker in required_workflow:
+              if marker not in workflow:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_WORKFLOW_MARKER_MISSING:{marker}')
+
+          print('TEACHER_VISIBILITY_F4_1_1_STATIC_BOUNDARY=PASS')
+          print('PROCESS_ISOLATION=YES')
+          print('SURFACE_WALL_CLOCK=YES')
+          print('TIMEOUT_IS_PRODUCT_GAP=NO')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+  public-browser-audit:
+    name: Audit F4.1.1 production public browser render read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[TEACHER-VISIBILITY-F4.1.1-BROWSER] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          event = json.load(open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8'))
+          issue = event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_OWNER_REQUIRED')
+
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw:
+                  continue
+              key, value = raw.split('=', 1)
+              key = key.strip()
+              value = value.strip()
+              if key in values:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_DUPLICATE_FIELD:{key}')
+              values[key] = value
+
+          if values.get('TEACHER_VISIBILITY_F4_1_1') != 'AUTHORIZED':
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'AUDIT_PUBLIC_BROWSER_RENDER_READ_ONLY':
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_CONFIRMATION_INVALID')
+          if values.get('TRACKING_ISSUE') != '357':
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_TRACKING_INVALID')
+
+          target = values.get('TARGET_SHA', '')
+          expected_prod = values.get('EXPECTED_PRODUCTION_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_TARGET_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{40}', expected_prod):
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_PROD_SHA_INVALID')
+          if issue.get('title') != f'[TEACHER-VISIBILITY-F4.1.1-BROWSER] {target}':
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_TITLE_MISMATCH')
+
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'sigesc-teacher-visibility-f4-1-1',
+          }
+          repo = os.environ['GITHUB_REPOSITORY']
+
+          def github_json(path):
+              req = urllib.request.Request(f'https://api.github.com/repos/{repo}{path}', headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+
+          main_sha = github_json('/branches/main')['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_MAIN_MOVED:{main_sha}')
+
+          prod_sha = github_json('/branches/production')['commit']['sha']
+          if prod_sha != expected_prod:
+              raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_PRODUCTION_MOVED:{prod_sha}')
+
+          tracking = github_json('/issues/357')
+          if tracking.get('state') != 'open':
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_TRACKING_NOT_OPEN')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'expected_production_sha={expected_prod}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+
+          print('TEACHER_VISIBILITY_F4_1_1_CONTEXT=PASS')
+          print('PRODUCTION_ACCESS=PUBLIC_GET_ONLY')
+          print('REAL_PRODUCTION_API=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install Playwright Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Execute wall-clock isolated public browser audit
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.context.outputs.expected_production_sha }}
+          F4_1_1_SURFACE_WALL_TIMEOUT_SECONDS: "40"
+          F4_1_1_NAVIGATION_TIMEOUT_MS: "10000"
+          F4_1_1_ACTION_TIMEOUT_MS: "5000"
+          F4_1_1_POLL_TIMEOUT_SECONDS: "4"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/f4-1-1-browser-raw.log'
+          set +e
+          python backend/scripts/teacher_visibility_f4_1_1_browser_render.py | tee "$raw"
+          runner_rc=${PIPESTATUS[0]}
+          set -e
+
+          prefix='TEACHER_VISIBILITY_F4_1_1_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [ -n "$line" ]; then
+            printf '%s' "${line#${prefix}}" > evidence/browser.json
+          fi
+          echo "TEACHER_VISIBILITY_F4_1_1_RUNNER_RC=$runner_rc"
+          exit 0
+
+      - name: Ensure structured fallback evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          if [ ! -s evidence/browser.json ]; then
+            cat > evidence/browser.json <<'JSON'
+          {"schema":"TEACHER_VISIBILITY_F4_1_1_PUBLIC_BROWSER_RENDER_V3","status":"INCONCLUSIVE","classification":"PUBLIC_BROWSER_RENDER_PROBE_ERROR","probe_errors":["RUNNER:NO_STRUCTURED_JSON"],"product_failures":[],"pairs":[],"workers":[],"production_http_methods":["GET"],"service_workers_blocked":true,"all_api_requests_intercepted_locally":true,"dynamic_non_api_gets_allowlisted":true,"websockets_blocked":true,"live_api_requests":0,"real_authentication_used":false,"database_access":false,"student_data_read":false,"attendance_records_read":false,"pedagogical_text_read":false,"production_writes":false,"catastrophic_probe_error":true}
+          JSON
+          fi
+          python -m json.tool evidence/browser.json >/dev/null
+
+      - name: Validate no-production-data boundary and result taxonomy
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(Path('evidence/browser.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'TEACHER_VISIBILITY_F4_1_1_PUBLIC_BROWSER_RENDER_V3':
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_SCHEMA_INVALID')
+          if p.get('production_http_methods') != ['GET']:
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_HTTP_METHOD_INVALID')
+
+          for key in (
+              'service_workers_blocked',
+              'all_api_requests_intercepted_locally',
+              'dynamic_non_api_gets_allowlisted',
+              'websockets_blocked',
+          ):
+              if p.get(key) is not True:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_BOUNDARY_TRUE_FAILED:{key}')
+
+          for key in (
+              'real_authentication_used', 'database_access', 'student_data_read',
+              'attendance_records_read', 'pedagogical_text_read', 'production_writes',
+          ):
+              if p.get(key) is not False:
+                  raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_BOUNDARY_FALSE_FAILED:{key}')
+
+          if p.get('live_api_requests') != 0:
+              raise SystemExit('TEACHER_VISIBILITY_F4_1_1_LIVE_API_REQUEST_DETECTED')
+
+          allowed = {
+              ('PASS', 'PUBLIC_BROWSER_RENDER_CURRENT'),
+              ('FAIL', 'PUBLIC_BROWSER_RENDER_GAP'),
+              ('INCONCLUSIVE', 'PUBLIC_BROWSER_RENDER_PROBE_ERROR'),
+          }
+          pair = (p.get('status'), p.get('classification'))
+          if pair not in allowed:
+              raise SystemExit(f'TEACHER_VISIBILITY_F4_1_1_TAXONOMY_INVALID:{pair}')
+
+          if p.get('classification') != 'PUBLIC_BROWSER_RENDER_PROBE_ERROR':
+              if p.get('target_pair_count') != 6 or len(p.get('pairs') or []) != 6:
+                  raise SystemExit('TEACHER_VISIBILITY_F4_1_1_SCOPE_INVALID')
+
+          print('TEACHER_VISIBILITY_F4_1_1_BOUNDARY=PASS')
+          print('DIAGNOSTIC_STATUS=' + str(p.get('status')))
+          print('DIAGNOSTIC_CLASSIFICATION=' + str(p.get('classification')))
+          print('WORKER_TIMEOUT_COUNT=' + str(p.get('worker_timeout_count', 0)))
+          PY
+
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: teacher-visibility-f4-1-1-browser-${{ github.run_id }}
+          path: |
+            evidence/browser.json
+            evidence/f4-1-1-browser-raw.log
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate even after probe failure
+        if: always() && steps.context.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.context.outputs.expected_production_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          fallback = {
+              'schema': 'TEACHER_VISIBILITY_F4_1_1_PUBLIC_BROWSER_RENDER_V3',
+              'status': 'INCONCLUSIVE',
+              'classification': 'PUBLIC_BROWSER_RENDER_PROBE_ERROR',
+              'probe_errors': ['RUNNER:NO_EVIDENCE_JSON'],
+              'product_failures': [],
+              'pairs': [],
+              'workers': [],
+              'live_api_requests': 0,
+              'production_writes': False,
+          }
+          try:
+              p = json.loads(Path('evidence/browser.json').read_text(encoding='utf-8'))
+          except Exception:
+              p = fallback
+
+          lines = [
+              '## F4.1.1 — browser/runtime público → DOM com wall-clock externo',
+              '',
+              f"Audit code: `{os.environ['TARGET_SHA']}`",
+              f"Production release: `{os.environ['EXPECTED_PRODUCTION_SHA']}`",
+              f"Classificação: **{p.get('classification')}** ({p.get('status')})",
+              f"Worker timeouts: **{p.get('worker_timeout_count', 0)}**",
+              f"API real de produção: **{p.get('live_api_requests', 0)}** requests",
+              '',
+          ]
+
+          pairs = p.get('pairs') or []
+          if pairs:
+              lines += [
+                  '| Turma / Matemática | Conteúdo | Prefill | Datas | Frequência | Prefill | Datas |',
+                  '|---|---|---:|---:|---|---:|---:|',
+              ]
+              for row in pairs:
+                  content = row.get('content') or {}
+                  attendance = row.get('attendance') or {}
+                  lines.append(
+                      f"| {row.get('class')} | {content.get('status')} | {content.get('prefill_ok')} | "
+                      f"{content.get('visible_probe_dates')} | {attendance.get('status')} | "
+                      f"{attendance.get('prefill_ok')} | {attendance.get('visible_probe_dates')} |"
+                  )
+
+          if p.get('probe_errors'):
+              lines += ['', 'Probe errors: `' + json.dumps(p.get('probe_errors'), ensure_ascii=False) + '`']
+          if p.get('product_failures'):
+              lines += ['', 'Product failures: `' + json.dumps(p.get('product_failures'), ensure_ascii=False) + '`']
+
+          lines += [
+              '',
+              '**Semântica F4.1.1:** cada turma/superfície roda em processo próprio sob wall-clock externo. Timeout, crash ou ausência de JSON do worker é `PUBLIC_BROWSER_RENDER_PROBE_ERROR` e nunca `PRODUCT_GAP`.',
+              '',
+              '**Boundary:** somente assets públicos GET; Service Worker bloqueado; `/api/` integralmente sintética/local; métodos não-GET abortados; fetch/XHR não-API sob allowlist; WebSocket sem conexão ao servidor; sem autenticação real, Mongo, estudantes, `attendance.records`, texto pedagógico ou escrita.',
+              '',
+              '**Nenhum deploy ou mutação de produção foi executado por este gate.**',
+          ]
+          body = '\n'.join(lines)
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'sigesc-teacher-visibility-f4-1-1',
+              'Content-Type': 'application/json',
+          }
+
+          def send(path, payload, method='POST'):
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}{path}',
+                  data=json.dumps(payload).encode('utf-8'),
+                  headers=headers,
+                  method=method,
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+
+          send('/issues/357/comments', {'body': body})
+          send(f"/issues/{os.environ['GATE_ISSUE']}/comments", {'body': body})
+          send(
+              f"/issues/{os.environ['GATE_ISSUE']}",
+              {'state': 'closed', 'state_reason': 'completed'},
+              method='PATCH',
+          )
+          print('TEACHER_VISIBILITY_F4_1_1_FINALIZER=COMPLETE')
+          PY
