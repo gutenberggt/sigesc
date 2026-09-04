@@ -2,7 +2,8 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 import json
 import sys
-from types import SimpleNamespace
+
+import pytest
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -54,8 +55,17 @@ def test_f411_reuses_exact_six_pair_scope():
     assert module.f4.COMPONENT_NAME == "Matemática"
 
 
-def test_nominal_wall_clock_budget_is_below_job_ceiling():
+def test_nominal_wall_clock_budget_includes_kill_grace_and_version_worker():
+    expected = (
+        module.EXPECTED_SURFACE_COUNT
+        * (module.SURFACE_WALL_TIMEOUT_SECONDS + module.WORKER_KILL_GRACE_SECONDS)
+        + module.PUBLIC_VERSION_WALL_TIMEOUT_SECONDS
+        + module.WORKER_KILL_GRACE_SECONDS
+    )
+    assert module.NOMINAL_WORST_CASE_SECONDS == expected
     assert 5 <= module.SURFACE_WALL_TIMEOUT_SECONDS <= 60
+    assert 5 <= module.PUBLIC_VERSION_WALL_TIMEOUT_SECONDS <= 60
+    assert 0 <= module.WORKER_KILL_GRACE_SECONDS <= 5
     assert module.NOMINAL_WORST_CASE_SECONDS < 15 * 60
 
 
@@ -79,6 +89,49 @@ def test_extract_worker_json_uses_last_valid_structured_line():
         module.WORKER_PREFIX + json.dumps(payload),
     ])
     assert module._extract_worker_json(output) == payload
+
+
+def test_extract_prefixed_json_supports_version_worker():
+    payload = {
+        "schema": module.SCHEMA,
+        "version_worker": True,
+        "status": "PASS",
+        "public_version_sha": "a" * 40,
+    }
+    output = module.VERSION_PREFIX + json.dumps(payload)
+    assert module._extract_prefixed_json(output, module.VERSION_PREFIX) == payload
+
+
+def test_public_version_wall_timeout_is_contained_by_supervisor(monkeypatch):
+    class FakeProcess:
+        pid = 12345
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, timeout):
+            self.communicate_calls += 1
+            if self.communicate_calls == 1:
+                raise module.subprocess.TimeoutExpired(
+                    cmd="version-worker",
+                    timeout=timeout,
+                    output="",
+                )
+            self.returncode = -15
+            return "", None
+
+        def poll(self):
+            return self.returncode
+
+    fake = FakeProcess()
+    monkeypatch.setattr(module.subprocess, "Popen", lambda *args, **kwargs: fake)
+    monkeypatch.setattr(module, "_kill_worker_group", lambda proc: setattr(proc, "returncode", -15))
+
+    with pytest.raises(RuntimeError, match="PUBLIC_VERSION_WALL_TIMEOUT"):
+        module._validate_public_version_with_wall_clock("a" * 40)
+
+    assert fake.communicate_calls == 2
 
 
 def test_aggregate_worker_meta_counts_timeouts_and_boundary_events():
@@ -152,6 +205,7 @@ def test_catastrophic_result_is_read_only_and_inconclusive():
     assert result["live_api_requests"] == 0
     assert result["real_authentication_used"] is False
     assert result["database_access"] is False
+    assert result["probe_policy"]["public_version_process_isolation"] is True
 
 
 def test_source_seals_external_wall_clock_process_isolation_and_boundary():
@@ -160,12 +214,17 @@ def test_source_seals_external_wall_clock_process_isolation_and_boundary():
         "subprocess.Popen(",
         "start_new_session=True",
         "proc.communicate(timeout=SURFACE_WALL_TIMEOUT_SECONDS)",
+        "proc.communicate(timeout=PUBLIC_VERSION_WALL_TIMEOUT_SECONDS)",
         "except subprocess.TimeoutExpired",
         "os.killpg(proc.pid, signal.SIGTERM)",
         "os.killpg(proc.pid, signal.SIGKILL)",
+        "PUBLIC_VERSION_WALL_TIMEOUT",
+        "--version-worker",
+        "VERSION_PREFIX",
         "WALL_TIMEOUT",
         '"process_isolation": True',
         '"surface_isolation": True',
+        '"public_version_process_isolation": True',
         '"timeout_is_product_gap": False',
         'service_workers="block"',
         'if method != "GET":',
