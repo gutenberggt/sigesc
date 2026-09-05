@@ -22,6 +22,7 @@ emit_boundary(){
   echo 'PRODUCTION_WRITES=NO'
   echo 'PRODUCTION_BACKEND_PYTHON_EXECUTIONS=0'
   echo 'LIVE_TECHNICAL_IDS_EXPOSED=NO'
+  echo 'R1B1_MONGOSH_MODE=file_dev_stdin'
   echo 'TEMP_RESTORE_NETWORK=none'
   echo 'TEMP_RESTORE_PORTS=none'
   echo 'SOURCE_MOUNT=read_only'
@@ -29,6 +30,13 @@ emit_boundary(){
   echo 'PEDAGOGICAL_PLAINTEXT_EMITTED=NO'
   echo 'RAW_PROBE_OUTPUT_EMITTED=NO'
   echo 'EPHEMERAL_TECHNICAL_ID_FILES_CLEANED=YES'
+}
+emit_safe_seed_diagnostic(){
+  local line="${1:-}"
+  [[ -n "$line" ]] || return 0
+  if printf '%s\n' "$line" | grep -Eq '^LUIZ_GOMES_R1_0B1_LIVE_SEED_DIAGNOSTIC_JSON=\{"schema":"LUIZ_GOMES_R1_0B1_SEED_DIAGNOSTIC_V1","reason":"[A-Za-z0-9_.$-]{1,64}","diagnostic_stage":"[A-Za-z0-9_.$-]{1,64}","error_name":"[A-Za-z0-9_.$-]{1,64}"\}$'; then
+    printf '%s\n' "$line"
+  fi
 }
 # Distinct exit codes are intentionally non-semantic and contain no data.
 # The workflow already emits R1B1_REMOTE_SCAN_RC=<code>, so these values
@@ -41,9 +49,10 @@ emit_boundary(){
 [[ -s "$live_seed_host" && -s "$probe_template_host" ]] || { echo 'R1B1_STAGED_INPUT_MISSING'; emit_boundary; exit 10; }
 umask 077
 set +e
-docker exec -i "$mongo_container" mongosh --quiet < "$live_seed_host" > "$seed_raw" 2>&1
+docker exec -i "$mongo_container" mongosh --quiet --file /dev/stdin < "$live_seed_host" > "$seed_raw" 2>&1
 seed_rc=$?
 set -e
+diag_line="$(grep '^LUIZ_GOMES_R1_0B1_LIVE_SEED_DIAGNOSTIC_JSON=' "$seed_raw" | tail -n 1 || true)"
 seed_line="$(grep '^LUIZ_GOMES_R1_0B1_LIVE_SEED_JSON=' "$seed_raw" | tail -n 1 || true)"
 if [[ "$seed_rc" -ne 0 ]]; then
   rm -f "$seed_raw"
@@ -52,6 +61,7 @@ if [[ "$seed_rc" -ne 0 ]]; then
   exit 11
 fi
 if [[ -z "$seed_line" ]]; then
+  emit_safe_seed_diagnostic "$diag_line"
   rm -f "$seed_raw"
   echo 'R1B1_LIVE_SEED_MARKER_MISSING'
   emit_boundary
@@ -59,6 +69,7 @@ if [[ -z "$seed_line" ]]; then
 fi
 seed_json="${seed_line#LUIZ_GOMES_R1_0B1_LIVE_SEED_JSON=}"
 if [[ "$seed_json" != *'"status":"READY"'* ]]; then
+  emit_safe_seed_diagnostic "$diag_line"
   rm -f "$seed_raw"
   echo 'R1B1_LIVE_SEED_NOT_READY'
   emit_boundary
