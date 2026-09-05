@@ -1,0 +1,256 @@
+name: "R2.0b Sibling Class Global Ordinal Preflight"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/sibling_class_reconstruction_preflight_readonly.py'
+      - 'backend/scripts/sibling_class_reconstruction_mirror_policy.py'
+      - 'backend/scripts/sibling_class_reconstruction_global_ordinal_policy.py'
+      - 'backend/reconstruction_cases/luiz_math_r2_2026_feb_apr_global.json'
+      - 'backend/tests/test_sibling_class_reconstruction_global_ordinal_policy.py'
+      - '.github/workflows/r2-sibling-class-global-ordinal-preflight.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: r2-sibling-class-global-ordinal-preflight
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard R2.0b global ordinal read-only contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile composed engine and focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          cat backend/scripts/sibling_class_reconstruction_preflight_readonly.py \
+              backend/scripts/sibling_class_reconstruction_mirror_policy.py \
+              backend/scripts/sibling_class_reconstruction_global_ordinal_policy.py \
+              > /tmp/r2b-composed.py
+          python -m py_compile /tmp/r2b-composed.py
+          python -m json.tool backend/reconstruction_cases/luiz_math_r2_2026_feb_apr_global.json >/dev/null
+          pytest -q --noconftest \
+            backend/tests/test_sibling_class_reconstruction_preflight_readonly.py \
+            backend/tests/test_sibling_class_reconstruction_mirror_policy.py \
+            backend/tests/test_sibling_class_reconstruction_global_ordinal_policy.py
+
+  production-preflight:
+    name: Run R2.0b production global ordinal preflight read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[R2-SIBLING-CLASS-GLOBAL-PREFLIGHT] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve exact-SHA owner gate
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=(json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('R2B_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw:
+                  continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'R2B_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          expected={
+              'R2_SIBLING_CLASS_GLOBAL_PREFLIGHT':'AUTHORIZED',
+              'CONFIRMATION':'RUN_LUIZ_MATH_GLOBAL_ORDINAL_READ_ONLY',
+              'CASE_FILE':'backend/reconstruction_cases/luiz_math_r2_2026_feb_apr_global.json',
+              'TRACKING_ISSUE':'444',
+              'PREFLIGHT_TRACKING_ISSUE':'439',
+              'PARENT_TRACKING_ISSUE':'438',
+              'ROOT_TRACKING_ISSUE':'418',
+          }
+          for key,value in expected.items():
+              if values.get(key)!=value: raise SystemExit(f'R2B_CONTEXT_INVALID:{key}')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('R2B_SHA_INVALID')
+          if issue.get('title') != f'[R2-SIBLING-CLASS-GLOBAL-PREFLIGHT] {target}':
+              raise SystemExit('R2B_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-r2b'}
+          def get(path):
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          main=get('branches/main')['commit']['sha']; prod=get('branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'R2B_MAIN_MOVED:{main}')
+          if prod!=production: raise SystemExit(f'R2B_PRODUCTION_MOVED:{prod}')
+          for n in (444,439,438,418):
+              if get(f'issues/{n}').get('state')!='open': raise SystemExit(f'R2B_TRACKING_NOT_OPEN:{n}')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('R2B_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare SSH and composed engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "R2B_SECRET_MISSING:$v"; exit 1; }
+          done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/r2b_key; chmod 600 ~/.ssh/r2b_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          cat backend/scripts/sibling_class_reconstruction_preflight_readonly.py \
+              backend/scripts/sibling_class_reconstruction_mirror_policy.py \
+              backend/scripts/sibling_class_reconstruction_global_ordinal_policy.py \
+              > evidence/r2b-composed.py
+          python -m py_compile evidence/r2b-composed.py
+
+      - name: Resolve running backend container
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r2b_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute composed R2.0b global preflight
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/r2b-raw.log'
+          case_b64="$(base64 -w0 backend/reconstruction_cases/luiz_math_r2_2026_feb_apr_global.json)"
+          remote_command="timeout 420 docker exec -e SIBLING_RECONSTRUCTION_CASE_B64='${case_b64}' -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"r2b-composed.py\",\"exec\"),ns); case=ns[\"load_case_from_env\"](); print(\"R2B_GLOBAL_PREFLIGHT_JSON=\"+json.dumps(ns[\"run_live_preflight\"](case),ensure_ascii=False,sort_keys=True))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r2b_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < evidence/r2b-composed.py > "$raw" 2>&1
+          prefix='R2B_GLOBAL_PREFLIGHT_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line"
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw" evidence/r2b-composed.py
+
+      - name: Validate sanitized global manifest and read-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema')!='SIBLING_CLASS_RECONSTRUCTION_GLOBAL_PREFLIGHT_V1': raise SystemExit('R2B_SCHEMA_INVALID')
+          if p.get('case_id')!='luiz-math-jose-pereira-2026-feb-apr-global': raise SystemExit('R2B_CASE_INVALID')
+          if p.get('strategy')!='GLOBAL_ORDINAL_CONTINUOUS_PERIOD': raise SystemExit('R2B_STRATEGY_INVALID')
+          pairs=p.get('pairs') or []
+          if len(pairs)!=2: raise SystemExit('R2B_PAIR_SCOPE_INVALID')
+          for pair in pairs:
+              plan=pair.get('global_plan') or {}
+              if plan.get('status') not in {'READY_TO_APPLY','BLOCKED_REVIEW_REQUIRED'}: raise SystemExit('R2B_STATUS_INVALID')
+              if int(plan.get('paired_count',-1)) > min(int(plan.get('source_total',0)),int(plan.get('target_total',0))): raise SystemExit('R2B_PAIR_COUNT_INVALID')
+              if not re.fullmatch(r'[0-9a-f]{64}',str(plan.get('pair_manifest_hash') or '')): raise SystemExit('R2B_PAIR_HASH_INVALID')
+          b=p.get('boundaries') or {}
+          required_false=('production_writes','attendance_records_read','student_data_read','enrollment_data_read','grades_read','source_payload_plaintext_emitted','technical_ids_emitted','learning_objects_written','content_entries_written','attendance_written','automatic_source_expansion_by_number_of_classes','automatic_source_drop_or_repeat')
+          for key in required_false:
+              if b.get(key) is not False: raise SystemExit(f'R2B_BOUNDARY:{key}')
+          if b.get('mongo_reads_only') is not True or b.get('global_order_preserved') is not True: raise SystemExit('R2B_BOUNDARY_TRUE')
+          raw=json.dumps(p,ensure_ascii=False,sort_keys=True)
+          uuid_re=re.compile(r'(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b')
+          objectid_re=re.compile(r'(?i)(?<![0-9a-f])[0-9a-f]{24}(?![0-9a-f])')
+          if uuid_re.search(raw) or objectid_re.search(raw): raise SystemExit('R2B_RAW_TECHNICAL_ID_DETECTED')
+          if not re.fullmatch(r'[0-9a-f]{64}',str(p.get('manifest_hash') or '')): raise SystemExit('R2B_HASH_INVALID')
+          print('R2B_RUNTIME=PASS')
+          PY
+
+      - name: Upload sanitized R2.0b manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: r2b-global-ordinal-preflight-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish result and close execution gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          PRODUCTION_SHA: ${{ steps.context.outputs.production_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          lines=['## R2.0b — Pareamento Ordinal Global','',f"Target main: `{os.environ['TARGET_SHA']}`",f"Production observada: `{os.environ['PRODUCTION_SHA']}`",f"Manifest hash: `{p['manifest_hash']}`",f"Status geral: **`{p['summary']['overall_status']}`**",'']
+          for pair in p['pairs']:
+              plan=pair['global_plan']
+              blockers=', '.join(plan['blockers']) if plan['blockers'] else 'nenhum'
+              modes=', '.join(f"{k}:{v}" for k,v in (plan.get('target_write_mode_counts') or {}).items()) or '—'
+              src_months=', '.join(f"{k}:{v}" for k,v in (plan.get('source_month_counts') or {}).items())
+              dst_months=', '.join(f"{k}:{v}" for k,v in (plan.get('target_month_counts') or {}).items())
+              lines.append(f"### {pair['source_class']} → {pair['target_class']}")
+              lines.append(f"- **{plan['status']}** | fonte-total={plan['source_total']} | aulas-declaradas-na-fonte={plan['source_number_of_classes_total']} | frequência-alvo-total={plan['target_total']} | pareados={plan['paired_count']} | fonte-sem-par={plan['unpaired_source_count']} | destino-sem-par={plan['unpaired_target_count']} | cruzamentos-de-mês={plan['calendar_cross_month_pair_count']} | modos={modes} | bloqueios={blockers}")
+              lines.append(f"- distribuição origem: {src_months}; distribuição destino: {dst_months}")
+              if plan.get('unpaired_source_items'):
+                  lines.append('- fontes sem par: ' + ', '.join(item['source_date'] for item in plan['unpaired_source_items']))
+              if plan.get('unpaired_target_dates'):
+                  lines.append('- datas-alvo sem par: ' + ', '.join(item['target_date'] for item in plan['unpaired_target_dates']))
+          lines += ['', '**Regra:** fronteiras mensais não reiniciam o ordinal; `number_of_classes` é apenas diagnóstico e não duplica conteúdo automaticamente.', '**Boundary:** read-only; nenhuma escrita em produção; `attendance.records` não lido; sem estudantes/matrículas/notas; plaintext pedagógico não emitido; IDs técnicos não publicados; sem deploy.']
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json','User-Agent':'sigesc-r2b'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(method,path,payload):
+              r=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',data=json.dumps(payload).encode(),headers=headers,method=method)
+              with urllib.request.urlopen(r,timeout=30) as response: response.read()
+          for issue in ('444','439','438','418',os.environ['GATE_ISSUE']):
+              req('POST',f'issues/{issue}/comments',{'body':body})
+          req('PATCH',f"issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          print('R2B_RESULT_PUBLISHED=YES')
+          PY
