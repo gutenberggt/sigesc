@@ -15,6 +15,8 @@ def test_probe_resolves_historical_school_structurally_fail_closed():
     for marker in (
         "SCHOOL_CONTEXT_NOT_STRUCTURALLY_RESOLVED",
         "SCHOOL_CONTEXT_STRUCTURAL_AMBIGUITY",
+        "CLASSES_SCHOOL_ID_SIX_CLASSES_FOUR_MATH_CONTROLS",
+        "candidate_school_groups",
         "selected_by_six_classes_and_four_math_controls",
         "required_unique_classes",
         "controls_requiring_math_evidence",
@@ -22,6 +24,18 @@ def test_probe_resolves_historical_school_structurally_fail_closed():
         assert marker in src
     for name in ("6º ANO A", "6º ANO B", "7º ANO A", "7º ANO B", "8º ANO A", "9º ANO A"):
         assert name in src
+    assert 'const required = ["classes", "courses", "learning_objects"]' in src
+    assert "for (const schoolId of candidateSchoolIds)" in src
+
+
+def test_school_catalog_name_is_diagnostic_only_not_selection_key():
+    src = read(PROBE)
+    assert "catalogNameMatches" in src
+    assert "catalog_name_matches" in src
+    assert "candidateSchoolIds" in src
+    assert "qualifiedSchools" in src
+    assert "schoolNameCandidates" not in src
+    assert "SCHOOL_CONTEXT_NOT_FOUND" not in src
 
 
 def test_probe_infers_actor_without_users_lookup():
@@ -58,6 +72,7 @@ def test_probe_emits_no_ids_or_pedagogical_plaintext():
     assert "production_writes: false" in src
     assert "actorStaffId" in src
     assert "actorStaffId" not in src[src.find("emit(\"COMPLETED\"") :]
+    assert "schoolId" not in src[src.find("emit(\"COMPLETED\"") :]
 
 
 def test_runner_remains_isolated_and_read_only():
