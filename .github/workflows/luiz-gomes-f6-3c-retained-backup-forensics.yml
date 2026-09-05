@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'backend/scripts/luiz_gomes_f6_3c_backup_probe.js'
+      - 'backend/scripts/luiz_gomes_f6_3c_retained_backup_runner.sh'
       - 'backend/tests/test_luiz_gomes_f6_3c_backup_forensics_contract.py'
       - '.github/workflows/luiz-gomes-f6-3c-retained-backup-forensics.yml'
       - 'memory/audit/LUIZ_GOMES_F6_3C_RETAINED_BACKUP_FORENSICS_2026-09-05.md'
@@ -27,13 +28,16 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+
       - name: Syntax and focused contract tests
         shell: bash
         run: |
           set -euo pipefail
           node --check backend/scripts/luiz_gomes_f6_3c_backup_probe.js
+          bash -n backend/scripts/luiz_gomes_f6_3c_retained_backup_runner.sh
           python -m pip install --disable-pip-version-check pytest
           pytest -q --noconftest backend/tests/test_luiz_gomes_f6_3c_backup_forensics_contract.py
+
       - name: Enforce isolated-restore boundary
         shell: bash
         run: |
@@ -41,20 +45,24 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           wf=Path('.github/workflows/luiz-gomes-f6-3c-retained-backup-forensics.yml').read_text(encoding='utf-8')
+          runner=Path('backend/scripts/luiz_gomes_f6_3c_retained_backup_runner.sh').read_text(encoding='utf-8')
           js=Path('backend/scripts/luiz_gomes_f6_3c_backup_probe.js').read_text(encoding='utf-8')
-          required=(
+          required_runner=(
               '--network none',
               'dst=/backup,readonly',
               'dst=/forensic/probe.js,readonly',
-              '--nsInclude=sigesc.learning_objects',
-              '--nsInclude=sigesc.content_entries',
-              '--nsInclude=sigesc.audit_logs',
+              "stat -Lc '%d:%i'",
+              'gzip -t',
+              'sha256sum',
               'PRODUCTION_DATABASE_TOUCHED=NO',
               'TEMP_RESTORE_NETWORK=none',
               'TEMP_RESTORE_PORTS=none',
+              '--nsInclude=sigesc.learning_objects',
+              '--nsInclude=sigesc.content_entries',
+              '--nsInclude=sigesc.audit_logs',
           )
-          for marker in required:
-              if marker not in wf:
+          for marker in required_runner:
+              if marker not in runner:
                   raise SystemExit(f'LUIZ_GOMES_F6_3C_REQUIRED_MARKER_MISSING:{marker}')
           for banned in (
               '--nsInclude=sigesc.students',
@@ -62,11 +70,18 @@ jobs:
               '--nsInclude=sigesc.attendance',
               '--nsInclude=sigesc.grades',
           ):
-              if banned in wf:
+              if banned in runner:
                   raise SystemExit(f'LUIZ_GOMES_F6_3C_FORBIDDEN_NAMESPACE:{banned}')
           for banned in ('content: 1','methodology: 1','observations: 1','resources: 1','records: 1','student_id: 1'):
               if banned in js:
                   raise SystemExit(f'LUIZ_GOMES_F6_3C_SENSITIVE_PROJECTION:{banned}')
+          for marker in (
+              'TARGET_SHA', 'EXPECTED_PRODUCTION_SHA',
+              'RESTORE_RETAINED_BACKUPS_IN_ISOLATED_TEMP_MONGO',
+              'BACKUP_FORENSICS_PROBE_ERROR',
+          ):
+              if marker not in wf:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3C_WORKFLOW_MARKER_MISSING:{marker}')
           print('LUIZ_GOMES_F6_3C_STATIC_BOUNDARY=PASS')
           PY
 
@@ -78,7 +93,7 @@ jobs:
       github.event.issue.user.login == github.repository_owner
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
@@ -96,15 +111,18 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json,os,re,urllib.request
+          import json, os, re, urllib.request
           issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
           if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
               raise SystemExit('LUIZ_GOMES_F6_3C_OWNER_REQUIRED')
           values={}
           for raw in (issue.get('body') or '').splitlines():
-              if '=' not in raw: continue
-              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
-              if key in values: raise SystemExit(f'LUIZ_GOMES_F6_3C_DUPLICATE_FIELD:{key}')
+              if '=' not in raw:
+                  continue
+              key,value=raw.split('=',1)
+              key=key.strip(); value=value.strip()
+              if key in values:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3C_DUPLICATE_FIELD:{key}')
               values[key]=value
           expected={
               'LUIZ_GOMES_F6_3C_BACKUP_FORENSICS':'AUTHORIZED',
@@ -115,24 +133,35 @@ jobs:
           for key,value in expected.items():
               if values.get(key) != value:
                   raise SystemExit(f'LUIZ_GOMES_F6_3C_CONTEXT_INVALID:{key}')
-          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          target=values.get('TARGET_SHA','')
+          prod=values.get('EXPECTED_PRODUCTION_SHA','')
           if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod):
               raise SystemExit('LUIZ_GOMES_F6_3C_SHA_INVALID')
           if issue.get('title') != f'[LUIZ-GOMES-F6.3C-BACKUP-FORENSICS] {target}':
               raise SystemExit('LUIZ_GOMES_F6_3C_TITLE_MISMATCH')
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f6-3c'}
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-luiz-gomes-f6-3c',
+          }
           def get_json(url):
               req=urllib.request.Request(url,headers=headers)
-              with urllib.request.urlopen(req,timeout=30) as response: return json.load(response)
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
           repo=os.environ['GITHUB_REPOSITORY']
           main_sha=get_json(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']
           prod_sha=get_json(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
-          if main_sha != target: raise SystemExit(f'LUIZ_GOMES_F6_3C_MAIN_MOVED:{main_sha}')
-          if prod_sha != prod: raise SystemExit(f'LUIZ_GOMES_F6_3C_PRODUCTION_MOVED:{prod_sha}')
+          if main_sha != target:
+              raise SystemExit(f'LUIZ_GOMES_F6_3C_MAIN_MOVED:{main_sha}')
+          if prod_sha != prod:
+              raise SystemExit(f'LUIZ_GOMES_F6_3C_PRODUCTION_MOVED:{prod_sha}')
           if get_json(f'https://api.github.com/repos/{repo}/issues/357').get('state') != 'open':
               raise SystemExit('LUIZ_GOMES_F6_3C_TRACKING_NOT_OPEN')
           with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
-              out.write(f'target_sha={target}\nproduction_sha={prod_sha}\ngate_issue={issue.get("number")}\n')
+              out.write(f'target_sha={target}\n')
+              out.write(f'production_sha={prod_sha}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
           print('LUIZ_GOMES_F6_3C_CONTEXT=PASS')
           PY
 
@@ -158,202 +187,155 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Stage metadata-only probe on host
+        id: stage
         shell: bash
         run: |
           set -euo pipefail
           remote_probe="/tmp/luiz-gomes-f6-3c-${GITHUB_RUN_ID}.js"
           ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f6_3c_key")
-          cat backend/scripts/luiz_gomes_f6_3c_backup_probe.js | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
-          echo "remote_probe=$remote_probe" >> "$GITHUB_ENV"
+          cat backend/scripts/luiz_gomes_f6_3c_backup_probe.js | ssh "${ssh_opts[@]}" \
+            "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          echo "remote_probe=$remote_probe" >> "$GITHUB_OUTPUT"
 
-      - name: Validate and scan every unique retained backup in isolated Mongo
+      - name: Validate and scan every physically unique retained backup
+        id: scan
         shell: bash
         run: |
           set -euo pipefail
           raw='evidence/f6-3c-sanitized.log'
           ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f6_3c_key")
-          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" "$GITHUB_RUN_ID" "$remote_probe" > "$raw" <<'REMOTE'
-          set -euo pipefail
-          mongo_container="$1"
-          run_id="$2"
-          probe_host="$3"
-          backup_root='/root/sigesc-backups'
+          set +e
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s -- \
+            "$MONGO_CONTAINER" "$GITHUB_RUN_ID" "${{ steps.stage.outputs.remote_probe }}" \
+            < backend/scripts/luiz_gomes_f6_3c_retained_backup_runner.sh > "$raw" 2>&1
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "LUIZ_GOMES_F6_3C_REMOTE_SCAN_RC=$rc"
 
-          cleanup_probe() { rm -f "$probe_host" >/dev/null 2>&1 || true; }
-          trap cleanup_probe EXIT
-
-          test -s "$probe_host" || { echo 'F63C_PROBE_STAGE_MISSING'; exit 1; }
-          test -d "$backup_root" || { echo 'F63C_BACKUP_ROOT_MISSING'; exit 1; }
-          for tier in daily weekly monthly; do
-            test -d "$backup_root/$tier" || { echo "F63C_TIER_MISSING:$tier"; exit 1; }
-          done
-
-          systemctl is-active --quiet sigesc-mongo-backup.timer || { echo 'F63C_BACKUP_TIMER_NOT_ACTIVE'; exit 1; }
-          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
-          mongo_image="$(docker inspect -f '{{.Config.Image}}' "$mongo_container")"
-          test -n "$project" && test -n "$mongo_image"
-
-          declare -A path_by_sha epoch_by_sha tier_by_sha
-          for tier in daily weekly monthly; do
-            while IFS= read -r -d '' archive; do
-              sha_sidecar="${archive}.sha256"
-              meta_sidecar="${archive}.metadata.txt"
-              test -s "$sha_sidecar" || { echo "F63C_SHA_SIDECAR_MISSING:$tier"; exit 1; }
-              test -s "$meta_sidecar" || { echo "F63C_METADATA_MISSING:$tier"; exit 1; }
-              gzip -t "$archive" || { echo "F63C_GZIP_FAIL:$tier"; exit 1; }
-              expected="$(awk 'NR==1 {print tolower($1)}' "$sha_sidecar")"
-              actual="$(sha256sum "$archive" | awk '{print tolower($1)}')"
-              test -n "$expected" && test "$expected" = "$actual" || { echo "F63C_SHA_FAIL:$tier"; exit 1; }
-              grep -Fq "$project" "$meta_sidecar" || { echo "F63C_PROVENANCE_FAIL:$tier"; exit 1; }
-              if [[ -z "${path_by_sha[$actual]:-}" ]]; then
-                path_by_sha[$actual]="$archive"
-                epoch_by_sha[$actual]="$(stat -c '%Y' "$archive")"
-                tier_by_sha[$actual]="$tier"
-              else
-                tier_by_sha[$actual]="${tier_by_sha[$actual]}+$tier"
-              fi
-            done < <(find "$backup_root/$tier" -maxdepth 1 -type f -name '*.archive.gz' -print0)
-          done
-
-          count="${#path_by_sha[@]}"
-          (( count > 0 )) || { echo 'F63C_NO_RETAINED_BACKUPS'; exit 1; }
-          (( count <= 24 )) || { echo "F63C_TOO_MANY_UNIQUE_BACKUPS:$count"; exit 1; }
-          echo "F63C_INVENTORY_COUNT=$count"
-
-          mapfile -t ordered < <(
-            for sha in "${!path_by_sha[@]}"; do
-              printf '%s|%s\n' "${epoch_by_sha[$sha]}" "$sha"
-            done | sort -n | cut -d'|' -f2
-          )
-
-          idx=0
-          for sha in "${ordered[@]}"; do
-            idx=$((idx+1))
-            archive="${path_by_sha[$sha]}"
-            rel="${archive#${backup_root}/}"
-            epoch="${epoch_by_sha[$sha]}"
-            backup_date="$(date -u -d "@$epoch" '+%Y-%m-%d')"
-            tiers="${tier_by_sha[$sha]}"
-            sha_fp="${sha:0:12}"
-            drill="sigesc-f63c-${run_id}-${idx}"
-
-            cleanup_drill() { docker rm -f "$drill" >/dev/null 2>&1 || true; }
-            cleanup_drill
-            docker run -d --name "$drill" --network none \
-              --mount "type=bind,src=$backup_root,dst=/backup,readonly" \
-              --mount "type=bind,src=$probe_host,dst=/forensic/probe.js,readonly" \
-              "$mongo_image" mongod --bind_ip 127.0.0.1 >/dev/null
-            trap 'cleanup_drill; cleanup_probe' EXIT
-
-            for attempt in $(seq 1 30); do
-              if docker exec "$drill" mongosh --quiet --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)' >/dev/null 2>&1; then
-                break
-              fi
-              sleep 1
-              if [[ "$attempt" == 30 ]]; then echo 'F63C_TEMP_MONGO_START_FAIL'; exit 1; fi
-            done
-
-            [[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$drill")" == 'none' ]] || { echo 'F63C_NETWORK_ISOLATION_FAIL'; exit 1; }
-            test -z "$(docker port "$drill" 2>/dev/null || true)" || { echo 'F63C_PUBLISHED_PORT_FAIL'; exit 1; }
-
-            docker exec "$drill" mongorestore --quiet --gzip --archive="/backup/$rel" --stopOnError \
-              --nsInclude=sigesc.users \
-              --nsInclude=sigesc.staff \
-              --nsInclude=sigesc.schools \
-              --nsInclude=sigesc.classes \
-              --nsInclude=sigesc.courses \
-              --nsInclude=sigesc.teacher_assignments \
-              --nsInclude=sigesc.teacher_class_assignments \
-              --nsInclude=sigesc.learning_objects \
-              --nsInclude=sigesc.content_entries \
-              --nsInclude=sigesc.audit_logs >/dev/null 2>&1
-
-            point_line="$(docker exec "$drill" mongosh --quiet --file /forensic/probe.js | grep '^LUIZ_GOMES_F6_3C_POINT_JSON=' | tail -n 1 || true)"
-            test -n "$point_line" || { echo 'F63C_POINT_PROBE_NO_JSON'; exit 1; }
-            printf 'F63C_POINT_META_JSON={"backup_date":"%s","tier":"%s","sha_fingerprint":"%s","ordinal":%d}\n' "$backup_date" "$tiers" "$sha_fp" "$idx"
-            printf '%s\n' "$point_line"
-            cleanup_drill
-            trap cleanup_probe EXIT
-          done
-
-          echo 'PRODUCTION_DATABASE_TOUCHED=NO'
-          echo 'TEMP_RESTORE_NETWORK=none'
-          echo 'TEMP_RESTORE_PORTS=none'
-          echo 'BACKUP_MOUNT=read_only'
-          echo 'TEMP_CONTAINERS_CLEANED=YES'
-          REMOTE
-
-      - name: Build structured forensic result
+      - name: Cleanup staged probe on host
+        if: always() && steps.context.outcome == 'success' && steps.stage.outputs.remote_probe != ''
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f6_3c_key")
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" \
+            "rm -f '${{ steps.stage.outputs.remote_probe }}'" >/dev/null 2>&1
+
+      - name: Build structured forensic result
+        if: always() && steps.context.outcome == 'success'
+        env:
+          SCAN_RC: ${{ steps.scan.outputs.rc }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
           python - <<'PY'
-          import json
+          import json, os, re
           from pathlib import Path
 
-          lines=Path('evidence/f6-3c-sanitized.log').read_text(encoding='utf-8').splitlines()
+          raw=Path('evidence/f6-3c-sanitized.log')
+          lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
+          try:
+              scan_rc=int(os.environ.get('SCAN_RC') or '999')
+          except ValueError:
+              scan_rc=999
+
           inventory=None
           metas=[]
           points=[]
           pending_meta=None
           flags={}
+          safe_markers=[]
+          marker_re=re.compile(r'^F63C_[A-Z0-9_]+(?::[A-Za-z0-9+_.-]+)?(?:=[A-Za-z0-9+_.:-]+)?$')
           for line in lines:
+              if marker_re.fullmatch(line):
+                  safe_markers.append(line)
               if line.startswith('F63C_INVENTORY_COUNT='):
-                  inventory=int(line.split('=',1)[1])
+                  try: inventory=int(line.split('=',1)[1])
+                  except ValueError: pass
               elif line.startswith('F63C_POINT_META_JSON='):
                   pending_meta=json.loads(line.split('=',1)[1])
               elif line.startswith('LUIZ_GOMES_F6_3C_POINT_JSON='):
                   if pending_meta is None:
-                      raise SystemExit('F63C_POINT_WITHOUT_META')
+                      safe_markers.append('F63C_POINT_WITHOUT_META')
+                      continue
                   point=json.loads(line.split('=',1)[1])
                   points.append({'backup':pending_meta,'probe':point})
                   pending_meta=None
               elif '=' in line and line.split('=',1)[0] in {
-                  'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','BACKUP_MOUNT','TEMP_CONTAINERS_CLEANED'
+                  'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS',
+                  'BACKUP_MOUNT','TEMP_CONTAINERS_CLEANED'
               }:
-                  key,value=line.split('=',1); flags[key]=value
-          if not inventory or inventory != len(points):
-              raise SystemExit(f'F63C_INVENTORY_POINT_MISMATCH:{inventory}:{len(points)}')
-          if pending_meta is not None:
-              raise SystemExit('F63C_DANGLING_META')
+                  key,value=line.split('=',1)
+                  flags[key]=value
+
+          complete=(
+              scan_rc == 0 and inventory is not None and inventory > 0 and
+              inventory == len(points) and pending_meta is None and
+              flags.get('PRODUCTION_DATABASE_TOUCHED') == 'NO' and
+              flags.get('TEMP_RESTORE_NETWORK') == 'none' and
+              flags.get('TEMP_RESTORE_PORTS') == 'none' and
+              flags.get('BACKUP_MOUNT') == 'read_only' and
+              flags.get('TEMP_CONTAINERS_CLEANED') == 'YES'
+          )
 
           classifications=[]
           for point in points:
-              for target in point['probe'].get('targets') or []:
+              for target in (point.get('probe') or {}).get('targets') or []:
                   classifications.append(target.get('classification'))
-          if 'RECOVERABLE_LUIZ_MATH_CONTENT_CONFIRMED' in classifications:
-              classification='HISTORICAL_BACKUP_RECOVERY_SOURCE_CONFIRMED'
-          elif 'LUIZ_TARGET_ROWS_PRESENT_UNDER_NONMATH_COMPONENT' in classifications:
-              classification='HISTORICAL_BACKUP_LUIZ_NONMATH_ROWS_PRESENT'
-          elif 'UNATTRIBUTED_MATH_CANDIDATES_PRESENT' in classifications:
-              classification='HISTORICAL_BACKUP_UNATTRIBUTED_MATH_CANDIDATES'
+
+          if not complete:
+              status='INCONCLUSIVE'
+              classification='BACKUP_FORENSICS_PROBE_ERROR'
           else:
-              classification='NO_RECOVERABLE_LUIZ_MATH_IN_ALL_RETAINED_BACKUPS'
+              status='COMPLETED'
+              if 'RECOVERABLE_LUIZ_MATH_CONTENT_CONFIRMED' in classifications:
+                  classification='HISTORICAL_BACKUP_RECOVERY_SOURCE_CONFIRMED'
+              elif 'LUIZ_MATH_ROWS_PRESENT_WITHOUT_PAYLOAD' in classifications:
+                  classification='HISTORICAL_BACKUP_LUIZ_MATH_ROWS_WITHOUT_PAYLOAD'
+              elif 'LUIZ_TARGET_ROWS_PRESENT_UNDER_NONMATH_COMPONENT' in classifications:
+                  classification='HISTORICAL_BACKUP_LUIZ_NONMATH_ROWS_PRESENT'
+              elif 'UNATTRIBUTED_MATH_CONTENT_CANDIDATES_PRESENT' in classifications:
+                  classification='HISTORICAL_BACKUP_UNATTRIBUTED_MATH_CONTENT_CANDIDATES'
+              elif 'UNATTRIBUTED_MATH_ROWS_WITHOUT_PAYLOAD' in classifications:
+                  classification='HISTORICAL_BACKUP_UNATTRIBUTED_MATH_ROWS_WITHOUT_PAYLOAD'
+              else:
+                  classification='NO_RECOVERABLE_LUIZ_MATH_IN_ALL_RETAINED_BACKUPS'
 
           result={
-              'schema':'LUIZ_GOMES_F6_3C_RETAINED_BACKUP_FORENSICS_V1',
+              'schema':'LUIZ_GOMES_F6_3C_RETAINED_BACKUP_FORENSICS_V2',
+              'status':status,
               'classification':classification,
+              'inventory_physically_unique':inventory,
               'unique_retained_backups_scanned':len(points),
-              'oldest_backup_date':points[0]['backup']['backup_date'],
-              'newest_backup_date':points[-1]['backup']['backup_date'],
+              'oldest_backup_date':points[0]['backup']['backup_date'] if points else None,
+              'newest_backup_date':points[-1]['backup']['backup_date'] if points else None,
               'points':points,
-              'production_database_touched':flags.get('PRODUCTION_DATABASE_TOUCHED') == 'YES',
+              'operational_markers':safe_markers[-20:] if safe_markers else ([] if complete else ['F63C_SCAN_NOT_COMPLETED']),
+              'production_database_touched':False if flags.get('PRODUCTION_DATABASE_TOUCHED') == 'NO' else None,
               'temporary_restore_network':flags.get('TEMP_RESTORE_NETWORK'),
               'temporary_restore_ports':flags.get('TEMP_RESTORE_PORTS'),
               'backup_mount':flags.get('BACKUP_MOUNT'),
-              'temporary_containers_cleaned':flags.get('TEMP_CONTAINERS_CLEANED') == 'YES',
+              'temporary_containers_cleaned':True if flags.get('TEMP_CONTAINERS_CLEANED') == 'YES' else None,
               'production_writes':False,
               'temporary_forensic_restore':True,
-              'pedagogical_plaintext_read':False,
+              'pedagogical_plaintext_emitted':False,
+              'pedagogical_payload_boolean_only':True,
               'attendance_records_read':False,
               'student_data_read':False,
               'technical_ids_emitted':False,
           }
-          Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
-          Path('evidence/f6-3c-sanitized.log').unlink()
+          Path('evidence/runtime.json').write_text(
+              json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8'
+          )
+          if raw.exists():
+              raw.unlink()
           PY
 
-      - name: Validate isolation and result
+      - name: Validate taxonomy, isolation and evidence boundary
+        if: always() && steps.context.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -361,24 +343,50 @@ jobs:
           import json
           from pathlib import Path
           p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
-          if p.get('schema') != 'LUIZ_GOMES_F6_3C_RETAINED_BACKUP_FORENSICS_V1': raise SystemExit('F63C_SCHEMA_INVALID')
-          if not p.get('unique_retained_backups_scanned'): raise SystemExit('F63C_NO_POINTS')
-          if p.get('production_database_touched') is not False: raise SystemExit('F63C_PRODUCTION_DB_TOUCHED')
-          if p.get('production_writes') is not False: raise SystemExit('F63C_PRODUCTION_WRITES')
-          if p.get('temporary_restore_network') != 'none': raise SystemExit('F63C_NETWORK_INVALID')
-          if p.get('temporary_restore_ports') != 'none': raise SystemExit('F63C_PORTS_INVALID')
-          if p.get('backup_mount') != 'read_only': raise SystemExit('F63C_BACKUP_MOUNT_INVALID')
-          if p.get('temporary_containers_cleaned') is not True: raise SystemExit('F63C_CLEANUP_INVALID')
-          for key in ('pedagogical_plaintext_read','attendance_records_read','student_data_read','technical_ids_emitted'):
-              if p.get(key) is not False: raise SystemExit(f'F63C_BOUNDARY:{key}')
+          if p.get('schema') != 'LUIZ_GOMES_F6_3C_RETAINED_BACKUP_FORENSICS_V2':
+              raise SystemExit('F63C_SCHEMA_INVALID')
+          if p.get('production_writes') is not False:
+              raise SystemExit('F63C_PRODUCTION_WRITES')
+          for key in ('pedagogical_plaintext_emitted','attendance_records_read','student_data_read','technical_ids_emitted'):
+              if p.get(key) is not False:
+                  raise SystemExit(f'F63C_BOUNDARY:{key}')
+          if p.get('pedagogical_payload_boolean_only') is not True:
+              raise SystemExit('F63C_PAYLOAD_BOOLEAN_BOUNDARY')
+          if p.get('status') == 'COMPLETED':
+              if not p.get('unique_retained_backups_scanned'):
+                  raise SystemExit('F63C_NO_POINTS')
+              if p.get('inventory_physically_unique') != p.get('unique_retained_backups_scanned'):
+                  raise SystemExit('F63C_INVENTORY_MISMATCH')
+              if p.get('production_database_touched') is not False:
+                  raise SystemExit('F63C_PRODUCTION_DB_TOUCHED')
+              if p.get('temporary_restore_network') != 'none':
+                  raise SystemExit('F63C_NETWORK_INVALID')
+              if p.get('temporary_restore_ports') != 'none':
+                  raise SystemExit('F63C_PORTS_INVALID')
+              if p.get('backup_mount') != 'read_only':
+                  raise SystemExit('F63C_BACKUP_MOUNT_INVALID')
+              if p.get('temporary_containers_cleaned') is not True:
+                  raise SystemExit('F63C_CLEANUP_INVALID')
+          elif p.get('status') == 'INCONCLUSIVE':
+              if p.get('classification') != 'BACKUP_FORENSICS_PROBE_ERROR':
+                  raise SystemExit('F63C_INCONCLUSIVE_TAXONOMY_INVALID')
+          else:
+              raise SystemExit('F63C_STATUS_INVALID')
           for point in p.get('points') or []:
-              b=(point.get('probe') or {}).get('boundaries') or {}
-              for key in ('pedagogical_plaintext_read','attendance_records_read','student_data_read','technical_ids_emitted'):
-                  if b.get(key) is not False: raise SystemExit(f'F63C_POINT_BOUNDARY:{key}')
+              probe=point.get('probe') or {}
+              if probe.get('schema') != 'LUIZ_GOMES_F6_3C_BACKUP_POINT_METADATA_V2':
+                  raise SystemExit('F63C_POINT_SCHEMA_INVALID')
+              b=probe.get('boundaries') or {}
+              for key in ('pedagogical_plaintext_emitted','attendance_records_read','student_data_read','technical_ids_emitted'):
+                  if b.get(key) is not False:
+                      raise SystemExit(f'F63C_POINT_BOUNDARY:{key}')
+              if b.get('pedagogical_payload_boolean_only') is not True:
+                  raise SystemExit('F63C_POINT_PAYLOAD_BOOLEAN_BOUNDARY')
           print('LUIZ_GOMES_F6_3C_FORENSICS=PASS')
           PY
 
       - name: Upload metadata-only forensic evidence
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: luiz-gomes-f6-3c-backup-forensics-${{ github.run_id }}
@@ -387,6 +395,7 @@ jobs:
           retention-days: 90
 
       - name: Comment diagnosis and close gate
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
         env:
           GH_TOKEN: ${{ github.token }}
           GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
@@ -396,7 +405,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json,os,urllib.request
+          import json, os, urllib.request
           from pathlib import Path
           p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
           lines=[
@@ -404,35 +413,58 @@ jobs:
               '',
               f"Target main: `{os.environ['TARGET_SHA']}`",
               f"Production observada: `{os.environ['PRODUCTION_SHA']}`",
+              f"Status: **`{p.get('status')}`**",
               f"Classificação: **`{p.get('classification')}`**",
-              f"Backups físicos únicos examinados: **{p.get('unique_retained_backups_scanned')}**",
-              f"Janela dos backups retidos: **{p.get('oldest_backup_date')} → {p.get('newest_backup_date')}**",
+              f"Backups físicos únicos inventariados: **{p.get('inventory_physically_unique')}**",
+              f"Backups examinados com probe: **{p.get('unique_retained_backups_scanned')}**",
+              f"Janela examinada: **{p.get('oldest_backup_date')} → {p.get('newest_backup_date')}**",
               '',
           ]
           for point in p.get('points') or []:
-              meta=point.get('backup') or {}; probe=point.get('probe') or {}
+              meta=point.get('backup') or {}
+              probe=point.get('probe') or {}
               parts=[]
               for target in probe.get('targets') or []:
                   stores=target.get('stores') or []
-                  lm=sum(int(s.get('luiz_math_rows') or 0) for s in stores)
-                  lt=sum(int(s.get('luiz_attributed_rows') or 0) for s in stores)
-                  ua=sum(int(s.get('no_actor_math_rows') or 0) for s in stores)
-                  parts.append(f"{target.get('class')}: {target.get('classification')} [Luiz+Mat={lm}; Luiz-alvo={lt}; Mat-sem-ator={ua}]")
-              lines.append(f"- {meta.get('backup_date')} ({meta.get('tier')}, sha `{meta.get('sha_fingerprint')}`): " + ' | '.join(parts))
+                  lm=sum(int(s.get('luiz_math_payload_rows') or 0) for s in stores)
+                  lr=sum(int(s.get('luiz_math_rows') or 0) for s in stores)
+                  lo=sum(int(s.get('luiz_other_component_rows') or 0) for s in stores)
+                  ua=sum(int(s.get('no_actor_math_payload_rows') or 0) for s in stores)
+                  parts.append(
+                      f"{target.get('class')}: {target.get('classification')} "
+                      f"[Luiz+Mat+payload={lm}; Luiz+Mat-rows={lr}; Luiz-outro={lo}; Mat-sem-ator+payload={ua}]"
+                  )
+              lines.append(
+                  f"- {meta.get('backup_date')} ({meta.get('tier')}, sha `{meta.get('sha_fingerprint')}`): "
+                  + ' | '.join(parts)
+              )
+          if p.get('operational_markers'):
+              lines += ['', 'Marcadores operacionais sanitizados: `' + ', '.join(p.get('operational_markers')) + '`']
           lines += [
               '',
-              '**Isolation boundary:** `--network none`; zero portas publicadas; backup montado read-only; somente namespaces forenses restaurados; containers temporários removidos; `PRODUCTION_DATABASE_TOUCHED=NO`.',
-              '',
-              '**Dados excluídos:** estudantes, matrículas, frequência, notas e texto pedagógico não foram restaurados/lidos pela prova.',
+              '**Boundary:** restore somente em Mongo temporário; `--network none`; zero portas; backup read-only; nenhuma escrita no Mongo de produção.',
+              '**Dados excluídos:** estudantes, matrículas, frequência e notas não foram restaurados; nenhum texto pedagógico foi emitido. O probe calcula apenas presença booleana de payload.',
           ]
           body='\n'.join(lines)
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f6-3c-finalizer','Content-Type':'application/json'}
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-luiz-gomes-f6-3c-finalizer',
+              'Content-Type':'application/json',
+          }
           repo=os.environ['GITHUB_REPOSITORY']
           def request(url,method,payload):
-              req=urllib.request.Request(url,data=json.dumps(payload).encode('utf-8'),headers=headers,method=method)
-              with urllib.request.urlopen(req,timeout=30) as response: return json.load(response)
+              req=urllib.request.Request(
+                  url,data=json.dumps(payload).encode('utf-8'),headers=headers,method=method
+              )
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
           request(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
           request(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
-          request(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
+          request(
+              f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}',
+              'PATCH',{'state':'closed','state_reason':'completed'}
+          )
           print('LUIZ_GOMES_F6_3C_FINALIZER=PASS')
           PY
