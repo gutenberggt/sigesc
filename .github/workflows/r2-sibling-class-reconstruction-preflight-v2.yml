@@ -1,0 +1,232 @@
+name: "R2.0a Sibling Mirror Source + Legacy Binding Preflight"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/sibling_class_reconstruction_mirror_policy.py'
+      - 'backend/tests/test_sibling_class_reconstruction_mirror_policy.py'
+      - '.github/workflows/r2-sibling-class-reconstruction-preflight-v2.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: r2-sibling-class-reconstruction-preflight-v2
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard R2.0a mirror-source/legacy-binding contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile composed engine and focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          cat backend/scripts/sibling_class_reconstruction_preflight_readonly.py \
+              backend/scripts/sibling_class_reconstruction_mirror_policy.py \
+              > /tmp/r2-composed.py
+          python -m py_compile /tmp/r2-composed.py
+          pytest -q --noconftest \
+            backend/tests/test_sibling_class_reconstruction_preflight_readonly.py \
+            backend/tests/test_sibling_class_reconstruction_mirror_policy.py
+
+  production-preflight:
+    name: Run R2.0a production preflight read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[R2-SIBLING-CLASS-PREFLIGHT-V2] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve exact-SHA owner gate
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=(json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('R2A_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw:
+                  continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'R2A_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          expected={
+              'R2_SIBLING_CLASS_PREFLIGHT_V2':'AUTHORIZED',
+              'CONFIRMATION':'RUN_LUIZ_MATH_MIRROR_SOURCE_LEGACY_BINDING_READ_ONLY',
+              'CASE_FILE':'backend/reconstruction_cases/luiz_math_r2_2026_feb_apr.json',
+              'TRACKING_ISSUE':'439',
+              'PARENT_TRACKING_ISSUE':'438',
+              'ROOT_TRACKING_ISSUE':'418',
+          }
+          for key,value in expected.items():
+              if values.get(key)!=value: raise SystemExit(f'R2A_CONTEXT_INVALID:{key}')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('R2A_SHA_INVALID')
+          if issue.get('title') != f'[R2-SIBLING-CLASS-PREFLIGHT-V2] {target}':
+              raise SystemExit('R2A_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-r2a'}
+          def get(path):
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          main=get('branches/main')['commit']['sha']; prod=get('branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'R2A_MAIN_MOVED:{main}')
+          if prod!=production: raise SystemExit(f'R2A_PRODUCTION_MOVED:{prod}')
+          for n in (439,438,418):
+              if get(f'issues/{n}').get('state')!='open': raise SystemExit(f'R2A_TRACKING_NOT_OPEN:{n}')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('R2A_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare SSH and composed engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "R2A_SECRET_MISSING:$v"; exit 1; }
+          done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/r2a_key; chmod 600 ~/.ssh/r2a_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          cat backend/scripts/sibling_class_reconstruction_preflight_readonly.py \
+              backend/scripts/sibling_class_reconstruction_mirror_policy.py \
+              > evidence/r2-composed.py
+          python -m py_compile evidence/r2-composed.py
+
+      - name: Resolve running backend container
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r2a_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute composed R2.0a preflight
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/r2a-raw.log'
+          case_b64="$(base64 -w0 backend/reconstruction_cases/luiz_math_r2_2026_feb_apr.json)"
+          remote_command="timeout 420 docker exec -e SIBLING_RECONSTRUCTION_CASE_B64='${case_b64}' -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"r2-composed.py\",\"exec\"),ns); case=ns[\"load_case_from_env\"](); print(\"R2A_SIBLING_PREFLIGHT_JSON=\"+json.dumps(ns[\"run_live_preflight\"](case),ensure_ascii=False,sort_keys=True))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r2a_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < evidence/r2-composed.py > "$raw" 2>&1
+          prefix='R2A_SIBLING_PREFLIGHT_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line"
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw" evidence/r2-composed.py
+
+      - name: Validate sanitized manifest and read-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema')!='SIBLING_CLASS_RECONSTRUCTION_PREFLIGHT_V1': raise SystemExit('R2A_SCHEMA_INVALID')
+          if p.get('case_id')!='luiz-math-jose-pereira-2026-feb-apr': raise SystemExit('R2A_CASE_INVALID')
+          months=[m for pair in p.get('pairs') or [] for m in pair.get('months') or []]
+          if len(months)!=6: raise SystemExit('R2A_MONTH_SCOPE_INVALID')
+          b=p.get('boundaries') or {}
+          if b.get('production_writes') is not False or b.get('attendance_records_read') is not False: raise SystemExit('R2A_BOUNDARY')
+          if b.get('source_payload_plaintext_emitted') is not False or b.get('technical_ids_emitted') is not False: raise SystemExit('R2A_BOUNDARY_PUBLICATION')
+          raw=json.dumps(p,ensure_ascii=False,sort_keys=True)
+          uuid_re=re.compile(r'(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b')
+          objectid_re=re.compile(r'(?i)(?<![0-9a-f])[0-9a-f]{24}(?![0-9a-f])')
+          if uuid_re.search(raw) or objectid_re.search(raw): raise SystemExit('R2A_RAW_TECHNICAL_ID_DETECTED')
+          if not re.fullmatch(r'[0-9a-f]{64}',str(p.get('manifest_hash') or '')): raise SystemExit('R2A_HASH_INVALID')
+          print('R2A_RUNTIME=PASS')
+          PY
+
+      - name: Upload sanitized R2.0a manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: r2a-sibling-class-preflight-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish result and close execution gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          PRODUCTION_SHA: ${{ steps.context.outputs.production_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          lines=['## R2.0a — Preflight turma-espelho (origem institucional + binding legado)','',f"Target main: `{os.environ['TARGET_SHA']}`",f"Production observada: `{os.environ['PRODUCTION_SHA']}`",f"Manifest hash: `{p['manifest_hash']}`",f"Status geral: **`{p['summary']['overall_status']}`**",'']
+          for pair in p['pairs']:
+              lines.append(f"### {pair['source_class']} → {pair['target_class']}")
+              for m in pair['months']:
+                  blockers=', '.join(m['blockers']) if m['blockers'] else 'nenhum'
+                  modes=', '.join(f"{k}:{v}" for k,v in (m.get('target_write_mode_counts') or {}).items()) or '—'
+                  lines.append(f"- {m['month']}: **{m['status']}** | fonte={m['source_content_count']} (canonical={m.get('source_canonical_count',0)}, legacy={m.get('source_legacy_count',0)}, Luiz={m.get('source_target_teacher_row_count',0)}, outro={m.get('source_other_actor_row_count',0)}, sem-autoria={m.get('source_unattributed_legacy_row_count',0)}) | frequência-alvo={m['target_attendance_date_count']} | ocupados={m['target_existing_content_on_anchor_dates']} | binding-não-resolvido={m.get('target_unresolved_binding_date_count',0)} | modos={modes} | bloqueios={blockers}")
+          lines += ['', '**Boundary:** read-only; nenhuma escrita em produção; `attendance.records` não lido; sem estudantes/matrículas/notas; plaintext pedagógico não emitido; IDs técnicos não publicados; sem deploy.']
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json','User-Agent':'sigesc-r2a'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(method,path,payload):
+              r=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',data=json.dumps(payload).encode(),headers=headers,method=method)
+              with urllib.request.urlopen(r,timeout=30) as response: response.read()
+          for issue in ('439','438',os.environ['GATE_ISSUE']): req('POST',f'issues/{issue}/comments',{'body':body})
+          req('PATCH',f"issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          print('R2A_RESULT_PUBLISHED=YES')
+          PY
