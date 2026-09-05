@@ -1,0 +1,21 @@
+{
+  "schema": "SIBLING_CLASS_RECONSTRUCTION_CASE_V1",
+  "case_id": "luiz-math-jose-pereira-2026-feb-apr-global",
+  "teacher_name": "Luiz Gomes dos Santos",
+  "school_name": "E M E I E F Jose Pereira Barbosa",
+  "component_name": "Matemática",
+  "academic_year": 2026,
+  "start_date": "2026-02-01",
+  "end_date": "2026-05-01",
+  "strategy": "GLOBAL_ORDINAL_CONTINUOUS_PERIOD",
+  "pairs": [
+    {
+      "source_class": "8º ANO B",
+      "target_class": "8º ANO A"
+    },
+    {
+      "source_class": "9º ANO B",
+      "target_class": "9º ANO A"
+    }
+  ]
+}
