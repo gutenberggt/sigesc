@@ -131,6 +131,6 @@ def test_document_seals_semantic_non_inference_rule():
         "simetria",
         "r1.0c",
         "r1.1",
-        "sem deploy",
+        "nenhum deploy",
     ):
         assert marker in src
