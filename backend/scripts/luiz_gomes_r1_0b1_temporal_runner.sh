@@ -33,9 +33,10 @@ emit_boundary(){
 # Distinct exit codes are intentionally non-semantic and contain no data.
 # The workflow already emits R1B1_REMOTE_SCAN_RC=<code>, so these values
 # identify only the controlled failure stage without exposing raw logs.
-# 10 staged input; 11 live seed exec/marker; 12 live seed not ready;
+# 10 staged input; 11 live seed execution; 12 live seed not ready;
 # 13 dump selection; 14 canonical tree; 15 Mongo image; 16 temp Mongo start;
-# 17 network isolation; 18 published port; 19 restore; 20 probe marker.
+# 17 network isolation; 18 published port; 19 restore; 20 probe marker;
+# 21 live seed marker missing.
 
 [[ -s "$live_seed_host" && -s "$probe_template_host" ]] || { echo 'R1B1_STAGED_INPUT_MISSING'; emit_boundary; exit 10; }
 umask 077
@@ -44,11 +45,17 @@ docker exec -i "$mongo_container" mongosh --quiet < "$live_seed_host" > "$seed_r
 seed_rc=$?
 set -e
 seed_line="$(grep '^LUIZ_GOMES_R1_0B1_LIVE_SEED_JSON=' "$seed_raw" | tail -n 1 || true)"
-if [[ "$seed_rc" -ne 0 || -z "$seed_line" ]]; then
+if [[ "$seed_rc" -ne 0 ]]; then
   rm -f "$seed_raw"
-  echo "R1B1_LIVE_SEED_EXIT_CODE=$seed_rc"
+  echo 'R1B1_LIVE_SEED_EXEC_FAILED'
   emit_boundary
   exit 11
+fi
+if [[ -z "$seed_line" ]]; then
+  rm -f "$seed_raw"
+  echo 'R1B1_LIVE_SEED_MARKER_MISSING'
+  emit_boundary
+  exit 21
 fi
 seed_json="${seed_line#LUIZ_GOMES_R1_0B1_LIVE_SEED_JSON=}"
 if [[ "$seed_json" != *'"status":"READY"'* ]]; then
