@@ -1,4 +1,11 @@
-from backend.scripts import luiz_gomes_f6_2_lineage_content_digest_readonly as mod
+import importlib.util
+from pathlib import Path
+
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "luiz_gomes_f6_2_lineage_content_digest_readonly.py"
+spec = importlib.util.spec_from_file_location("luiz_gomes_f6_2", SCRIPT)
+mod = importlib.util.module_from_spec(spec)
+assert spec and spec.loader
+spec.loader.exec_module(mod)
 
 
 def test_scope_is_exact():
