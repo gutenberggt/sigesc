@@ -40,7 +40,7 @@
     },
   }, extra)));
 
-  const required = ["schools", "classes", "courses", "learning_objects"];
+  const required = ["classes", "courses", "learning_objects"];
   const missing = required.filter((name) => !exists(name));
   if (missing.length) {
     emit("INCONCLUSIVE", "REQUIRED_COLLECTION_MISSING", { context: { missing_count: missing.length } });
@@ -77,22 +77,31 @@
     }).toArray();
   };
 
-  const schoolNameCandidates = d.schools.find({}, { _id: 0, id: 1, name: 1 }).toArray()
-    .filter((r) => norm(r.name) === norm(SCHOOL) && sid(r.id));
-  if (!schoolNameCandidates.length) {
-    emit("INCONCLUSIVE", "SCHOOL_CONTEXT_NOT_FOUND", { school_resolution: { name_matches: 0, structural_matches: 0 } });
-    return;
+  // The 2026-08-18 ad-hoc dump does not reliably expose the historical school
+  // through schools.name. Derive the school identity from the relational SSoT:
+  // exactly one classes.school_id must contain all six expected classes, each
+  // uniquely, and Math evidence in every one of the four control classes.
+  const allClasses = d.classes.find({}, { _id: 0, id: 1, school_id: 1, name: 1, academic_year: 1 }).toArray();
+  const relevantClasses = allClasses.filter((r) =>
+    sid(r.id) && sid(r.school_id) &&
+    (!sid(r.academic_year) || sid(r.academic_year) === "2026") &&
+    ALL_CLASSES.some((name) => norm(r.name) === norm(name))
+  );
+  const candidateSchoolIds = [...new Set(relevantClasses.map((r) => sid(r.school_id)).filter(Boolean))];
+
+  let catalogNameMatches = null;
+  if (exists("schools")) {
+    catalogNameMatches = d.schools.find({}, { _id: 0, name: 1, nome: 1 }).toArray()
+      .filter((r) => norm(r.name || r.nome) === norm(SCHOOL)).length;
   }
 
-  const allClasses = d.classes.find({}, { _id: 0, id: 1, school_id: 1, name: 1, academic_year: 1 }).toArray();
   const qualifiedSchools = [];
-  for (const school of schoolNameCandidates) {
-    const schoolId = sid(school.id);
-    const classes = allClasses.filter((r) => sid(r.school_id) === schoolId && (!sid(r.academic_year) || sid(r.academic_year) === "2026"));
+  for (const schoolId of candidateSchoolIds) {
+    const classes = relevantClasses.filter((r) => sid(r.school_id) === schoolId);
     const classMap = {};
     let sixUnique = true;
     for (const name of ALL_CLASSES) {
-      const matches = classes.filter((r) => norm(r.name) === norm(name) && sid(r.id));
+      const matches = classes.filter((r) => norm(r.name) === norm(name));
       if (matches.length !== 1) {
         sixUnique = false;
         break;
@@ -109,10 +118,13 @@
   if (qualifiedSchools.length !== 1) {
     emit("INCONCLUSIVE", qualifiedSchools.length === 0 ? "SCHOOL_CONTEXT_NOT_STRUCTURALLY_RESOLVED" : "SCHOOL_CONTEXT_STRUCTURAL_AMBIGUITY", {
       school_resolution: {
-        name_matches: schoolNameCandidates.length,
+        source: "CLASSES_SCHOOL_ID_SIX_CLASSES_FOUR_MATH_CONTROLS",
+        catalog_name_matches: catalogNameMatches,
+        candidate_school_groups: candidateSchoolIds.length,
         structural_matches: qualifiedSchools.length,
         required_unique_classes: ALL_CLASSES.length,
         controls_requiring_math_evidence: CONTROLS.length,
+        selected_by_six_classes_and_four_math_controls: false,
       },
     });
     return;
@@ -120,6 +132,15 @@
 
   const selected = qualifiedSchools[0];
   const classByName = selected.classMap;
+  const schoolResolution = {
+    source: "CLASSES_SCHOOL_ID_SIX_CLASSES_FOUR_MATH_CONTROLS",
+    catalog_name_matches: catalogNameMatches,
+    candidate_school_groups: candidateSchoolIds.length,
+    structural_matches: 1,
+    required_unique_classes: ALL_CLASSES.length,
+    controls_requiring_math_evidence: CONTROLS.length,
+    selected_by_six_classes_and_four_math_controls: true,
+  };
 
   const staffById = new Map();
   const staffIdsByUser = new Map();
@@ -217,11 +238,7 @@
 
   if (!actorPrincipal) {
     emit("INCONCLUSIVE", "HISTORICAL_ACTOR_NOT_UNIQUELY_INFERRED", {
-      school_resolution: {
-        name_matches: schoolNameCandidates.length,
-        structural_matches: 1,
-        selected_by_six_classes_and_four_math_controls: true,
-      },
+      school_resolution: schoolResolution,
       actor_inference: {
         status: "NOT_DERIVED",
         source: null,
@@ -263,8 +280,24 @@
     metadataCoveragePercent = totalRows ? Math.round((10000 * actorRows / totalRows)) / 100 : 0;
     if (totalRows > 0 && supportingClasses > 0 && metadataCoveragePercent < 20) {
       emit("INCONCLUSIVE", "ACTOR_ASSIGNMENT_METADATA_CONFLICT", {
-        school_resolution: { name_matches: schoolNameCandidates.length, structural_matches: 1, selected_by_six_classes_and_four_math_controls: true },
-        actor_inference: { status: "CONFLICT", source: actorSource, principal_kind: actorKind, control_class_support: controlClassSupport, metadata_coverage_percent: metadataCoveragePercent },
+        school_resolution: schoolResolution,
+        actor_inference: {
+          status: "CONFLICT",
+          source: actorSource,
+          principal_kind: actorKind,
+          control_class_support: controlClassSupport,
+          metadata_coverage_percent: metadataCoveragePercent,
+        },
+        boundaries: {
+          actor_identity_derived_without_user_lookup: true,
+          technical_ids_emitted: false,
+          pedagogical_plaintext_emitted: false,
+          pedagogical_payload_boolean_only: true,
+          attendance_records_read: false,
+          student_data_read: false,
+          production_writes: false,
+          school_identity_structurally_derived: true,
+        },
       });
       return;
     }
@@ -318,11 +351,7 @@
   else overall = "HISTORICAL_ACTOR_ABSENT_FROM_BOTH_TARGETS_20260818";
 
   emit("COMPLETED", overall, {
-    school_resolution: {
-      name_matches: schoolNameCandidates.length,
-      structural_matches: 1,
-      selected_by_six_classes_and_four_math_controls: true,
-    },
+    school_resolution: schoolResolution,
     actor_inference: {
       status: "EXACT_CONTROL_DERIVED",
       source: actorSource,
