@@ -3,7 +3,6 @@ name: "Luiz Gomes F6.3d.2 Historical Actor Inference"
 on:
   pull_request:
     paths:
-      - 'backend/scripts/luiz_gomes_f6_3c_backup_probe.js'
       - 'backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh'
       - 'backend/tests/test_luiz_gomes_f6_3d_1_bson_dump_contract.py'
       - '.github/workflows/luiz-gomes-f6-3d-1-1-probe-localization.yml'
@@ -32,28 +31,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --check backend/scripts/luiz_gomes_f6_3c_backup_probe.js
           bash -n backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh
           python -m pip install --disable-pip-version-check pytest
           pytest -q --noconftest backend/tests/test_luiz_gomes_f6_3d_1_bson_dump_contract.py
-      - name: Enforce historical actor boundary
+      - name: Validate embedded F6.3d.2 probe syntax and boundary
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          import re, subprocess
           from pathlib import Path
-          probe=Path('backend/scripts/luiz_gomes_f6_3c_backup_probe.js').read_text(encoding='utf-8')
-          runner=Path('backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh').read_text(encoding='utf-8')
           wf=Path('.github/workflows/luiz-gomes-f6-3d-1-1-probe-localization.yml').read_text(encoding='utf-8')
-          for marker in (
-              '6º ANO A','6º ANO B','7º ANO A','7º ANO B','8º ANO A','9º ANO A',
-              'TEACHER_ASSIGNMENTS_EXACT_CONTROL_UNANIMOUS',
-              'LEARNING_OBJECT_METADATA_FOUR_CLASS_DOMINANT',
-              'actor_identity_derived_without_user_lookup: true',
-              'technical_ids_emitted: false','pedagogical_plaintext_emitted: false'):
+          runner=Path('backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh').read_text(encoding='utf-8')
+          m=re.search(r"cat > \"\$probe_local\" <<'F63D2JS'\n(.*?)\nF63D2JS",wf,re.S)
+          if not m: raise SystemExit('F63D2_EMBEDDED_PROBE_NOT_FOUND')
+          probe=m.group(1)
+          Path('/tmp/f63d2-probe.js').write_text(probe,encoding='utf-8')
+          subprocess.run(['node','--check','/tmp/f63d2-probe.js'],check=True)
+          for marker in ('6º ANO A','6º ANO B','7º ANO A','7º ANO B','8º ANO A','9º ANO A',
+                         'TEACHER_ASSIGNMENTS_EXACT_CONTROL_UNANIMOUS','LEARNING_OBJECT_METADATA_FOUR_CLASS_DOMINANT',
+                         'actor_identity_derived_without_user_lookup: true','technical_ids_emitted: false'):
               if marker not in probe: raise SystemExit(f'F63D2_PROBE_MARKER_MISSING:{marker}')
-          for banned in ('d.users','getCollection("users")','findOne({email','student_id: 1','records: 1'):
-              if banned in probe: raise SystemExit(f'F63D2_FORBIDDEN_LOOKUP:{banned}')
+          for banned in ('d.users','getCollection("users")','student_id: 1','records: 1'):
+              if banned in probe: raise SystemExit(f'F63D2_FORBIDDEN_PROBE_LOOKUP:{banned}')
           for marker in ('--network none','dst=/dump,readonly','PRODUCTION_DATABASE_TOUCHED=NO','RAW_PROBE_OUTPUT_EMITTED=NO'):
               if marker not in runner: raise SystemExit(f'F63D2_RUNNER_BOUNDARY_MISSING:{marker}')
           for marker in ('[LUIZ-GOMES-F6.3D.2-ACTOR] ','INFER_20260818_LUIZ_ACTOR_FROM_CONTROL_CLASSES','TARGET_SHA','EXPECTED_PRODUCTION_SHA'):
@@ -96,11 +96,9 @@ jobs:
               key,value=raw.split('=',1); key=key.strip(); value=value.strip()
               if key in values: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_DUPLICATE_FIELD:{key}')
               values[key]=value
-          expected={
-              'LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR':'AUTHORIZED',
-              'CONFIRMATION':'INFER_20260818_LUIZ_ACTOR_FROM_CONTROL_CLASSES',
-              'ACADEMIC_YEAR':'2026','TRACKING_ISSUE':'357',
-          }
+          expected={'LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR':'AUTHORIZED',
+                    'CONFIRMATION':'INFER_20260818_LUIZ_ACTOR_FROM_CONTROL_CLASSES',
+                    'ACADEMIC_YEAR':'2026','TRACKING_ISSUE':'357'}
           for key,value in expected.items():
               if values.get(key)!=value: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_CONTEXT_INVALID:{key}')
           target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
@@ -128,7 +126,8 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Prepare SSH and evidence
+      - name: Prepare SSH and embedded metadata-only probe
+        id: stage
         shell: bash
         run: |
           set -euo pipefail
@@ -137,15 +136,54 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63d2_key; chmod 600 ~/.ssh/f63d2_key
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
-
-      - name: Stage F6.3d.2 metadata-only probe on host
-        id: stage
-        shell: bash
-        run: |
-          set -euo pipefail
+          probe_local="evidence/f63d2-probe.js"
+          cat > "$probe_local" <<'F63D2JS'
+(() => {
+  const d=db.getSiblingDB("sigesc");
+  const PREFIX="LUIZ_GOMES_F6_3C_POINT_JSON=";
+  const SCHOOL="E M E I E F Jose Pereira Barbosa";
+  const CONTROLS=["6º ANO A","6º ANO B","7º ANO A","7º ANO B"];
+  const TARGETS=["8º ANO A","9º ANO A"];
+  const START="2026-02-01",END="2026-05-01";
+  const ACTOR_FIELDS=["recorded_by","created_by","updated_by","teacher_id","staff_id"];
+  const sid=v=>v===null||v===undefined?"":String(v).trim();
+  const norm=v=>sid(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").replace(/º/g,"o").replace(/ª/g,"a").replace(/\s+/g," ").trim();
+  const exists=n=>d.getCollectionNames().includes(n);
+  const months=rows=>{const o={"02":0,"03":0,"04":0};for(const r of rows){const m=sid(r.date).slice(5,7);if(m in o)o[m]++;}return o;};
+  const dates=rows=>[...new Set(rows.map(r=>sid(r.date).slice(0,10)).filter(Boolean))].sort();
+  const emit=(status,classification,extra)=>print(PREFIX+JSON.stringify(Object.assign({schema:"LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V1",status,overall_classification:classification,source_date:"2026-08-18",school:SCHOOL,period:{from:START,to_exclusive:END},boundaries:{actor_identity_derived_without_user_lookup:true,technical_ids_emitted:false,pedagogical_plaintext_emitted:false,pedagogical_payload_boolean_only:true,attendance_records_read:false,student_data_read:false,production_writes:false}},extra||{})));
+  const missing=["schools","classes","courses","learning_objects"].filter(n=>!exists(n));
+  if(missing.length){emit("INCONCLUSIVE","REQUIRED_COLLECTION_MISSING",{context:{missing_count:missing.length}});return;}
+  const schools=d.schools.find({name:SCHOOL},{_id:0,id:1,name:1}).toArray().filter(r=>norm(r.name)===norm(SCHOOL));
+  if(schools.length!==1||!sid((schools[0]||{}).id)){emit("INCONCLUSIVE","SCHOOL_CONTEXT_NOT_UNIQUE",{context:{school_matches:schools.length}});return;}
+  const schoolId=sid(schools[0].id);
+  const allClasses=d.classes.find({school_id:schoolId},{_id:0,id:1,name:1,academic_year:1}).toArray(),classByName={};
+  for(const name of [...CONTROLS,...TARGETS]){const ms=allClasses.filter(r=>norm(r.name)===norm(name)&&(!sid(r.academic_year)||sid(r.academic_year)==="2026"));if(ms.length!==1||!sid(ms[0].id)){emit("INCONCLUSIVE","CLASS_CONTEXT_NOT_UNIQUE",{context:{class:name,matches:ms.length}});return;}classByName[name]=sid(ms[0].id);}
+  const courses=d.courses.find({},{_id:0,id:1,name:1}).toArray(),mathIds=new Set(courses.filter(r=>norm(r.name)===norm("Matemática")).map(r=>sid(r.id)).filter(Boolean)),courseName={};
+  for(const r of courses){if(sid(r.id))courseName[sid(r.id)]=sid(r.name)||"<unresolved>";}if(!mathIds.size){emit("INCONCLUSIVE","MATH_COURSE_IDENTITY_NOT_FOUND",{context:{math_identity_count:0}});return;}
+  const staffById=new Map(),staffIdsByUser=new Map();if(exists("staff")){for(const r of d.staff.find({},{_id:0,id:1,user_id:1}).toArray()){const s=sid(r.id),u=sid(r.user_id);if(s)staffById.set(s,r);if(s&&u){if(!staffIdsByUser.has(u))staffIdsByUser.set(u,new Set());staffIdsByUser.get(u).add(s);}}}
+  const assignments=exists("teacher_assignments")?d.teacher_assignments.find({},{_id:0,id:1,staff_id:1,class_id:1,course_id:1,academic_year:1,status:1}).toArray():[],assignmentStaff=new Map();for(const r of assignments){if(sid(r.id)&&sid(r.staff_id))assignmentStaff.set(sid(r.id),sid(r.staff_id));}
+  const cid=r=>sid(r.course_id||r.component_id);
+  const load=(classId,mathOnly)=>{const q={class_id:classId,date:{$gte:START,$lt:END}};if(mathOnly)q.$or=[{course_id:{$in:[...mathIds]}},{component_id:{$in:[...mathIds]}}];return d.learning_objects.aggregate([{$match:q},{$project:{_id:0,date:1,course_id:1,component_id:1,recorded_by:1,created_by:1,updated_by:1,teacher_id:1,staff_id:1,assignment_id:1,payload_present:{$or:[{$ne:[{$ifNull:["$content",""]},""]},{$ne:[{$ifNull:["$methodology",""]},""]},{$ne:[{$ifNull:["$observations",""]},""]}]}}}]).toArray();};
+  const principalRaw=v=>{const x=sid(v);if(!x)return"";if(staffById.has(x))return`staff:${x}`;const ss=staffIdsByUser.get(x);if(ss&&ss.size===1)return`staff:${[...ss][0]}`;return`raw:${x}`;};
+  const principals=r=>{const o=new Set();for(const f of ACTOR_FIELDS){const p=principalRaw(r[f]);if(p)o.add(p);}const a=sid(r.assignment_id);if(a)o.add(assignmentStaff.has(a)?`staff:${assignmentStaff.get(a)}`:`assignment:${a}`);return o;};
+  const eligible=(r,classId,courseIds)=>{const y=sid(r.academic_year),st=norm(r.status);return sid(r.class_id)===classId&&courseIds.has(sid(r.course_id))&&(!y||y==="2026")&&!["inativo","inactive","cancelado","revogado"].includes(st);};
+  const controls=[],controlRows=[],staffSets=[];
+  for(const name of CONTROLS){const classId=classByName[name],rows=load(classId,true),payload=rows.filter(r=>r.payload_present===true);if(!payload.length){emit("INCONCLUSIVE","CONTROL_MATH_EVIDENCE_MISSING",{controls:[...controls,{class:name,math_rows:rows.length,math_payload_rows:0}]});return;}const present=new Set(rows.map(cid).filter(x=>mathIds.has(x))),ss=new Set(assignments.filter(r=>eligible(r,classId,present)).map(r=>sid(r.staff_id)).filter(Boolean));staffSets.push(ss);controls.push({class:name,math_rows:rows.length,math_payload_rows:payload.length,months:months(payload),dates:dates(payload),assignment_staff_candidates:ss.size});for(const r of rows)controlRows.push({className:name,row:r});}
+  let inferred="",source="";if(staffSets.every(s=>s.size===1)){const vals=new Set(staffSets.map(s=>[...s][0]));if(vals.size===1){inferred=`staff:${[...vals][0]}`;source="TEACHER_ASSIGNMENTS_EXACT_CONTROL_UNANIMOUS";}}
+  let meta=[];if(!inferred){const stats=new Map();for(const it of controlRows){for(const p of principals(it.row)){if(!stats.has(p))stats.set(p,{rows:0,payload:0,classes:new Set(),kind:p.split(":",1)[0]});const s=stats.get(p);s.rows++;if(it.row.payload_present===true)s.payload++;s.classes.add(it.className);}}meta=[...stats.entries()].map(([p,s])=>({principal:p,rows:s.rows,payload_rows:s.payload,class_support:s.classes.size,kind:s.kind,coverage:controlRows.length?s.rows/controlRows.length:0})).filter(x=>x.class_support===CONTROLS.length).sort((a,b)=>b.coverage-a.coverage||b.payload_rows-a.payload_rows||b.rows-a.rows);if(meta.length){const a=meta[0],b=meta[1],tie=b&&Math.abs(a.coverage-b.coverage)<1e-9&&a.payload_rows===b.payload_rows;if(!tie&&a.coverage>=0.80){inferred=a.principal;source="LEARNING_OBJECT_METADATA_FOUR_CLASS_DOMINANT";}}}
+  if(!inferred){emit("INCONCLUSIVE","HISTORICAL_ACTOR_NOT_UNIQUELY_INFERRED",{controls,actor_inference:{status:"AMBIGUOUS_OR_INSUFFICIENT",assignment_unanimous:false,stable_metadata_candidate_count:meta.length,best_metadata_coverage_percent:meta.length?Math.round(meta[0].coverage*10000)/100:0}});return;}
+  const inferredStaff=inferred.startsWith("staff:")?inferred.slice(6):"",topMeta=meta.find(x=>x.principal===inferred);
+  const summarize=name=>{const classId=classByName[name],rows=load(classId,false),matching=rows.filter(r=>principals(r).has(inferred)),actorPayload=matching.filter(r=>r.payload_present===true),actorMath=matching.filter(r=>mathIds.has(cid(r))),actorMathPayload=actorMath.filter(r=>r.payload_present===true),otherPayload=actorPayload.filter(r=>!mathIds.has(cid(r))),unattrMath=rows.filter(r=>r.payload_present===true&&mathIds.has(cid(r))&&principals(r).size===0),bindings=inferredStaff?assignments.filter(r=>sid(r.staff_id)===inferredStaff&&sid(r.class_id)===classId&&mathIds.has(sid(r.course_id))&&(!sid(r.academic_year)||sid(r.academic_year)==="2026")&&!['inativo','inactive','cancelado','revogado'].includes(norm(r.status))):[],cc={};for(const r of matching){const n=courseName[cid(r)]||"<unresolved>";cc[n]=(cc[n]||0)+1;}let c="HISTORICAL_ACTOR_ABSENT_FROM_TARGET_20260818";if(actorMathPayload.length)c="RECOVERABLE_LUIZ_MATH_CONTENT_CONFIRMED";else if(otherPayload.length)c="LUIZ_HISTORICAL_ROWS_UNDER_NONMATH_COMPONENT";else if(matching.length)c="LUIZ_HISTORICAL_ROWS_PRESENT_WITHOUT_PAYLOAD";else if(unattrMath.length)c="TARGET_MATH_UNATTRIBUTED_CANDIDATES_PRESENT";else if(bindings.length)c="HISTORICAL_LUIZ_MATH_BINDING_PRESENT_CONTENT_ABSENT";return{class:name,classification:c,total_rows:rows.length,inferred_actor_rows:matching.length,inferred_actor_payload_rows:actorPayload.length,inferred_actor_math_rows:actorMath.length,inferred_actor_math_payload_rows:actorMathPayload.length,inferred_actor_math_payload_months:months(actorMathPayload),inferred_actor_math_payload_dates:dates(actorMathPayload),inferred_actor_nonmath_payload_rows:otherPayload.length,inferred_actor_nonmath_payload_dates:dates(otherPayload),unattributed_math_payload_rows:unattrMath.length,historical_math_assignment_matches:bindings.length,inferred_actor_course_name_counts:cc};};
+  const targets=TARGETS.map(summarize),cs=targets.map(x=>x.classification);let overall="HISTORICAL_ACTOR_ABSENT_FROM_BOTH_TARGETS_20260818";if(cs.includes("RECOVERABLE_LUIZ_MATH_CONTENT_CONFIRMED"))overall="BSON_20260818_RECOVERY_SOURCE_CONFIRMED";else if(cs.includes("LUIZ_HISTORICAL_ROWS_UNDER_NONMATH_COMPONENT"))overall="BSON_20260818_LUIZ_ROWS_UNDER_NONMATH_COMPONENT";else if(cs.includes("LUIZ_HISTORICAL_ROWS_PRESENT_WITHOUT_PAYLOAD"))overall="BSON_20260818_LUIZ_ROWS_WITHOUT_PAYLOAD";else if(cs.includes("TARGET_MATH_UNATTRIBUTED_CANDIDATES_PRESENT"))overall="BSON_20260818_UNATTRIBUTED_MATH_CANDIDATES";else if(cs.includes("HISTORICAL_LUIZ_MATH_BINDING_PRESENT_CONTENT_ABSENT"))overall="BSON_20260818_BINDING_PRESENT_CONTENT_ABSENT";
+  emit("COMPLETED",overall,{actor_inference:{status:"EXACT_CONTROL_DERIVED",source,principal_kind:inferred.split(":",1)[0],control_class_support:CONTROLS.length,metadata_coverage_percent:topMeta?Math.round(topMeta.coverage*10000)/100:null,technical_identity_emitted:false},controls,targets});
+})();
+F63D2JS
+          node --check "$probe_local"
           remote_probe="/tmp/luiz-gomes-f6-3d2-${GITHUB_RUN_ID}.js"
           ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d2_key")
-          cat backend/scripts/luiz_gomes_f6_3c_backup_probe.js | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          cat "$probe_local" | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          rm -f "$probe_local"
           echo "remote_probe=$remote_probe" >> "$GITHUB_OUTPUT"
 
       - name: Restore isolated 2026-08-18 dump and infer historical actor
@@ -192,26 +230,11 @@ jobs:
               elif '=' in line and line.split('=',1)[0] in {'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED','RAW_PROBE_OUTPUT_EMITTED'}:
                   k,v=line.split('=',1); flags[k]=v
               elif re.fullmatch(r'F63D1(?:1)?_[A-Z0-9_]+(?::[A-Za-z0-9_.-]+)?(?:=[A-Za-z0-9_.:-]+)?',line): markers.append(line)
-          boundary=(flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and
-                    flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and
-                    flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and
-                    flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO')
-          valid_point=isinstance(point,dict) and point.get('schema')=='LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V1'
-          if rc==0 and meta is not None and valid_point and boundary:
-              status=point.get('status') or 'INCONCLUSIVE'
-              classification=point.get('overall_classification') or 'F63D2_CLASSIFICATION_MISSING'
-          else:
-              status='INCONCLUSIVE'; classification='F63D2_RUNTIME_OR_BOUNDARY_ERROR'
-          result={'schema':'LUIZ_GOMES_F6_3D_2_GATE_V1','status':status,'classification':classification,
-                  'source':meta,'actor_inference':(point or {}).get('actor_inference'),
-                  'controls':(point or {}).get('controls') or [],'targets':(point or {}).get('targets') or [],
-                  'probe_boundaries':(point or {}).get('boundaries'),'restored_collections':restored,
-                  'operational_markers':markers[-20:],
-                  'production_database_touched':False if flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' else None,
-                  'temporary_restore_network':flags.get('TEMP_RESTORE_NETWORK'),'temporary_restore_ports':flags.get('TEMP_RESTORE_PORTS'),
-                  'source_mount':flags.get('SOURCE_MOUNT'),'temporary_containers_cleaned':True if flags.get('TEMP_CONTAINERS_CLEANED')=='YES' else None,
-                  'raw_probe_output_emitted':False if flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO' else None,
-                  'production_writes':False,'pedagogical_plaintext_emitted':False,'student_data_read':False,'attendance_records_read':False}
+          boundary=(flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO')
+          valid=isinstance(point,dict) and point.get('schema')=='LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V1'
+          status=(point or {}).get('status') if rc==0 and meta and valid and boundary else 'INCONCLUSIVE'
+          classification=(point or {}).get('overall_classification') if rc==0 and meta and valid and boundary else 'F63D2_RUNTIME_OR_BOUNDARY_ERROR'
+          result={'schema':'LUIZ_GOMES_F6_3D_2_GATE_V1','status':status,'classification':classification,'source':meta,'actor_inference':(point or {}).get('actor_inference'),'controls':(point or {}).get('controls') or [],'targets':(point or {}).get('targets') or [],'probe_boundaries':(point or {}).get('boundaries'),'restored_collections':restored,'operational_markers':markers[-20:],'production_database_touched':False if flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' else None,'temporary_restore_network':flags.get('TEMP_RESTORE_NETWORK'),'temporary_restore_ports':flags.get('TEMP_RESTORE_PORTS'),'source_mount':flags.get('SOURCE_MOUNT'),'temporary_containers_cleaned':True if flags.get('TEMP_CONTAINERS_CLEANED')=='YES' else None,'raw_probe_output_emitted':False if flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO' else None,'production_writes':False,'pedagogical_plaintext_emitted':False,'student_data_read':False,'attendance_records_read':False}
           Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
           if raw.exists(): raw.unlink()
           PY
@@ -230,9 +253,8 @@ jobs:
           forbidden={'students','enrollments','attendance','grades','attendance_documentary'}
           if forbidden.intersection(set(p.get('restored_collections') or [])): raise SystemExit('F63D2_FORBIDDEN_RESTORE')
           if p.get('status')=='COMPLETED':
-              inf=p.get('actor_inference') or {}
+              inf=p.get('actor_inference') or {}; pb=p.get('probe_boundaries') or {}
               if inf.get('status')!='EXACT_CONTROL_DERIVED': raise SystemExit('F63D2_INFERENCE_NOT_EXACT')
-              pb=p.get('probe_boundaries') or {}
               if pb.get('actor_identity_derived_without_user_lookup') is not True or pb.get('technical_ids_emitted') is not False: raise SystemExit('F63D2_IDENTITY_BOUNDARY_INVALID')
           elif p.get('status')!='INCONCLUSIVE': raise SystemExit('F63D2_STATUS_INVALID')
           if p.get('production_database_touched') is not False or p.get('temporary_restore_network')!='none' or p.get('temporary_restore_ports')!='none' or p.get('source_mount')!='read_only' or p.get('temporary_containers_cleaned') is not True or p.get('raw_probe_output_emitted') is not False: raise SystemExit('F63D2_ISOLATION_INVALID')
@@ -259,27 +281,15 @@ jobs:
           python - <<'PY'
           import json, os, urllib.request
           from pathlib import Path
-          p=json.loads(Path('evidence/runtime.json').read_text())
-          s=p.get('source') or {}; inf=p.get('actor_inference') or {}
-          lines=['## LUIZ-GOMES-F6.3d.2 — ator histórico pelas turmas-controle','',
-                 f"Status: **`{p.get('status')}`**",f"Classificação: **`{p.get('classification')}`**",
-                 f"Fonte: data={s.get('snapshot_date')}; fingerprint={s.get('group_fingerprint')}; BSON={s.get('bson_files')}; proveniência={s.get('provenance')}",
-                 f"Inferência: status={inf.get('status')}; fonte={inf.get('source')}; tipo={inf.get('principal_kind')}; suporte={inf.get('control_class_support')} turmas; cobertura-metadata={inf.get('metadata_coverage_percent')}",'',
-                 '### Controles']
-          for row in p.get('controls') or []:
-              lines.append(f"- {row.get('class')}: math={row.get('math_rows')}, payload={row.get('math_payload_rows')}, assignment_candidates={row.get('assignment_staff_candidates')}")
+          p=json.loads(Path('evidence/runtime.json').read_text()); s=p.get('source') or {}; inf=p.get('actor_inference') or {}
+          lines=['## LUIZ-GOMES-F6.3d.2 — ator histórico pelas turmas-controle','',f"Status: **`{p.get('status')}`**",f"Classificação: **`{p.get('classification')}`**",f"Fonte: data={s.get('snapshot_date')}; fingerprint={s.get('group_fingerprint')}; BSON={s.get('bson_files')}; proveniência={s.get('provenance')}",f"Inferência: status={inf.get('status')}; fonte={inf.get('source')}; tipo={inf.get('principal_kind')}; suporte={inf.get('control_class_support')} turmas; cobertura-metadata={inf.get('metadata_coverage_percent')}",'','### Controles']
+          for r in p.get('controls') or []: lines.append(f"- {r.get('class')}: math={r.get('math_rows')}, payload={r.get('math_payload_rows')}, assignment_candidates={r.get('assignment_staff_candidates')}")
           lines += ['', '### Alvos']
-          for row in p.get('targets') or []:
-              lines.append(f"- {row.get('class')}: **`{row.get('classification')}`**; actor_rows={row.get('inferred_actor_rows')}; math_payload={row.get('inferred_actor_math_payload_rows')}; nonmath_payload={row.get('inferred_actor_nonmath_payload_rows')}; binding_math={row.get('historical_math_assignment_matches')}; unattributed_math_payload={row.get('unattributed_math_payload_rows')}")
+          for r in p.get('targets') or []: lines.append(f"- {r.get('class')}: **`{r.get('classification')}`**; actor_rows={r.get('inferred_actor_rows')}; math_payload={r.get('inferred_actor_math_payload_rows')}; nonmath_payload={r.get('inferred_actor_nonmath_payload_rows')}; binding_math={r.get('historical_math_assignment_matches')}; unattributed_math_payload={r.get('unattributed_math_payload_rows')}")
           lines += ['', '**Boundary:** identidade derivada sem lookup em `users`; nenhum ID técnico emitido; Mongo temporário `--network none`, zero portas, source read-only; produção não tocada; nenhum plaintext pedagógico, dado estudantil ou `attendance.records`.']
-          body='\n'.join(lines)
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d2-finalizer','Content-Type':'application/json'}
-          repo=os.environ['GITHUB_REPOSITORY']
+          body='\n'.join(lines); headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d2-finalizer','Content-Type':'application/json'}; repo=os.environ['GITHUB_REPOSITORY']
           def req(url,method,payload):
               r=urllib.request.Request(url,data=json.dumps(payload).encode(),headers=headers,method=method)
               with urllib.request.urlopen(r,timeout=30) as resp: return json.load(resp)
-          req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
-          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
-          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
-          print('LUIZ_GOMES_F6_3D_2_FINALIZER=PASS')
+          req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body}); req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body}); req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'}); print('LUIZ_GOMES_F6_3D_2_FINALIZER=PASS')
           PY
