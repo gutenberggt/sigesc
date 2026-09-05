@@ -1,0 +1,247 @@
+name: "Luiz Gomes R1.0B Schema Bridge"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_r1_0b_schema_bridge_probe.js'
+      - 'backend/tests/test_luiz_gomes_r1_0b_schema_bridge_contract.py'
+      - '.github/workflows/luiz-gomes-r1-0b-schema-bridge.yml'
+      - 'memory/audit/LUIZ_GOMES_R1_0B_SCHEMA_BRIDGE_2026-09-05.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-r1-0b-schema-bridge
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard R1.0B schema bridge read-only contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Syntax and focused contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check backend/scripts/luiz_gomes_r1_0b_schema_bridge_probe.js
+          bash -n backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q --noconftest backend/tests/test_luiz_gomes_r1_0b_schema_bridge_contract.py
+
+  production-audit:
+    name: Run isolated 2026-08-18 schema bridge
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-R1.0B-SCHEMA-BRIDGE] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve exact-SHA owner gate
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('R1_0B_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw:
+                  continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values:
+                  raise SystemExit(f'R1_0B_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          expected={
+              'LUIZ_GOMES_R1_0B':'AUTHORIZED',
+              'CONFIRMATION':'RUN_SCHEMA_BRIDGE_2026_08_18_READ_ONLY',
+              'ACADEMIC_YEAR':'2026',
+              'TRACKING_ISSUE':'422',
+              'PARENT_TRACKING_ISSUE':'418',
+              'ROOT_TRACKING_ISSUE':'357',
+          }
+          for key,value in expected.items():
+              if values.get(key)!=value:
+                  raise SystemExit(f'R1_0B_CONTEXT_INVALID:{key}')
+          target=values.get('TARGET_SHA','')
+          production=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('R1_0B_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-R1.0B-SCHEMA-BRIDGE] {target}':
+              raise SystemExit('R1_0B_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-r1-0b'}
+          def get(path):
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          main=get('branches/main')['commit']['sha']
+          prod=get('branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'R1_0B_MAIN_MOVED:{main}')
+          if prod!=production: raise SystemExit(f'R1_0B_PRODUCTION_MOVED:{prod}')
+          for n in (422,418,357):
+              if get(f'issues/{n}').get('state')!='open': raise SystemExit(f'R1_0B_TRACKING_NOT_OPEN:{n}')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_R1_0B_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Stage reviewed probe on production host
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "R1_0B_SECRET_MISSING:$v"; exit 1; }
+          done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/r1b_key
+          chmod 600 ~/.ssh/r1b_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          probe='backend/scripts/luiz_gomes_r1_0b_schema_bridge_probe.js'
+          node --check "$probe"
+          remote_probe="/tmp/luiz-r1-0b-schema-bridge-${GITHUB_RUN_ID}.js"
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r1b_key")
+          cat "$probe" | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          echo "remote_probe=$remote_probe" >> "$GITHUB_OUTPUT"
+
+      - name: Restore isolated dump and run R1.0B
+        id: scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/r1-0b-sanitized.log'
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r1b_key")
+          set +e
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" "$GITHUB_RUN_ID" "${{ steps.stage.outputs.remote_probe }}" < backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh > "$raw" 2>&1
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "R1_0B_REMOTE_SCAN_RC=$rc"
+
+      - name: Cleanup staged probe
+        if: always() && steps.context.outcome == 'success' && steps.stage.outputs.remote_probe != ''
+        continue-on-error: true
+        shell: bash
+        run: |
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r1b_key")
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "rm -f '${{ steps.stage.outputs.remote_probe }}'" >/dev/null 2>&1 || true
+
+      - name: Build and validate structured result
+        if: always() && steps.context.outcome == 'success'
+        env:
+          SCAN_RC: ${{ steps.scan.outputs.rc }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          raw=Path('evidence/r1-0b-sanitized.log')
+          lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
+          try: rc=int(os.environ.get('SCAN_RC') or '999')
+          except ValueError: rc=999
+          point=None; flags={}; restored=[]; meta=None
+          for line in lines:
+              if line.startswith('LUIZ_GOMES_F6_3C_POINT_JSON='):
+                  point=json.loads(line.split('=',1)[1])
+              elif line.startswith('F63D1_GROUP_META_JSON='):
+                  meta=json.loads(line.split('=',1)[1])
+              elif line.startswith('F63D1_RESTORED_COLLECTION:'):
+                  restored.append(line.split(':',1)[1])
+              elif '=' in line:
+                  k,v=line.split('=',1)
+                  if k in {'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED','RAW_PROBE_OUTPUT_EMITTED'}:
+                      flags[k]=v
+          boundary=(flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO')
+          valid=isinstance(point,dict) and point.get('schema')=='LUIZ_GOMES_R1_0B_SCHEMA_BRIDGE_V1'
+          ok=rc==0 and valid and boundary and meta is not None
+          result={
+              'schema':'LUIZ_GOMES_R1_0B_GATE_V1',
+              'status':point.get('status') if ok else 'INCONCLUSIVE',
+              'classification':point.get('overall_classification') if ok else 'SCHEMA_BRIDGE_RUNTIME_OR_BOUNDARY_ERROR',
+              'insufficiency_reason':point.get('insufficiency_reason') if valid else None,
+              'source':meta,
+              'schema_bridge':point.get('schema_bridge') if valid else None,
+              'classes':point.get('classes') if valid else [],
+              'targets_total_math_rows':point.get('targets_total_math_rows') if valid else None,
+              'targets_total_rows_with_payload':point.get('targets_total_rows_with_payload') if valid else None,
+              'next_gate_r1_0c_open':point.get('next_gate_r1_0c_open') if valid else False,
+              'probe_boundaries':point.get('boundaries') if valid else None,
+              'restored_collections':restored,
+              'production_writes':False,
+              'pedagogical_plaintext_emitted':False,
+              'technical_ids_emitted':False,
+              'student_data_read':False,
+              'attendance_records_read':False,
+          }
+          Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
+          if raw.exists(): raw.unlink()
+          if not ok: raise SystemExit('R1_0B_RUNTIME_OR_BOUNDARY_ERROR')
+          allowed={'SCHEMA_BRIDGE_RESOLVED_TARGET_PAYLOAD_PRESENT','SCHEMA_BRIDGE_RESOLVED_NO_TARGET_MATH_ROWS','SCHEMA_BRIDGE_RESOLVED_TARGET_ROWS_WITHOUT_PAYLOAD','HISTORICAL_SCHEMA_BRIDGE_INCONCLUSIVE'}
+          if result['classification'] not in allowed: raise SystemExit('R1_0B_TAXONOMY_INVALID')
+          print('LUIZ_GOMES_R1_0B_RESULT=PASS')
+          PY
+
+      - name: Publish sanitized result to tracking and close gate
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          r=json.load(open('evidence/runtime.json',encoding='utf-8'))
+          lines=[
+              '## LUIZ-GOMES-R1.0B — Schema Bridge Forense do dump de 18/08',
+              '', f"Target main: `{os.environ['TARGET_SHA']}`",
+              f"Status: **`{r['status']}`**", f"Classificação: **`{r['classification']}`**",
+          ]
+          if r.get('insufficiency_reason'): lines.append(f"Motivo: `{r['insufficiency_reason']}`")
+          bridge=r.get('schema_bridge') or {}
+          lines += ['', f"Schema bridge: selecionado={bridge.get('selected')}; modo={bridge.get('resolution_mode')}; soluções={bridge.get('deduplicated_solution_count')}"]
+          for c in r.get('classes') or []:
+              lines.append(f"- {c.get('class_name')}: math_rows={c.get('math_rows_in_period')}; payload_rows={c.get('rows_with_payload')}; distinct_dates={c.get('distinct_dates')}")
+          lines += [f"- alvos: math_rows={r.get('targets_total_math_rows')}; payload_rows={r.get('targets_total_rows_with_payload')}", f"- Gate R1.0C aberto: **{bool(r.get('next_gate_r1_0c_open'))}**", '', '**Boundary:** dump read-only em Mongo temporário `--network none`; produção sem escrita; sem estudantes/notas/frequência individual; nenhum plaintext pedagógico ou ID técnico emitido.']
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json','User-Agent':'sigesc-r1-0b'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def request(method,path,payload):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers,data=json.dumps(payload).encode(),method=method)
+              with urllib.request.urlopen(req,timeout=30) as resp: return resp.read()
+          request('POST','issues/422/comments',{'body':body})
+          request('POST',f"issues/{os.environ['GATE_ISSUE']}/comments",{'body':body})
+          request('PATCH',f"issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          PY
