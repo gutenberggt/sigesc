@@ -1,0 +1,267 @@
+name: "Luiz Gomes F6.3b Diary Snapshot Recovery Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_f6_3b_diary_snapshot_recovery_readonly.py'
+      - 'backend/tests/test_luiz_gomes_f6_3b_diary_snapshot_recovery_readonly.py'
+      - '.github/workflows/luiz-gomes-f6-3b-diary-snapshot-recovery-readonly.yml'
+      - 'memory/audit/LUIZ_GOMES_F6_3B_DIARY_SNAPSHOT_RECOVERY_READONLY_2026-09-05.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-f6-3b-diary-snapshot-recovery-readonly
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard Luiz Gomes F6.3b diary snapshot recovery
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile and focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          python -m py_compile backend/scripts/luiz_gomes_f6_3b_diary_snapshot_recovery_readonly.py
+          pytest -q --noconftest backend/tests/test_luiz_gomes_f6_3b_diary_snapshot_recovery_readonly.py
+      - name: Enforce snapshot metadata-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          import importlib.util
+          from pathlib import Path
+
+          path=Path('backend/scripts/luiz_gomes_f6_3b_diary_snapshot_recovery_readonly.py')
+          source=path.read_text(encoding='utf-8')
+          tree=ast.parse(source)
+          forbidden={
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr in forbidden:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit(f'LUIZ_GOMES_F6_3B_MONGO_MUTATOR:{sorted(set(hits))}')
+
+          spec=importlib.util.spec_from_file_location('f63b',path)
+          mod=importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(mod)
+          projection='\n'.join(mod.SNAPSHOT_PROJECTION.keys())
+          for field in mod.FORBIDDEN_SNAPSHOT_FIELDS:
+              if field in projection:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3B_SENSITIVE_PROJECTION:{field}')
+          required=(
+              'TARGET_CLASSES = ("8º ANO A", "9º ANO A")',
+              'START_DATE = "2026-02-01"',
+              'END_DATE = "2026-04-30"',
+              '"snapshot_payload_text_read": False',
+              '"pedagogical_plaintext_read": False',
+              '"attendance_records_read": False',
+              '"technical_ids_emitted": False',
+          )
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3B_MARKER_MISSING:{marker}')
+          for banned in ('db.students','db.enrollments','db.grades','attendance.records'):
+              if banned in source:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3B_FORBIDDEN_READ:{banned}')
+          print('LUIZ_GOMES_F6_3B_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Inspect immutable diary snapshots for Luiz historical Math read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-F6.3B-SNAPSHOT-RECOVERY] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,re,urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('LUIZ_GOMES_F6_3B_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'LUIZ_GOMES_F6_3B_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          expected={
+              'LUIZ_GOMES_F6_3B_SNAPSHOT_RECOVERY':'AUTHORIZED',
+              'CONFIRMATION':'TRACE_IMMUTABLE_DIARY_SNAPSHOTS_READ_ONLY',
+              'ACADEMIC_YEAR':'2026',
+              'TRACKING_ISSUE':'357',
+          }
+          for key,value in expected.items():
+              if values.get(key) != value:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3B_CONTEXT_INVALID:{key}')
+          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod):
+              raise SystemExit('LUIZ_GOMES_F6_3B_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F6.3B-SNAPSHOT-RECOVERY] {target}':
+              raise SystemExit('LUIZ_GOMES_F6_3B_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f6-3b'}
+          def get_json(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as response: return json.load(response)
+          repo=os.environ['GITHUB_REPOSITORY']
+          main_sha=get_json(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']
+          prod_sha=get_json(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
+          if main_sha != target: raise SystemExit(f'LUIZ_GOMES_F6_3B_MAIN_MOVED:{main_sha}')
+          if prod_sha != prod: raise SystemExit(f'LUIZ_GOMES_F6_3B_PRODUCTION_MOVED:{prod_sha}')
+          if get_json(f'https://api.github.com/repos/{repo}/issues/357').get('state') != 'open':
+              raise SystemExit('LUIZ_GOMES_F6_3B_TRACKING_NOT_OPEN')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={prod_sha}\ngate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_F6_3B_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare SSH and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "LUIZ_GOMES_F6_3B_SECRET_MISSING:$v"; exit 1; }
+          done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/luiz_gomes_f6_3b_key
+          chmod 600 ~/.ssh/luiz_gomes_f6_3b_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({ ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f6_3b_key" \
+            "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute F6.3b snapshot recovery audit
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/luiz-gomes-f6-3b-raw.log'
+          remote_command="timeout 420 docker exec -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"luiz_gomes_f6_3b_diary_snapshot_recovery_readonly.py\",\"exec\"),ns); print(\"LUIZ_GOMES_F6_3B_JSON=\"+json.dumps(ns[\"run_live_audit\"](),ensure_ascii=False,sort_keys=True))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/luiz_gomes_f6_3b_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/luiz_gomes_f6_3b_diary_snapshot_recovery_readonly.py > "$raw" 2>&1
+          prefix='LUIZ_GOMES_F6_3B_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line"
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw"
+
+      - name: Validate boundary and result
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'LUIZ_GOMES_F6_3B_DIARY_SNAPSHOT_RECOVERY_READ_ONLY_V1':
+              raise SystemExit('LUIZ_GOMES_F6_3B_SCHEMA_INVALID')
+          if len(p.get('targets') or []) != 2:
+              raise SystemExit('LUIZ_GOMES_F6_3B_SCOPE_INVALID')
+          for key in ('database_mutation','production_writes','attendance_records_read','student_data_read','student_pii_emitted','pedagogical_plaintext_read','pedagogical_plaintext_emitted','technical_ids_emitted','snapshot_payload_text_read'):
+              if p.get(key) is not False: raise SystemExit(f'LUIZ_GOMES_F6_3B_BOUNDARY:{key}')
+          if p.get('mongo_reads_only') is not True or p.get('http_methods') != []:
+              raise SystemExit('LUIZ_GOMES_F6_3B_READ_ONLY_INVALID')
+          print('LUIZ_GOMES_F6_3B_AUDIT=PASS')
+          PY
+
+      - name: Upload metadata-only evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: luiz-gomes-f6-3b-snapshot-recovery-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          PRODUCTION_SHA: ${{ steps.context.outputs.production_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          summary=p.get('summary') or {}
+          lines=['## LUIZ-GOMES-F6.3b — diary_snapshots imutáveis, read-only','',f"Target main: `{os.environ['TARGET_SHA']}`",f"Production observada: `{os.environ['PRODUCTION_SHA']}`",'Período pedagógico: **fevereiro–abril/2026**','',f"- snapshots cobrindo período: **{summary.get('covering_snapshot_count')}**",f"- evidências de conteúdo Matemática/Luiz: **{summary.get('math_content_evidence_count')}**",f"- evidências em snapshot institucional: **{summary.get('institutional_math_content_evidence_count')}**",'']
+          for target in p.get('targets') or []:
+              lines += [f"### {target.get('class')} / Matemática",f"- classificação: `{json.dumps(target.get('classification'),ensure_ascii=False)}`",f"- snapshots: **{target.get('snapshot_count')}**; status=`{json.dumps(target.get('snapshot_status_counts'),ensure_ascii=False,sort_keys=True)}`",f"- entradas Matemática/Luiz: **{target.get('math_entry_count')}**",f"- evidências de conteúdo: **{target.get('math_content_evidence_count')}**; institucionais=**{target.get('institutional_math_content_evidence_count')}**",f"- meses: `{json.dumps(target.get('math_content_months'),ensure_ascii=False,sort_keys=True)}`",f"- datas: `{json.dumps(target.get('math_content_distinct_dates'),ensure_ascii=False)}`",f"- força: `{json.dumps(target.get('evidence_strength_counts'),ensure_ascii=False,sort_keys=True)}`",'']
+          lines += [f"Resumo: `{json.dumps(summary.get('classification_counts'),ensure_ascii=False,sort_keys=True)}`",'', '**Boundary:** diary_snapshots/Mongo read-only; somente metadados congelados, sem content_text/metodologia/observações/attendance.records/estudantes/notas; nenhuma mutação.', '', '> Se não houver evidência em snapshots, a próxima fonte forense é backup Mongo restaurado somente em ambiente temporário isolado; ausência de snapshot não prova ausência histórica.']
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-luiz-gomes-f6-3b-finalizer','Content-Type':'application/json'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def request(url,method,payload):
+              req=urllib.request.Request(url,data=json.dumps(payload).encode('utf-8'),headers=headers,method=method)
+              with urllib.request.urlopen(req,timeout=30) as response: return json.load(response)
+          request(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
+          request(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
+          request(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
+          print('LUIZ_GOMES_F6_3B_FINALIZER=PASS')
+          PY
