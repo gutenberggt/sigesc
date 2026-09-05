@@ -57,6 +57,9 @@ def test_probe_does_not_emit_sensitive_or_pedagogical_data():
     src = read(PROBE)
     for marker in (
         "SKIP_KEYS = new Set",
+        '"email"',
+        '"cpf"',
+        '"nis"',
         "pedagogical_plaintext_emitted: false",
         "technical_ids_emitted: false",
         "student_data_read: false",
@@ -118,16 +121,16 @@ def test_workflow_requires_owner_exact_sha_and_explicit_read_only_gate():
 
 
 def test_document_seals_semantic_non_inference_rule():
-    src = read(DOC)
+    src = read(DOC).lower()
     for marker in (
-        "R1.0B.2",
-        "Topologia Histórica",
+        "r1.0b.2",
+        "topologia histórica",
         "0/6",
-        "None não significa zero",
+        "none não significa zero",
         "seis nós não são seis papéis",
         "simetria",
-        "R1.0C",
-        "R1.1",
+        "r1.0c",
+        "r1.1",
         "sem deploy",
     ):
         assert marker in src
