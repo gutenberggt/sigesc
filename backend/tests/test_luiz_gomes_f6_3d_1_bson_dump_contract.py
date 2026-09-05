@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 import re
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -12,9 +13,9 @@ def read(path: Path) -> str:
 
 def embedded_probe() -> str:
     wf = read(WORKFLOW)
-    match = re.search(r"cat > \"\$probe_local\" <<'F63D2JS'\n(.*?)\nF63D2JS", wf, re.S)
-    assert match, "embedded F6.3d.2 probe not found"
-    return match.group(1)
+    match = re.search(r'F63D2_PROBE_B64:\s*"([A-Za-z0-9+/=]+)"', wf)
+    assert match, "encoded F6.3d.2 probe not found"
+    return base64.b64decode(match.group(1)).decode("utf-8")
 
 
 def test_runner_keeps_single_coherent_20260818_dump_and_readonly_mount():
