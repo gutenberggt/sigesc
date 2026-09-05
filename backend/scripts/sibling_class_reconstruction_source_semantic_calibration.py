@@ -28,26 +28,58 @@ def _calibration_attendance_rows(db, *, class_id, math_ids, start_date, end_date
     ]
 
 
-def _content_day_index(source_items):
-    by_day = defaultdict(list)
-    invalid = []
-    for ordinal, item in enumerate(source_items, 1):
-        day = item.get("source_date")
+def _calibration_source_items(canonical, legacy, *, actor_ids, assignment_ids):
+    """Mantém todos os conteúdos para permitir testar 1 conteúdo/sessão.
+
+    Diferente do preflight de cópia, múltiplos conteúdos no mesmo dia não são
+    automaticamente um erro aqui: eles constituem uma das hipóteses semânticas.
+    """
+    tagged = [(row, "content_entries") for row in canonical] + [
+        (row, "learning_objects") for row in legacy
+    ]
+    items = []
+    blockers = []
+    for row, kind in tagged:
+        day = _iso_day(row.get("date"))
+        if not day:
+            continue
+        content = row.get("content") or ""
+        if not str(content).strip():
+            blockers.append("SOURCE_CONTENT_EMPTY")
+            continue
         declared = _safe_positive_int(
-            item.get("number_of_classes") or 1,
+            row.get("number_of_classes") or 1,
             maximum=MAX_DECLARED_CLASSES_PER_SOURCE,
         )
         if declared is None:
-            invalid.append({"source_ordinal": ordinal, "source_date": day})
+            blockers.append("SOURCE_NUMBER_OF_CLASSES_INVALID")
             continue
-        by_day[day].append({
+        items.append({
+            "source_date": day,
+            "source_kind": kind,
+            "payload_fingerprint": _payload_fingerprint(row),
+            "number_of_classes": declared,
+            "source_attribution": _source_attribution_kind(
+                row, actor_ids, assignment_ids
+            ),
+        })
+    items.sort(key=lambda item: (
+        item["source_date"], item["payload_fingerprint"], item["source_kind"]
+    ))
+    return items, sorted(set(blockers))
+
+
+def _content_day_index(source_items):
+    by_day = defaultdict(list)
+    for ordinal, item in enumerate(source_items, 1):
+        by_day[item["source_date"]].append({
             "source_ordinal": ordinal,
-            "declared_classes": declared,
+            "declared_classes": int(item["number_of_classes"]),
             "payload_fingerprint": item.get("payload_fingerprint"),
             "source_kind": item.get("source_kind"),
             "source_attribution": item.get("source_attribution"),
         })
-    return by_day, invalid
+    return by_day
 
 
 def _attendance_day_index(target_index):
@@ -101,33 +133,42 @@ def _classify_source_semantics(profiles, *, structural_blockers=None):
             "classification": "INSUFFICIENT_OR_CONFLICTING_EVIDENCE",
             "recommended_action": "BLOCK_9A_APPLY",
             "blockers": sorted(set(blockers + ["SOURCE_CALIBRATION_EMPTY"])),
+            "content_only_dates": [],
+            "attendance_only_dates": [],
+            "multiple_content_dates": [],
         }
 
-    content_only = [p["date"] for p in profiles if p["content_count"] and not p["attendance_document_count"]]
-    attendance_only = [p["date"] for p in profiles if p["attendance_document_count"] and not p["content_count"]]
+    content_only = [
+        p["date"] for p in profiles
+        if p["content_count"] and not p["attendance_document_count"]
+    ]
+    attendance_only = [
+        p["date"] for p in profiles
+        if p["attendance_document_count"] and not p["content_count"]
+    ]
     multiple_content = [p["date"] for p in profiles if p["content_count"] > 1]
-    aligned = [p for p in profiles if p["content_count"] and p["attendance_document_count"]]
+    aligned = [
+        p for p in profiles if p["content_count"] and p["attendance_document_count"]
+    ]
 
     if content_only:
         blockers.append("SOURCE_CONTENT_DATE_WITHOUT_ATTENDANCE")
     if attendance_only:
         blockers.append("SOURCE_ATTENDANCE_DATE_WITHOUT_CONTENT")
-    if multiple_content:
-        blockers.append("SOURCE_MULTIPLE_CONTENTS_SAME_DATE")
 
     full_coverage = bool(aligned) and len(aligned) == len(profiles) and not blockers
-    date_load = full_coverage and all(
-        p["single_content_load_equals_attendance_load"] for p in aligned
-    )
-    date_docs = full_coverage and all(
-        p["single_content_load_equals_attendance_documents"] for p in aligned
-    )
     per_session = full_coverage and all(
         p["content_count_equals_attendance_documents"]
         and p["declared_load_equal"]
         and p["content_all_declared_one"]
         and p["attendance_all_declared_one"]
         for p in aligned
+    )
+    date_load = full_coverage and all(
+        p["single_content_load_equals_attendance_load"] for p in aligned
+    )
+    date_docs = full_coverage and all(
+        p["single_content_load_equals_attendance_documents"] for p in aligned
     )
 
     if per_session:
@@ -145,6 +186,7 @@ def _classify_source_semantics(profiles, *, structural_blockers=None):
                 p["single_content_load_equals_attendance_documents"],
                 p["single_content_load_equals_attendance_load"],
                 p["content_count_equals_attendance_documents"],
+                p["declared_load_equal"],
             )
             for p in aligned
         }
@@ -195,22 +237,13 @@ def run_source_semantic_calibration(case):
             start_date=start_date,
             end_date=end_date,
         )
-        source_months = _source_items_by_month(
+        source_items, source_blockers = _calibration_source_items(
             source_canonical,
             source_legacy,
             actor_ids=context["actor_ids"],
             assignment_ids=context["assignment_ids"],
-            months=months,
         )
-        source = _flatten_source_months(source_months, months)
-        source_items = sorted(
-            list(source.get("items") or []),
-            key=lambda item: (
-                item.get("source_date") or "",
-                item.get("payload_fingerprint") or "",
-            ),
-        )
-        content_by_day, invalid_content = _content_day_index(source_items)
+        content_by_day = _content_day_index(source_items)
 
         attendance_rows = _calibration_attendance_rows(
             db,
@@ -232,9 +265,7 @@ def run_source_semantic_calibration(case):
             for day in all_days
         ]
 
-        structural_blockers = list(source.get("blockers") or [])
-        if invalid_content:
-            structural_blockers.append("SOURCE_NUMBER_OF_CLASSES_INVALID")
+        structural_blockers = list(source_blockers)
         if attendance_index.get("collision_days"):
             structural_blockers.append("SOURCE_ATTENDANCE_SESSION_KEY_COLLISION")
         if attendance_index.get("partial_metadata_days"):
@@ -268,6 +299,10 @@ def run_source_semantic_calibration(case):
                     1 for p in month_profiles
                     if p["single_content_load_equals_attendance_documents"]
                 ),
+                "content_count_matches_attendance_documents_dates": sum(
+                    1 for p in month_profiles
+                    if p["content_count_equals_attendance_documents"]
+                ),
             }
 
         summary = {
@@ -295,11 +330,15 @@ def run_source_semantic_calibration(case):
                 1 for p in profiles if p["content_count"] and p["attendance_document_count"]
             ),
             "single_content_date_count": sum(1 for p in profiles if p["single_content_date"]),
+            "multiple_content_date_count": sum(1 for p in profiles if p["content_count"] > 1),
             "single_content_load_matches_attendance_load_date_count": sum(
                 1 for p in profiles if p["single_content_load_equals_attendance_load"]
             ),
             "single_content_load_matches_attendance_documents_date_count": sum(
                 1 for p in profiles if p["single_content_load_equals_attendance_documents"]
+            ),
+            "content_count_matches_attendance_documents_date_count": sum(
+                1 for p in profiles if p["content_count_equals_attendance_documents"]
             ),
             "classification": decision["classification"],
             "recommended_action": decision["recommended_action"],
