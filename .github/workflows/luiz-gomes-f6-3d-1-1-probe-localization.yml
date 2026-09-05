@@ -1,10 +1,9 @@
-name: "Luiz Gomes F6.3d.1.1 Probe Error Localization"
+name: "Luiz Gomes F6.3d.2 Historical Actor Inference"
 
 on:
   pull_request:
     paths:
       - 'backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh'
-      - 'backend/scripts/luiz_gomes_f6_3c_backup_probe.js'
       - 'backend/tests/test_luiz_gomes_f6_3d_1_bson_dump_contract.py'
       - '.github/workflows/luiz-gomes-f6-3d-1-1-probe-localization.yml'
       - 'memory/audit/LUIZ_GOMES_F6_3D_1_1_PROBE_ERROR_LOCALIZATION_2026-09-05.md'
@@ -15,13 +14,16 @@ permissions:
   contents: read
   issues: write
 
+env:
+  F63D2_PROBE_B64: "KCgpID0+IHsKICBjb25zdCBkPWRiLmdldFNpYmxpbmdEQigic2lnZXNjIik7CiAgY29uc3QgUFJFRklYPSJMVUlaX0dPTUVTX0Y2XzNDX1BPSU5UX0pTT049IjsKICBjb25zdCBTQ0hPT0w9IkUgTSBFIEkgRSBGIEpvc2UgUGVyZWlyYSBCYXJib3NhIjsKICBjb25zdCBDT05UUk9MUz1bIjbCuiBBTk8gQSIsIjbCuiBBTk8gQiIsIjfCuiBBTk8gQSIsIjfCuiBBTk8gQiJdOwogIGNvbnN0IFRBUkdFVFM9WyI4wrogQU5PIEEiLCI5wrogQU5PIEEiXTsKICBjb25zdCBTVEFSVD0iMjAyNi0wMi0wMSIsRU5EPSIyMDI2LTA1LTAxIjsKICBjb25zdCBBQ1RPUl9GSUVMRFM9WyJyZWNvcmRlZF9ieSIsImNyZWF0ZWRfYnkiLCJ1cGRhdGVkX2J5IiwidGVhY2hlcl9pZCIsInN0YWZmX2lkIl07CiAgY29uc3Qgc2lkPXY9PnY9PT1udWxsfHx2PT09dW5kZWZpbmVkPyIiOlN0cmluZyh2KS50cmltKCk7CiAgY29uc3Qgbm9ybT12PT5zaWQodikubm9ybWFsaXplKCJORkQiKS5yZXBsYWNlKC9bXHUwMzAwLVx1MDM2Zl0vZywiIikudG9Mb2NhbGVMb3dlckNhc2UoInB0LUJSIikucmVwbGFjZSgvwrovZywibyIpLnJlcGxhY2UoL8KqL2csImEiKS5yZXBsYWNlKC9ccysvZywiICIpLnRyaW0oKTsKICBjb25zdCBleGlzdHM9bj0+ZC5nZXRDb2xsZWN0aW9uTmFtZXMoKS5pbmNsdWRlcyhuKTsKICBjb25zdCBtb250aHM9cm93cz0+e2NvbnN0IG89eyIwMiI6MCwiMDMiOjAsIjA0IjowfTtmb3IoY29uc3QgciBvZiByb3dzKXtjb25zdCBtPXNpZChyLmRhdGUpLnNsaWNlKDUsNyk7aWYobSBpbiBvKW9bbV0rKzt9cmV0dXJuIG87fTsKICBjb25zdCBkYXRlcz1yb3dzPT5bLi4ubmV3IFNldChyb3dzLm1hcChyPT5zaWQoci5kYXRlKS5zbGljZSgwLDEwKSkuZmlsdGVyKEJvb2xlYW4pKV0uc29ydCgpOwogIGNvbnN0IGVtaXQ9KHN0YXR1cyxjbGFzc2lmaWNhdGlvbixleHRyYSk9PnByaW50KFBSRUZJWCtKU09OLnN0cmluZ2lmeShPYmplY3QuYXNzaWduKHtzY2hlbWE6IkxVSVpfR09NRVNfRjZfM0RfMl9ISVNUT1JJQ0FMX0FDVE9SX1YxIixzdGF0dXMsb3ZlcmFsbF9jbGFzc2lmaWNhdGlvbjpjbGFzc2lmaWNhdGlvbixzb3VyY2VfZGF0ZToiMjAyNi0wOC0xOCIsc2Nob29sOlNDSE9PTCxwZXJpb2Q6e2Zyb206U1RBUlQsdG9fZXhjbHVzaXZlOkVORH0sYm91bmRhcmllczp7YWN0b3JfaWRlbnRpdHlfZGVyaXZlZF93aXRob3V0X3VzZXJfbG9va3VwOnRydWUsdGVjaG5pY2FsX2lkc19lbWl0dGVkOmZhbHNlLHBlZGFnb2dpY2FsX3BsYWludGV4dF9lbWl0dGVkOmZhbHNlLHBlZGFnb2dpY2FsX3BheWxvYWRfYm9vbGVhbl9vbmx5OnRydWUsYXR0ZW5kYW5jZV9yZWNvcmRzX3JlYWQ6ZmFsc2Usc3R1ZGVudF9kYXRhX3JlYWQ6ZmFsc2UscHJvZHVjdGlvbl93cml0ZXM6ZmFsc2V9fSxleHRyYXx8e30pKSk7CiAgY29uc3QgbWlzc2luZz1bInNjaG9vbHMiLCJjbGFzc2VzIiwiY291cnNlcyIsImxlYXJuaW5nX29iamVjdHMiXS5maWx0ZXIobj0+IWV4aXN0cyhuKSk7CiAgaWYobWlzc2luZy5sZW5ndGgpe2VtaXQoIklOQ09OQ0xVU0lWRSIsIlJFUVVJUkVEX0NPTExFQ1RJT05fTUlTU0lORyIse2NvbnRleHQ6e21pc3NpbmdfY291bnQ6bWlzc2luZy5sZW5ndGh9fSk7cmV0dXJuO30KICBjb25zdCBzY2hvb2xzPWQuc2Nob29scy5maW5kKHtuYW1lOlNDSE9PTH0se19pZDowLGlkOjEsbmFtZToxfSkudG9BcnJheSgpLmZpbHRlcihyPT5ub3JtKHIubmFtZSk9PT1ub3JtKFNDSE9PTCkpOwogIGlmKHNjaG9vbHMubGVuZ3RoIT09MXx8IXNpZCgoc2Nob29sc1swXXx8e30pLmlkKSl7ZW1pdCgiSU5DT05DTFVTSVZFIiwiU0NIT09MX0NPTlRFWFRfTk9UX1VOSVFVRSIse2NvbnRleHQ6e3NjaG9vbF9tYXRjaGVzOnNjaG9vbHMubGVuZ3RofX0pO3JldHVybjt9CiAgY29uc3Qgc2Nob29sSWQ9c2lkKHNjaG9vbHNbMF0uaWQpOwogIGNvbnN0IGFsbENsYXNzZXM9ZC5jbGFzc2VzLmZpbmQoe3NjaG9vbF9pZDpzY2hvb2xJZH0se19pZDowLGlkOjEsbmFtZToxLGFjYWRlbWljX3llYXI6MX0pLnRvQXJyYXkoKSxjbGFzc0J5TmFtZT17fTsKICBmb3IoY29uc3QgbmFtZSBvZiBbLi4uQ09OVFJPTFMsLi4uVEFSR0VUU10pe2NvbnN0IG1zPWFsbENsYXNzZXMuZmlsdGVyKHI9Pm5vcm0oci5uYW1lKT09PW5vcm0obmFtZSkmJighc2lkKHIuYWNhZGVtaWNfeWVhcil8fHNpZChyLmFjYWRlbWljX3llYXIpPT09IjIwMjYiKSk7aWYobXMubGVuZ3RoIT09MXx8IXNpZChtc1swXS5pZCkpe2VtaXQoIklOQ09OQ0xVU0lWRSIsIkNMQVNTX0NPTlRFWFRfTk9UX1VOSVFVRSIse2NvbnRleHQ6e2NsYXNzOm5hbWUsbWF0Y2hlczptcy5sZW5ndGh9fSk7cmV0dXJuO31jbGFzc0J5TmFtZVtuYW1lXT1zaWQobXNbMF0uaWQpO30KICBjb25zdCBjb3Vyc2VzPWQuY291cnNlcy5maW5kKHt9LHtfaWQ6MCxpZDoxLG5hbWU6MX0pLnRvQXJyYXkoKSxtYXRoSWRzPW5ldyBTZXQoY291cnNlcy5maWx0ZXIocj0+bm9ybShyLm5hbWUpPT09bm9ybSgiTWF0ZW3DoXRpY2EiKSkubWFwKHI9PnNpZChyLmlkKSkuZmlsdGVyKEJvb2xlYW4pKSxjb3Vyc2VOYW1lPXt9OwogIGZvcihjb25zdCByIG9mIGNvdXJzZXMpe2lmKHNpZChyLmlkKSljb3Vyc2VOYW1lW3NpZChyLmlkKV09c2lkKHIubmFtZSl8fCI8dW5yZXNvbHZlZD4iO31pZighbWF0aElkcy5zaXplKXtlbWl0KCJJTkNPTkNMVVNJVkUiLCJNQVRIX0NPVVJTRV9JREVOVElUWV9OT1RfRk9VTkQiLHtjb250ZXh0OnttYXRoX2lkZW50aXR5X2NvdW50OjB9fSk7cmV0dXJuO30KICBjb25zdCBzdGFmZkJ5SWQ9bmV3IE1hcCgpLHN0YWZmSWRzQnlVc2VyPW5ldyBNYXAoKTtpZihleGlzdHMoInN0YWZmIikpe2Zvcihjb25zdCByIG9mIGQuc3RhZmYuZmluZCh7fSx7X2lkOjAsaWQ6MSx1c2VyX2lkOjF9KS50b0FycmF5KCkpe2NvbnN0IHM9c2lkKHIuaWQpLHU9c2lkKHIudXNlcl9pZCk7aWYocylzdGFmZkJ5SWQuc2V0KHMscik7aWYocyYmdSl7aWYoIXN0YWZmSWRzQnlVc2VyLmhhcyh1KSlzdGFmZklkc0J5VXNlci5zZXQodSxuZXcgU2V0KCkpO3N0YWZmSWRzQnlVc2VyLmdldCh1KS5hZGQocyk7fX19CiAgY29uc3QgYXNzaWdubWVudHM9ZXhpc3RzKCJ0ZWFjaGVyX2Fzc2lnbm1lbnRzIik/ZC50ZWFjaGVyX2Fzc2lnbm1lbnRzLmZpbmQoe30se19pZDowLGlkOjEsc3RhZmZfaWQ6MSxjbGFzc19pZDoxLGNvdXJzZV9pZDoxLGFjYWRlbWljX3llYXI6MSxzdGF0dXM6MX0pLnRvQXJyYXkoKTpbXSxhc3NpZ25tZW50U3RhZmY9bmV3IE1hcCgpO2Zvcihjb25zdCByIG9mIGFzc2lnbm1lbnRzKXtpZihzaWQoci5pZCkmJnNpZChyLnN0YWZmX2lkKSlhc3NpZ25tZW50U3RhZmYuc2V0KHNpZChyLmlkKSxzaWQoci5zdGFmZl9pZCkpO30KICBjb25zdCBjaWQ9cj0+c2lkKHIuY291cnNlX2lkfHxyLmNvbXBvbmVudF9pZCk7CiAgY29uc3QgbG9hZD0oY2xhc3NJZCxtYXRoT25seSk9Pntjb25zdCBxPXtjbGFzc19pZDpjbGFzc0lkLGRhdGU6eyRndGU6U1RBUlQsJGx0OkVORH19O2lmKG1hdGhPbmx5KXEuJG9yPVt7Y291cnNlX2lkOnskaW46Wy4uLm1hdGhJZHNdfX0se2NvbXBvbmVudF9pZDp7JGluOlsuLi5tYXRoSWRzXX19XTtyZXR1cm4gZC5sZWFybmluZ19vYmplY3RzLmFnZ3JlZ2F0ZShbeyRtYXRjaDpxfSx7JHByb2plY3Q6e19pZDowLGRhdGU6MSxjb3Vyc2VfaWQ6MSxjb21wb25lbnRfaWQ6MSxyZWNvcmRlZF9ieToxLGNyZWF0ZWRfYnk6MSx1cGRhdGVkX2J5OjEsdGVhY2hlcl9pZDoxLHN0YWZmX2lkOjEsYXNzaWdubWVudF9pZDoxLHBheWxvYWRfcHJlc2VudDp7JG9yOlt7JG5lOlt7JGlmTnVsbDpbIiRjb250ZW50IiwiIl19LCIiXX0seyRuZTpbeyRpZk51bGw6WyIkbWV0aG9kb2xvZ3kiLCIiXX0sIiJdfSx7JG5lOlt7JGlmTnVsbDpbIiRvYnNlcnZhdGlvbnMiLCIiXX0sIiJdfV19fX1dKS50b0FycmF5KCk7fTsKICBjb25zdCBwcmluY2lwYWxSYXc9dj0+e2NvbnN0IHg9c2lkKHYpO2lmKCF4KXJldHVybiIiO2lmKHN0YWZmQnlJZC5oYXMoeCkpcmV0dXJuYHN0YWZmOiR7eH1gO2NvbnN0IHNzPXN0YWZmSWRzQnlVc2VyLmdldCh4KTtpZihzcyYmc3Muc2l6ZT09PTEpcmV0dXJuYHN0YWZmOiR7Wy4uLnNzXVswXX1gO3JldHVybmByYXc6JHt4fWA7fTsKICBjb25zdCBwcmluY2lwYWxzPXI9Pntjb25zdCBvPW5ldyBTZXQoKTtmb3IoY29uc3QgZiBvZiBBQ1RPUl9GSUVMRFMpe2NvbnN0IHA9cHJpbmNpcGFsUmF3KHJbZl0pO2lmKHApby5hZGQocCk7fWNvbnN0IGE9c2lkKHIuYXNzaWdubWVudF9pZCk7aWYoYSlvLmFkZChhc3NpZ25tZW50U3RhZmYuaGFzKGEpP2BzdGFmZjoke2Fzc2lnbm1lbnRTdGFmZi5nZXQoYSl9YDpgYXNzaWdubWVudDoke2F9YCk7cmV0dXJuIG87fTsKICBjb25zdCBlbGlnaWJsZT0ocixjbGFzc0lkLGNvdXJzZUlkcyk9Pntjb25zdCB5PXNpZChyLmFjYWRlbWljX3llYXIpLHN0PW5vcm0oci5zdGF0dXMpO3JldHVybiBzaWQoci5jbGFzc19pZCk9PT1jbGFzc0lkJiZjb3Vyc2VJZHMuaGFzKHNpZChyLmNvdXJzZV9pZCkpJiYoIXl8fHk9PT0iMjAyNiIpJiYhWyJpbmF0aXZvIiwiaW5hY3RpdmUiLCJjYW5jZWxhZG8iLCJyZXZvZ2FkbyJdLmluY2x1ZGVzKHN0KTt9OwogIGNvbnN0IGNvbnRyb2xzPVtdLGNvbnRyb2xSb3dzPVtdLHN0YWZmU2V0cz1bXTsKICBmb3IoY29uc3QgbmFtZSBvZiBDT05UUk9MUyl7Y29uc3QgY2xhc3NJZD1jbGFzc0J5TmFtZVtuYW1lXSxyb3dzPWxvYWQoY2xhc3NJZCx0cnVlKSxwYXlsb2FkPXJvd3MuZmlsdGVyKHI9PnIucGF5bG9hZF9wcmVzZW50PT09dHJ1ZSk7aWYoIXBheWxvYWQubGVuZ3RoKXtlbWl0KCJJTkNPTkNMVVNJVkUiLCJDT05UUk9MX01BVEhfRVZJREVOQ0VfTUlTU0lORyIse2NvbnRyb2xzOlsuLi5jb250cm9scyx7Y2xhc3M6bmFtZSxtYXRoX3Jvd3M6cm93cy5sZW5ndGgsbWF0aF9wYXlsb2FkX3Jvd3M6MH1dfSk7cmV0dXJuO31jb25zdCBwcmVzZW50PW5ldyBTZXQocm93cy5tYXAoY2lkKS5maWx0ZXIoeD0+bWF0aElkcy5oYXMoeCkpKSxzcz1uZXcgU2V0KGFzc2lnbm1lbnRzLmZpbHRlcihyPT5lbGlnaWJsZShyLGNsYXNzSWQscHJlc2VudCkpLm1hcChyPT5zaWQoci5zdGFmZl9pZCkpLmZpbHRlcihCb29sZWFuKSk7c3RhZmZTZXRzLnB1c2goc3MpO2NvbnRyb2xzLnB1c2goe2NsYXNzOm5hbWUsbWF0aF9yb3dzOnJvd3MubGVuZ3RoLG1hdGhfcGF5bG9hZF9yb3dzOnBheWxvYWQubGVuZ3RoLG1vbnRoczptb250aHMocGF5bG9hZCksZGF0ZXM6ZGF0ZXMocGF5bG9hZCksYXNzaWdubWVudF9zdGFmZl9jYW5kaWRhdGVzOnNzLnNpemV9KTtmb3IoY29uc3QgciBvZiByb3dzKWNvbnRyb2xSb3dzLnB1c2goe2NsYXNzTmFtZTpuYW1lLHJvdzpyfSk7fQogIGxldCBpbmZlcnJlZD0iIixzb3VyY2U9IiI7aWYoc3RhZmZTZXRzLmV2ZXJ5KHM9PnMuc2l6ZT09PTEpKXtjb25zdCB2YWxzPW5ldyBTZXQoc3RhZmZTZXRzLm1hcChzPT5bLi4uc11bMF0pKTtpZih2YWxzLnNpemU9PT0xKXtpbmZlcnJlZD1gc3RhZmY6JHtbLi4udmFsc11bMF19YDtzb3VyY2U9IlRFQUNIRVJfQVNTSUdOTUVOVFNfRVhBQ1RfQ09OVFJPTF9VTkFOSU1PVVMiO319CiAgbGV0IG1ldGE9W107aWYoIWluZmVycmVkKXtjb25zdCBzdGF0cz1uZXcgTWFwKCk7Zm9yKGNvbnN0IGl0IG9mIGNvbnRyb2xSb3dzKXtmb3IoY29uc3QgcCBvZiBwcmluY2lwYWxzKGl0LnJvdykpe2lmKCFzdGF0cy5oYXMocCkpc3RhdHMuc2V0KHAse3Jvd3M6MCxwYXlsb2FkOjAsY2xhc3NlczpuZXcgU2V0KCksa2luZDpwLnNwbGl0KCI6IiwxKVswXX0pO2NvbnN0IHM9c3RhdHMuZ2V0KHApO3Mucm93cysrO2lmKGl0LnJvdy5wYXlsb2FkX3ByZXNlbnQ9PT10cnVlKXMucGF5bG9hZCsrO3MuY2xhc3Nlcy5hZGQoaXQuY2xhc3NOYW1lKTt9fW1ldGE9Wy4uLnN0YXRzLmVudHJpZXMoKV0ubWFwKChbcCxzXSk9Pih7cHJpbmNpcGFsOnAscm93czpzLnJvd3MscGF5bG9hZF9yb3dzOnMucGF5bG9hZCxjbGFzc19zdXBwb3J0OnMuY2xhc3Nlcy5zaXplLGtpbmQ6cy5raW5kLGNvdmVyYWdlOmNvbnRyb2xSb3dzLmxlbmd0aD9zLnJvd3MvY29udHJvbFJvd3MubGVuZ3RoOjB9KSkuZmlsdGVyKHg9PnguY2xhc3Nfc3VwcG9ydD09PUNPTlRST0xTLmxlbmd0aCkuc29ydCgoYSxiKT0+Yi5jb3ZlcmFnZS1hLmNvdmVyYWdlfHxiLnBheWxvYWRfcm93cy1hLnBheWxvYWRfcm93c3x8Yi5yb3dzLWEucm93cyk7aWYobWV0YS5sZW5ndGgpe2NvbnN0IGE9bWV0YVswXSxiPW1ldGFbMV0sdGllPWImJk1hdGguYWJzKGEuY292ZXJhZ2UtYi5jb3ZlcmFnZSk8MWUtOSYmYS5wYXlsb2FkX3Jvd3M9PT1iLnBheWxvYWRfcm93cztpZighdGllJiZhLmNvdmVyYWdlPj0wLjgwKXtpbmZlcnJlZD1hLnByaW5jaXBhbDtzb3VyY2U9IkxFQVJOSU5HX09CSkVDVF9NRVRBREFUQV9GT1VSX0NMQVNTX0RPTUlOQU5UIjt9fX0KICBpZighaW5mZXJyZWQpe2VtaXQoIklOQ09OQ0xVU0lWRSIsIkhJU1RPUklDQUxfQUNUT1JfTk9UX1VOSVFVRUxZX0lORkVSUkVEIix7Y29udHJvbHMsYWN0b3JfaW5mZXJlbmNlOntzdGF0dXM6IkFNQklHVU9VU19PUl9JTlNVRkZJQ0lFTlQiLGFzc2lnbm1lbnRfdW5hbmltb3VzOmZhbHNlLHN0YWJsZV9tZXRhZGF0YV9jYW5kaWRhdGVfY291bnQ6bWV0YS5sZW5ndGgsYmVzdF9tZXRhZGF0YV9jb3ZlcmFnZV9wZXJjZW50Om1ldGEubGVuZ3RoP01hdGgucm91bmQobWV0YVswXS5jb3ZlcmFnZSoxMDAwMCkvMTAwOjB9fSk7cmV0dXJuO30KICBjb25zdCBpbmZlcnJlZFN0YWZmPWluZmVycmVkLnN0YXJ0c1dpdGgoInN0YWZmOiIpP2luZmVycmVkLnNsaWNlKDYpOiIiLHRvcE1ldGE9bWV0YS5maW5kKHg9PngucHJpbmNpcGFsPT09aW5mZXJyZWQpOwogIGNvbnN0IHN1bW1hcml6ZT1uYW1lPT57Y29uc3QgY2xhc3NJZD1jbGFzc0J5TmFtZVtuYW1lXSxyb3dzPWxvYWQoY2xhc3NJZCxmYWxzZSksbWF0Y2hpbmc9cm93cy5maWx0ZXIocj0+cHJpbmNpcGFscyhyKS5oYXMoaW5mZXJyZWQpKSxhY3RvclBheWxvYWQ9bWF0Y2hpbmcuZmlsdGVyKHI9PnIucGF5bG9hZF9wcmVzZW50PT09dHJ1ZSksYWN0b3JNYXRoPW1hdGNoaW5nLmZpbHRlcihyPT5tYXRoSWRzLmhhcyhjaWQocikpKSxhY3Rvck1hdGhQYXlsb2FkPWFjdG9yTWF0aC5maWx0ZXIocj0+ci5wYXlsb2FkX3ByZXNlbnQ9PT10cnVlKSxvdGhlclBheWxvYWQ9YWN0b3JQYXlsb2FkLmZpbHRlcihyPT4hbWF0aElkcy5oYXMoY2lkKHIpKSksdW5hdHRyTWF0aD1yb3dzLmZpbHRlcihyPT5yLnBheWxvYWRfcHJlc2VudD09PXRydWUmJm1hdGhJZHMuaGFzKGNpZChyKSkmJnByaW5jaXBhbHMocikuc2l6ZT09PTApLGJpbmRpbmdzPWluZmVycmVkU3RhZmY/YXNzaWdubWVudHMuZmlsdGVyKHI9PnNpZChyLnN0YWZmX2lkKT09PWluZmVycmVkU3RhZmYmJnNpZChyLmNsYXNzX2lkKT09PWNsYXNzSWQmJm1hdGhJZHMuaGFzKHNpZChyLmNvdXJzZV9pZCkpJiYoIXNpZChyLmFjYWRlbWljX3llYXIpfHxzaWQoci5hY2FkZW1pY195ZWFyKT09PSIyMDI2IikmJiFbImluYXRpdm8iLCJpbmFjdGl2ZSIsImNhbmNlbGFkbyIsInJldm9nYWRvIl0uaW5jbHVkZXMobm9ybShyLnN0YXR1cykpKTpbXSxjYz17fTtmb3IoY29uc3QgciBvZiBtYXRjaGluZyl7Y29uc3Qgbj1jb3Vyc2VOYW1lW2NpZChyKV18fCI8dW5yZXNvbHZlZD4iO2NjW25dPShjY1tuXXx8MCkrMTt9bGV0IGM9IkhJU1RPUklDQUxfQUNUT1JfQUJTRU5UX0ZST01fVEFSR0VUXzIwMjYwODE4IjtpZihhY3Rvck1hdGhQYXlsb2FkLmxlbmd0aCljPSJSRUNPVkVSQUJMRV9MVUlaX01BVEhfQ09OVEVOVF9DT05GSVJNRUQiO2Vsc2UgaWYob3RoZXJQYXlsb2FkLmxlbmd0aCljPSJMVUlaX0hJU1RPUklDQUxfUk9XU19VTkRFUl9OT05NQVRIX0NPTVBPTkVOVCI7ZWxzZSBpZihtYXRjaGluZy5sZW5ndGgpYz0iTFVJWl9ISVNUT1JJQ0FMX1JPV1NfUFJFU0VOVF9XSVRIT1VUX1BBWUxPQUQiO2Vsc2UgaWYodW5hdHRyTWF0aC5sZW5ndGgpYz0iVEFSR0VUX01BVEhfVU5BVFRSSUJVVEVEX0NBTkRJREFURVNfUFJFU0VOVCI7ZWxzZSBpZihiaW5kaW5ncy5sZW5ndGgpYz0iSElTVE9SSUNBTF9MVUlaX01BVEhfQklORElOR19QUkVTRU5UX0NPTlRFTlRfQUJTRU5UIjtyZXR1cm57Y2xhc3M6bmFtZSxjbGFzc2lmaWNhdGlvbjpjLHRvdGFsX3Jvd3M6cm93cy5sZW5ndGgsaW5mZXJyZWRfYWN0b3Jfcm93czptYXRjaGluZy5sZW5ndGgsaW5mZXJyZWRfYWN0b3JfcGF5bG9hZF9yb3dzOmFjdG9yUGF5bG9hZC5sZW5ndGgsaW5mZXJyZWRfYWN0b3JfbWF0aF9yb3dzOmFjdG9yTWF0aC5sZW5ndGgsaW5mZXJyZWRfYWN0b3JfbWF0aF9wYXlsb2FkX3Jvd3M6YWN0b3JNYXRoUGF5bG9hZC5sZW5ndGgsaW5mZXJyZWRfYWN0b3JfbWF0aF9wYXlsb2FkX21vbnRoczptb250aHMoYWN0b3JNYXRoUGF5bG9hZCksaW5mZXJyZWRfYWN0b3JfbWF0aF9wYXlsb2FkX2RhdGVzOmRhdGVzKGFjdG9yTWF0aFBheWxvYWQpLGluZmVycmVkX2FjdG9yX25vbm1hdGhfcGF5bG9hZF9yb3dzOm90aGVyUGF5bG9hZC5sZW5ndGgsaW5mZXJyZWRfYWN0b3Jfbm9ubWF0aF9wYXlsb2FkX2RhdGVzOmRhdGVzKG90aGVyUGF5bG9hZCksdW5hdHRyaWJ1dGVkX21hdGhfcGF5bG9hZF9yb3dzOnVuYXR0ck1hdGgubGVuZ3RoLGhpc3RvcmljYWxfbWF0aF9hc3NpZ25tZW50X21hdGNoZXM6YmluZGluZ3MubGVuZ3RoLGluZmVycmVkX2FjdG9yX2NvdXJzZV9uYW1lX2NvdW50czpjY307fTsKICBjb25zdCB0YXJnZXRzPVRBUkdFVFMubWFwKHN1bW1hcml6ZSksY3M9dGFyZ2V0cy5tYXAoeD0+eC5jbGFzc2lmaWNhdGlvbik7bGV0IG92ZXJhbGw9IkhJU1RPUklDQUxfQUNUT1JfQUJTRU5UX0ZST01fQk9USF9UQVJHRVRTXzIwMjYwODE4IjtpZihjcy5pbmNsdWRlcygiUkVDT1ZFUkFCTEVfTFVJWl9NQVRIX0NPTlRFTlRfQ09ORklSTUVEIikpb3ZlcmFsbD0iQlNPTl8yMDI2MDgxOF9SRUNPVkVSWV9TT1VSQ0VfQ09ORklSTUVEIjtlbHNlIGlmKGNzLmluY2x1ZGVzKCJMVUlaX0hJU1RPUklDQUxfUk9XU19VTkRFUl9OT05NQVRIX0NPTVBPTkVOVCIpKW92ZXJhbGw9IkJTT05fMjAyNjA4MThfTFVJWl9ST1dTX1VOREVSX05PTk1BVEhfQ09NUE9ORU5UIjtlbHNlIGlmKGNzLmluY2x1ZGVzKCJMVUlaX0hJU1RPUklDQUxfUk9XU19QUkVTRU5UX1dJVEhPVVRfUEFZTE9BRCIpKW92ZXJhbGw9IkJTT05fMjAyNjA4MThfTFVJWl9ST1dTX1dJVEhPVVRfUEFZTE9BRCI7ZWxzZSBpZihjcy5pbmNsdWRlcygiVEFSR0VUX01BVEhfVU5BVFRSSUJVVEVEX0NBTkRJREFURVNfUFJFU0VOVCIpKW92ZXJhbGw9IkJTT05fMjAyNjA4MThfVU5BVFRSSUJVVEVEX01BVEhfQ0FORElEQVRFUyI7ZWxzZSBpZihjcy5pbmNsdWRlcygiSElTVE9SSUNBTF9MVUlaX01BVEhfQklORElOR19QUkVTRU5UX0NPTlRFTlRfQUJTRU5UIikpb3ZlcmFsbD0iQlNPTl8yMDI2MDgxOF9CSU5ESU5HX1BSRVNFTlRfQ09OVEVOVF9BQlNFTlQiOwogIGVtaXQoIkNPTVBMRVRFRCIsb3ZlcmFsbCx7YWN0b3JfaW5mZXJlbmNlOntzdGF0dXM6IkVYQUNUX0NPTlRST0xfREVSSVZFRCIsc291cmNlLHByaW5jaXBhbF9raW5kOmluZmVycmVkLnNwbGl0KCI6IiwxKVswXSxjb250cm9sX2NsYXNzX3N1cHBvcnQ6Q09OVFJPTFMubGVuZ3RoLG1ldGFkYXRhX2NvdmVyYWdlX3BlcmNlbnQ6dG9wTWV0YT9NYXRoLnJvdW5kKHRvcE1ldGEuY292ZXJhZ2UqMTAwMDApLzEwMDpudWxsLHRlY2huaWNhbF9pZGVudGl0eV9lbWl0dGVkOmZhbHNlfSxjb250cm9scyx0YXJnZXRzfSk7Cn0pKCk7"
+
 concurrency:
-  group: luiz-gomes-f6-3d-1-1-probe-localization
+  group: luiz-gomes-f6-3d-2-historical-actor
   cancel-in-progress: false
 
 jobs:
   guard:
-    name: Guard Luiz Gomes F6.3d.1.1 sanitized probe localization
+    name: Guard Luiz Gomes F6.3d.2 historical actor
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -33,39 +35,36 @@ jobs:
         run: |
           set -euo pipefail
           bash -n backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh
-          node --check backend/scripts/luiz_gomes_f6_3c_backup_probe.js
           python -m pip install --disable-pip-version-check pytest
           pytest -q --noconftest backend/tests/test_luiz_gomes_f6_3d_1_bson_dump_contract.py
-      - name: Enforce raw-output containment and restore boundary
+      - name: Validate encoded F6.3d.2 probe syntax and boundary
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          import base64, os, subprocess
           from pathlib import Path
-          sh=Path('backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh').read_text(encoding='utf-8')
+          probe=base64.b64decode(os.environ['F63D2_PROBE_B64']).decode('utf-8')
+          Path('/tmp/f63d2-probe.js').write_text(probe,encoding='utf-8')
+          subprocess.run(['node','--check','/tmp/f63d2-probe.js'],check=True)
+          runner=Path('backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh').read_text(encoding='utf-8')
           wf=Path('.github/workflows/luiz-gomes-f6-3d-1-1-probe-localization.yml').read_text(encoding='utf-8')
-          for marker in (
-              '2026-08-18','required=(users schools classes courses learning_objects)',
-              '--network none','dst=/dump,readonly','F63D11_PROBE_ERROR_MARKER=',
-              'RAW_PROBE_OUTPUT_EMITTED=NO','emit_terminal_boundary','rm -f "$probe_raw"'):
-              if marker not in sh: raise SystemExit(f'F63D11_REQUIRED_MARKER_MISSING:{marker}')
-          for allowed in (
-              'TEACHER_USER_MATCHES:','TEACHER_USER_ID_MISSING','SCHOOL_MATCHES:',
-              'SCHOOL_ID_MISSING','CLASS_MATCHES_8A:','CLASS_MATCHES_9A:',
-              'CLASS_MATCHES_TARGET:','UNCLASSIFIED_RUNTIME_ERROR'):
-              if allowed not in sh: raise SystemExit(f'F63D11_SAFE_MARKER_MISSING:{allowed}')
-          for banned in ('students','attendance','grades'):
-              if banned in sh: raise SystemExit(f'F63D11_FORBIDDEN_NAMESPACE:{banned}')
-          for marker in ('TARGET_SHA','EXPECTED_PRODUCTION_SHA','probe_error_marker','raw_probe_output_emitted','BSON_DUMP_PROBE_ERROR'):
-              if marker not in wf: raise SystemExit(f'F63D11_WORKFLOW_MARKER_MISSING:{marker}')
-          print('LUIZ_GOMES_F6_3D_1_1_STATIC_BOUNDARY=PASS')
+          for marker in ('6º ANO A','6º ANO B','7º ANO A','7º ANO B','8º ANO A','9º ANO A','TEACHER_ASSIGNMENTS_EXACT_CONTROL_UNANIMOUS','LEARNING_OBJECT_METADATA_FOUR_CLASS_DOMINANT','actor_identity_derived_without_user_lookup:true','technical_ids_emitted:false'):
+              if marker not in probe: raise SystemExit(f'F63D2_PROBE_MARKER_MISSING:{marker}')
+          for banned in ('d.users','getCollection("users")','student_id:1','records:1'):
+              if banned in probe: raise SystemExit(f'F63D2_FORBIDDEN_PROBE_LOOKUP:{banned}')
+          for marker in ('--network none','dst=/dump,readonly','PRODUCTION_DATABASE_TOUCHED=NO','RAW_PROBE_OUTPUT_EMITTED=NO'):
+              if marker not in runner: raise SystemExit(f'F63D2_RUNNER_BOUNDARY_MISSING:{marker}')
+          for marker in ('[LUIZ-GOMES-F6.3D.2-ACTOR] ','INFER_20260818_LUIZ_ACTOR_FROM_CONTROL_CLASSES','TARGET_SHA','EXPECTED_PRODUCTION_SHA'):
+              if marker not in wf: raise SystemExit(f'F63D2_WORKFLOW_MARKER_MISSING:{marker}')
+          print('LUIZ_GOMES_F6_3D_2_STATIC_BOUNDARY=PASS')
           PY
 
   production-audit:
-    name: Localize 2026-08-18 historical probe error without raw output
+    name: Infer Luiz historical actor from 6A-7B and inspect 8A-9A
     if: >-
       github.event_name == 'issues' &&
-      startsWith(github.event.issue.title, '[LUIZ-GOMES-F6.3D.1.1-PROBE] ') &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-F6.3D.2-ACTOR] ') &&
       github.event.issue.user.login == github.repository_owner
     runs-on: ubuntu-latest
     environment: production
@@ -89,88 +88,76 @@ jobs:
           import json, os, re, urllib.request
           issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
           if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
-              raise SystemExit('LUIZ_GOMES_F6_3D_1_1_OWNER_REQUIRED')
+              raise SystemExit('LUIZ_GOMES_F6_3D_2_OWNER_REQUIRED')
           values={}
           for raw in (issue.get('body') or '').splitlines():
               if '=' not in raw: continue
               key,value=raw.split('=',1); key=key.strip(); value=value.strip()
-              if key in values: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_DUPLICATE_FIELD:{key}')
+              if key in values: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_DUPLICATE_FIELD:{key}')
               values[key]=value
-          expected={
-              'LUIZ_GOMES_F6_3D_1_1_PROBE_LOCALIZATION':'AUTHORIZED',
-              'CONFIRMATION':'LOCALIZE_20260818_HISTORICAL_PROBE_ERROR_SANITIZED',
-              'ACADEMIC_YEAR':'2026','TRACKING_ISSUE':'357',
-          }
+          expected={'LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR':'AUTHORIZED','CONFIRMATION':'INFER_20260818_LUIZ_ACTOR_FROM_CONTROL_CLASSES','ACADEMIC_YEAR':'2026','TRACKING_ISSUE':'357'}
           for key,value in expected.items():
-              if values.get(key)!=value: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_CONTEXT_INVALID:{key}')
+              if values.get(key)!=value: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_CONTEXT_INVALID:{key}')
           target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
-          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('LUIZ_GOMES_F6_3D_1_1_SHA_INVALID')
-          if issue.get('title') != f'[LUIZ-GOMES-F6.3D.1.1-PROBE] {target}': raise SystemExit('LUIZ_GOMES_F6_3D_1_1_TITLE_MISMATCH')
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d11'}
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('LUIZ_GOMES_F6_3D_2_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F6.3D.2-ACTOR] {target}': raise SystemExit('LUIZ_GOMES_F6_3D_2_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d2'}
           def get(url):
               req=urllib.request.Request(url,headers=headers)
               with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
           repo=os.environ['GITHUB_REPOSITORY']
-          main=get(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']
-          production=get(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
-          if main!=target: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_MAIN_MOVED:{main}')
-          if production!=prod: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_PRODUCTION_MOVED:{production}')
-          if get(f'https://api.github.com/repos/{repo}/issues/357').get('state')!='open': raise SystemExit('LUIZ_GOMES_F6_3D_1_1_TRACKING_NOT_OPEN')
-          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
-              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
-          print('LUIZ_GOMES_F6_3D_1_1_CONTEXT=PASS')
+          main=get(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']; production=get(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_MAIN_MOVED:{main}')
+          if production!=prod: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_PRODUCTION_MOVED:{production}')
+          if get(f'https://api.github.com/repos/{repo}/issues/357').get('state')!='open': raise SystemExit('LUIZ_GOMES_F6_3D_2_TRACKING_NOT_OPEN')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out: out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_F6_3D_2_CONTEXT=PASS')
           PY
-
       - name: Checkout exact reviewed main SHA
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ steps.context.outputs.target_sha }}
           persist-credentials: false
           fetch-depth: 1
-
-      - name: Prepare SSH and evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p evidence ~/.ssh
-          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || { echo "F63D11_SECRET_MISSING:$v"; exit 1; }; done
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63d11_key; chmod 600 ~/.ssh/f63d11_key
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
-
-      - name: Stage metadata-only probe on host
+      - name: Prepare SSH and stage encoded probe
         id: stage
         shell: bash
         run: |
           set -euo pipefail
-          remote_probe="/tmp/luiz-gomes-f6-3d11-${GITHUB_RUN_ID}.js"
-          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d11_key")
-          cat backend/scripts/luiz_gomes_f6_3c_backup_probe.js | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || { echo "F63D2_SECRET_MISSING:$v"; exit 1; }; done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63d2_key; chmod 600 ~/.ssh/f63d2_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          probe_local="evidence/f63d2-probe.js"
+          printf '%s' "$F63D2_PROBE_B64" | base64 -d > "$probe_local"
+          node --check "$probe_local"
+          remote_probe="/tmp/luiz-gomes-f6-3d2-${GITHUB_RUN_ID}.js"
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d2_key")
+          cat "$probe_local" | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          rm -f "$probe_local"
           echo "remote_probe=$remote_probe" >> "$GITHUB_OUTPUT"
-
-      - name: Restore isolated dump and localize probe error
+      - name: Restore isolated 2026-08-18 dump and infer historical actor
         id: scan
         shell: bash
         run: |
           set -euo pipefail
-          raw='evidence/f6-3d11-sanitized.log'
-          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d11_key")
+          raw='evidence/f6-3d2-sanitized.log'
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d2_key")
           set +e
           ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" "$GITHUB_RUN_ID" "${{ steps.stage.outputs.remote_probe }}" < backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh > "$raw" 2>&1
           rc=$?
           set -e
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
-          echo "F63D11_REMOTE_SCAN_RC=$rc"
-
+          echo "F63D2_REMOTE_SCAN_RC=$rc"
       - name: Cleanup staged probe on host
         if: always() && steps.context.outcome == 'success' && steps.stage.outputs.remote_probe != ''
         continue-on-error: true
         shell: bash
         run: |
-          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d11_key")
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d2_key")
           ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "rm -f '${{ steps.stage.outputs.remote_probe }}'" >/dev/null 2>&1 || true
-
-      - name: Build structured localization result
+      - name: Build structured result
         if: always() && steps.context.outcome == 'success'
         env:
           SCAN_RC: ${{ steps.scan.outputs.rc }}
@@ -180,83 +167,51 @@ jobs:
           python - <<'PY'
           import json, os, re
           from pathlib import Path
-          raw=Path('evidence/f6-3d11-sanitized.log')
-          lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
+          raw=Path('evidence/f6-3d2-sanitized.log'); lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
           try: rc=int(os.environ.get('SCAN_RC') or '999')
           except ValueError: rc=999
-          meta=None; point=None; restored=[]; flags={}; markers=[]; error_marker=None; probe_exit=None
+          meta=None; point=None; restored=[]; flags={}; markers=[]
           for line in lines:
               if line.startswith('F63D1_GROUP_META_JSON='): meta=json.loads(line.split('=',1)[1])
               elif line.startswith('LUIZ_GOMES_F6_3C_POINT_JSON='): point=json.loads(line.split('=',1)[1])
               elif line.startswith('F63D1_RESTORED_COLLECTION:'): restored.append(line.split(':',1)[1])
-              elif line.startswith('F63D11_PROBE_ERROR_MARKER='): error_marker=line.split('=',1)[1]
-              elif line.startswith('F63D11_PROBE_EXIT_CODE='):
-                  try: probe_exit=int(line.split('=',1)[1])
-                  except ValueError: pass
-              elif '=' in line and line.split('=',1)[0] in {'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED','RAW_PROBE_OUTPUT_EMITTED'}:
-                  k,v=line.split('=',1); flags[k]=v
+              elif '=' in line and line.split('=',1)[0] in {'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED','RAW_PROBE_OUTPUT_EMITTED'}: k,v=line.split('=',1); flags[k]=v
               elif re.fullmatch(r'F63D1(?:1)?_[A-Z0-9_]+(?::[A-Za-z0-9_.-]+)?(?:=[A-Za-z0-9_.:-]+)?',line): markers.append(line)
-          boundary=(flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and
-                    flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and
-                    flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and
-                    flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO')
-          classifications=[t.get('classification') for t in ((point or {}).get('targets') or [])]
-          if rc==0 and meta is not None and point is not None and boundary:
-              status='COMPLETED'
-              if 'RECOVERABLE_LUIZ_MATH_CONTENT_CONFIRMED' in classifications: classification='BSON_20260818_RECOVERY_SOURCE_CONFIRMED'
-              elif 'LUIZ_MATH_ROWS_PRESENT_WITHOUT_PAYLOAD' in classifications: classification='BSON_20260818_LUIZ_MATH_ROWS_WITHOUT_PAYLOAD'
-              elif 'LUIZ_TARGET_ROWS_PRESENT_UNDER_NONMATH_COMPONENT' in classifications: classification='BSON_20260818_LUIZ_NONMATH_ROWS_PRESENT'
-              elif 'UNATTRIBUTED_MATH_CONTENT_CANDIDATES_PRESENT' in classifications: classification='BSON_20260818_UNATTRIBUTED_MATH_CONTENT_CANDIDATES'
-              else: classification='BSON_20260818_NO_RECOVERABLE_LUIZ_MATH'
-          else:
-              status='INCONCLUSIVE'; classification='BSON_DUMP_PROBE_ERROR'
-          result={'schema':'LUIZ_GOMES_F6_3D_1_1_PROBE_LOCALIZATION_V1','status':status,'classification':classification,
-                  'source':meta,'probe':point,'restored_collections':restored,'probe_error_marker':error_marker,
-                  'probe_exit_code':probe_exit,'operational_markers':markers[-20:],
-                  'production_database_touched':False if flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' else None,
-                  'temporary_restore_network':flags.get('TEMP_RESTORE_NETWORK'),'temporary_restore_ports':flags.get('TEMP_RESTORE_PORTS'),
-                  'source_mount':flags.get('SOURCE_MOUNT'),'temporary_containers_cleaned':True if flags.get('TEMP_CONTAINERS_CLEANED')=='YES' else None,
-                  'raw_probe_output_emitted':False if flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO' else None,
-                  'production_writes':False,'pedagogical_plaintext_emitted':False,'student_data_read':False,'attendance_records_read':False}
+          boundary=flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO'
+          valid=isinstance(point,dict) and point.get('schema')=='LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V1'
+          ok=rc==0 and meta is not None and valid and boundary
+          result={'schema':'LUIZ_GOMES_F6_3D_2_GATE_V1','status':(point or {}).get('status') if ok else 'INCONCLUSIVE','classification':(point or {}).get('overall_classification') if ok else 'F63D2_RUNTIME_OR_BOUNDARY_ERROR','source':meta,'actor_inference':(point or {}).get('actor_inference'),'controls':(point or {}).get('controls') or [],'targets':(point or {}).get('targets') or [],'probe_boundaries':(point or {}).get('boundaries'),'restored_collections':restored,'operational_markers':markers[-20:],'production_database_touched':False if flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' else None,'temporary_restore_network':flags.get('TEMP_RESTORE_NETWORK'),'temporary_restore_ports':flags.get('TEMP_RESTORE_PORTS'),'source_mount':flags.get('SOURCE_MOUNT'),'temporary_containers_cleaned':True if flags.get('TEMP_CONTAINERS_CLEANED')=='YES' else None,'raw_probe_output_emitted':False if flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO' else None,'production_writes':False,'pedagogical_plaintext_emitted':False,'student_data_read':False,'attendance_records_read':False}
           Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
           if raw.exists(): raw.unlink()
           PY
-
-      - name: Validate taxonomy and sanitization boundary
+      - name: Validate taxonomy and isolation boundary
         if: always() && steps.context.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, re
+          import json
           from pathlib import Path
           p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
-          if p.get('schema')!='LUIZ_GOMES_F6_3D_1_1_PROBE_LOCALIZATION_V1': raise SystemExit('F63D11_SCHEMA_INVALID')
-          if p.get('production_writes') is not False or p.get('pedagogical_plaintext_emitted') is not False or p.get('student_data_read') is not False or p.get('attendance_records_read') is not False: raise SystemExit('F63D11_DATA_BOUNDARY_INVALID')
-          forbidden={'students','enrollments','attendance','grades','attendance_documentary'}
-          if forbidden.intersection(set(p.get('restored_collections') or [])): raise SystemExit('F63D11_FORBIDDEN_RESTORE')
-          if p.get('status')=='INCONCLUSIVE':
-              if p.get('classification')!='BSON_DUMP_PROBE_ERROR': raise SystemExit('F63D11_TAXONOMY_INVALID')
-              marker=p.get('probe_error_marker')
-              if marker is not None and not re.fullmatch(r'(?:TEACHER_USER_MATCHES:[0-9]+|TEACHER_USER_ID_MISSING|SCHOOL_MATCHES:[0-9]+|SCHOOL_ID_MISSING|CLASS_MATCHES_(?:8A|9A|TARGET):[0-9]+|UNCLASSIFIED_RUNTIME_ERROR)',marker): raise SystemExit('F63D11_ERROR_MARKER_INVALID')
-              if marker is not None:
-                  if p.get('production_database_touched') is not False or p.get('temporary_restore_network')!='none' or p.get('temporary_restore_ports')!='none' or p.get('source_mount')!='read_only' or p.get('temporary_containers_cleaned') is not True or p.get('raw_probe_output_emitted') is not False: raise SystemExit('F63D11_ERROR_BOUNDARY_INVALID')
-          elif p.get('status')=='COMPLETED':
-              if not p.get('source') or not p.get('probe'): raise SystemExit('F63D11_RESULT_MISSING')
-              if p.get('production_database_touched') is not False or p.get('temporary_restore_network')!='none' or p.get('temporary_restore_ports')!='none' or p.get('source_mount')!='read_only' or p.get('temporary_containers_cleaned') is not True or p.get('raw_probe_output_emitted') is not False: raise SystemExit('F63D11_SUCCESS_BOUNDARY_INVALID')
-          else: raise SystemExit('F63D11_STATUS_INVALID')
-          print('LUIZ_GOMES_F6_3D_1_1_RESULT=PASS')
+          if p.get('schema')!='LUIZ_GOMES_F6_3D_2_GATE_V1': raise SystemExit('F63D2_SCHEMA_INVALID')
+          if p.get('production_writes') is not False or p.get('pedagogical_plaintext_emitted') is not False or p.get('student_data_read') is not False or p.get('attendance_records_read') is not False: raise SystemExit('F63D2_DATA_BOUNDARY_INVALID')
+          if {'students','enrollments','attendance','grades','attendance_documentary'}.intersection(set(p.get('restored_collections') or [])): raise SystemExit('F63D2_FORBIDDEN_RESTORE')
+          if p.get('status')=='COMPLETED':
+              inf=p.get('actor_inference') or {}; pb=p.get('probe_boundaries') or {}
+              if inf.get('status')!='EXACT_CONTROL_DERIVED': raise SystemExit('F63D2_INFERENCE_NOT_EXACT')
+              if pb.get('actor_identity_derived_without_user_lookup') is not True or pb.get('technical_ids_emitted') is not False: raise SystemExit('F63D2_IDENTITY_BOUNDARY_INVALID')
+          elif p.get('status')!='INCONCLUSIVE': raise SystemExit('F63D2_STATUS_INVALID')
+          if p.get('production_database_touched') is not False or p.get('temporary_restore_network')!='none' or p.get('temporary_restore_ports')!='none' or p.get('source_mount')!='read_only' or p.get('temporary_containers_cleaned') is not True or p.get('raw_probe_output_emitted') is not False: raise SystemExit('F63D2_ISOLATION_INVALID')
+          print('LUIZ_GOMES_F6_3D_2_RESULT=PASS')
           PY
-
-      - name: Upload sanitized localization evidence
+      - name: Upload F6.3d.2 evidence
         if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: luiz-gomes-f6-3d11-probe-${{ github.run_id }}
+          name: luiz-gomes-f6-3d2-${{ github.run_id }}
           path: evidence/runtime.json
           if-no-files-found: error
           retention-days: 90
-
       - name: Comment diagnosis and close gate
         if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
         env:
@@ -268,21 +223,15 @@ jobs:
           python - <<'PY'
           import json, os, urllib.request
           from pathlib import Path
-          p=json.loads(Path('evidence/runtime.json').read_text())
-          s=p.get('source') or {}
-          lines=['## LUIZ-GOMES-F6.3d.1.1 — localização sanitizada do probe histórico','',
-                 f"Status: **`{p.get('status')}`**",f"Classificação: **`{p.get('classification')}`**",
-                 f"Fonte: data={s.get('snapshot_date')}; fingerprint={s.get('group_fingerprint')}; BSON={s.get('bson_files')}; proveniência={s.get('provenance')}",
-                 f"Marcador sanitizado do probe: **`{p.get('probe_error_marker')}`**; exit-code={p.get('probe_exit_code')}",'',
-                 '**Boundary:** stdout/stderr bruto permaneceu no host e foi apagado; Mongo temporário `--network none`, zero portas, source read-only; produção não tocada; nenhum plaintext pedagógico ou dado estudantil emitido.']
-          body='\n'.join(lines)
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d11-finalizer','Content-Type':'application/json'}
-          repo=os.environ['GITHUB_REPOSITORY']
+          p=json.loads(Path('evidence/runtime.json').read_text()); s=p.get('source') or {}; inf=p.get('actor_inference') or {}
+          lines=['## LUIZ-GOMES-F6.3d.2 — ator histórico pelas turmas-controle','',f"Status: **`{p.get('status')}`**",f"Classificação: **`{p.get('classification')}`**",f"Fonte: data={s.get('snapshot_date')}; fingerprint={s.get('group_fingerprint')}; BSON={s.get('bson_files')}; proveniência={s.get('provenance')}",f"Inferência: status={inf.get('status')}; fonte={inf.get('source')}; tipo={inf.get('principal_kind')}; suporte={inf.get('control_class_support')} turmas; cobertura-metadata={inf.get('metadata_coverage_percent')}",'','### Controles']
+          for r in p.get('controls') or []: lines.append(f"- {r.get('class')}: math={r.get('math_rows')}, payload={r.get('math_payload_rows')}, assignment_candidates={r.get('assignment_staff_candidates')}")
+          lines += ['', '### Alvos']
+          for r in p.get('targets') or []: lines.append(f"- {r.get('class')}: **`{r.get('classification')}`**; actor_rows={r.get('inferred_actor_rows')}; math_payload={r.get('inferred_actor_math_payload_rows')}; nonmath_payload={r.get('inferred_actor_nonmath_payload_rows')}; binding_math={r.get('historical_math_assignment_matches')}; unattributed_math_payload={r.get('unattributed_math_payload_rows')}")
+          lines += ['', '**Boundary:** identidade derivada sem lookup em `users`; nenhum ID técnico emitido; Mongo temporário `--network none`, zero portas, source read-only; produção não tocada; nenhum plaintext pedagógico, dado estudantil ou `attendance.records`.']
+          body='\n'.join(lines); headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d2-finalizer','Content-Type':'application/json'}; repo=os.environ['GITHUB_REPOSITORY']
           def req(url,method,payload):
               r=urllib.request.Request(url,data=json.dumps(payload).encode(),headers=headers,method=method)
               with urllib.request.urlopen(r,timeout=30) as resp: return json.load(resp)
-          req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
-          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
-          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
-          print('LUIZ_GOMES_F6_3D_1_1_FINALIZER=PASS')
+          req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body}); req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body}); req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'}); print('LUIZ_GOMES_F6_3D_2_FINALIZER=PASS')
           PY
