@@ -30,8 +30,14 @@ emit_boundary(){
   echo 'RAW_PROBE_OUTPUT_EMITTED=NO'
   echo 'EPHEMERAL_TECHNICAL_ID_FILES_CLEANED=YES'
 }
+# Distinct exit codes are intentionally non-semantic and contain no data.
+# The workflow already emits R1B1_REMOTE_SCAN_RC=<code>, so these values
+# identify only the controlled failure stage without exposing raw logs.
+# 10 staged input; 11 live seed exec/marker; 12 live seed not ready;
+# 13 dump selection; 14 canonical tree; 15 Mongo image; 16 temp Mongo start;
+# 17 network isolation; 18 published port; 19 restore; 20 probe marker.
 
-test -s "$live_seed_host" && test -s "$probe_template_host" || { echo 'R1B1_STAGED_INPUT_MISSING'; exit 1; }
+[[ -s "$live_seed_host" && -s "$probe_template_host" ]] || { echo 'R1B1_STAGED_INPUT_MISSING'; emit_boundary; exit 10; }
 umask 077
 set +e
 docker exec -i "$mongo_container" mongosh --quiet < "$live_seed_host" > "$seed_raw" 2>&1
@@ -42,14 +48,14 @@ if [[ "$seed_rc" -ne 0 || -z "$seed_line" ]]; then
   rm -f "$seed_raw"
   echo "R1B1_LIVE_SEED_EXIT_CODE=$seed_rc"
   emit_boundary
-  exit 1
+  exit 11
 fi
 seed_json="${seed_line#LUIZ_GOMES_R1_0B1_LIVE_SEED_JSON=}"
 if [[ "$seed_json" != *'"status":"READY"'* ]]; then
   rm -f "$seed_raw"
   echo 'R1B1_LIVE_SEED_NOT_READY'
   emit_boundary
-  exit 1
+  exit 12
 fi
 { printf 'const LIVE_SEED = %s;\n' "$seed_json"; cat "$probe_template_host"; } > "$probe_materialized"
 chmod 600 "$probe_materialized"
@@ -79,27 +85,33 @@ for group in "${!count_by_group[@]}"; do
   (( spread<=600 )) || continue
   eligible+=("$group")
 done
-[[ "${#eligible[@]}" -eq 1 ]] || { echo "R1B1_ELIGIBLE_GROUP_COUNT:${#eligible[@]}"; exit 1; }
+[[ "${#eligible[@]}" -eq 1 ]] || { echo "R1B1_ELIGIBLE_GROUP_COUNT:${#eligible[@]}"; emit_boundary; exit 13; }
 group="${eligible[0]}"
-[[ "$group" != "$canonical_root" && "$group" != "$canonical_root/"* ]] || { echo 'R1B1_CANONICAL_TREE_SELECTION_BLOCKED'; exit 1; }
+[[ "$group" != "$canonical_root" && "$group" != "$canonical_root/"* ]] || { echo 'R1B1_CANONICAL_TREE_SELECTION_BLOCKED'; emit_boundary; exit 14; }
 spread=$(( ${max_epoch_by_group[$group]}-${min_epoch_by_group[$group]} ))
 group_fp="$(printf '%s' "$group" | sha256sum | awk '{print substr($1,1,16)}')"
 printf 'R1B1_SOURCE_META_JSON={"snapshot_date":"2026-08-18","group_fingerprint":"%s","bson_files":%d,"mtime_spread_seconds":%d,"provenance":"structural_only_ad_hoc_bson_dump"}\n' "$group_fp" "${count_by_group[$group]}" "$spread"
 
 mongo_image="$(docker inspect -f '{{.Config.Image}}' "$mongo_container")"
-[[ "$mongo_image" == "$expected_image" ]] || { echo 'R1B1_MONGO_IMAGE_MISMATCH'; exit 1; }
+[[ "$mongo_image" == "$expected_image" ]] || { echo 'R1B1_MONGO_IMAGE_MISMATCH'; emit_boundary; exit 15; }
 drill="sigesc-r1b1-${run_id}"
 docker run -d --name "$drill" --network none --mount "type=bind,src=$group,dst=/dump,readonly" --mount "type=bind,src=$probe_materialized,dst=/forensic/probe.js,readonly" "$mongo_image" mongod --bind_ip 127.0.0.1 >/dev/null
 for attempt in $(seq 1 30); do
   docker exec "$drill" mongosh --quiet --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)' >/dev/null 2>&1 && break
-  sleep 1; [[ "$attempt" != 30 ]] || { echo 'R1B1_TEMP_MONGO_START_FAIL'; exit 1; }
+  sleep 1
+  if [[ "$attempt" == 30 ]]; then echo 'R1B1_TEMP_MONGO_START_FAIL'; emit_boundary; exit 16; fi
 done
-[[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$drill")" == 'none' ]] || { echo 'R1B1_NETWORK_ISOLATION_FAIL'; exit 1; }
-test -z "$(docker port "$drill" 2>/dev/null || true)" || { echo 'R1B1_PUBLISHED_PORT_FAIL'; exit 1; }
+[[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$drill")" == 'none' ]] || { echo 'R1B1_NETWORK_ISOLATION_FAIL'; emit_boundary; exit 17; }
+test -z "$(docker port "$drill" 2>/dev/null || true)" || { echo 'R1B1_PUBLISHED_PORT_FAIL'; emit_boundary; exit 18; }
 restore=(schools classes courses learning_objects)
 for c in "${restore[@]}"; do
-  f="${file_by_group_collection["$group|$c"]:-}"; [[ -s "$f" ]] || { echo "R1B1_RESTORE_COLLECTION_MISSING:$c"; exit 1; }
+  f="${file_by_group_collection["$group|$c"]:-}"
+  [[ -s "$f" ]] || { echo "R1B1_RESTORE_COLLECTION_MISSING:$c"; emit_boundary; exit 19; }
+  set +e
   docker exec "$drill" mongorestore --quiet --stopOnError --db sigesc --collection "$c" "/dump/$c.bson" >/dev/null 2>&1
+  restore_rc=$?
+  set -e
+  [[ "$restore_rc" -eq 0 ]] || { echo "R1B1_RESTORE_FAILED:$c"; emit_boundary; exit 19; }
   echo "R1B1_RESTORED_COLLECTION:$c"
 done
 set +e
@@ -112,7 +124,7 @@ if [[ -z "$point" ]]; then
   echo "R1B1_PROBE_EXIT_CODE=$probe_rc"
   docker rm -f "$drill" >/dev/null 2>&1 || true; drill=''
   emit_boundary
-  exit 1
+  exit 20
 fi
 printf '%s\n' "$point"
 rm -f "$probe_raw" "$probe_materialized"
