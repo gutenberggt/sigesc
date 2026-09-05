@@ -1,0 +1,247 @@
+name: "Luiz Gomes F6.3c.2 Backup Inventory Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_f6_3c_2_backup_inventory.sh'
+      - 'backend/tests/test_luiz_gomes_f6_3c_2_backup_inventory_contract.py'
+      - '.github/workflows/luiz-gomes-f6-3c-2-backup-inventory.yml'
+      - 'memory/audit/LUIZ_GOMES_F6_3C_2_BACKUP_INVENTORY_2026-09-05.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-f6-3c-2-backup-inventory
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard Luiz Gomes F6.3c.2 backup inventory
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Syntax and focused contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n backend/scripts/luiz_gomes_f6_3c_2_backup_inventory.sh
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q --noconftest backend/tests/test_luiz_gomes_f6_3c_2_backup_inventory_contract.py
+      - name: Enforce read-only inventory boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          sh=Path('backend/scripts/luiz_gomes_f6_3c_2_backup_inventory.sh').read_text(encoding='utf-8').lower()
+          wf=Path('.github/workflows/luiz-gomes-f6-3c-2-backup-inventory.yml').read_text(encoding='utf-8')
+          for marker in ('find "$backup_root" -xdev -maxdepth 6', "stat -lc '%d:%i'", 'f63c2_paths_emitted=no', 'f63c2_restore_executed=no'):
+              if marker not in sh: raise SystemExit(f'F63C2_REQUIRED_MARKER_MISSING:{marker}')
+          for banned in ('mongosh','mongorestore','docker run','docker exec'):
+              if banned in sh: raise SystemExit(f'F63C2_FORBIDDEN_RUNTIME:{banned}')
+          for marker in ('TARGET_SHA','EXPECTED_PRODUCTION_SHA','BACKUP_INVENTORY_PROBE_ERROR'):
+              if marker not in wf: raise SystemExit(f'F63C2_WORKFLOW_MARKER_MISSING:{marker}')
+          print('LUIZ_GOMES_F6_3C_2_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Inventory retained Mongo archives read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-F6.3C.2-INVENTORY] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('LUIZ_GOMES_F6_3C_2_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.split('=',1); k=k.strip(); v=v.strip()
+              if k in values: raise SystemExit(f'LUIZ_GOMES_F6_3C_2_DUPLICATE_FIELD:{k}')
+              values[k]=v
+          expected={
+              'LUIZ_GOMES_F6_3C_2_BACKUP_INVENTORY':'AUTHORIZED',
+              'CONFIRMATION':'INVENTORY_BACKUP_ARCHIVES_READ_ONLY',
+              'ACADEMIC_YEAR':'2026','TRACKING_ISSUE':'357',
+          }
+          for k,v in expected.items():
+              if values.get(k)!=v: raise SystemExit(f'LUIZ_GOMES_F6_3C_2_CONTEXT_INVALID:{k}')
+          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('LUIZ_GOMES_F6_3C_2_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F6.3C.2-INVENTORY] {target}': raise SystemExit('LUIZ_GOMES_F6_3C_2_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63c2'}
+          def get(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          repo=os.environ['GITHUB_REPOSITORY']
+          main=get(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']
+          production=get(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'LUIZ_GOMES_F6_3C_2_MAIN_MOVED:{main}')
+          if production!=prod: raise SystemExit(f'LUIZ_GOMES_F6_3C_2_PRODUCTION_MOVED:{production}')
+          if get(f'https://api.github.com/repos/{repo}/issues/357').get('state')!='open': raise SystemExit('LUIZ_GOMES_F6_3C_2_TRACKING_NOT_OPEN')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_F6_3C_2_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare SSH and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER; do test -n "${!v}" || { echo "F63C2_SECRET_MISSING:$v"; exit 1; }; done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63c2_key; chmod 600 ~/.ssh/f63c2_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+
+      - name: Inventory archives read-only
+        id: inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/f6-3c2-sanitized.log'
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63c2_key")
+          set +e
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s < backend/scripts/luiz_gomes_f6_3c_2_backup_inventory.sh > "$raw" 2>&1
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "F63C2_REMOTE_INVENTORY_RC=$rc"
+
+      - name: Build structured inventory result
+        if: always() && steps.context.outcome == 'success'
+        env:
+          INVENTORY_RC: ${{ steps.inventory.outputs.rc }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          raw=Path('evidence/f6-3c2-sanitized.log')
+          lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
+          try: rc=int(os.environ.get('INVENTORY_RC') or '999')
+          except ValueError: rc=999
+          count=None; points=[]; flags={}; markers=[]
+          for line in lines:
+              if line.startswith('F63C2_PHYSICAL_ARCHIVE_COUNT='):
+                  try: count=int(line.split('=',1)[1])
+                  except ValueError: pass
+              elif line.startswith('F63C2_POINT_JSON='):
+                  points.append(json.loads(line.split('=',1)[1]))
+              elif '=' in line and line.split('=',1)[0] in {'F63C2_FILESYSTEM_READ_ONLY','F63C2_MONGO_ACCESSED','F63C2_RESTORE_EXECUTED','F63C2_PATHS_EMITTED'}:
+                  k,v=line.split('=',1); flags[k]=v
+              elif re.fullmatch(r'F63C2_[A-Z0-9_]+(?::[A-Za-z0-9_.-]+)?',line): markers.append(line)
+          complete=(rc==0 and count is not None and count>0 and count==len(points) and flags=={
+              'F63C2_FILESYSTEM_READ_ONLY':'YES','F63C2_MONGO_ACCESSED':'NO','F63C2_RESTORE_EXECUTED':'NO','F63C2_PATHS_EMITTED':'NO'})
+          def effective_date(p):
+              d=p.get('filename_date')
+              return p.get('mtime_date') if d in (None,'unknown') else d
+          for p in points: p['effective_date']=effective_date(p)
+          earlier=sorted([p for p in points if (p.get('effective_date') or '9999-99-99')<'2026-08-19'],key=lambda p:p.get('effective_date') or '')
+          if complete:
+              status='COMPLETED'; classification='BACKUP_INVENTORY_COMPLETED'
+          else:
+              status='INCONCLUSIVE'; classification='BACKUP_INVENTORY_PROBE_ERROR'
+          result={'schema':'LUIZ_GOMES_F6_3C_2_BACKUP_INVENTORY_V1','status':status,'classification':classification,
+                  'physical_archives':count,'points':points,'archives_before_2026_08_19':len(earlier),
+                  'earliest_effective_date':min((p.get('effective_date') for p in points if p.get('effective_date')),default=None),
+                  'latest_effective_date':max((p.get('effective_date') for p in points if p.get('effective_date')),default=None),
+                  'earlier_candidates':earlier,'filesystem_read_only':flags.get('F63C2_FILESYSTEM_READ_ONLY')=='YES',
+                  'mongo_accessed':False if flags.get('F63C2_MONGO_ACCESSED')=='NO' else None,
+                  'restore_executed':False if flags.get('F63C2_RESTORE_EXECUTED')=='NO' else None,
+                  'paths_emitted':False if flags.get('F63C2_PATHS_EMITTED')=='NO' else None,'operational_markers':markers[-20:]}
+          Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
+          if raw.exists(): raw.unlink()
+          PY
+
+      - name: Validate inventory boundary
+        if: always() && steps.context.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text())
+          if p.get('schema')!='LUIZ_GOMES_F6_3C_2_BACKUP_INVENTORY_V1': raise SystemExit('F63C2_SCHEMA_INVALID')
+          if p.get('status')=='COMPLETED':
+              if p.get('classification')!='BACKUP_INVENTORY_COMPLETED': raise SystemExit('F63C2_CLASSIFICATION_INVALID')
+              if p.get('physical_archives')!=len(p.get('points') or []): raise SystemExit('F63C2_COUNT_MISMATCH')
+              if p.get('filesystem_read_only') is not True or p.get('mongo_accessed') is not False or p.get('restore_executed') is not False or p.get('paths_emitted') is not False: raise SystemExit('F63C2_BOUNDARY_INVALID')
+          elif p.get('classification')!='BACKUP_INVENTORY_PROBE_ERROR': raise SystemExit('F63C2_ERROR_TAXONOMY_INVALID')
+          print('LUIZ_GOMES_F6_3C_2_INVENTORY=PASS')
+          PY
+
+      - name: Upload sanitized inventory evidence
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: luiz-gomes-f6-3c2-inventory-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text())
+          lines=['## LUIZ-GOMES-F6.3c.2 — inventário read-only de backups','',
+                 f"Status: **`{p.get('status')}`**",f"Classificação: **`{p.get('classification')}`**",
+                 f"Archives físicos únicos: **{p.get('physical_archives')}**",f"Janela efetiva: **{p.get('earliest_effective_date')} → {p.get('latest_effective_date')}**",
+                 f"Candidatos anteriores a 19/08/2026: **{p.get('archives_before_2026_08_19')}**",'']
+          for point in p.get('earlier_candidates') or []:
+              lines.append(f"- candidato #{point.get('ordinal')}: data={point.get('effective_date')}; source={point.get('source_class')}; size={point.get('size_bytes')} bytes; sha-sidecar={point.get('sha_sidecar')}; metadata-sidecar={point.get('metadata_sidecar')}")
+          lines += ['', '**Boundary:** filesystem read-only; Mongo não acessado; nenhum restore; nenhum caminho ou nome de archive emitido.']
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63c2-finalizer','Content-Type':'application/json'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(url,method,payload):
+              r=urllib.request.Request(url,data=json.dumps(payload).encode(),headers=headers,method=method)
+              with urllib.request.urlopen(r,timeout=30) as resp: return json.load(resp)
+          req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
+          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
+          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
+          print('LUIZ_GOMES_F6_3C_2_FINALIZER=PASS')
+          PY
