@@ -67,3 +67,17 @@ def test_static_source_has_no_mongo_mutators_or_student_stores():
         "db.students", "db.enrollments", "db.grades",
     ):
         assert token not in source
+
+
+def test_audit_change_old_new_shape_is_resolved():
+    rows = [{
+        "changes": {
+            "class_id": {"old": "class-other", "new": "class-target"},
+            "course_id": {"old": "course-other", "new": "math-current"},
+            "date": {"old": "2026-03-10", "new": "2026-03-11"},
+        },
+        "timestamp": "2026-09-01T10:00:00Z",
+    }]
+    found = mod._audit_candidates_for_target(rows, "class-target", {"math-current"})
+    assert len(found) == 1
+    assert found[0][0] == "2026-03-10"
