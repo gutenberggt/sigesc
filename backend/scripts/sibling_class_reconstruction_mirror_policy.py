@@ -12,6 +12,10 @@ semântica de origem/destino:
 O overlay permanece genérico: não contém nomes de professor, escola ou turma.
 """
 
+# Este módulo é deliberadamente um overlay executado no MESMO namespace do
+# motor base. Os símbolos abaixo são providos pelo motor antes deste arquivo.
+# ruff: noqa: F821
+
 _R2_BASE_RESOLVE_CONTEXT = _resolve_context
 _R2_LEGACY_ASSIGNMENTS = []
 
