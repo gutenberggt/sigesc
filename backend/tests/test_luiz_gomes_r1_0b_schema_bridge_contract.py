@@ -107,7 +107,7 @@ def test_document_preserves_r1_0b_scope():
         "R1.0B",
         "dump de 18/08/2026",
         "CLASS_NAME_SCHEMA_NOT_RESOLVED",
-        "descoberta estrutural por valor",
+        "Descoberta estrutural por valor",
         "Mongo temporário",
         "R1.0C",
         "não prova autoria",
