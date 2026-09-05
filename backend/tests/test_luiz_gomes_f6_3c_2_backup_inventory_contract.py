@@ -61,11 +61,29 @@ def test_workflow_has_inconclusive_probe_error_taxonomy():
     assert "BACKUP_INVENTORY_COMPLETED" in src
 
 
-def test_no_deploy_or_mutation_commands():
-    combined = (read(RUNNER) + "\n" + read(WORKFLOW)).lower()
+def test_no_deploy_or_mutation_commands_in_runtime_runner():
+    runner = read(RUNNER).lower()
     for forbidden in (
         "git pull", "docker compose up", "docker stack deploy", "kubectl apply",
-        "mongorestore", "insertone(", "updateone(", "deleteone(", "delete_many",
+        "mongosh", "mongorestore", "docker run", "docker exec",
+        "insertone(", "updateone(", "deleteone(", "delete_many",
         "rm -rf /root/sigesc-backups",
     ):
-        assert forbidden not in combined
+        assert forbidden not in runner
+
+
+def test_workflow_mentions_mongo_restore_only_as_static_forbidden_marker():
+    workflow = read(WORKFLOW).lower()
+    # O workflow pode citar essas palavras exclusivamente no guard que verifica
+    # que o runner não as contém; elas não podem aparecer em comandos runtime.
+    assert workflow.count("mongorestore") == 1
+    assert workflow.count("mongosh") == 1
+    assert workflow.count("docker run") == 1
+    assert workflow.count("docker exec") == 1
+    assert "for banned in ('mongosh','mongorestore','docker run','docker exec')" in workflow
+    for forbidden in (
+        "git pull", "docker compose up", "docker stack deploy", "kubectl apply",
+        "insertone(", "updateone(", "deleteone(", "delete_many",
+        "rm -rf /root/sigesc-backups",
+    ):
+        assert forbidden not in workflow
