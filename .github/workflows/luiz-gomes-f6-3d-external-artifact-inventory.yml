@@ -1,0 +1,258 @@
+name: "Luiz Gomes F6.3d External Artifact Inventory Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_f6_3d_external_artifact_inventory.sh'
+      - 'backend/tests/test_luiz_gomes_f6_3d_external_artifact_inventory_contract.py'
+      - '.github/workflows/luiz-gomes-f6-3d-external-artifact-inventory.yml'
+      - 'memory/audit/LUIZ_GOMES_F6_3D_EXTERNAL_ARTIFACT_INVENTORY_2026-09-05.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-f6-3d-external-artifact-inventory
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard Luiz Gomes F6.3d external artifact inventory
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Syntax and focused contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n backend/scripts/luiz_gomes_f6_3d_external_artifact_inventory.sh
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q --noconftest backend/tests/test_luiz_gomes_f6_3d_external_artifact_inventory_contract.py
+      - name: Enforce metadata-only external inventory boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          sh=Path('backend/scripts/luiz_gomes_f6_3d_external_artifact_inventory.sh').read_text(encoding='utf-8').lower()
+          wf=Path('.github/workflows/luiz-gomes-f6-3d-external-artifact-inventory.yml').read_text(encoding='utf-8')
+          for marker in ('roots=(/root /opt /srv /var/backups)', "canonical_root='/root/sigesc-backups'", 'find "$root" -xdev -maxdepth 8', 'f63d_file_content_read=no', 'f63d_paths_emitted=no'):
+              if marker not in sh: raise SystemExit(f'F63D_REQUIRED_MARKER_MISSING:{marker}')
+          for banned in ('mongosh','mongorestore','docker run','docker exec','gzip -t'):
+              if banned in sh: raise SystemExit(f'F63D_FORBIDDEN_RUNTIME:{banned}')
+          for marker in ('TARGET_SHA','EXPECTED_PRODUCTION_SHA','EXTERNAL_ARTIFACT_INVENTORY_PROBE_ERROR'):
+              if marker not in wf: raise SystemExit(f'F63D_WORKFLOW_MARKER_MISSING:{marker}')
+          print('LUIZ_GOMES_F6_3D_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Inventory noncanonical historical artifacts read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-F6.3D-ARTIFACTS] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('LUIZ_GOMES_F6_3D_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.split('=',1); k=k.strip(); v=v.strip()
+              if k in values: raise SystemExit(f'LUIZ_GOMES_F6_3D_DUPLICATE_FIELD:{k}')
+              values[k]=v
+          expected={
+              'LUIZ_GOMES_F6_3D_ARTIFACT_INVENTORY':'AUTHORIZED',
+              'CONFIRMATION':'INVENTORY_NONCANONICAL_HISTORICAL_ARTIFACTS_READ_ONLY',
+              'ACADEMIC_YEAR':'2026','TRACKING_ISSUE':'357',
+          }
+          for k,v in expected.items():
+              if values.get(k)!=v: raise SystemExit(f'LUIZ_GOMES_F6_3D_CONTEXT_INVALID:{k}')
+          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('LUIZ_GOMES_F6_3D_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F6.3D-ARTIFACTS] {target}': raise SystemExit('LUIZ_GOMES_F6_3D_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d'}
+          def get(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          repo=os.environ['GITHUB_REPOSITORY']
+          main=get(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']
+          production=get(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'LUIZ_GOMES_F6_3D_MAIN_MOVED:{main}')
+          if production!=prod: raise SystemExit(f'LUIZ_GOMES_F6_3D_PRODUCTION_MOVED:{production}')
+          if get(f'https://api.github.com/repos/{repo}/issues/357').get('state')!='open': raise SystemExit('LUIZ_GOMES_F6_3D_TRACKING_NOT_OPEN')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_F6_3D_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare SSH and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER; do test -n "${!v}" || { echo "F63D_SECRET_MISSING:$v"; exit 1; }; done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63d_key; chmod 600 ~/.ssh/f63d_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+
+      - name: Inventory external artifacts read-only
+        id: inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/f6-3d-sanitized.log'
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d_key")
+          set +e
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s < backend/scripts/luiz_gomes_f6_3d_external_artifact_inventory.sh > "$raw" 2>&1
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "F63D_REMOTE_INVENTORY_RC=$rc"
+
+      - name: Build structured inventory result
+        if: always() && steps.context.outcome == 'success'
+        env:
+          INVENTORY_RC: ${{ steps.inventory.outputs.rc }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          raw=Path('evidence/f6-3d-sanitized.log')
+          lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
+          try: rc=int(os.environ.get('INVENTORY_RC') or '999')
+          except ValueError: rc=999
+          count=None; roots=None; points=[]; flags={}; markers=[]
+          for line in lines:
+              if line.startswith('F63D_PHYSICAL_ARTIFACT_COUNT='):
+                  try: count=int(line.split('=',1)[1])
+                  except ValueError: pass
+              elif line.startswith('F63D_SEARCH_ROOTS_PRESENT='):
+                  try: roots=int(line.split('=',1)[1])
+                  except ValueError: pass
+              elif line.startswith('F63D_POINT_JSON='):
+                  points.append(json.loads(line.split('=',1)[1]))
+              elif '=' in line and line.split('=',1)[0] in {'F63D_FILESYSTEM_READ_ONLY','F63D_FILE_CONTENT_READ','F63D_MONGO_ACCESSED','F63D_RESTORE_EXECUTED','F63D_CANONICAL_BACKUP_TREE_EXCLUDED','F63D_PATHS_EMITTED'}:
+                  k,v=line.split('=',1); flags[k]=v
+              elif re.fullmatch(r'F63D_[A-Z0-9_]+(?::[A-Za-z0-9_.-]+)?',line): markers.append(line)
+          expected_flags={
+              'F63D_FILESYSTEM_READ_ONLY':'YES','F63D_FILE_CONTENT_READ':'NO','F63D_MONGO_ACCESSED':'NO',
+              'F63D_RESTORE_EXECUTED':'NO','F63D_CANONICAL_BACKUP_TREE_EXCLUDED':'YES','F63D_PATHS_EMITTED':'NO'}
+          complete=(rc==0 and count is not None and count>=0 and roots is not None and roots>0 and count==len(points) and flags==expected_flags)
+          def effective_date(p):
+              d=p.get('filename_date')
+              return p.get('mtime_date') if d in (None,'unknown') else d
+          for p in points: p['effective_date']=effective_date(p)
+          earlier=sorted([p for p in points if (p.get('effective_date') or '9999-99-99')<'2026-08-19'],key=lambda p:p.get('effective_date') or '')
+          if complete:
+              status='COMPLETED'
+              classification='HISTORICAL_ARTIFACT_CANDIDATES_FOUND' if earlier else 'NO_PRE_0819_EXTERNAL_ARTIFACT_CANDIDATE'
+          else:
+              status='INCONCLUSIVE'; classification='EXTERNAL_ARTIFACT_INVENTORY_PROBE_ERROR'
+          result={'schema':'LUIZ_GOMES_F6_3D_EXTERNAL_ARTIFACT_INVENTORY_V1','status':status,'classification':classification,
+                  'search_roots_present':roots,'physical_artifacts':count,'points':points,
+                  'artifacts_before_2026_08_19':len(earlier),
+                  'earliest_effective_date':min((p.get('effective_date') for p in points if p.get('effective_date')),default=None),
+                  'latest_effective_date':max((p.get('effective_date') for p in points if p.get('effective_date')),default=None),
+                  'earlier_candidates':earlier,'filesystem_read_only':flags.get('F63D_FILESYSTEM_READ_ONLY')=='YES',
+                  'file_content_read':False if flags.get('F63D_FILE_CONTENT_READ')=='NO' else None,
+                  'mongo_accessed':False if flags.get('F63D_MONGO_ACCESSED')=='NO' else None,
+                  'restore_executed':False if flags.get('F63D_RESTORE_EXECUTED')=='NO' else None,
+                  'canonical_backup_tree_excluded':flags.get('F63D_CANONICAL_BACKUP_TREE_EXCLUDED')=='YES',
+                  'paths_emitted':False if flags.get('F63D_PATHS_EMITTED')=='NO' else None,'operational_markers':markers[-20:]}
+          Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
+          if raw.exists(): raw.unlink()
+          PY
+
+      - name: Validate inventory boundary and taxonomy
+        if: always() && steps.context.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text())
+          if p.get('schema')!='LUIZ_GOMES_F6_3D_EXTERNAL_ARTIFACT_INVENTORY_V1': raise SystemExit('F63D_SCHEMA_INVALID')
+          if p.get('status')=='COMPLETED':
+              if p.get('classification') not in {'HISTORICAL_ARTIFACT_CANDIDATES_FOUND','NO_PRE_0819_EXTERNAL_ARTIFACT_CANDIDATE'}: raise SystemExit('F63D_CLASSIFICATION_INVALID')
+              if p.get('physical_artifacts')!=len(p.get('points') or []): raise SystemExit('F63D_COUNT_MISMATCH')
+              if p.get('filesystem_read_only') is not True or p.get('file_content_read') is not False or p.get('mongo_accessed') is not False or p.get('restore_executed') is not False or p.get('canonical_backup_tree_excluded') is not True or p.get('paths_emitted') is not False: raise SystemExit('F63D_BOUNDARY_INVALID')
+          elif p.get('classification')!='EXTERNAL_ARTIFACT_INVENTORY_PROBE_ERROR': raise SystemExit('F63D_ERROR_TAXONOMY_INVALID')
+          print('LUIZ_GOMES_F6_3D_INVENTORY=PASS')
+          PY
+
+      - name: Upload sanitized external artifact evidence
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: luiz-gomes-f6-3d-artifacts-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text())
+          lines=['## LUIZ-GOMES-F6.3d — artefatos históricos fora do backup canônico','',
+                 f"Status: **`{p.get('status')}`**",f"Classificação: **`{p.get('classification')}`**",
+                 f"Raízes operacionais presentes: **{p.get('search_roots_present')}**",
+                 f"Artefatos físicos únicos encontrados: **{p.get('physical_artifacts')}**",
+                 f"Janela efetiva: **{p.get('earliest_effective_date')} → {p.get('latest_effective_date')}**",
+                 f"Candidatos anteriores a 19/08/2026: **{p.get('artifacts_before_2026_08_19')}**",'']
+          for point in p.get('earlier_candidates') or []:
+              lines.append(f"- candidato #{point.get('ordinal')}: data={point.get('effective_date')}; root={point.get('source_root')}; tipo={point.get('artifact_kind')}; size={point.get('size_bytes')} bytes; fingerprint={point.get('path_fingerprint')}; sha-sidecar={point.get('sha_sidecar')}; metadata-sidecar={point.get('metadata_sidecar')}")
+          lines += ['', '**Boundary:** filesystem metadata-only; conteúdo de arquivo não lido; Mongo não acessado; nenhum restore; árvore canônica de backup excluída; caminhos/nomes não emitidos.']
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d-finalizer','Content-Type':'application/json'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(url,method,payload):
+              r=urllib.request.Request(url,data=json.dumps(payload).encode(),headers=headers,method=method)
+              with urllib.request.urlopen(r,timeout=30) as resp: return json.load(resp)
+          req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
+          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
+          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
+          print('LUIZ_GOMES_F6_3D_FINALIZER=PASS')
+          PY
