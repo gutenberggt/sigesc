@@ -96,7 +96,9 @@ def test_probe_emits_no_ids_or_pedagogical_plaintext():
         assert marker in src
     completed_tail = src[src.find('emit("COMPLETED"') :]
     assert "actorStaffId" not in completed_tail
-    assert "actorPrincipal" not in completed_tail
+    assert "actor_principal:" not in completed_tail
+    assert "actor_id:" not in completed_tail
+    assert "school_id:" not in completed_tail
     assert "classMap" not in completed_tail
 
 
