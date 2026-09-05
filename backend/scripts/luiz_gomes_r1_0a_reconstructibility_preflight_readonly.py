@@ -61,6 +61,7 @@ AUDIT_PROJECTION = {
     "_id": 0, "collection": 1, "document_id": 1, "action": 1,
     "timestamp": 1, "timestamp_utc": 1, "actor_id": 1, "user_id": 1,
     "recorded_by": 1, "created_by": 1, "updated_by": 1, "teacher_id": 1, "staff_id": 1,
+    "assignment_id": 1,
     "changes.class_id": 1, "changes.course_id": 1, "changes.component_id": 1, "changes.date": 1,
     "old_value.class_id": 1, "new_value.class_id": 1,
     "old_value.course_id": 1, "new_value.course_id": 1,
@@ -243,6 +244,24 @@ def _resolve_context(db):
     }
 
 
+def _change_values(changes: Mapping[str, Any], key: str) -> set[str]:
+    value = changes.get(key)
+    if isinstance(value, Mapping):
+        values = {_sid(value.get("old")), _sid(value.get("new"))}
+    else:
+        values = {_sid(value)}
+    values.discard("")
+    return values
+
+
+def _change_days(changes: Mapping[str, Any], key: str) -> list[str]:
+    value = changes.get(key)
+    raw_values = [value]
+    if isinstance(value, Mapping):
+        raw_values = [value.get("old"), value.get("new")]
+    return [day for day in (_day(v) for v in raw_values) if day]
+
+
 def _audit_candidates_for_target(rows: Iterable[Mapping[str, Any]], class_id: str, math_ids: set[str]):
     """Extract only identity/date evidence from projected audit rows."""
     out = []
@@ -250,21 +269,28 @@ def _audit_candidates_for_target(rows: Iterable[Mapping[str, Any]], class_id: st
         changes = row.get("changes") if isinstance(row.get("changes"), Mapping) else {}
         oldv = row.get("old_value") if isinstance(row.get("old_value"), Mapping) else {}
         newv = row.get("new_value") if isinstance(row.get("new_value"), Mapping) else {}
-        class_values = {
-            _sid(changes.get("class_id")), _sid(oldv.get("class_id")), _sid(newv.get("class_id"))
-        }
-        course_values = {
-            _sid(changes.get("course_id")), _sid(changes.get("component_id")),
-            _sid(oldv.get("course_id")), _sid(newv.get("course_id")),
-            _sid(oldv.get("component_id")), _sid(newv.get("component_id")),
-        }
+        class_values = (
+            _change_values(changes, "class_id")
+            | {_sid(oldv.get("class_id")), _sid(newv.get("class_id"))}
+        )
+        course_values = (
+            _change_values(changes, "course_id")
+            | _change_values(changes, "component_id")
+            | {
+                _sid(oldv.get("course_id")), _sid(newv.get("course_id")),
+                _sid(oldv.get("component_id")), _sid(newv.get("component_id")),
+            }
+        )
         class_values.discard("")
         course_values.discard("")
         if class_id not in class_values or not (course_values & math_ids):
             continue
-        day = (
-            _day(changes.get("date")) or _day(oldv.get("date")) or _day(newv.get("date"))
-            or _day(row.get("timestamp")) or _day(row.get("timestamp_utc"))
+        candidate_days = (
+            _change_days(changes, "date")
+            + [d for d in (_day(oldv.get("date")), _day(newv.get("date"))) if d]
+        )
+        day = candidate_days[0] if candidate_days else (
+            _day(row.get("timestamp")) or _day(row.get("timestamp_utc"))
         )
         if day:
             out.append((day, row))
