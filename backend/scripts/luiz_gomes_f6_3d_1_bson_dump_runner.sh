@@ -21,6 +21,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+emit_terminal_boundary() {
+  echo 'PRODUCTION_DATABASE_TOUCHED=NO'
+  echo 'TEMP_RESTORE_NETWORK=none'
+  echo 'TEMP_RESTORE_PORTS=none'
+  echo 'SOURCE_MOUNT=read_only'
+  echo 'TEMP_CONTAINERS_CLEANED=YES'
+  echo 'PEDAGOGICAL_PLAINTEXT_EMITTED=NO'
+  echo 'RAW_PROBE_OUTPUT_EMITTED=NO'
+}
+
 test -s "$probe_host" || { echo 'F63D1_PROBE_STAGE_MISSING'; exit 1; }
 
 declare -A file_by_group_collection count_by_group min_epoch_by_group max_epoch_by_group
@@ -143,18 +153,13 @@ if [[ -z "$point_line" ]]; then
   printf 'F63D11_PROBE_ERROR_MARKER=%s\n' "$safe_marker"
   printf 'F63D11_PROBE_EXIT_CODE=%d\n' "$probe_rc"
   rm -f "$probe_raw"
+  docker rm -f "$drill" >/dev/null 2>&1
+  drill=''
+  emit_terminal_boundary
   exit 1
 fi
 printf '%s\n' "$point_line"
 rm -f "$probe_raw"
-
 docker rm -f "$drill" >/dev/null 2>&1
 drill=''
-
-echo 'PRODUCTION_DATABASE_TOUCHED=NO'
-echo 'TEMP_RESTORE_NETWORK=none'
-echo 'TEMP_RESTORE_PORTS=none'
-echo 'SOURCE_MOUNT=read_only'
-echo 'TEMP_CONTAINERS_CLEANED=YES'
-echo 'PEDAGOGICAL_PLAINTEXT_EMITTED=NO'
-echo 'RAW_PROBE_OUTPUT_EMITTED=NO'
+emit_terminal_boundary
