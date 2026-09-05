@@ -10,39 +10,59 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_probe_resolves_historical_school_structurally_fail_closed():
+def test_probe_has_adaptive_historical_schema_contract():
     src = read(PROBE)
     for marker in (
-        "SCHOOL_CONTEXT_NOT_STRUCTURALLY_RESOLVED",
-        "SCHOOL_CONTEXT_STRUCTURAL_AMBIGUITY",
-        "CLASSES_SCHOOL_ID_SIX_CLASSES_FOUR_MATH_CONTROLS",
-        "candidate_school_groups",
+        "LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V3_ADAPTIVE",
+        "HISTORICAL_SCHEMA_INSUFFICIENT",
+        "CLASS_NAME_KEYS",
+        "CLASS_ID_KEYS",
+        "CLASS_GROUP_KEYS",
+        "CLASS_YEAR_KEYS",
+        "COURSE_NAME_KEYS",
+        "COURSE_ID_KEYS",
+        "LO_CLASS_KEYS",
+        "LO_COURSE_KEYS",
+        "LO_DATE_KEYS",
+        "schema_aliases_fail_closed: true",
+        "structural_solution_count",
         "selected_by_six_classes_and_four_math_controls",
-        "required_unique_classes",
-        "controls_requiring_math_evidence",
     ):
         assert marker in src
     for name in ("6º ANO A", "6º ANO B", "7º ANO A", "7º ANO B", "8º ANO A", "9º ANO A"):
         assert name in src
-    assert 'const required = ["classes", "courses", "learning_objects"]' in src
-    assert "for (const schoolId of candidateSchoolIds)" in src
 
 
-def test_school_catalog_name_is_diagnostic_only_not_selection_key():
+def test_probe_b_terminal_is_explicit_and_fail_closed():
     src = read(PROBE)
-    assert "catalogNameMatches" in src
-    assert "catalog_name_matches" in src
-    assert "candidateSchoolIds" in src
-    assert "qualifiedSchools" in src
-    assert "schoolNameCandidates" not in src
-    assert "SCHOOL_CONTEXT_NOT_FOUND" not in src
+    assert 'emit("INCONCLUSIVE", "HISTORICAL_SCHEMA_INSUFFICIENT"' in src
+    assert 'terminal_state: "INSUFFICIENT"' in src
+    for reason in (
+        "REQUIRED_COLLECTION_MISSING",
+        "CLASS_NAME_SCHEMA_NOT_RESOLVED",
+        "MATH_COURSE_SCHEMA_NOT_RESOLVED",
+        "LEARNING_OBJECT_DATE_SCHEMA_NOT_RESOLVED",
+        "CLASS_REFERENCE_SCHEMA_NOT_RESOLVED",
+        "NO_UNIQUE_SIX_CLASS_FOUR_CONTROL_SCHEMA_SOLUTION",
+        "MULTIPLE_STRUCTURAL_SCHEMA_SOLUTIONS",
+        "ACTOR_IDENTITY_NOT_UNIQUELY_DERIVABLE_FROM_AVAILABLE_HISTORICAL_FIELDS",
+    ):
+        assert reason in src
+
+
+def test_probe_completed_path_requires_unique_schema_and_exact_actor():
+    src = read(PROBE)
+    assert "solutions.length !== 1" in src
+    assert 'terminal_state: "RESOLVED"' in src
+    assert "TEACHER_ASSIGNMENTS_ADAPTIVE_EXACT_CONTROL_UNANIMOUS" in src
+    assert "LEARNING_OBJECT_METADATA_ADAPTIVE_FOUR_CLASS_DOMINANT" in src
+    assert 'status: "EXACT_CONTROL_DERIVED"' in src
+    assert "school_identity_structurally_derived: true" in src
+    assert "historical_schema_adaptively_resolved: true" in src
 
 
 def test_probe_infers_actor_without_users_lookup():
     src = read(PROBE)
-    assert "TEACHER_ASSIGNMENTS_EXACT_CONTROL_UNANIMOUS" in src
-    assert "LEARNING_OBJECT_METADATA_FOUR_CLASS_DOMINANT" in src
-    assert "EXACT_CONTROL_DERIVED" in src
     assert "actor_identity_derived_without_user_lookup: true" in src
     assert "technical_ids_emitted: false" in src
     for banned in ('d.users', 'getCollection("users")', 'student_id: 1', 'records: 1'):
@@ -65,21 +85,26 @@ def test_probe_target_taxonomy_is_complete():
 
 def test_probe_emits_no_ids_or_pedagogical_plaintext():
     src = read(PROBE)
-    assert "pedagogical_plaintext_emitted: false" in src
-    assert "pedagogical_payload_boolean_only: true" in src
-    assert "attendance_records_read: false" in src
-    assert "student_data_read: false" in src
-    assert "production_writes: false" in src
-    assert "actorStaffId" in src
-    assert "actorStaffId" not in src[src.find("emit(\"COMPLETED\"") :]
-    assert "schoolId" not in src[src.find("emit(\"COMPLETED\"") :]
+    for marker in (
+        "pedagogical_plaintext_emitted: false",
+        "pedagogical_payload_boolean_only: true",
+        "attendance_records_read: false",
+        "student_data_read: false",
+        "production_writes: false",
+        "technical_ids_emitted: false",
+    ):
+        assert marker in src
+    completed_tail = src[src.find('emit("COMPLETED"') :]
+    assert "actorStaffId" not in completed_tail
+    assert "actorPrincipal" not in completed_tail
+    assert "classMap" not in completed_tail
 
 
 def test_runner_remains_isolated_and_read_only():
     src = read(RUNNER)
     for marker in (
         "--network none",
-        'dst=/dump,readonly',
+        "dst=/dump,readonly",
         "PRODUCTION_DATABASE_TOUCHED=NO",
         "SOURCE_MOUNT=read_only",
         "RAW_PROBE_OUTPUT_EMITTED=NO",
@@ -105,12 +130,13 @@ def test_completion_workflow_is_owner_gated_exact_sha():
         assert marker in src
 
 
-def test_completion_gate_requires_exact_school_and_actor_for_completed():
+def test_completion_gate_accepts_only_a_or_b_terminal_states():
     src = read(WORKFLOW)
-    assert "structural_matches')!=1" in src
-    assert "selected_by_six_classes_and_four_math_controls') is not True" in src
+    assert "LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V3_ADAPTIVE" in src
+    assert "HISTORICAL_SCHEMA_INSUFFICIENT" in src
     assert "EXACT_CONTROL_DERIVED" in src
-    assert "school_identity_structurally_derived') is not True" in src
+    assert "historical_schema_adaptively_resolved" in src
+    assert "F63D2_COMPLETION_TERMINAL_STATE_NOT_A_OR_B" in src
 
 
 def test_no_production_mutation_in_executable_probe_or_runner():
