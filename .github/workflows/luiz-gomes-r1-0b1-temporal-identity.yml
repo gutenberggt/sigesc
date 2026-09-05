@@ -1,0 +1,209 @@
+name: "Luiz Gomes R1.0B.1 Temporal Identity Bridge"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_r1_0b1_live_seed.js'
+      - 'backend/scripts/luiz_gomes_r1_0b1_temporal_probe.js'
+      - 'backend/scripts/luiz_gomes_r1_0b1_temporal_runner.sh'
+      - 'backend/tests/test_luiz_gomes_r1_0b1_temporal_identity_contract.py'
+      - '.github/workflows/luiz-gomes-r1-0b1-temporal-identity.yml'
+      - 'memory/audit/LUIZ_GOMES_R1_0B1_TEMPORAL_IDENTITY_2026-09-05.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-r1-0b1-temporal-identity
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard R1.0B.1 temporal identity read-only contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Syntax and focused contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check backend/scripts/luiz_gomes_r1_0b1_live_seed.js
+          node --check backend/scripts/luiz_gomes_r1_0b1_temporal_probe.js
+          bash -n backend/scripts/luiz_gomes_r1_0b1_temporal_runner.sh
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q --noconftest backend/tests/test_luiz_gomes_r1_0b1_temporal_identity_contract.py
+
+  production-audit:
+    name: Run R1.0B.1 live-to-2026-08-18 temporal identity bridge
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-R1.0B.1-TEMPORAL-IDENTITY] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve exact-SHA owner gate
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=(json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('R1B1_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.split('=',1); k=k.strip(); v=v.strip()
+              if k in values: raise SystemExit(f'R1B1_DUPLICATE_FIELD:{k}')
+              values[k]=v
+          expected={
+              'LUIZ_GOMES_R1_0B1':'AUTHORIZED',
+              'CONFIRMATION':'RUN_TEMPORAL_IDENTITY_BRIDGE_2026_08_18_READ_ONLY',
+              'ACADEMIC_YEAR':'2026',
+              'TRACKING_ISSUE':'425',
+              'PARENT_TRACKING_ISSUE':'418',
+              'ROOT_TRACKING_ISSUE':'357',
+          }
+          for k,v in expected.items():
+              if values.get(k)!=v: raise SystemExit(f'R1B1_CONTEXT_INVALID:{k}')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production): raise SystemExit('R1B1_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-R1.0B.1-TEMPORAL-IDENTITY] {target}': raise SystemExit('R1B1_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-r1b1'}
+          def get(path):
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          main=get('branches/main')['commit']['sha']; prod=get('branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'R1B1_MAIN_MOVED:{main}')
+          if prod!=production: raise SystemExit(f'R1B1_PRODUCTION_MOVED:{prod}')
+          for n in (425,418,357):
+              if get(f'issues/{n}').get('state')!='open': raise SystemExit(f'R1B1_TRACKING_NOT_OPEN:{n}')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_R1_0B1_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH and stage reviewed probes
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || { echo "R1B1_SECRET_MISSING:$v"; exit 1; }; done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/r1b1_key; chmod 600 ~/.ssh/r1b1_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          node --check backend/scripts/luiz_gomes_r1_0b1_live_seed.js
+          node --check backend/scripts/luiz_gomes_r1_0b1_temporal_probe.js
+          bash -n backend/scripts/luiz_gomes_r1_0b1_temporal_runner.sh
+          remote_seed="/tmp/luiz-r1b1-live-seed-${GITHUB_RUN_ID}.js"
+          remote_probe="/tmp/luiz-r1b1-temporal-probe-${GITHUB_RUN_ID}.js"
+          opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r1b1_key")
+          cat backend/scripts/luiz_gomes_r1_0b1_live_seed.js | ssh "${opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_seed'"
+          cat backend/scripts/luiz_gomes_r1_0b1_temporal_probe.js | ssh "${opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          echo "remote_seed=$remote_seed" >> "$GITHUB_OUTPUT"
+          echo "remote_probe=$remote_probe" >> "$GITHUB_OUTPUT"
+
+      - name: Execute bounded live seed and isolated historical bridge
+        id: scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/r1b1-sanitized.log'
+          opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r1b1_key")
+          set +e
+          ssh "${opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" "$GITHUB_RUN_ID" "${{ steps.stage.outputs.remote_seed }}" "${{ steps.stage.outputs.remote_probe }}" < backend/scripts/luiz_gomes_r1_0b1_temporal_runner.sh > "$raw" 2>&1
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "R1B1_REMOTE_SCAN_RC=$rc"
+
+      - name: Cleanup staged files defensively
+        if: always() && steps.context.outcome == 'success' && steps.stage.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r1b1_key")
+          ssh "${opts[@]}" "${PROD_USER}@${PROD_HOST}" "rm -f '${{ steps.stage.outputs.remote_seed }}' '${{ steps.stage.outputs.remote_probe }}'" >/dev/null 2>&1 || true
+
+      - name: Build and validate sanitized result
+        if: always() && steps.context.outcome == 'success'
+        env:
+          SCAN_RC: ${{ steps.scan.outputs.rc }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          raw=Path('evidence/r1b1-sanitized.log'); lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
+          try: rc=int(os.environ.get('SCAN_RC') or '999')
+          except ValueError: rc=999
+          point=None; source=None; flags={}
+          allow={'PRODUCTION_LIVE_METADATA_READS','PRODUCTION_LIVE_COLLECTIONS','PRODUCTION_WRITES','PRODUCTION_BACKEND_PYTHON_EXECUTIONS','LIVE_TECHNICAL_IDS_EXPOSED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED','RAW_PROBE_OUTPUT_EMITTED','EPHEMERAL_TECHNICAL_ID_FILES_CLEANED'}
+          for line in lines:
+              if line.startswith('LUIZ_GOMES_R1_0B1_RESULT_JSON='): point=json.loads(line.split('=',1)[1])
+              elif line.startswith('R1B1_SOURCE_META_JSON='): source=json.loads(line.split('=',1)[1])
+              elif '=' in line:
+                  k,v=line.split('=',1)
+                  if k in allow: flags[k]=v
+          boundary=(flags.get('PRODUCTION_LIVE_METADATA_READS')=='YES' and flags.get('PRODUCTION_LIVE_COLLECTIONS')=='schools,classes,courses' and flags.get('PRODUCTION_WRITES')=='NO' and flags.get('PRODUCTION_BACKEND_PYTHON_EXECUTIONS')=='0' and flags.get('LIVE_TECHNICAL_IDS_EXPOSED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO' and flags.get('EPHEMERAL_TECHNICAL_ID_FILES_CLEANED')=='YES')
+          valid=isinstance(point,dict) and point.get('schema')=='LUIZ_GOMES_R1_0B1_TEMPORAL_IDENTITY_V1'
+          ok=rc==0 and valid and source is not None and boundary
+          result={'schema':'LUIZ_GOMES_R1_0B1_GATE_V1','status':point.get('status') if ok else 'INCONCLUSIVE','classification':point.get('overall_classification') if ok else 'TEMPORAL_IDENTITY_RUNTIME_OR_BOUNDARY_ERROR','insufficiency_reason':point.get('insufficiency_reason') if valid else None,'source':source,'temporal_identity_bridge':point.get('temporal_identity_bridge') if valid else None,'classes':point.get('classes') if valid else [],'targets_total_math_rows':point.get('targets_total_math_rows') if valid else None,'targets_total_rows_with_payload':point.get('targets_total_rows_with_payload') if valid else None,'next_gate_r1_0c_open':bool(point.get('next_gate_r1_0c_open')) if valid else False,'production_writes':False,'technical_ids_exposed':False,'pedagogical_plaintext_emitted':False,'student_data_read':False,'attendance_records_read':False,'grades_read':False}
+          Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
+          if raw.exists(): raw.unlink()
+          if not ok: raise SystemExit('R1B1_RUNTIME_OR_BOUNDARY_ERROR')
+          allowed={'TEMPORAL_IDENTITY_BRIDGE_RESOLVED_TARGET_PAYLOAD_PRESENT','TEMPORAL_IDENTITY_BRIDGE_RESOLVED_TARGET_ROWS_WITHOUT_PAYLOAD','TEMPORAL_IDENTITY_BRIDGE_RESOLVED_NO_TARGET_MATH_ROWS','TEMPORAL_IDENTITY_NOT_PRESERVED','TEMPORAL_IDENTITY_BRIDGE_INCONCLUSIVE'}
+          if result['classification'] not in allowed: raise SystemExit('R1B1_TAXONOMY_INVALID')
+          print('LUIZ_GOMES_R1_0B1_RESULT=PASS')
+          PY
+
+      - name: Publish result and close execution gate
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          r=json.load(open('evidence/runtime.json',encoding='utf-8'))
+          lines=['## LUIZ-GOMES-R1.0B.1 — Bridge Temporal de Identidade','',f"Target main: `{os.environ['TARGET_SHA']}`",f"Status: **`{r['status']}`**",f"Classificação: **`{r['classification']}`**"]
+          if r.get('insufficiency_reason'): lines.append(f"Motivo: `{r['insufficiency_reason']}`")
+          bridge=r.get('temporal_identity_bridge') or {}
+          lines += ['',f"Identidades preservadas: {bridge.get('preserved_class_count')}/6; bridge selecionado={bridge.get('selected')}"]
+          for c in r.get('classes') or []: lines.append(f"- {c.get('class_name')}: math_rows={c.get('math_rows_in_period')}; payload_rows={c.get('rows_with_payload')}; distinct_dates={c.get('distinct_dates')}")
+          lines += [f"- alvos: math_rows={r.get('targets_total_math_rows')}; payload_rows={r.get('targets_total_rows_with_payload')}",f"- Gate R1.0C aberto: **{bool(r.get('next_gate_r1_0c_open'))}**",'', '**Boundary:** produção apenas `schools/classes/courses` read-only; IDs técnicos somente internos e efêmeros; dump em Mongo temporário `--network none`; nenhuma escrita; nenhum plaintext pedagógico; nenhuma autoria inferida.']
+          body='\n'.join(lines); headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json','User-Agent':'sigesc-r1b1'}; repo=os.environ['GITHUB_REPOSITORY']
+          def req(method,path,payload):
+              q=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers,data=json.dumps(payload).encode(),method=method)
+              with urllib.request.urlopen(q,timeout=30) as x: return x.read()
+          req('POST','issues/425/comments',{'body':body}); req('POST',f"issues/{os.environ['GATE_ISSUE']}/comments",{'body':body}); req('PATCH',f"issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          PY
