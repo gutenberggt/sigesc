@@ -1,52 +1,61 @@
-# LUIZ-GOMES-F6.3d.2 — conclusão técnica
+# LUIZ-GOMES-F6.3d.2 — conclusão técnica adaptativa
 
 Data: 2026-09-05
 Tracking: #357
 
 ## Contexto
 
-A primeira execução da F6.3d.2 (gate #409) foi operacionalmente íntegra, mas terminou `INCONCLUSIVE / SCHOOL_CONTEXT_NOT_UNIQUE`. Essa classificação histórica era genérica e não distinguia zero de múltiplas correspondências nominais.
+As execuções anteriores da F6.3d.2 foram operacionalmente íntegras, mas demonstraram que o dump BSON coerente de 18/08/2026 não preserva necessariamente os campos de identidade com os mesmos nomes do schema atual:
 
-Após o PR #410, o gate #411 tornou a medição explícita e concluiu `INCONCLUSIVE / SCHOOL_CONTEXT_NOT_FOUND`, com `name_matches=0`. Portanto, o dump BSON coerente de 18/08/2026 não oferece a identidade histórica da escola de forma utilizável pelo campo nominal consultado. Isso não demonstrou ausência de conteúdo nem ausência do ator; demonstrou apenas que `schools.name` não é uma SSoT histórica suficiente para este dump.
+- gate #409: `SCHOOL_CONTEXT_NOT_UNIQUE`;
+- gate #411: `SCHOOL_CONTEXT_NOT_FOUND`, com `schools.name` inutilizável;
+- gate #413: `SCHOOL_CONTEXT_NOT_STRUCTURALLY_RESOLVED`, com `candidate_school_groups=0` sob a suposição `classes.school_id`.
 
-## Resolução estrutural definitiva da escola
+Esses resultados não demonstram ausência de conteúdo. Demonstram que os probes anteriores ainda carregavam hipóteses rígidas de schema histórico.
 
-A F6.3d.2 passa a derivar a identidade escolar diretamente da relação `classes.school_id`, sem usar o nome como chave de seleção:
+## Probe adaptativo
 
-1. selecionar as classes de 2026 cujos nomes correspondem às seis turmas esperadas: 6º A, 6º B, 7º A, 7º B, 8º A e 9º A;
-2. agrupar essas classes pelo `school_id` histórico, mantendo o ID somente em memória e nunca o emitindo;
-3. exigir, dentro de um mesmo grupo, exatamente uma ocorrência de cada uma das seis turmas;
-4. exigir `learning_objects` de Matemática entre 2026-02-01 e 2026-05-01 em cada uma das quatro turmas-controle 6º A, 6º B, 7º A e 7º B;
-5. aceitar a identidade escolar somente se exatamente um grupo `classes.school_id` satisfizer simultaneamente os critérios acima;
-6. zero grupos => `SCHOOL_CONTEXT_NOT_STRUCTURALLY_RESOLVED`; mais de um => `SCHOOL_CONTEXT_STRUCTURAL_AMBIGUITY`; ambos fail-closed.
+A versão adaptativa passa a resolver a estrutura histórica somente por aliases explícitos e convergência estrutural, sem assumir previamente os nomes atuais dos campos.
 
-O nome `E M E I E F Jose Pereira Barbosa` permanece apenas como contexto humano no relatório e não participa da decisão estrutural.
+São avaliados aliases de:
 
-## Inferência do ator
+- nome, ID, ano e vínculo escolar/tenant da turma;
+- nome e ID do componente curricular;
+- referência de turma, referência de componente e data em `learning_objects`;
+- campos estruturais de ator e, quando disponível, de `teacher_assignments`.
 
-Após resolver uma única identidade escolar:
+O probe exige uma única solução estrutural capaz de identificar as seis turmas esperadas e evidência de Matemática nas quatro turmas-controle. Soluções múltiplas ou ausência de solução encerram fail-closed.
 
-1. preferir `teacher_assignments` unânime nas quatro turmas-controle + Matemática (`TEACHER_ASSIGNMENTS_EXACT_CONTROL_UNANIMOUS`);
-2. usar, apenas como fallback, metadados de `learning_objects` com suporte em 4/4 turmas, cobertura mínima de 80% e sem empate (`LEARNING_OBJECT_METADATA_FOUR_CLASS_DOMINANT`);
-3. nunca consultar `users`;
-4. nunca emitir IDs técnicos;
-5. aplicar a identidade inferida apenas como filtro read-only em 8º A e 9º A.
+## Estados terminais
+
+A F6.3d.2 só é tecnicamente encerrada em um de dois estados:
+
+### A — `COMPLETED`
+
+Exige cumulativamente:
+
+1. schema histórico adaptativo resolvido de forma única;
+2. exatamente uma estrutura coerente para as seis turmas;
+3. Matemática comprovada nas quatro turmas-controle;
+4. ator histórico derivado de forma exata sem lookup em `users`;
+5. classificação de 8º A e 9º A.
+
+### B — `INCONCLUSIVE / HISTORICAL_SCHEMA_INSUFFICIENT`
+
+É aceito somente quando o próprio dump não preserva relações suficientes para resolver de forma única o schema/ator necessário. O resultado deve trazer `insufficiency_reason` explícito e `schema_resolution.terminal_state=INSUFFICIENT`.
+
+Erros operacionais, de probe ou de boundary não são aceitos como estado terminal.
 
 ## Boundary
 
 - dump de 18/08/2026 restaurado exclusivamente em Mongo temporário;
-- `--network none` e zero portas publicadas;
+- `--network none`, zero portas publicadas;
 - fonte BSON montada read-only;
 - nenhuma escrita em produção;
 - nenhuma leitura de estudantes, matrículas, notas ou `attendance.records`;
 - payload pedagógico reduzido a presença/ausência booleana;
-- nenhum ID técnico publicado em logs, comentário ou artifact.
+- nenhum ID técnico publicado;
+- nenhum lookup em `users`;
+- nenhuma recuperação, backfill, remapeamento ou deploy autorizado por esta fase.
 
-## Critério de completude
-
-A F6.3d.2 é tecnicamente completa quando o gate pós-merge:
-
-- conclui `COMPLETED` com uma única identidade escolar estrutural e `EXACT_CONTROL_DERIVED`, produzindo a classificação dos dois alvos; **ou**
-- conclui `INCONCLUSIVE` por uma condição fail-closed genuína ainda não resolvível com o dump disponível, sem erro operacional/probe/boundary.
-
-Nenhuma classificação desta fase autoriza correção de dados. Qualquer recuperação ou remapeamento exige etapa própria, preflight, CAS/idempotência, rollback e autorização específica.
+Qualquer recuperação posterior exige etapa própria, preflight, CAS/idempotência, rollback e autorização específica.

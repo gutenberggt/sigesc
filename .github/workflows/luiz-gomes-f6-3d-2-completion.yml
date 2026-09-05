@@ -45,19 +45,37 @@ jobs:
           probe=Path('backend/scripts/luiz_gomes_f6_3d_2_historical_actor_probe.js').read_text(encoding='utf-8')
           runner=Path('backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh').read_text(encoding='utf-8')
           wf=Path('.github/workflows/luiz-gomes-f6-3d-2-completion.yml').read_text(encoding='utf-8')
-          for marker in ('SCHOOL_CONTEXT_NOT_STRUCTURALLY_RESOLVED','SCHOOL_CONTEXT_STRUCTURAL_AMBIGUITY','selected_by_six_classes_and_four_math_controls','TEACHER_ASSIGNMENTS_EXACT_CONTROL_UNANIMOUS','LEARNING_OBJECT_METADATA_FOUR_CLASS_DOMINANT','EXACT_CONTROL_DERIVED'):
-              if marker not in probe: raise SystemExit(f'F63D2_COMPLETION_MARKER_MISSING:{marker}')
+          for marker in (
+              'LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V3_ADAPTIVE',
+              'HISTORICAL_SCHEMA_INSUFFICIENT',
+              'schema_aliases_fail_closed: true',
+              'selected_by_six_classes_and_four_math_controls',
+              'TEACHER_ASSIGNMENTS_ADAPTIVE_EXACT_CONTROL_UNANIMOUS',
+              'LEARNING_OBJECT_METADATA_ADAPTIVE_FOUR_CLASS_DOMINANT',
+              'EXACT_CONTROL_DERIVED',
+          ):
+              if marker not in probe:
+                  raise SystemExit(f'F63D2_COMPLETION_MARKER_MISSING:{marker}')
           for banned in ('d.users','getCollection("users")','student_id: 1','records: 1','insertOne(','updateOne(','deleteOne('):
-              if banned in probe: raise SystemExit(f'F63D2_COMPLETION_FORBIDDEN:{banned}')
+              if banned in probe:
+                  raise SystemExit(f'F63D2_COMPLETION_FORBIDDEN:{banned}')
           for marker in ('--network none','dst=/dump,readonly','PRODUCTION_DATABASE_TOUCHED=NO','RAW_PROBE_OUTPUT_EMITTED=NO'):
-              if marker not in runner: raise SystemExit(f'F63D2_COMPLETION_RUNNER_BOUNDARY_MISSING:{marker}')
-          for marker in ('[LUIZ-GOMES-F6.3D.2-COMPLETE] ','RESOLVE_SCHOOL_CONTEXT_AND_INFER_HISTORICAL_ACTOR','TARGET_SHA','EXPECTED_PRODUCTION_SHA'):
-              if marker not in wf: raise SystemExit(f'F63D2_COMPLETION_WORKFLOW_MARKER_MISSING:{marker}')
+              if marker not in runner:
+                  raise SystemExit(f'F63D2_COMPLETION_RUNNER_BOUNDARY_MISSING:{marker}')
+          for marker in (
+              '[LUIZ-GOMES-F6.3D.2-COMPLETE] ',
+              'RESOLVE_SCHOOL_CONTEXT_AND_INFER_HISTORICAL_ACTOR',
+              'TARGET_SHA',
+              'EXPECTED_PRODUCTION_SHA',
+              'F63D2_COMPLETION_TERMINAL_STATE_NOT_A_OR_B',
+          ):
+              if marker not in wf:
+                  raise SystemExit(f'F63D2_COMPLETION_WORKFLOW_MARKER_MISSING:{marker}')
           print('LUIZ_GOMES_F6_3D_2_COMPLETION_STATIC_BOUNDARY=PASS')
           PY
 
   production-audit:
-    name: Resolve school context, infer actor and inspect 8A-9A
+    name: Resolve adaptive schema, infer actor and inspect 8A-9A
     if: >-
       github.event_name == 'issues' &&
       startsWith(github.event.issue.title, '[LUIZ-GOMES-F6.3D.2-COMPLETE] ') &&
@@ -87,9 +105,13 @@ jobs:
               raise SystemExit('LUIZ_GOMES_F6_3D_2_COMPLETION_OWNER_REQUIRED')
           values={}
           for raw in (issue.get('body') or '').splitlines():
-              if '=' not in raw: continue
-              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
-              if key in values: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_DUPLICATE_FIELD:{key}')
+              if '=' not in raw:
+                  continue
+              key,value=raw.split('=',1)
+              key=key.strip()
+              value=value.strip()
+              if key in values:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_DUPLICATE_FIELD:{key}')
               values[key]=value
           expected={
               'LUIZ_GOMES_F6_3D_2_COMPLETION':'AUTHORIZED',
@@ -98,47 +120,67 @@ jobs:
               'TRACKING_ISSUE':'357',
           }
           for key,value in expected.items():
-              if values.get(key)!=value: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_CONTEXT_INVALID:{key}')
-          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
-          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('LUIZ_GOMES_F6_3D_2_COMPLETION_SHA_INVALID')
-          if issue.get('title') != f'[LUIZ-GOMES-F6.3D.2-COMPLETE] {target}': raise SystemExit('LUIZ_GOMES_F6_3D_2_COMPLETION_TITLE_MISMATCH')
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d2-complete'}
+              if values.get(key)!=value:
+                  raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_CONTEXT_INVALID:{key}')
+          target=values.get('TARGET_SHA','')
+          prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod):
+              raise SystemExit('LUIZ_GOMES_F6_3D_2_COMPLETION_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F6.3D.2-COMPLETE] {target}':
+              raise SystemExit('LUIZ_GOMES_F6_3D_2_COMPLETION_TITLE_MISMATCH')
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-f63d2-adaptive',
+          }
           def get(url):
               req=urllib.request.Request(url,headers=headers)
-              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  return json.load(r)
           repo=os.environ['GITHUB_REPOSITORY']
           main=get(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']
           production=get(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
-          if main!=target: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_MAIN_MOVED:{main}')
-          if production!=prod: raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_PRODUCTION_MOVED:{production}')
-          if get(f'https://api.github.com/repos/{repo}/issues/357').get('state')!='open': raise SystemExit('LUIZ_GOMES_F6_3D_2_COMPLETION_TRACKING_NOT_OPEN')
+          if main!=target:
+              raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_MAIN_MOVED:{main}')
+          if production!=prod:
+              raise SystemExit(f'LUIZ_GOMES_F6_3D_2_COMPLETION_PRODUCTION_MOVED:{production}')
+          if get(f'https://api.github.com/repos/{repo}/issues/357').get('state')!='open':
+              raise SystemExit('LUIZ_GOMES_F6_3D_2_COMPLETION_TRACKING_NOT_OPEN')
           with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
               out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
           print('LUIZ_GOMES_F6_3D_2_COMPLETION_CONTEXT=PASS')
           PY
+
       - name: Checkout exact reviewed main SHA
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ steps.context.outputs.target_sha }}
           persist-credentials: false
           fetch-depth: 1
-      - name: Prepare SSH and stage reviewed probe
+
+      - name: Prepare SSH and stage reviewed adaptive probe
         id: stage
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p evidence ~/.ssh
-          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || { echo "F63D2_COMPLETION_SECRET_MISSING:$v"; exit 1; }; done
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "F63D2_COMPLETION_SECRET_MISSING:$v"; exit 1; }
+          done
           chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63d2c_key; chmod 600 ~/.ssh/f63d2c_key
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63d2c_key
+          chmod 600 ~/.ssh/f63d2c_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
           probe_local='backend/scripts/luiz_gomes_f6_3d_2_historical_actor_probe.js'
           node --check "$probe_local"
-          remote_probe="/tmp/luiz-gomes-f6-3d2-complete-${GITHUB_RUN_ID}.js"
+          remote_probe="/tmp/luiz-gomes-f6-3d2-adaptive-${GITHUB_RUN_ID}.js"
           ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d2c_key")
           cat "$probe_local" | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
           echo "remote_probe=$remote_probe" >> "$GITHUB_OUTPUT"
-      - name: Restore isolated 2026-08-18 dump and complete F6.3d.2
+
+      - name: Restore isolated 2026-08-18 dump and execute adaptive F6.3d.2
         id: scan
         shell: bash
         run: |
@@ -151,6 +193,7 @@ jobs:
           set -e
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "F63D2_COMPLETION_REMOTE_SCAN_RC=$rc"
+
       - name: Cleanup staged probe on host
         if: always() && steps.context.outcome == 'success' && steps.stage.outputs.remote_probe != ''
         continue-on-error: true
@@ -158,6 +201,7 @@ jobs:
         run: |
           ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d2c_key")
           ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "rm -f '${{ steps.stage.outputs.remote_probe }}'" >/dev/null 2>&1 || true
+
       - name: Build structured result
         if: always() && steps.context.outcome == 'success'
         env:
@@ -170,24 +214,49 @@ jobs:
           from pathlib import Path
           raw=Path('evidence/f6-3d2-completion-sanitized.log')
           lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
-          try: rc=int(os.environ.get('SCAN_RC') or '999')
-          except ValueError: rc=999
-          meta=None; point=None; restored=[]; flags={}; markers=[]
+          try:
+              rc=int(os.environ.get('SCAN_RC') or '999')
+          except ValueError:
+              rc=999
+          meta=None
+          point=None
+          restored=[]
+          flags={}
+          markers=[]
           for line in lines:
-              if line.startswith('F63D1_GROUP_META_JSON='): meta=json.loads(line.split('=',1)[1])
-              elif line.startswith('LUIZ_GOMES_F6_3C_POINT_JSON='): point=json.loads(line.split('=',1)[1])
-              elif line.startswith('F63D1_RESTORED_COLLECTION:'): restored.append(line.split(':',1)[1])
-              elif '=' in line and line.split('=',1)[0] in {'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED','RAW_PROBE_OUTPUT_EMITTED'}:
-                  k,v=line.split('=',1); flags[k]=v
-              elif re.fullmatch(r'F63D1(?:1)?_[A-Z0-9_]+(?::[A-Za-z0-9_.-]+)?(?:=[A-Za-z0-9_.:-]+)?',line): markers.append(line)
-          boundary=(flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO')
-          valid=isinstance(point,dict) and point.get('schema')=='LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V2'
+              if line.startswith('F63D1_GROUP_META_JSON='):
+                  meta=json.loads(line.split('=',1)[1])
+              elif line.startswith('LUIZ_GOMES_F6_3C_POINT_JSON='):
+                  point=json.loads(line.split('=',1)[1])
+              elif line.startswith('F63D1_RESTORED_COLLECTION:'):
+                  restored.append(line.split(':',1)[1])
+              elif '=' in line and line.split('=',1)[0] in {
+                  'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS',
+                  'SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED',
+                  'RAW_PROBE_OUTPUT_EMITTED'
+              }:
+                  k,v=line.split('=',1)
+                  flags[k]=v
+              elif re.fullmatch(r'F63D1(?:1)?_[A-Z0-9_]+(?::[A-Za-z0-9_.-]+)?(?:=[A-Za-z0-9_.:-]+)?',line):
+                  markers.append(line)
+          boundary=(
+              flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and
+              flags.get('TEMP_RESTORE_NETWORK')=='none' and
+              flags.get('TEMP_RESTORE_PORTS')=='none' and
+              flags.get('SOURCE_MOUNT')=='read_only' and
+              flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and
+              flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and
+              flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO'
+          )
+          valid=isinstance(point,dict) and point.get('schema')=='LUIZ_GOMES_F6_3D_2_HISTORICAL_ACTOR_V3_ADAPTIVE'
           ok=rc==0 and meta is not None and valid and boundary
           result={
-              'schema':'LUIZ_GOMES_F6_3D_2_COMPLETION_GATE_V1',
+              'schema':'LUIZ_GOMES_F6_3D_2_COMPLETION_GATE_V2_ADAPTIVE',
               'status':(point or {}).get('status') if ok else 'INCONCLUSIVE',
               'classification':(point or {}).get('overall_classification') if ok else 'F63D2_COMPLETION_RUNTIME_OR_BOUNDARY_ERROR',
+              'insufficiency_reason':(point or {}).get('insufficiency_reason'),
               'source':meta,
+              'schema_resolution':(point or {}).get('schema_resolution'),
               'school_resolution':(point or {}).get('school_resolution'),
               'actor_inference':(point or {}).get('actor_inference'),
               'controls':(point or {}).get('controls') or [],
@@ -206,10 +275,15 @@ jobs:
               'student_data_read':False,
               'attendance_records_read':False,
           }
-          Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
-          if raw.exists(): raw.unlink()
+          Path('evidence/runtime.json').write_text(
+              json.dumps(result,ensure_ascii=False,sort_keys=True),
+              encoding='utf-8'
+          )
+          if raw.exists():
+              raw.unlink()
           PY
-      - name: Validate completed taxonomy and isolation boundary
+
+      - name: Validate A-or-B terminal taxonomy and isolation boundary
         if: always() && steps.context.outcome == 'success'
         shell: bash
         run: |
@@ -218,18 +292,57 @@ jobs:
           import json
           from pathlib import Path
           p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
-          if p.get('schema')!='LUIZ_GOMES_F6_3D_2_COMPLETION_GATE_V1': raise SystemExit('F63D2_COMPLETION_SCHEMA_INVALID')
-          if p.get('production_writes') is not False or p.get('pedagogical_plaintext_emitted') is not False or p.get('student_data_read') is not False or p.get('attendance_records_read') is not False: raise SystemExit('F63D2_COMPLETION_DATA_BOUNDARY_INVALID')
-          if {'students','enrollments','attendance','grades','attendance_documentary'}.intersection(set(p.get('restored_collections') or [])): raise SystemExit('F63D2_COMPLETION_FORBIDDEN_RESTORE')
+          if p.get('schema')!='LUIZ_GOMES_F6_3D_2_COMPLETION_GATE_V2_ADAPTIVE':
+              raise SystemExit('F63D2_COMPLETION_SCHEMA_INVALID')
+          if (
+              p.get('production_writes') is not False or
+              p.get('pedagogical_plaintext_emitted') is not False or
+              p.get('student_data_read') is not False or
+              p.get('attendance_records_read') is not False
+          ):
+              raise SystemExit('F63D2_COMPLETION_DATA_BOUNDARY_INVALID')
+          if {'students','enrollments','attendance','grades','attendance_documentary'}.intersection(set(p.get('restored_collections') or [])):
+              raise SystemExit('F63D2_COMPLETION_FORBIDDEN_RESTORE')
+
           if p.get('status')=='COMPLETED':
-              school=p.get('school_resolution') or {}; inf=p.get('actor_inference') or {}; pb=p.get('probe_boundaries') or {}
-              if school.get('structural_matches')!=1 or school.get('selected_by_six_classes_and_four_math_controls') is not True: raise SystemExit('F63D2_COMPLETION_SCHOOL_NOT_EXACT')
-              if inf.get('status')!='EXACT_CONTROL_DERIVED': raise SystemExit('F63D2_COMPLETION_INFERENCE_NOT_EXACT')
-              if pb.get('actor_identity_derived_without_user_lookup') is not True or pb.get('technical_ids_emitted') is not False or pb.get('school_identity_structurally_derived') is not True: raise SystemExit('F63D2_COMPLETION_IDENTITY_BOUNDARY_INVALID')
-          elif p.get('status')!='INCONCLUSIVE': raise SystemExit('F63D2_COMPLETION_STATUS_INVALID')
-          if p.get('production_database_touched') is not False or p.get('temporary_restore_network')!='none' or p.get('temporary_restore_ports')!='none' or p.get('source_mount')!='read_only' or p.get('temporary_containers_cleaned') is not True or p.get('raw_probe_output_emitted') is not False: raise SystemExit('F63D2_COMPLETION_ISOLATION_INVALID')
+              school=p.get('school_resolution') or {}
+              schema=p.get('schema_resolution') or {}
+              inf=p.get('actor_inference') or {}
+              pb=p.get('probe_boundaries') or {}
+              if schema.get('terminal_state')!='RESOLVED' or schema.get('selected') is not True:
+                  raise SystemExit('F63D2_COMPLETION_ADAPTIVE_SCHEMA_NOT_EXACT')
+              if school.get('structural_matches')!=1 or school.get('selected_by_six_classes_and_four_math_controls') is not True:
+                  raise SystemExit('F63D2_COMPLETION_SCHOOL_NOT_EXACT')
+              if inf.get('status')!='EXACT_CONTROL_DERIVED':
+                  raise SystemExit('F63D2_COMPLETION_INFERENCE_NOT_EXACT')
+              if (
+                  pb.get('actor_identity_derived_without_user_lookup') is not True or
+                  pb.get('technical_ids_emitted') is not False or
+                  pb.get('school_identity_structurally_derived') is not True or
+                  pb.get('historical_schema_adaptively_resolved') is not True
+              ):
+                  raise SystemExit('F63D2_COMPLETION_IDENTITY_BOUNDARY_INVALID')
+          elif p.get('status')=='INCONCLUSIVE' and p.get('classification')=='HISTORICAL_SCHEMA_INSUFFICIENT':
+              schema=p.get('schema_resolution') or {}
+              if schema.get('terminal_state')!='INSUFFICIENT' or schema.get('selected') is not False:
+                  raise SystemExit('F63D2_COMPLETION_B_STATE_INVALID')
+              if not p.get('insufficiency_reason'):
+                  raise SystemExit('F63D2_COMPLETION_B_REASON_MISSING')
+          else:
+              raise SystemExit('F63D2_COMPLETION_TERMINAL_STATE_NOT_A_OR_B')
+
+          if (
+              p.get('production_database_touched') is not False or
+              p.get('temporary_restore_network')!='none' or
+              p.get('temporary_restore_ports')!='none' or
+              p.get('source_mount')!='read_only' or
+              p.get('temporary_containers_cleaned') is not True or
+              p.get('raw_probe_output_emitted') is not False
+          ):
+              raise SystemExit('F63D2_COMPLETION_ISOLATION_INVALID')
           print('LUIZ_GOMES_F6_3D_2_COMPLETION_RESULT=PASS')
           PY
+
       - name: Upload F6.3d.2 completion evidence
         if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -238,6 +351,7 @@ jobs:
           path: evidence/runtime.json
           if-no-files-found: error
           retention-days: 90
+
       - name: Comment diagnosis and close gate
         if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
         env:
@@ -249,32 +363,66 @@ jobs:
           python - <<'PY'
           import json, os, urllib.request
           from pathlib import Path
-          p=json.loads(Path('evidence/runtime.json').read_text()); s=p.get('source') or {}; school=p.get('school_resolution') or {}; inf=p.get('actor_inference') or {}
+          p=json.loads(Path('evidence/runtime.json').read_text())
+          s=p.get('source') or {}
+          schema=p.get('schema_resolution') or {}
+          school=p.get('school_resolution') or {}
+          inf=p.get('actor_inference') or {}
           lines=[
-              '## LUIZ-GOMES-F6.3d.2 — conclusão técnica',
+              '## LUIZ-GOMES-F6.3d.2 — conclusão técnica adaptativa',
               '',
               f"Status: **`{p.get('status')}`**",
               f"Classificação: **`{p.get('classification')}`**",
+              f"Motivo de insuficiência: `{p.get('insufficiency_reason')}`",
               f"Fonte: data={s.get('snapshot_date')}; fingerprint={s.get('group_fingerprint')}; BSON={s.get('bson_files')}; proveniência={s.get('provenance')}",
-              f"Escola histórica: name_matches={school.get('name_matches')}; structural_matches={school.get('structural_matches')}; seleção estrutural={school.get('selected_by_six_classes_and_four_math_controls')}",
+              f"Schema histórico: estado={schema.get('terminal_state')}; selecionado={schema.get('selected')}; soluções={schema.get('structural_solution_count')}",
+              f"Escola/contexto: structural_matches={school.get('structural_matches')}; seleção estrutural={school.get('selected_by_six_classes_and_four_math_controls')}",
               f"Ator: status={inf.get('status')}; fonte={inf.get('source')}; tipo={inf.get('principal_kind')}; suporte={inf.get('control_class_support')} turmas; cobertura-metadata={inf.get('metadata_coverage_percent')}",
               '',
               '### Controles',
           ]
           for r in p.get('controls') or []:
-              lines.append(f"- {r.get('class')}: math={r.get('math_rows')}, payload={r.get('math_payload_rows')}, assignment_candidates={r.get('assignment_staff_candidates')}")
+              lines.append(f"- {r.get('class')}: math={r.get('math_rows')}, payload={r.get('math_payload_rows')}")
           lines += ['', '### Alvos']
           for r in p.get('targets') or []:
-              lines.append(f"- {r.get('class')}: **`{r.get('classification')}`**; actor_rows={r.get('inferred_actor_rows')}; math_payload={r.get('inferred_actor_math_payload_rows')}; nonmath_payload={r.get('inferred_actor_nonmath_payload_rows')}; binding_math={r.get('historical_math_assignment_matches')}; unattributed_math_payload={r.get('unattributed_math_payload_rows')}")
-          lines += ['', '**Boundary:** escola e ator derivados estruturalmente sem lookup em `users`; nenhum ID técnico emitido; Mongo temporário `--network none`, zero portas, source read-only; produção não tocada; nenhum plaintext pedagógico, dado estudantil ou `attendance.records`.']
+              lines.append(
+                  f"- {r.get('class')}: **`{r.get('classification')}`**; "
+                  f"actor_rows={r.get('inferred_actor_rows')}; "
+                  f"math_payload={r.get('inferred_actor_math_payload_rows')}; "
+                  f"nonmath_payload={r.get('inferred_actor_nonmath_payload_rows')}; "
+                  f"binding_math={r.get('historical_math_assignment_matches')}; "
+                  f"unattributed_math_payload={r.get('unattributed_math_payload_rows')}"
+              )
+          lines += [
+              '',
+              '**Boundary:** schema/ator derivados somente no Mongo temporário, sem lookup em `users`; '
+              'nenhum ID técnico emitido; `--network none`, zero portas, source read-only; '
+              'produção não tocada; nenhum plaintext pedagógico, dado estudantil ou `attendance.records`.',
+          ]
           body='\n'.join(lines)
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d2-completion-finalizer','Content-Type':'application/json'}
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-f63d2-adaptive-finalizer',
+              'Content-Type':'application/json',
+          }
           repo=os.environ['GITHUB_REPOSITORY']
           def req(url,method,payload):
-              r=urllib.request.Request(url,data=json.dumps(payload).encode(),headers=headers,method=method)
-              with urllib.request.urlopen(r,timeout=30) as resp: return json.load(resp)
+              r=urllib.request.Request(
+                  url,
+                  data=json.dumps(payload).encode(),
+                  headers=headers,
+                  method=method,
+              )
+              with urllib.request.urlopen(r,timeout=30) as resp:
+                  return json.load(resp)
           req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
           req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
-          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
+          req(
+              f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}',
+              'PATCH',
+              {'state':'closed','state_reason':'completed'},
+          )
           print('LUIZ_GOMES_F6_3D_2_COMPLETION_FINALIZER=PASS')
           PY
