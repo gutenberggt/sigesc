@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# LUIZ-GOMES-F6.3d.1 — identifica um único dump BSON coerente de 18/08/2026
-# fora da árvore canônica e o restaura SOMENTE em Mongo temporário isolado.
+# LUIZ-GOMES-F6.3d.1.1 — mesma seleção/restore isolado da F6.3d.1,
+# acrescentando somente localização sanitizada do erro do probe histórico.
 set -euo pipefail
 
 mongo_container="${1:?mongo container required}"
@@ -10,18 +10,29 @@ canonical_root='/root/sigesc-backups'
 roots=(/root /opt /srv /var/backups)
 expected_image='mongo:7'
 drill=''
+probe_raw="/tmp/sigesc-f63d11-probe-${run_id}.log"
 
 cleanup() {
   if [[ -n "$drill" ]]; then
     docker rm -f "$drill" >/dev/null 2>&1 || true
   fi
+  rm -f "$probe_raw" >/dev/null 2>&1 || true
   rm -f "$probe_host" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+emit_terminal_boundary() {
+  echo 'PRODUCTION_DATABASE_TOUCHED=NO'
+  echo 'TEMP_RESTORE_NETWORK=none'
+  echo 'TEMP_RESTORE_PORTS=none'
+  echo 'SOURCE_MOUNT=read_only'
+  echo 'TEMP_CONTAINERS_CLEANED=YES'
+  echo 'PEDAGOGICAL_PLAINTEXT_EMITTED=NO'
+  echo 'RAW_PROBE_OUTPUT_EMITTED=NO'
+}
+
 test -s "$probe_host" || { echo 'F63D1_PROBE_STAGE_MISSING'; exit 1; }
 
-# Descobre grupos por diretório-pai, sem emitir caminho ou basename.
 declare -A file_by_group_collection count_by_group min_epoch_by_group max_epoch_by_group
 for root in "${roots[@]}"; do
   [[ -d "$root" ]] || continue
@@ -90,7 +101,7 @@ mongo_image="$(docker inspect -f '{{.Config.Image}}' "$mongo_container")"
 test -n "$mongo_image" || { echo 'F63D1_PRODUCTION_MONGO_IMAGE_UNRESOLVED'; exit 1; }
 [[ "$mongo_image" == "$expected_image" ]] || { echo 'F63D1_MONGO_IMAGE_MISMATCH'; exit 1; }
 
-drill="sigesc-f63d1-${run_id}"
+drill="sigesc-f63d11-${run_id}"
 docker run -d --name "$drill" --network none \
   --mount "type=bind,src=$group,dst=/dump,readonly" \
   --mount "type=bind,src=$probe_host,dst=/forensic/probe.js,readonly" \
@@ -107,8 +118,6 @@ done
 [[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$drill")" == 'none' ]] || { echo 'F63D1_NETWORK_ISOLATION_FAIL'; exit 1; }
 test -z "$(docker port "$drill" 2>/dev/null || true)" || { echo 'F63D1_PUBLISHED_PORT_FAIL'; exit 1; }
 
-# Restore explícito e limitado por coleção. Nunca usa namespace de estudantes,
-# matrículas, frequência ou notas.
 for col in "${required[@]}" "${optional[@]}"; do
   source_file="${file_by_group_collection["$group|$col"]:-}"
   [[ -s "$source_file" ]] || continue
@@ -116,17 +125,41 @@ for col in "${required[@]}" "${optional[@]}"; do
   echo "F63D1_RESTORED_COLLECTION:$col"
 done
 
-point_line="$(docker exec "$drill" mongosh --quiet --file /forensic/probe.js \
-  | grep '^LUIZ_GOMES_F6_3C_POINT_JSON=' | tail -n 1 || true)"
-test -n "$point_line" || { echo 'F63D1_POINT_PROBE_NO_JSON'; exit 1; }
+# O stderr/stdout bruto do mongosh nunca sai do host. Somente um marcador
+# explicitamente allowlisted pode ser emitido quando o probe falha.
+set +e
+docker exec "$drill" mongosh --quiet --file /forensic/probe.js >"$probe_raw" 2>&1
+probe_rc=$?
+set -e
+point_line="$(grep '^LUIZ_GOMES_F6_3C_POINT_JSON=' "$probe_raw" | tail -n 1 || true)"
+if [[ -z "$point_line" ]]; then
+  safe_marker='UNCLASSIFIED_RUNTIME_ERROR'
+  if raw_marker="$(grep -oE 'F63C_TEACHER_USER_MATCHES:[0-9]+' "$probe_raw" | tail -n 1)" && [[ -n "$raw_marker" ]]; then
+    safe_marker="TEACHER_USER_MATCHES:${raw_marker##*:}"
+  elif grep -q 'F63C_TEACHER_USER_ID_MISSING' "$probe_raw"; then
+    safe_marker='TEACHER_USER_ID_MISSING'
+  elif raw_marker="$(grep -oE 'F63C_SCHOOL_MATCHES:[0-9]+' "$probe_raw" | tail -n 1)" && [[ -n "$raw_marker" ]]; then
+    safe_marker="SCHOOL_MATCHES:${raw_marker##*:}"
+  elif grep -q 'F63C_SCHOOL_ID_MISSING' "$probe_raw"; then
+    safe_marker='SCHOOL_ID_MISSING'
+  elif raw_marker="$(grep -oE 'F63C_CLASS_MATCHES:[^:]+:[0-9]+' "$probe_raw" | tail -n 1)" && [[ -n "$raw_marker" ]]; then
+    count="${raw_marker##*:}"
+    case "$raw_marker" in
+      *'8º ANO A'*) safe_marker="CLASS_MATCHES_8A:$count" ;;
+      *'9º ANO A'*) safe_marker="CLASS_MATCHES_9A:$count" ;;
+      *) safe_marker="CLASS_MATCHES_TARGET:$count" ;;
+    esac
+  fi
+  printf 'F63D11_PROBE_ERROR_MARKER=%s\n' "$safe_marker"
+  printf 'F63D11_PROBE_EXIT_CODE=%d\n' "$probe_rc"
+  rm -f "$probe_raw"
+  docker rm -f "$drill" >/dev/null 2>&1
+  drill=''
+  emit_terminal_boundary
+  exit 1
+fi
 printf '%s\n' "$point_line"
-
+rm -f "$probe_raw"
 docker rm -f "$drill" >/dev/null 2>&1
 drill=''
-
-echo 'PRODUCTION_DATABASE_TOUCHED=NO'
-echo 'TEMP_RESTORE_NETWORK=none'
-echo 'TEMP_RESTORE_PORTS=none'
-echo 'SOURCE_MOUNT=read_only'
-echo 'TEMP_CONTAINERS_CLEANED=YES'
-echo 'PEDAGOGICAL_PLAINTEXT_EMITTED=NO'
+emit_terminal_boundary
