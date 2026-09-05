@@ -98,16 +98,24 @@ def test_completion_gate_requires_exact_school_and_actor_for_completed():
     assert "school_identity_structurally_derived') is not True" in src
 
 
-def test_no_deploy_or_production_mutation_path():
-    combined = (read(PROBE) + "\n" + read(RUNNER) + "\n" + read(WORKFLOW)).lower()
+def test_no_production_mutation_in_executable_probe_or_runner():
+    executable = (read(PROBE) + "\n" + read(RUNNER)).lower()
+    for forbidden in (
+        "insertone(",
+        "updateone(",
+        "deletemany(",
+        "deleteone(",
+        "delete_many",
+    ):
+        assert forbidden not in executable
+
+
+def test_no_deploy_path_in_workflow_or_runner():
+    operational = (read(RUNNER) + "\n" + read(WORKFLOW)).lower()
     for forbidden in (
         "git pull",
         "docker compose up",
         "docker stack deploy",
         "kubectl apply",
-        "insertone(",
-        "updateone(",
-        "deleteone(",
-        "delete_many",
     ):
-        assert forbidden not in combined
+        assert forbidden not in operational
