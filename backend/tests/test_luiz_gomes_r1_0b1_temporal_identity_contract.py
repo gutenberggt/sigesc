@@ -63,7 +63,7 @@ def test_runner_surfaces_only_controlled_failure_stage_through_exit_code():
     s = text(RUNNER)
     expected = {
         10: "R1B1_STAGED_INPUT_MISSING",
-        11: "R1B1_LIVE_SEED_EXIT_CODE=",
+        11: "R1B1_LIVE_SEED_EXEC_FAILED",
         12: "R1B1_LIVE_SEED_NOT_READY",
         13: "R1B1_ELIGIBLE_GROUP_COUNT:",
         14: "R1B1_CANONICAL_TREE_SELECTION_BLOCKED",
@@ -73,6 +73,7 @@ def test_runner_surfaces_only_controlled_failure_stage_through_exit_code():
         18: "R1B1_PUBLISHED_PORT_FAIL",
         19: "R1B1_RESTORE_",
         20: "R1B1_PROBE_EXIT_CODE=",
+        21: "R1B1_LIVE_SEED_MARKER_MISSING",
     }
     for code, marker in expected.items():
         assert f"exit {code}" in s
@@ -81,6 +82,18 @@ def test_runner_surfaces_only_controlled_failure_stage_through_exit_code():
     assert "R1B1_REMOTE_SCAN_RC" in text(WORKFLOW)
     for forbidden in ('cat "$probe_raw"', 'cat "$seed_raw"', 'echo "$seed_json"'):
         assert forbidden not in s
+
+
+def test_live_seed_exec_failure_and_marker_missing_are_distinct_without_raw_output():
+    s = text(RUNNER)
+    assert 'if [[ "$seed_rc" -ne 0 ]]' in s
+    assert "exit 11" in s
+    assert 'if [[ -z "$seed_line" ]]' in s
+    assert "exit 21" in s
+    assert 'R1B1_LIVE_SEED_EXEC_FAILED' in s
+    assert 'R1B1_LIVE_SEED_MARKER_MISSING' in s
+    assert 'R1B1_LIVE_SEED_EXIT_CODE=$seed_rc' not in s
+    assert 'cat "$seed_raw"' not in s
 
 
 def test_workflow_has_exact_owner_sha_gate_and_no_deploy():
