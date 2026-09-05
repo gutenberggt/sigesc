@@ -9,7 +9,8 @@
   const SKIP_KEYS = new Set([
     "content", "methodology", "observations", "resources", "records",
     "students", "student", "grades", "notes", "password", "token",
-    "refresh_token", "access_token"
+    "refresh_token", "access_token", "email", "phone", "telefone", "cpf",
+    "nis", "address", "endereco", "birth_date", "date_of_birth"
   ]);
 
   const sid = (v) => {
@@ -45,7 +46,6 @@
   };
   const vals = (doc) => [...new Set(leaves(doc).map(([, v]) => v).filter(Boolean))];
   const paths = (docs) => [...new Set(docs.flatMap((doc) => leaves(doc).map(([p]) => p)))];
-  const exists = (name) => d.getCollectionNames().includes(name);
   const inPeriod = (v) => {
     const s = sid(v).slice(0, 10);
     return /^\d{4}-\d{2}-\d{2}$/.test(s) && s >= START && s < END;
@@ -148,6 +148,10 @@
   // Atores: o nome é usado apenas para localizar o nó histórico do professor. O bridge de turma
   // é feito pelas arestas de assignments; nenhum ID atual é consultado ou comparado.
   const identityValueSets = identityDocs.map(({ doc }) => new Set(vals(doc).filter((v) => !generic(v))));
+  const identityValueFrequency = new Map();
+  identityValueSets.forEach((set) => set.forEach((v) =>
+    identityValueFrequency.set(v, (identityValueFrequency.get(v) || 0) + 1)
+  ));
   const teacherSeedIndexes = identityDocs.map(({ doc }, i) =>
     leaves(doc).some(([, v]) => norm(v) === norm(TEACHER)) ? i : -1
   ).filter((i) => i >= 0);
@@ -161,10 +165,12 @@
   let changed = true;
   while (changed) {
     changed = false;
-    const componentValues = new Set([...teacherComponent].flatMap((i) => [...identityValueSets[i]]));
+    const componentValues = new Set([...teacherComponent]
+      .flatMap((i) => [...identityValueSets[i]])
+      .filter((v) => (identityValueFrequency.get(v) || 0) <= 2));
     identityValueSets.forEach((set, i) => {
       if (teacherComponent.has(i)) return;
-      if ([...set].some((v) => componentValues.has(v))) {
+      if ([...set].some((v) => componentValues.has(v) && (identityValueFrequency.get(v) || 0) <= 2)) {
         teacherComponent.add(i);
         changed = true;
       }
