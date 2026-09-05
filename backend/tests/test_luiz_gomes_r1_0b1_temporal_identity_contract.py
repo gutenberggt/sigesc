@@ -26,6 +26,19 @@ def test_live_seed_is_bounded_to_non_student_metadata():
     assert 'technical_ids_for_internal_bridge_only: true' in s
 
 
+def test_live_seed_has_sanitized_fail_closed_diagnostic_envelope():
+    s = text(SEED)
+    assert 'LUIZ_GOMES_R1_0B1_LIVE_SEED_DIAGNOSTIC_JSON=' in s
+    assert 'LUIZ_GOMES_R1_0B1_SEED_DIAGNOSTIC_V1' in s
+    assert 'LIVE_SEED_UNEXPECTED_EXCEPTION' in s
+    assert 'diagnostic_stage' in s
+    assert 'error_name' in s
+    assert 'safeToken' in s
+    assert 'try {' in s and '} catch (error) {' in s
+    assert '.message' not in s
+    assert '.stack' not in s
+
+
 def test_historical_probe_requires_all_six_current_identities_and_fails_closed():
     s = text(PROBE)
     assert 'preservedNames.length !== 6' in s
@@ -57,6 +70,18 @@ def test_runner_keeps_live_seed_private_and_restores_only_safe_collections():
     assert 'EPHEMERAL_TECHNICAL_ID_FILES_CLEANED=YES' in s
     assert 'cat "$seed_raw"' not in s
     assert 'echo "$seed_json"' not in s
+
+
+def test_runner_uses_noninteractive_mongosh_file_mode_and_safe_diagnostic_only():
+    s = text(RUNNER)
+    assert 'mongosh --quiet --file /dev/stdin' in s
+    assert 'R1B1_MONGOSH_MODE=file_dev_stdin' in s
+    assert 'emit_safe_seed_diagnostic' in s
+    assert 'LUIZ_GOMES_R1_0B1_SEED_DIAGNOSTIC_V1' in s
+    assert 'grep -Eq' in s
+    assert 'diagnostic_stage' in s
+    assert 'error_name' in s
+    assert 'cat "$seed_raw"' not in s
 
 
 def test_runner_surfaces_only_controlled_failure_stage_through_exit_code():
@@ -96,6 +121,19 @@ def test_live_seed_exec_failure_and_marker_missing_are_distinct_without_raw_outp
     assert 'cat "$seed_raw"' not in s
 
 
+def test_workflow_accepts_only_sanitized_pre_dump_diagnostic_for_rc_12_or_21():
+    s = text(WORKFLOW)
+    assert "LUIZ_GOMES_R1_0B1_LIVE_SEED_DIAGNOSTIC_JSON=" in s
+    assert "LUIZ_GOMES_R1_0B1_SEED_DIAGNOSTIC_V1" in s
+    assert "rc in {12,21}" in s
+    assert "diag_valid" in s
+    assert "point is None and source is None" in s
+    assert "historical_dump_accessed" in s
+    assert "TEMPORAL_IDENTITY_RUNTIME_OR_BOUNDARY_ERROR" in s
+    assert "R1B1_MONGOSH_MODE" in s
+    assert "issues/432/comments" in s
+
+
 def test_workflow_has_exact_owner_sha_gate_and_no_deploy():
     s = text(WORKFLOW)
     assert "[LUIZ-GOMES-R1.0B.1-TEMPORAL-IDENTITY] " in s
@@ -117,3 +155,6 @@ def test_document_records_non_inference_and_internal_id_boundary():
     assert "efêmer" in s.lower()
     assert "R1.0C" in s
     assert "RECOVERABLE_EXACT" in s
+    assert "R1.0B.1a" in s
+    assert "--file /dev/stdin" in s
+    assert "mensagem" in s.lower() and "stack" in s.lower()

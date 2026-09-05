@@ -1,7 +1,7 @@
 # R1.0B.1 — Bridge Temporal de Identidade — Luiz 8º A/9º A
 
 Data: 2026-09-05
-Tracking: #425, pai #418, trilha #357, precedente #422.
+Tracking: #425, pai #418, trilha #357, precedente #422. Hardening de envelope: #432.
 
 ## Motivo
 
@@ -46,6 +46,22 @@ Se IDs atuais não estiverem preservados no dump, a conclusão é `TEMPORAL_IDEN
 - `TEMPORAL_IDENTITY_NOT_PRESERVED`
 - `TEMPORAL_IDENTITY_BRIDGE_INCONCLUSIVE`
 - `TEMPORAL_IDENTITY_RUNTIME_OR_BOUNDARY_ERROR`
+
+## R1.0B.1a — envelope diagnóstico do live seed
+
+O gate #431 / run `33988088851` mostrou `R1B1_REMOTE_SCAN_RC=21`: o processo `mongosh` retornou zero, mas o marcador final do live seed não foi localizado. O fluxo parou antes da seleção/restauração do dump histórico.
+
+A microfase R1.0B.1a endurece apenas o envelope de execução:
+
+1. o live seed passa a ser executado como arquivo não interativo via `mongosh --quiet --file /dev/stdin`;
+2. o JavaScript é envolvido por `try/catch` fail-closed;
+3. qualquer falha controlada pode emitir somente um diagnóstico sanitizado com `reason`, `diagnostic_stage` e `error_name` normalizados;
+4. a mensagem de exceção e a stack nunca são externalizadas;
+5. nenhum ID técnico, documento Mongo ou conteúdo pedagógico integra o diagnóstico;
+6. o workflow só aceita o diagnóstico antecipado para os códigos controlados `12` ou `21`, com schema e tokens estritamente validados;
+7. quando esse diagnóstico é aceito, a classificação permanece `TEMPORAL_IDENTITY_RUNTIME_OR_BOUNDARY_ERROR`, `R1.0C` continua fechada e o dump histórico não é acessado.
+
+Esse hardening não transforma erro de runtime em evidência de domínio e não altera a taxonomia probatória da investigação.
 
 ## Gate subsequente
 
