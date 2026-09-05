@@ -10,12 +10,16 @@ assert spec and spec.loader
 spec.loader.exec_module(mod)
 
 
-def test_authorized_target_has_exactly_6_pairs():
-    assert len(mod.TARGET_PAIRS) == 6
-    assert len(set(mod.TARGET_PAIRS)) == 6
-    assert ("6º ANO A", "Matemática") in mod.TARGET_PAIRS
+def test_authorized_target_has_exactly_2_pairs():
+    assert len(mod.TARGET_PAIRS) == 2
+    assert len(set(mod.TARGET_PAIRS)) == 2
+    assert ("8º ANO A", "Matemática") in mod.TARGET_PAIRS
     assert ("9º ANO A", "Matemática") in mod.TARGET_PAIRS
     assert all(course == "Matemática" for _class, course in mod.TARGET_PAIRS)
+
+
+def test_target_months_are_february_march_april():
+    assert mod.TARGET_MONTHS == ("2026-02", "2026-03", "2026-04")
 
 
 def test_name_normalization_handles_accents_and_ordinals():
@@ -105,6 +109,30 @@ def test_root_causes_identify_historical_assignment_drift():
     assert "CONTENT_ON_HISTORICAL_ASSIGNMENT" in causes
     assert "ATTENDANCE_ON_HISTORICAL_ASSIGNMENT" in causes
     assert "NO_CURRENT_CANONICAL_DIARY" not in causes
+
+
+def test_month_breakdown_buckets_by_year_month_within_target_months():
+    rows = [
+        {"date": "2026-02-10"},
+        {"date": "2026-02-10"},  # mesma data, mesmo mês -> distinct_dates=1, documents=2
+        {"date": "2026-03-05"},
+        {"date": "2026-05-01"},  # fora dos meses-alvo -> ignorado
+        {"date": None},  # sem data -> ignorado
+    ]
+    result = mod._month_breakdown(rows, mod.TARGET_MONTHS)
+    assert set(result.keys()) == {"2026-02", "2026-03", "2026-04"}
+    assert result["2026-02"] == {"documents": 2, "distinct_dates": 1}
+    assert result["2026-03"] == {"documents": 1, "distinct_dates": 1}
+    assert result["2026-04"] == {"documents": 0, "distinct_dates": 0}
+
+
+def test_month_breakdown_empty_rows_returns_zeroed_months():
+    result = mod._month_breakdown([], mod.TARGET_MONTHS)
+    assert result == {
+        "2026-02": {"documents": 0, "distinct_dates": 0},
+        "2026-03": {"documents": 0, "distinct_dates": 0},
+        "2026-04": {"documents": 0, "distinct_dates": 0},
+    }
 
 
 def test_fingerprint_never_emits_raw_identifier():

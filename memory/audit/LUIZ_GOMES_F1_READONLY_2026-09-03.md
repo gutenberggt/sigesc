@@ -22,14 +22,30 @@ professor informar que os lançou. Sintoma estruturalmente idêntico ao caso já
 apurado de Ana Lucia Faria Pinto (vínculo legado presente, mas sem projeção
 canônica atual em parte dos pares).
 
-Alvos propostos (2026), todos em Matemática:
+## Refinamento de escopo (2026-09-03)
 
-1. 6º ANO A / Matemática
-2. 6º ANO B / Matemática
-3. 7º ANO A / Matemática
-4. 7º ANO B / Matemática
-5. 8º ANO A / Matemática
-6. 9º ANO A / Matemática
+O proprietário pediu precisão: verificar especificamente o registro de
+conteúdo (`learning_objects`/`content_entries`) de fevereiro, março e abril de
+2026, nas turmas 8º ANO A e 9º ANO A de Matemática. Diante de 3 opções
+apresentadas (restringir a esses 2 pares, manter os 6 pares originais só
+acrescentando o detalhamento mensal, ou abrir uma segunda auditoria em
+paralelo), o proprietário escolheu **restringir o escopo aos 2 pares
+pedidos**, reduzindo a superfície de leitura em produção. Os outros 4 pares
+inicialmente propostos (6º ANO A/B, 7º ANO A/B) saem do escopo desta F1; se
+necessário, podem virar uma auditoria própria depois, seguindo o mesmo
+padrão.
+
+Alvos finais (2026):
+
+1. 8º ANO A / Matemática
+2. 9º ANO A / Matemática
+
+Além da matriz padrão por par (idêntica à ANA-LUCIA-F1), o coletor agora
+também emite `content.learning_objects.monthly_breakdown_target_months` e
+`content.content_entries.monthly_breakdown_target_months`: contagem de
+documentos e de datas distintas para cada um dos 3 meses-alvo
+(`TARGET_MONTHS = ("2026-02", "2026-03", "2026-04")`), sem abrir o texto
+pedagógico — só a data de cada registro já lido.
 
 ## Relação com outros incidentes já rastreados
 
@@ -42,7 +58,7 @@ conclusão daquele caso.
 
 ## Perguntas forenses
 
-Idênticas à ANA-LUCIA-F1, reaplicadas aos 6 pares acima — para cada par, o
+Idênticas à ANA-LUCIA-F1, reaplicadas aos 2 pares acima — para cada par, o
 coletor determina somente por metadados estruturais:
 
 - existência do vínculo legado ativo em `teacher_assignments`;
@@ -105,8 +121,9 @@ fechada.
 - testes: `backend/tests/test_luiz_gomes_f1_readonly_audit.py`;
 - workflow: `.github/workflows/luiz-gomes-f1-readonly-audit.yml`.
 
-O resultado final deve ser uma matriz dos 6 pares com presença dos registros,
-assignment de origem (somente fingerprint), projetabilidade estrutural e
-códigos de causa — mesmo formato de saída da ANA-LUCIA-F1. Nenhuma correção
-de dados está autorizada por este gate; um eventual saneamento exigirá uma
-fase F2+ separada, nos mesmos moldes de `ANA_LUCIA_F2_*`.
+O resultado final deve ser uma matriz dos 2 pares com presença dos registros,
+assignment de origem (somente fingerprint), projetabilidade estrutural,
+códigos de causa e o detalhamento mensal de conteúdo (fev/mar/abr) descrito
+acima. Nenhuma correção de dados está autorizada por este gate; um eventual
+saneamento exigirá uma fase F2+ separada, nos mesmos moldes de
+`ANA_LUCIA_F2_*`.

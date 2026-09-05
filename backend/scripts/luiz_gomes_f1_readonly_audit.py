@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """LUIZ-GOMES-F1 — auditoria forense READ-ONLY de conteúdo/frequência.
 
-Escopo solicitado pelo proprietário em 2026-09-03: investigar exatamente os 6
-pares (turma, componente) informados para Luiz Gomes dos Santos (E M E I E F
-Jose Pereira Barbosa), ano letivo 2026, sem qualquer mutação de produção.
+Escopo solicitado pelo proprietário em 2026-09-03 e refinado em 2026-09-03
+(pedido de precisão): investigar exatamente os 2 pares (turma, componente)
+Matemática / 8º ANO A e Matemática / 9º ANO A de Luiz Gomes dos Santos
+(E M E I E F Jose Pereira Barbosa), ano letivo 2026, com detalhamento mês a
+mês de conteúdo (`learning_objects`) para fevereiro/março/abril de 2026 —
+sem qualquer mutação de produção.
+
+Escopo reduzido deliberadamente de 6 para 2 pares (excluindo 6ºA, 6ºB, 7ºA,
+7ºB) a pedido do proprietário, para minimizar a superfície de leitura em
+produção e tornar a autorização e a leitura do resultado mais diretas.
 
 Mesmo padrão estrutural e as mesmas garantias de privacidade da
 ANA-LUCIA-F1 (`backend/scripts/ana_lucia_f1_readonly_audit.py`), reaplicadas
@@ -15,6 +22,7 @@ O coletor lê somente metadados estruturais necessários para responder:
 - o vínculo legado existe?
 - há vínculo DVD atual/histórico?
 - existem learning_objects/content_entries/attendance persistidos?
+- em quais dos meses-alvo (fev/mar/abr 2026) há `learning_objects` lançados?
 - os registros pertencem ao assignment atual, a um assignment histórico, ou
   estão sem assignment_id?
 - a regra de projeção atual conseguiria alcançá-los?
@@ -45,12 +53,17 @@ TEACHER_NAME = "Luiz Gomes dos Santos"
 ACTIVE_LEGACY_STATUSES = ("ativo", "active")
 
 TARGET_PAIRS: tuple[tuple[str, str], ...] = (
-    ("6º ANO A", "Matemática"),
-    ("6º ANO B", "Matemática"),
-    ("7º ANO A", "Matemática"),
-    ("7º ANO B", "Matemática"),
     ("8º ANO A", "Matemática"),
     ("9º ANO A", "Matemática"),
+)
+
+# Meses-alvo do detalhamento de conteúdo, pedido explicitamente pelo
+# proprietário ("fevereiro, março e abril"). Formato YYYY-MM, comparável
+# diretamente com o prefixo de `_day(date)`.
+TARGET_MONTHS: tuple[str, ...] = (
+    f"{ACADEMIC_YEAR}-02",
+    f"{ACADEMIC_YEAR}-03",
+    f"{ACADEMIC_YEAR}-04",
 )
 
 
@@ -93,6 +106,29 @@ def _date_summary(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "distinct_dates": len(dates),
         "first_date": dates[0] if dates else None,
         "last_date": dates[-1] if dates else None,
+    }
+
+
+def _month_breakdown(rows: Iterable[Mapping[str, Any]], months: Iterable[str]) -> dict[str, dict[str, Any]]:
+    """Detalha `rows` por mês (prefixo YYYY-MM de `date`), restrito a `months`.
+
+    Não lê nem projeta nenhum campo além de `date` (já presente em `rows`);
+    serve só para responder "em quais meses há registro" sem abrir o payload
+    pedagógico.
+    """
+    rows = list(rows)
+    buckets: dict[str, list[str]] = defaultdict(list)
+    for row in rows:
+        day = _day(row.get("date"))
+        month = day[:7]
+        if month in months and day:
+            buckets[month].append(day)
+    return {
+        month: {
+            "documents": len(buckets.get(month, [])),
+            "distinct_dates": len(set(buckets.get(month, []))),
+        }
+        for month in months
     }
 
 
@@ -720,8 +756,12 @@ async def _run_live_audit() -> dict[str, Any]:
                         ),
                         "projectable_via_current_legacy_bridge": len(legacy_visible),
                         "after_current_cutover": len(legacy_after_cutover),
+                        "monthly_breakdown_target_months": _month_breakdown(learning_rows, TARGET_MONTHS),
                     },
-                    "content_entries": content_partition,
+                    "content_entries": {
+                        **content_partition,
+                        "monthly_breakdown_target_months": _month_breakdown(content_rows, TARGET_MONTHS),
+                    },
                     "current_projection_metadata_count_estimate": (
                         int((content_partition.get("current_assignment") or {}).get("documents") or 0)
                         + len(legacy_visible)

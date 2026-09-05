@@ -231,7 +231,7 @@ jobs:
               if p.get(key) is not False: raise SystemExit(f'LUIZ_GOMES_F1_BOUNDARY_FAILED:{key}')
           if p.get('mongo_reads_only') is not True:
               raise SystemExit('LUIZ_GOMES_F1_READ_ONLY_FAILED')
-          if p.get('target', {}).get('target_pair_count') != 6 or len(p.get('pairs') or []) != 6:
+          if p.get('target', {}).get('target_pair_count') != 2 or len(p.get('pairs') or []) != 2:
               raise SystemExit('LUIZ_GOMES_F1_TARGET_COUNT_FAILED')
           print('LUIZ_GOMES_F1_AUDIT=PASS')
           PY
@@ -275,6 +275,25 @@ jobs:
               causes=', '.join(f"`{c}`" for c in (row.get('root_cause_codes') or [])) or '—'
               lines.append(f"| {pair} | {row.get('resolution')} | {causes} |")
           lines += [
+              '',
+              '### Detalhamento mensal de conteúdo (fev/mar/abr 2026)',
+              '| Turma / Componente | Fonte | 2026-02 | 2026-03 | 2026-04 |',
+              '|---|---|---:|---:|---:|',
+          ]
+          for row in p.get('pairs') or []:
+              if row.get('resolution') != 'EXACT':
+                  continue
+              pair=f"{row.get('class')} / {row.get('component')}"
+              content=row.get('content') or {}
+              lo=(content.get('learning_objects') or {}).get('monthly_breakdown_target_months') or {}
+              ce=(content.get('content_entries') or {}).get('monthly_breakdown_target_months') or {}
+              def fmt(bucket, month):
+                  cell=bucket.get(month) or {}
+                  return f"{cell.get('documents', 0)}d/{cell.get('distinct_dates', 0)}dt"
+              lines.append(f"| {pair} | learning_objects (legado) | {fmt(lo,'2026-02')} | {fmt(lo,'2026-03')} | {fmt(lo,'2026-04')} |")
+              lines.append(f"| {pair} | content_entries (canônico) | {fmt(ce,'2026-02')} | {fmt(ce,'2026-03')} | {fmt(ce,'2026-04')} |")
+          lines += [
+              '', '_d = documentos, dt = datas distintas._',
               '', '**Boundary:** Mongo read-only; nenhuma chamada HTTP da aplicação; sem login; '
               'sem `attendance.records`; sem PII de aluno; nenhum texto pedagógico lido; '
               'nenhuma mutação/backfill/reconciliação. Artefato completo em anexo ao run (90 dias).',
