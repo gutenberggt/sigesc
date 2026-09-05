@@ -1,0 +1,288 @@
+name: "Luiz Gomes F6.3d.1.1 Probe Error Localization"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh'
+      - 'backend/scripts/luiz_gomes_f6_3c_backup_probe.js'
+      - 'backend/tests/test_luiz_gomes_f6_3d_1_bson_dump_contract.py'
+      - '.github/workflows/luiz-gomes-f6-3d-1-1-probe-localization.yml'
+      - 'memory/audit/LUIZ_GOMES_F6_3D_1_1_PROBE_ERROR_LOCALIZATION_2026-09-05.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: luiz-gomes-f6-3d-1-1-probe-localization
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard Luiz Gomes F6.3d.1.1 sanitized probe localization
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Syntax and focused contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh
+          node --check backend/scripts/luiz_gomes_f6_3c_backup_probe.js
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q --noconftest backend/tests/test_luiz_gomes_f6_3d_1_bson_dump_contract.py
+      - name: Enforce raw-output containment and restore boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          sh=Path('backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh').read_text(encoding='utf-8')
+          wf=Path('.github/workflows/luiz-gomes-f6-3d-1-1-probe-localization.yml').read_text(encoding='utf-8')
+          for marker in (
+              '2026-08-18','required=(users schools classes courses learning_objects)',
+              '--network none','dst=/dump,readonly','F63D11_PROBE_ERROR_MARKER=',
+              'RAW_PROBE_OUTPUT_EMITTED=NO','emit_terminal_boundary','rm -f "$probe_raw"'):
+              if marker not in sh: raise SystemExit(f'F63D11_REQUIRED_MARKER_MISSING:{marker}')
+          for allowed in (
+              'TEACHER_USER_MATCHES:','TEACHER_USER_ID_MISSING','SCHOOL_MATCHES:',
+              'SCHOOL_ID_MISSING','CLASS_MATCHES_8A:','CLASS_MATCHES_9A:',
+              'CLASS_MATCHES_TARGET:','UNCLASSIFIED_RUNTIME_ERROR'):
+              if allowed not in sh: raise SystemExit(f'F63D11_SAFE_MARKER_MISSING:{allowed}')
+          for banned in ('students','attendance','grades'):
+              if banned in sh: raise SystemExit(f'F63D11_FORBIDDEN_NAMESPACE:{banned}')
+          for marker in ('TARGET_SHA','EXPECTED_PRODUCTION_SHA','probe_error_marker','raw_probe_output_emitted','BSON_DUMP_PROBE_ERROR'):
+              if marker not in wf: raise SystemExit(f'F63D11_WORKFLOW_MARKER_MISSING:{marker}')
+          print('LUIZ_GOMES_F6_3D_1_1_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Localize 2026-08-18 historical probe error without raw output
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LUIZ-GOMES-F6.3D.1.1-PROBE] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('LUIZ_GOMES_F6_3D_1_1_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          expected={
+              'LUIZ_GOMES_F6_3D_1_1_PROBE_LOCALIZATION':'AUTHORIZED',
+              'CONFIRMATION':'LOCALIZE_20260818_HISTORICAL_PROBE_ERROR_SANITIZED',
+              'ACADEMIC_YEAR':'2026','TRACKING_ISSUE':'357',
+          }
+          for key,value in expected.items():
+              if values.get(key)!=value: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_CONTEXT_INVALID:{key}')
+          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('LUIZ_GOMES_F6_3D_1_1_SHA_INVALID')
+          if issue.get('title') != f'[LUIZ-GOMES-F6.3D.1.1-PROBE] {target}': raise SystemExit('LUIZ_GOMES_F6_3D_1_1_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d11'}
+          def get(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          repo=os.environ['GITHUB_REPOSITORY']
+          main=get(f'https://api.github.com/repos/{repo}/branches/main')['commit']['sha']
+          production=get(f'https://api.github.com/repos/{repo}/branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_MAIN_MOVED:{main}')
+          if production!=prod: raise SystemExit(f'LUIZ_GOMES_F6_3D_1_1_PRODUCTION_MOVED:{production}')
+          if get(f'https://api.github.com/repos/{repo}/issues/357').get('state')!='open': raise SystemExit('LUIZ_GOMES_F6_3D_1_1_TRACKING_NOT_OPEN')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('LUIZ_GOMES_F6_3D_1_1_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare SSH and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || { echo "F63D11_SECRET_MISSING:$v"; exit 1; }; done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f63d11_key; chmod 600 ~/.ssh/f63d11_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+
+      - name: Stage metadata-only probe on host
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_probe="/tmp/luiz-gomes-f6-3d11-${GITHUB_RUN_ID}.js"
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d11_key")
+          cat backend/scripts/luiz_gomes_f6_3c_backup_probe.js | ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$remote_probe'"
+          echo "remote_probe=$remote_probe" >> "$GITHUB_OUTPUT"
+
+      - name: Restore isolated dump and localize probe error
+        id: scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/f6-3d11-sanitized.log'
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d11_key")
+          set +e
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" "$GITHUB_RUN_ID" "${{ steps.stage.outputs.remote_probe }}" < backend/scripts/luiz_gomes_f6_3d_1_bson_dump_runner.sh > "$raw" 2>&1
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "F63D11_REMOTE_SCAN_RC=$rc"
+
+      - name: Cleanup staged probe on host
+        if: always() && steps.context.outcome == 'success' && steps.stage.outputs.remote_probe != ''
+        continue-on-error: true
+        shell: bash
+        run: |
+          ssh_opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f63d11_key")
+          ssh "${ssh_opts[@]}" "${PROD_USER}@${PROD_HOST}" "rm -f '${{ steps.stage.outputs.remote_probe }}'" >/dev/null 2>&1 || true
+
+      - name: Build structured localization result
+        if: always() && steps.context.outcome == 'success'
+        env:
+          SCAN_RC: ${{ steps.scan.outputs.rc }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          raw=Path('evidence/f6-3d11-sanitized.log')
+          lines=raw.read_text(encoding='utf-8',errors='replace').splitlines() if raw.exists() else []
+          try: rc=int(os.environ.get('SCAN_RC') or '999')
+          except ValueError: rc=999
+          meta=None; point=None; restored=[]; flags={}; markers=[]; error_marker=None; probe_exit=None
+          for line in lines:
+              if line.startswith('F63D1_GROUP_META_JSON='): meta=json.loads(line.split('=',1)[1])
+              elif line.startswith('LUIZ_GOMES_F6_3C_POINT_JSON='): point=json.loads(line.split('=',1)[1])
+              elif line.startswith('F63D1_RESTORED_COLLECTION:'): restored.append(line.split(':',1)[1])
+              elif line.startswith('F63D11_PROBE_ERROR_MARKER='): error_marker=line.split('=',1)[1]
+              elif line.startswith('F63D11_PROBE_EXIT_CODE='):
+                  try: probe_exit=int(line.split('=',1)[1])
+                  except ValueError: pass
+              elif '=' in line and line.split('=',1)[0] in {'PRODUCTION_DATABASE_TOUCHED','TEMP_RESTORE_NETWORK','TEMP_RESTORE_PORTS','SOURCE_MOUNT','TEMP_CONTAINERS_CLEANED','PEDAGOGICAL_PLAINTEXT_EMITTED','RAW_PROBE_OUTPUT_EMITTED'}:
+                  k,v=line.split('=',1); flags[k]=v
+              elif re.fullmatch(r'F63D1(?:1)?_[A-Z0-9_]+(?::[A-Za-z0-9_.-]+)?(?:=[A-Za-z0-9_.:-]+)?',line): markers.append(line)
+          boundary=(flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' and flags.get('TEMP_RESTORE_NETWORK')=='none' and
+                    flags.get('TEMP_RESTORE_PORTS')=='none' and flags.get('SOURCE_MOUNT')=='read_only' and
+                    flags.get('TEMP_CONTAINERS_CLEANED')=='YES' and flags.get('PEDAGOGICAL_PLAINTEXT_EMITTED')=='NO' and
+                    flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO')
+          classifications=[t.get('classification') for t in ((point or {}).get('targets') or [])]
+          if rc==0 and meta is not None and point is not None and boundary:
+              status='COMPLETED'
+              if 'RECOVERABLE_LUIZ_MATH_CONTENT_CONFIRMED' in classifications: classification='BSON_20260818_RECOVERY_SOURCE_CONFIRMED'
+              elif 'LUIZ_MATH_ROWS_PRESENT_WITHOUT_PAYLOAD' in classifications: classification='BSON_20260818_LUIZ_MATH_ROWS_WITHOUT_PAYLOAD'
+              elif 'LUIZ_TARGET_ROWS_PRESENT_UNDER_NONMATH_COMPONENT' in classifications: classification='BSON_20260818_LUIZ_NONMATH_ROWS_PRESENT'
+              elif 'UNATTRIBUTED_MATH_CONTENT_CANDIDATES_PRESENT' in classifications: classification='BSON_20260818_UNATTRIBUTED_MATH_CONTENT_CANDIDATES'
+              else: classification='BSON_20260818_NO_RECOVERABLE_LUIZ_MATH'
+          else:
+              status='INCONCLUSIVE'; classification='BSON_DUMP_PROBE_ERROR'
+          result={'schema':'LUIZ_GOMES_F6_3D_1_1_PROBE_LOCALIZATION_V1','status':status,'classification':classification,
+                  'source':meta,'probe':point,'restored_collections':restored,'probe_error_marker':error_marker,
+                  'probe_exit_code':probe_exit,'operational_markers':markers[-20:],
+                  'production_database_touched':False if flags.get('PRODUCTION_DATABASE_TOUCHED')=='NO' else None,
+                  'temporary_restore_network':flags.get('TEMP_RESTORE_NETWORK'),'temporary_restore_ports':flags.get('TEMP_RESTORE_PORTS'),
+                  'source_mount':flags.get('SOURCE_MOUNT'),'temporary_containers_cleaned':True if flags.get('TEMP_CONTAINERS_CLEANED')=='YES' else None,
+                  'raw_probe_output_emitted':False if flags.get('RAW_PROBE_OUTPUT_EMITTED')=='NO' else None,
+                  'production_writes':False,'pedagogical_plaintext_emitted':False,'student_data_read':False,'attendance_records_read':False}
+          Path('evidence/runtime.json').write_text(json.dumps(result,ensure_ascii=False,sort_keys=True),encoding='utf-8')
+          if raw.exists(): raw.unlink()
+          PY
+
+      - name: Validate taxonomy and sanitization boundary
+        if: always() && steps.context.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema')!='LUIZ_GOMES_F6_3D_1_1_PROBE_LOCALIZATION_V1': raise SystemExit('F63D11_SCHEMA_INVALID')
+          if p.get('production_writes') is not False or p.get('pedagogical_plaintext_emitted') is not False or p.get('student_data_read') is not False or p.get('attendance_records_read') is not False: raise SystemExit('F63D11_DATA_BOUNDARY_INVALID')
+          forbidden={'students','enrollments','attendance','grades','attendance_documentary'}
+          if forbidden.intersection(set(p.get('restored_collections') or [])): raise SystemExit('F63D11_FORBIDDEN_RESTORE')
+          if p.get('status')=='INCONCLUSIVE':
+              if p.get('classification')!='BSON_DUMP_PROBE_ERROR': raise SystemExit('F63D11_TAXONOMY_INVALID')
+              marker=p.get('probe_error_marker')
+              if marker is not None and not re.fullmatch(r'(?:TEACHER_USER_MATCHES:[0-9]+|TEACHER_USER_ID_MISSING|SCHOOL_MATCHES:[0-9]+|SCHOOL_ID_MISSING|CLASS_MATCHES_(?:8A|9A|TARGET):[0-9]+|UNCLASSIFIED_RUNTIME_ERROR)',marker): raise SystemExit('F63D11_ERROR_MARKER_INVALID')
+              if marker is not None:
+                  if p.get('production_database_touched') is not False or p.get('temporary_restore_network')!='none' or p.get('temporary_restore_ports')!='none' or p.get('source_mount')!='read_only' or p.get('temporary_containers_cleaned') is not True or p.get('raw_probe_output_emitted') is not False: raise SystemExit('F63D11_ERROR_BOUNDARY_INVALID')
+          elif p.get('status')=='COMPLETED':
+              if not p.get('source') or not p.get('probe'): raise SystemExit('F63D11_RESULT_MISSING')
+              if p.get('production_database_touched') is not False or p.get('temporary_restore_network')!='none' or p.get('temporary_restore_ports')!='none' or p.get('source_mount')!='read_only' or p.get('temporary_containers_cleaned') is not True or p.get('raw_probe_output_emitted') is not False: raise SystemExit('F63D11_SUCCESS_BOUNDARY_INVALID')
+          else: raise SystemExit('F63D11_STATUS_INVALID')
+          print('LUIZ_GOMES_F6_3D_1_1_RESULT=PASS')
+          PY
+
+      - name: Upload sanitized localization evidence
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: luiz-gomes-f6-3d11-probe-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment diagnosis and close gate
+        if: always() && steps.context.outcome == 'success' && hashFiles('evidence/runtime.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text())
+          s=p.get('source') or {}
+          lines=['## LUIZ-GOMES-F6.3d.1.1 — localização sanitizada do probe histórico','',
+                 f"Status: **`{p.get('status')}`**",f"Classificação: **`{p.get('classification')}`**",
+                 f"Fonte: data={s.get('snapshot_date')}; fingerprint={s.get('group_fingerprint')}; BSON={s.get('bson_files')}; proveniência={s.get('provenance')}",
+                 f"Marcador sanitizado do probe: **`{p.get('probe_error_marker')}`**; exit-code={p.get('probe_exit_code')}",'',
+                 '**Boundary:** stdout/stderr bruto permaneceu no host e foi apagado; Mongo temporário `--network none`, zero portas, source read-only; produção não tocada; nenhum plaintext pedagógico ou dado estudantil emitido.']
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f63d11-finalizer','Content-Type':'application/json'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(url,method,payload):
+              r=urllib.request.Request(url,data=json.dumps(payload).encode(),headers=headers,method=method)
+              with urllib.request.urlopen(r,timeout=30) as resp: return json.load(resp)
+          req(f'https://api.github.com/repos/{repo}/issues/357/comments','POST',{'body':body})
+          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}/comments','POST',{'body':body})
+          req(f'https://api.github.com/repos/{repo}/issues/{os.environ["GATE_ISSUE"]}','PATCH',{'state':'closed','state_reason':'completed'})
+          print('LUIZ_GOMES_F6_3D_1_1_FINALIZER=PASS')
+          PY
