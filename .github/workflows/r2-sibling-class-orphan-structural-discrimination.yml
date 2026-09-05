@@ -1,0 +1,283 @@
+name: "R2.0c.1 Sibling Class Orphan Structural Discrimination"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/sibling_class_reconstruction_orphan_structural_discrimination.py'
+      - 'backend/tests/test_sibling_class_reconstruction_orphan_structural_discrimination.py'
+      - 'memory/audit/R2_0C1_ORPHAN_STRUCTURAL_DISCRIMINATION_2026-09-05.md'
+      - '.github/workflows/r2-sibling-class-orphan-structural-discrimination.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: r2-sibling-class-orphan-structural-discrimination
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard R2.0c.1 structural discrimination read-only contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile composed engine and focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          cat backend/scripts/sibling_class_reconstruction_preflight_readonly.py \
+              backend/scripts/sibling_class_reconstruction_mirror_policy.py \
+              backend/scripts/sibling_class_reconstruction_global_ordinal_policy.py \
+              backend/scripts/sibling_class_reconstruction_orphan_adjudication.py \
+              backend/scripts/sibling_class_reconstruction_orphan_structural_discrimination.py \
+              > /tmp/r2c1-composed.py
+          python -m py_compile /tmp/r2c1-composed.py
+          pytest -q --noconftest \
+            backend/tests/test_sibling_class_reconstruction_preflight_readonly.py \
+            backend/tests/test_sibling_class_reconstruction_mirror_policy.py \
+            backend/tests/test_sibling_class_reconstruction_global_ordinal_policy.py \
+            backend/tests/test_sibling_class_reconstruction_orphan_adjudication.py \
+            backend/tests/test_sibling_class_reconstruction_orphan_structural_discrimination.py
+
+  production-discrimination:
+    name: Run R2.0c.1 production structural discrimination read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[R2-SIBLING-CLASS-ORPHAN-STRUCTURAL] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve exact-SHA owner gate
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=(json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('R2C1_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw:
+                  continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'R2C1_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          expected={
+              'R2_SIBLING_CLASS_ORPHAN_STRUCTURAL':'AUTHORIZED',
+              'CONFIRMATION':'RUN_LUIZ_MATH_9A_2026_04_30_STRUCTURAL_READ_ONLY',
+              'CASE_FILE':'backend/reconstruction_cases/luiz_math_r2_2026_feb_apr_global.json',
+              'TRACKING_ISSUE':'450',
+              'PREFLIGHT_TRACKING_ISSUE':'439',
+              'PARENT_TRACKING_ISSUE':'438',
+              'ROOT_TRACKING_ISSUE':'418',
+          }
+          for key,value in expected.items():
+              if values.get(key)!=value: raise SystemExit(f'R2C1_CONTEXT_INVALID:{key}')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('R2C1_SHA_INVALID')
+          if issue.get('title') != f'[R2-SIBLING-CLASS-ORPHAN-STRUCTURAL] {target}':
+              raise SystemExit('R2C1_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-r2c1'}
+          def get(path):
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          main=get('branches/main')['commit']['sha']; prod=get('branches/production')['commit']['sha']
+          if main!=target: raise SystemExit(f'R2C1_MAIN_MOVED:{main}')
+          if prod!=production: raise SystemExit(f'R2C1_PRODUCTION_MOVED:{prod}')
+          for n in (450,439,438,418):
+              if get(f'issues/{n}').get('state')!='open': raise SystemExit(f'R2C1_TRACKING_NOT_OPEN:{n}')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\ngate_issue={issue.get("number")}\n')
+          print('R2C1_CONTEXT=PASS')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare SSH and composed engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence ~/.ssh
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "R2C1_SECRET_MISSING:$v"; exit 1; }
+          done
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/r2c1_key; chmod 600 ~/.ssh/r2c1_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          cat backend/scripts/sibling_class_reconstruction_preflight_readonly.py \
+              backend/scripts/sibling_class_reconstruction_mirror_policy.py \
+              backend/scripts/sibling_class_reconstruction_global_ordinal_policy.py \
+              backend/scripts/sibling_class_reconstruction_orphan_adjudication.py \
+              backend/scripts/sibling_class_reconstruction_orphan_structural_discrimination.py \
+              > evidence/r2c1-composed.py
+          python -m py_compile evidence/r2c1-composed.py
+
+      - name: Resolve running backend container
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r2c1_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute composed R2.0c.1 discrimination
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='evidence/r2c1-raw.log'
+          case_b64="$(base64 -w0 backend/reconstruction_cases/luiz_math_r2_2026_feb_apr_global.json)"
+          remote_command="timeout 420 docker exec -e SIBLING_RECONSTRUCTION_CASE_B64='${case_b64}' -i ${BACKEND_CONTAINER} python -c 'import json,sys; ns={\"__name__\":\"audit_module\"}; exec(compile(sys.stdin.read(),\"r2c1-composed.py\",\"exec\"),ns); case=ns[\"load_case_from_env\"](); print(\"R2C1_STRUCTURAL_JSON=\"+json.dumps(ns[\"run_orphan_structural_discrimination\"](case),ensure_ascii=False,sort_keys=True))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/r2c1_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < evidence/r2c1-composed.py > "$raw" 2>&1
+          prefix='R2C1_STRUCTURAL_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line"
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw" evidence/r2c1-composed.py
+
+      - name: Validate sanitized discrimination and read-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema')!='SIBLING_CLASS_ORPHAN_STRUCTURAL_DISCRIMINATION_V1': raise SystemExit('R2C1_SCHEMA_INVALID')
+          if p.get('target_date')!='2026-04-30' or p.get('target_class')!='9º ANO A': raise SystemExit('R2C1_SCOPE_INVALID')
+          b=p.get('boundaries') or {}
+          required_false=(
+              'production_writes','attendance_records_read','students_read','enrollments_read',
+              'grades_read','attendance_written','content_written','observation_plaintext_emitted',
+              'technical_ids_emitted','raw_timestamps_emitted','audit_logs_read','automatic_attendance_sanitization'
+          )
+          if any(b.get(k) is not False for k in required_false): raise SystemExit('R2C1_BOUNDARY_INVALID')
+          if b.get('mongo_reads_only') is not True or b.get('fail_closed_on_ambiguity') is not True: raise SystemExit('R2C1_READONLY_INVALID')
+          raw=json.dumps(p,ensure_ascii=False,sort_keys=True)
+          uuid_re=re.compile(r'(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b')
+          objectid_re=re.compile(r'(?i)(?<![0-9a-f])[0-9a-f]{24}(?![0-9a-f])')
+          if uuid_re.search(raw) or objectid_re.search(raw): raise SystemExit('R2C1_RAW_TECHNICAL_ID_DETECTED')
+          if not re.fullmatch(r'[0-9a-f]{64}',str(p.get('structural_discrimination_hash') or '')): raise SystemExit('R2C1_HASH_INVALID')
+          allowed={
+              'ORPHAN_TWO_DISTINCT_SESSIONS_SUPPORTED',
+              'ORPHAN_DUPLICATE_ATTENDANCE_SUPPORTED',
+              'ORPHAN_LEGACY_CANONICAL_OVERLAP_SUPPORTED',
+              'ORPHAN_STRUCTURAL_CONFLICT',
+              'ORPHAN_STRUCTURAL_DISCRIMINATION_INCONCLUSIVE',
+              'ORPHAN_STATE_CHANGED_REVIEW_REQUIRED',
+          }
+          if p.get('classification') not in allowed: raise SystemExit('R2C1_CLASSIFICATION_INVALID')
+          if p.get('classification')!='ORPHAN_STATE_CHANGED_REVIEW_REQUIRED':
+              if p.get('attendance_document_count')!=2: raise SystemExit('R2C1_EXPECTED_TWO_DOCS')
+              if len(p.get('documents') or [])!=2 or not isinstance(p.get('comparison'),dict): raise SystemExit('R2C1_EVIDENCE_INVALID')
+          print('R2C1_RUNTIME=PASS')
+          PY
+
+      - name: Upload sanitized R2.0c.1 discrimination
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: r2c1-structural-discrimination-${{ github.run_id }}
+          path: evidence/runtime.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish result and close execution gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          PRODUCTION_SHA: ${{ steps.context.outputs.production_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          c=p.get('comparison') or {}
+          docs=p.get('documents') or []
+          lines=[
+              '## R2.0c.1 — Discriminação estrutural dos 2 documentos de 30/04/2026','',
+              f"Target main: `{os.environ['TARGET_SHA']}`",
+              f"Production observada: `{os.environ['PRODUCTION_SHA']}`",
+              f"R2.0c adjudication: `{p.get('r2c_adjudication_hash')}`",
+              f"R2.0b manifest: `{p.get('r2b_manifest_hash')}`",
+              f"Structural hash: `{p.get('structural_discrimination_hash')}`",
+              f"Classificação: **`{p.get('classification')}`**",
+              f"Ação recomendada: **`{p.get('recommended_action')}`**",'',
+              f"- estado R2.0c ainda esperado: {p.get('state_expected')}",
+              f"- documentos de frequência no escopo: {p.get('attendance_document_count')}",
+              f"- assinatura de negócio igual: {c.get('business_signature_equal')}",
+              f"- assinatura de sessão igual: {c.get('session_signature_equal')}",
+              f"- assinatura de proveniência igual: {c.get('provenance_signature_equal')}",
+              f"- autoria estrutural igual: {c.get('actor_vector_equal')}",
+              f"- assignment igual: {c.get('assignment_equal')}",
+              f"- assimetria de assignment: {c.get('assignment_presence_asymmetry')}",
+              f"- assimetria de marcador legado/migração: {c.get('legacy_marker_asymmetry')}",
+              f"- período distinto com ambos presentes: {c.get('period_distinct_with_both_present')}",
+              f"- aula_numero distinto com ambos presentes: {c.get('aula_numero_distinct_with_both_present')}",
+              f"- assimetria de presença de metadado de sessão: {c.get('session_presence_asymmetry')}",
+              f"- number_of_classes diferente: {c.get('number_of_classes_different')}",
+              f"- gap created_at em segundos: {c.get('created_at_gap_seconds_abs')}",
+              f"- evidência duas sessões: {c.get('strong_distinct_session_evidence')}",
+              f"- evidência legado/canônico: {c.get('strong_legacy_canonical_overlap_evidence')}",
+              f"- evidência duplicidade: {c.get('duplicate_supported_evidence')}",
+              f"- evidência conflito: {c.get('structural_conflict_evidence')}",
+              f"- documentos sanitizados publicados: {len(docs)}",'',
+              '**Boundary:** read-only; `attendance.records` não lido; sem estudantes/matrículas/notas/audit_logs; nenhuma escrita; plaintext de observação e IDs técnicos não emitidos; sem deploy; nenhum saneamento automático.'
+          ]
+          body='\n'.join(lines)
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json','User-Agent':'sigesc-r2c1'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(method,path,payload):
+              r=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',data=json.dumps(payload).encode(),headers=headers,method=method)
+              with urllib.request.urlopen(r,timeout=30) as response: response.read()
+          for issue in ('450','439','438',os.environ['GATE_ISSUE']):
+              req('POST',f'issues/{issue}/comments',{'body':body})
+          req('PATCH',f"issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          print('R2C1_PUBLICATION=PASS')
+          PY
