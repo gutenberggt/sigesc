@@ -61,8 +61,22 @@ def install_content_institutional_visibility_policy(
     # por authorize_assignment_snapshot_access().
     diary_assignment_snapshot_access_mod.MANAGEMENT_VIEW_ROLES = management_view_roles
 
+    # #480 — o vínculo atual continua sendo a autorização de entrada, mas a
+    # linha do tempo de consulta não é fragmentada pela autoria histórica. A
+    # instalação ocorre somente no módulo de leitura/PDF; cópia e escrita não
+    # recebem esta ampliação.
+    from services import content_history_bridge as content_history_bridge_mod
+    from routers.content_institutional_history_scope import (
+        install_content_institutional_history_scope,
+    )
+    install_content_institutional_history_scope(
+        content_dvd_history_mod,
+        content_history_bridge_mod,
+    )
+
     return {
         "content_view_roles": tuple(content_entries_mod.VIEW_ROLES),
         "dvd_history_view_roles": tuple(content_dvd_history_mod.VIEW_ROLES),
         "management_view_roles": tuple(sorted(management_view_roles)),
+        "institutional_history_scope": True,
     }
