@@ -12,8 +12,9 @@ from typing import Iterable, Mapping, Any
 INACTIVE_ACCESS_ROLES_FIELD = "acesso_desativado_roles"
 
 # Papéis que podem ser explicitamente liberados enquanto a mantenedora estiver
-# desativada. super_admin é propositalmente ausente: mantém bypass administrativo
-# implícito para que sempre seja possível diagnosticar e reativar o tenant.
+# desativada. super_admin é propositalmente ausente: seu acesso administrativo
+# é tratado somente pelo CONTROL PLANE explícito no tenant_scope. Assim, uma
+# mantenedora inativa continua bloqueada para o super_admin em rotas operacionais.
 CONFIGURABLE_INACTIVE_ACCESS_ROLES = (
     "gerente",
     "admin",
@@ -100,16 +101,18 @@ def inactive_allowed_roles(doc: Mapping[str, Any] | None) -> list[str]:
 
 
 def can_access_tenant(doc: Mapping[str, Any] | None, user: Mapping[str, Any] | None) -> bool:
-    """Decide somente a trava da mantenedora; RBAC normal continua sendo aplicado depois.
+    """Decide somente a trava OPERACIONAL da mantenedora.
 
     - mantenedora ativa: acesso segue o fluxo normal;
-    - super_admin: bypass administrativo obrigatório para reativação/diagnóstico;
     - mantenedora desativada: somente o papel ATIVO da sessão pode atravessar
-      quando estiver explicitamente assinalado na configuração.
+      quando estiver explicitamente assinalado na configuração;
+    - super_admin não recebe bypass operacional implícito. Seu acesso de gestão
+      a tenant inativo existe somente em rotas de CONTROL PLANE explicitamente
+      allowlisted no ``tenant_scope``.
+
+    O RBAC normal continua sendo aplicado depois desta decisão.
     """
     if is_tenant_active(doc):
-        return True
-    if is_super_admin(user):
         return True
     role = str((user or {}).get("role") or "").strip()
     return bool(role and role in inactive_allowed_roles(doc))
