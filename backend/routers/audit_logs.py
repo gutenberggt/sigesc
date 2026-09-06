@@ -194,8 +194,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             except Exception:
                 return str(value)
 
-        # Cabeçalho institucional também é tenant-scoped: nunca usa a primeira
-        # mantenedora como fallback.
         mantenedora = await db.mantenedoras.find_one(
             {'id': tenant_id}, {'_id': 0}
         )
@@ -257,22 +255,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ctx_style = ParagraphStyle('ctx', parent=styles['Normal'], fontSize=8, leading=11)
 
         data = [['Data/Hora', 'Usuário', 'Ação', 'Descrição', 'Tempo']]
-        for log in logs:
-            tempo_dias = log.get('tempo_dias')
+        for lg in logs:
+            tempo_dias = lg.get('tempo_dias')
             tempo = (
                 f"{tempo_dias} dia{'s' if tempo_dias != 1 else ''}"
                 if isinstance(tempo_dias, int)
                 else '-'
             )
-            acao = action_labels.get(log.get('action'), log.get('action') or '-')
+            acao = action_labels.get(lg.get('action'), lg.get('action') or '-')
             colecao = collection_labels.get(
-                log.get('collection'), log.get('collection') or ''
+                lg.get('collection'), lg.get('collection') or ''
             )
             data.append([
-                Paragraph(escape(_fmt_dt(log.get('timestamp_local') or log.get('timestamp'))), cell),
-                Paragraph(escape(log.get('user_name') or log.get('user_email') or '-'), cell),
+                Paragraph(escape(_fmt_dt(lg.get('timestamp_local') or lg.get('timestamp'))), cell),
+                Paragraph(escape(lg.get('user_name') or lg.get('user_email') or '-'), cell),
                 Paragraph(f"{escape(acao)}<br/><font size=6 color='#888888'>{escape(colecao)}</font>", cell),
-                Paragraph(escape(log.get('description') or '-'), cell),
+                Paragraph(escape(lg.get('description') or '-'), cell),
                 Paragraph(escape(tempo), cell),
             ])
 
