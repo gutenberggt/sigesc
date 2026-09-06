@@ -66,6 +66,14 @@ def install_attendance_pdf_dvd_parity(base_router, db, sandbox_db=None):
     # Import tardio evita ciclo; reutilizamos toda a infraestrutura da Fase 4.
     from routers import attendance_dvd as dvd_mod
 
+    # #480 — instala, depois dos adaptadores Fase 4/abas, a projeção histórica
+    # por turma+componente+sessão. A camada é read-only e também bloqueia
+    # apropriação/duplicação de uma sessão histórica por um vínculo novo.
+    from routers.attendance_session_history_scope import (
+        install_attendance_session_history_scope,
+    )
+    install_attendance_session_history_scope(dvd_mod)
+
     _remove_existing_dvd_pdf_route(base_router)
 
     @base_router.get("/dvd/pdf/bimestre/{assignment_id}")
