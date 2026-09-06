@@ -7,7 +7,6 @@ snapshot persistido sem reclassificar retroativamente o histórico.
 """
 
 from dataclasses import dataclass
-from datetime import date
 from enum import Enum
 from typing import Any, Mapping, Optional
 
@@ -73,53 +72,6 @@ def _snapshot_action_supported(profile: DiaryProfile, action: DiaryAction) -> bo
     return False
 
 
-async def _current_reader_has_diary_scope(
-    db,
-    current_user: Mapping[str, Any],
-    snapshot: Mapping[str, Any],
-) -> bool:
-    """Confirma escopo atual de leitura de professor sem transferir propriedade.
-
-    A regra é deliberadamente estreita:
-    - somente professor autenticado;
-    - vínculo DVD atual, habilitado e vigente;
-    - mesma turma;
-    - componente igual ou vínculo class-wide.
-
-    Escola e tenant do snapshot já foram validados antes desta função. O vínculo
-    atual serve apenas para provar que o professor possui acesso presente ao
-    mesmo diário. Isso jamais autoriza update/publish/delete nem altera autoria.
-    """
-    if current_user.get("role") != "professor" or not current_user.get("id"):
-        return False
-
-    class_id = snapshot.get("class_id")
-    if not class_id:
-        return False
-
-    component_id = snapshot.get("component_id") or snapshot.get("course_id")
-    today = date.today().isoformat()
-    assignments = await db.teacher_class_assignments.find(
-        {
-            "teacher_id": current_user.get("id"),
-            "class_id": class_id,
-            "deleted": False,
-            "diary_settings.enabled": True,
-            "valid_from": {"$lte": today},
-            "$or": [{"valid_until": None}, {"valid_until": {"$gte": today}}],
-        },
-        {"_id": 0, "id": 1, "component_id": 1},
-    ).to_list(200)
-
-    for assignment in assignments:
-        assignment_component = assignment.get("component_id")
-        if assignment_component is None:
-            return True
-        if component_id is not None and assignment_component == component_id:
-            return True
-    return False
-
-
 async def authorize_assignment_snapshot_access(
     db,
     current_user: Mapping[str, Any],
@@ -127,7 +79,6 @@ async def authorize_assignment_snapshot_access(
     *,
     action: DiaryAction | str = DiaryAction.VIEW,
     allow_management_override: bool = False,
-    allow_current_diary_reader: bool = False,
     active_mantenedora_id: Optional[str] = None,
 ) -> HistoricalDiaryAssignmentAccessContext:
     """Autoriza um registro pedagógico já constituído por snapshot imutável.
@@ -141,15 +92,10 @@ async def authorize_assignment_snapshot_access(
     - assignment_profile_at_record;
     - assignment_schema_version_at_record.
 
-    O assignment vivo de origem é consultado apenas para verificar identidade
-    estável (`id`, `teacher_id`, `class_id`) e pode estar expirado, desabilitado
-    ou soft-deleted. Componentes, perfil e validade atuais não reclassificam o
+    O assignment vivo é consultado apenas para verificar identidade estável
+    (`id`, `teacher_id`, `class_id`) e pode estar expirado, desabilitado ou
+    soft-deleted. Componentes, perfil e validade atuais não reclassificam o
     registro histórico.
-
-    Quando ``allow_current_diary_reader=True`` e a ação é apenas ``VIEW``, um
-    professor diferente do autor pode ler o histórico se possuir vínculo DVD
-    atual e vigente para a mesma turma/componente. Isso amplia somente leitura;
-    ownership e escrita continuam vinculados ao autor/gestão autorizada.
     """
     try:
         normalized_action = DiaryAction(action)
@@ -217,18 +163,12 @@ async def authorize_assignment_snapshot_access(
     if not is_owner:
         if normalized_action is DiaryAction.VIEW and role in MANAGEMENT_VIEW_ROLES:
             pass
-        elif (
-            normalized_action is DiaryAction.VIEW
-            and allow_current_diary_reader
-            and await _current_reader_has_diary_scope(db, current_user, snapshot)
-        ):
-            pass
         elif allow_management_override and role in MANAGEMENT_EDIT_ROLES:
             management_override = True
         else:
             raise DiaryAssignmentSnapshotAccessError(
                 "ASSIGNMENT_ACCESS_DENIED",
-                "Usuário não possui propriedade nem escopo atual autorizado para o registro histórico.",
+                "Usuário não é proprietário pedagógico do registro histórico.",
             )
 
     if not _snapshot_action_supported(profile, normalized_action):
