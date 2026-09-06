@@ -14,6 +14,7 @@ import { TenantSwitcher } from '@/components/TenantSwitcher';
 import { SilentModeToggle } from '@/components/SilentModeToggle';
 import { TenantSyncBoundary } from '@/components/TenantSyncBoundary';
 import { ImpersonationControl } from '@/components/ImpersonationControl';
+import ManualContentCopyLauncher from '@/components/ManualContentCopyLauncher';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -169,10 +170,13 @@ export const Layout = ({ children }) => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow pb-16">
-        {/* Seletor de Mantenedora (somente super_admin) - topo direito da área de conteúdo */}
+        {/* Ferramentas globais da mantenedora ativa — somente super_admin */}
         {user?.role === 'super_admin' && (
-          <div className="flex justify-end -mt-6 mb-1" data-testid="tenant-switcher-wrapper">
-            <TenantSwitcher />
+          <div className="flex justify-end -mt-6 mb-1" data-testid="super-admin-global-tools">
+            <div className="flex items-center gap-2">
+              <ManualContentCopyLauncher />
+              <TenantSwitcher />
+            </div>
           </div>
         )}
         <TenantSyncBoundary>

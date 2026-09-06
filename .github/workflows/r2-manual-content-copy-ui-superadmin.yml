@@ -1,0 +1,84 @@
+name: "R2.0g.2 Manual Content Copy UI SuperAdmin Guard"
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/components/ManualContentCopyLauncher.jsx'
+      - 'frontend/src/components/Layout.js'
+      - 'frontend/src/services/manualContentCopyApi.js'
+      - 'memory/audit/R2_0G2_MANUAL_CONTENT_COPY_UI_SUPERADMIN_2026-09-05.md'
+      - '.github/workflows/r2-manual-content-copy-ui-superadmin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Guard R2.0g.2 super_admin-only UI contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Static UI safety assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          layout = Path('frontend/src/components/Layout.js').read_text(encoding='utf-8')
+          ui = Path('frontend/src/components/ManualContentCopyLauncher.jsx').read_text(encoding='utf-8')
+          api = Path('frontend/src/services/manualContentCopyApi.js').read_text(encoding='utf-8')
+
+          # Dupla barreira visual: Layout + próprio componente.
+          assert "user?.role === 'super_admin'" in layout
+          assert 'ManualContentCopyLauncher' in layout
+          assert "const isSuperAdmin = user?.role === 'super_admin';" in ui
+          assert 'if (!isSuperAdmin) return null;' in ui
+
+          # Sem rota/menu configurável: não depender de permission_overrides.
+          assert 'permissionOverrides' not in ui
+          assert 'DASHBOARD_MENU_GROUPS' not in ui
+          assert 'react-router-dom' not in ui
+
+          # Contrato operacional: nenhum destino é inferido, vazio = não copiar.
+          assert 'NÃO COPIAR' in ui
+          assert 'target_date: mappings[row.id] || null' in ui
+          assert 'selectedByOther' in ui
+          assert 'destination.available' in ui
+
+          # Preflight obrigatório antes do apply e mesmo manifesto no apply.
+          assert 'manualContentCopyAPI.preflight(payload)' in ui
+          assert 'manualContentCopyAPI.apply({' in ui
+          assert 'manifest_hash: preflightPlan.manifest_hash' in ui
+          assert 'setPendingPayload(payload)' in ui
+
+          # Modal final somente reconhecido por OK; Escape é interceptado.
+          assert 'manual-copy-result-modal' in ui
+          assert "if (event.key === 'Escape')" in ui
+          assert 'manual-copy-result-ok' in ui
+          assert 'onClick={onOk}' in ui
+
+          # O componente não realiza transporte/auth por conta própria.
+          assert 'axios' not in ui
+          assert 'fetch(' not in ui
+          assert 'learning_objects' not in ui
+
+          # Cliente usa helper canônico com auth/tenant/CSRF e endpoints R2.0g.1.
+          assert "import { apiFetch } from '@/services/api';" in api
+          for suffix in ('/options', '/source', '/destinations', '/preflight', '/apply'):
+              assert suffix in api
+          assert '/api/content-entries/admin/manual-copy' in api
+
+          print('R2G2_UI_CONTRACT=PASS')
+          PY
+
+      - name: Ensure no production/deploy workflow was introduced
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R "production" -n frontend/src/components/ManualContentCopyLauncher.jsx frontend/src/services/manualContentCopyApi.js
+          ! grep -R "workflow_dispatch" -n .github/workflows/r2-manual-content-copy-ui-superadmin.yml
+          echo "R2G2_DEPLOY_BOUNDARY=PASS"
