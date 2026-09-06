@@ -9,7 +9,8 @@ Invariantes:
 - desativação falha fechada se houver usuário do tenant conectado;
 - nenhuma cascata altera escolas/dados: a trava é operacional no tenant_scope;
 - papéis excepcionalmente autorizados continuam sujeitos ao RBAC normal;
-- super_admin mantém bypass administrativo para diagnóstico/reativação.
+- super_admin mantém bypass administrativo apenas no control plane para
+  diagnóstico/configuração/reativação; não recebe bypass operacional.
 """
 from __future__ import annotations
 
@@ -75,9 +76,7 @@ async def _collect_active_tenant_users(
     """Cruza presença em memória com a identidade persistida do tenant.
 
     O tracker não é usado como fonte de tenant/role; ele fornece somente IDs
-    potencialmente presentes. Tenant e papel são sempre relidos de ``users``.
-    Qualquer identidade efetivamente conectada bloqueia a transição, mesmo que
-    o documento do usuário tenha marcador de status legado ou divergente.
+    potencialmente presentes. Tenant, papel e status são sempre relidos de users.
     """
     candidate_ids: set[str] = set()
     if active_sessions is not None:
@@ -100,6 +99,7 @@ async def _collect_active_tenant_users(
         {
             "id": {"$in": list(candidate_ids)},
             "mantenedora_id": tenant_id,
+            "status": "active",
         },
         {
             "_id": 0,
@@ -179,6 +179,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                         "tenant_selected": False,
                         "active": True,
                         "access_allowed": True,
+                        "management_allowed": True,
                         "reason": "SUPER_ADMIN_CONTROL_PLANE",
                         "mantenedora": None,
                         "allowed_roles": [],
@@ -192,18 +193,18 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 )
 
             active = is_tenant_active(tenant)
-            allowed = can_access_tenant(tenant, current_user)
+            operational_allowed = can_access_tenant(tenant, current_user)
+            management_allowed = is_super_admin(current_user)
             return {
                 "tenant_selected": True,
                 "active": active,
-                "access_allowed": allowed,
+                "access_allowed": operational_allowed,
+                "management_allowed": management_allowed,
                 "reason": (
                     "ACTIVE"
                     if active
                     else "INACTIVE_ROLE_ALLOWED"
-                    if allowed and not is_super_admin(current_user)
-                    else "SUPER_ADMIN_BYPASS"
-                    if allowed
+                    if operational_allowed
                     else "TENANT_INACTIVE"
                 ),
                 "mantenedora": {
@@ -243,7 +244,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 "role_options": _role_options(),
                 "online_blockers": blockers,
                 "online_blocker_count": len(blockers),
-                "super_admin_bypass": True,
+                "super_admin_management_bypass": True,
             }
 
         @router.put("/mantenedoras/access-control")
@@ -357,7 +358,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 "role_options": _role_options(),
                 "online_blockers": [],
                 "online_blocker_count": 0,
-                "super_admin_bypass": True,
+                "super_admin_management_bypass": True,
             }
 
         router._mantenedora_access_control_routes_installed = True
