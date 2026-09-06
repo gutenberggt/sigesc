@@ -1,9 +1,15 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 from services.content_institutional_visibility_policy import (
     ADDITIONAL_INSTITUTIONAL_CONTENT_VIEW_ROLES,
     install_content_institutional_visibility_policy,
 )
+
+
+ROOT = Path(__file__).resolve().parents[2]
+BRIDGE = ROOT / "frontend/src/services/contentLegacyCanonicalVisibilityBridge.js"
+ROUTERS_INIT = ROOT / "backend/routers/__init__.py"
 
 
 def _module(**kwargs):
@@ -77,3 +83,20 @@ def test_installer_is_idempotent():
     second = tuple(content_entries.VIEW_ROLES)
 
     assert first == second
+
+
+def test_frontend_bridge_covers_professor_and_management_surfaces():
+    source = BRIDGE.read_text(encoding="utf-8")
+
+    assert "'/professor/objetos-conhecimento'" in source
+    assert "'/admin/learning-objects'" in source
+    assert "includeAssignedCanonical: pageMode === 'management'" in source
+    assert "assignment_id: current.assignment_id || null" in source
+
+
+def test_institutional_policy_is_installed_before_content_history_setup():
+    source = ROUTERS_INIT.read_text(encoding="utf-8")
+    policy_call = source.index("install_content_institutional_visibility_policy(")
+    history_call = source.index("install_content_history_setups(_content_entries_mod, _learning_objects_mod)")
+
+    assert policy_call < history_call
