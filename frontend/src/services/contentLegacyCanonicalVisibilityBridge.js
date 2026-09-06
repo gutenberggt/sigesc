@@ -8,7 +8,9 @@ import axios from 'axios';
 // depois dos bridges DVD, preserva a resposta legada e acrescenta somente os
 // content_entries sem assignment_id da mesma turma/componente.
 //
-// Nenhum dado é migrado ou escrito por esta ponte.
+// Nenhum dado é migrado ou duplicado por esta ponte. Se um item canônico assim
+// composto for editado/excluído pelo formulário histórico, a operação continua
+// exclusivamente nos endpoints canônicos.
 
 const canonicalCache = new Map();
 
@@ -125,13 +127,69 @@ axios.interceptors.request.use((config) => {
     return config;
   }
 
-  // Um registro canônico que entrou pela composição acima pode ser aberto pelo
-  // mesmo formulário histórico. O GET individual precisa continuar canônico.
-  if (method === 'get' && url.includes('/learning-objects/')) {
-    const id = url.split('/').filter(Boolean).pop();
-    if (!canonicalCache.has(id)) return config;
+  const id = url.includes('/learning-objects/')
+    ? url.split('/').filter(Boolean).pop()
+    : '';
+  const current = id ? canonicalCache.get(id) : null;
+  if (!current) return config;
+
+  // O item veio da composição canônica no fluxo legado. A partir daqui nenhum
+  // acesso individual pode voltar para learning_objects.
+  if (method === 'get') {
     config.url = `${canonicalRoot(url)}/${encodeURIComponent(id)}`;
     config.__skipContentDvdBridge = true;
+    config.__legacyCanonicalRecord = true;
+    return config;
+  }
+
+  if (method === 'put') {
+    const patch = { ...(config.data || {}) };
+    if (current.status === 'published' || current.status === 'corrected') {
+      config.method = 'post';
+      config.url = `${canonicalRoot(url)}/${encodeURIComponent(id)}/correct`;
+      config.data = {
+        change_note: 'Correção realizada pelo formulário histórico sobre conteúdo canônico.',
+        expected_version: current.version ?? null,
+        content: patch.content ?? current.content ?? '',
+        methodology: patch.methodology ?? current.methodology ?? null,
+        observations: patch.observations ?? current.observations ?? null,
+        number_of_classes: patch.number_of_classes ?? current.number_of_classes ?? 1,
+      };
+      config.__skipContentDvdBridge = true;
+      config.__legacyCanonicalRecord = true;
+      return config;
+    }
+
+    config.method = 'post';
+    config.url = canonicalRoot(url);
+    config.data = {
+      class_id: current.class_id,
+      course_id: current.course_id || current.component_id,
+      component_id: current.component_id || current.course_id,
+      date: current.date,
+      academic_year: current.academic_year,
+      aula_numero: current.aula_numero ?? null,
+      teacher_id: current.teacher_id || null,
+      assignment_id: null,
+      number_of_classes: patch.number_of_classes ?? current.number_of_classes ?? 1,
+      content: patch.content ?? current.content ?? '',
+      methodology: patch.methodology ?? current.methodology ?? null,
+      observations: patch.observations ?? current.observations ?? null,
+      expected_version: current.version ?? null,
+    };
+    config.__skipContentDvdBridge = true;
+    config.__legacyCanonicalRecord = true;
+    config.__legacyCanonicalAutoPublish = true;
+    return config;
+  }
+
+  if (method === 'delete') {
+    config.url = `${canonicalRoot(url)}/${encodeURIComponent(id)}`;
+    config.data = {
+      change_note: 'Exclusão realizada pelo formulário histórico sobre conteúdo canônico.',
+    };
+    config.__skipContentDvdBridge = true;
+    config.__legacyCanonicalDelete = true;
     return config;
   }
 
@@ -158,6 +216,32 @@ axios.interceptors.response.use(async (response) => {
       response.data = { has_record: true, record: canonical[0] };
     }
     return response;
+  }
+
+  if (config.__legacyCanonicalAutoPublish && response.data?.id) {
+    const draft = normalizeCanonical(response.data);
+    if (draft.status === 'draft') {
+      const publish = await axios.post(
+        `${canonicalRoot(config.url)}/${encodeURIComponent(draft.id)}/publish`,
+        { expected_version: draft.version ?? null },
+        { __skipContentDvdBridge: true }
+      );
+      const published = normalizeCanonical(publish.data);
+      cacheCanonical([published]);
+      response.data = published;
+      return response;
+    }
+  }
+
+  if (config.__legacyCanonicalRecord && response.data?.id) {
+    const record = normalizeCanonical(response.data);
+    cacheCanonical([record]);
+    response.data = record;
+  }
+
+  if (config.__legacyCanonicalDelete && response.status >= 200 && response.status < 300) {
+    const id = String(finalUrl).split('/').filter(Boolean).pop();
+    canonicalCache.delete(id);
   }
 
   return response;
