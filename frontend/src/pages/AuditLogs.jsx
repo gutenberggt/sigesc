@@ -180,8 +180,6 @@ export const AuditLogs = () => {
       fetchStats();
       fetchUsers();
     }
-    // Mantém a semântica anterior: filtros e paginação recarregam a visão.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, page, filters]);
 
   const formatDate = (dateStr) => {
