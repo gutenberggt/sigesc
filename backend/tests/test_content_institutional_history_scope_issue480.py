@@ -1,4 +1,16 @@
-from routers.content_institutional_history_scope import merge_scope_history_items
+import importlib.util
+from pathlib import Path
+
+SCRIPT = (
+    Path(__file__).resolve().parents[1]
+    / "routers"
+    / "content_institutional_history_scope.py"
+)
+spec = importlib.util.spec_from_file_location("issue480_content_scope", SCRIPT)
+assert spec and spec.loader
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+merge_scope_history_items = mod.merge_scope_history_items
 
 
 def _item(
