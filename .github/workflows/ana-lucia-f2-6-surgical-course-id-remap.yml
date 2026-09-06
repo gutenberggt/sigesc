@@ -1,0 +1,334 @@
+name: "ANA-LUCIA-F2.6 Surgical Course-ID Remap"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/ana_lucia_f2_6_surgical_course_id_remap.py'
+      - 'backend/tests/test_ana_lucia_f2_6_surgical_course_id_remap.py'
+      - '.github/workflows/ana-lucia-f2-6-surgical-course-id-remap.yml'
+      - 'memory/audit/ANA_LUCIA_F2_6_SURGICAL_COURSE_ID_REMAP_2026-09-06.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ana-lucia-f2-6-surgical-course-id-remap
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.6 exact writer surface
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Install focused dependencies
+        run: python -m pip install --disable-pip-version-check pytest pymongo
+      - name: Compile and run focused tests
+        env:
+          PYTHONPATH: backend
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/ana_lucia_f2_6_surgical_course_id_remap.py
+          python -m py_compile backend/tests/test_ana_lucia_f2_6_surgical_course_id_remap.py
+          python -m pytest -q --noconftest backend/tests/test_ana_lucia_f2_6_surgical_course_id_remap.py
+      - name: Enforce surgical mutation boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          p=Path('backend/scripts/ana_lucia_f2_6_surgical_course_id_remap.py')
+          source=p.read_text(encoding='utf-8')
+          tree=ast.parse(source)
+          mutators=[]
+          forbidden={
+              'insert_one','insert_many','update_many','replace_one','delete_one','delete_many',
+              'bulk_write','find_one_and_update','find_one_and_delete','find_one_and_replace',
+              'drop','drop_database',
+          }
+          for node in ast.walk(tree):
+              if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute):
+                  if node.func.attr in forbidden:
+                      raise SystemExit('ANA_LUCIA_F2_6_FORBIDDEN_MUTATOR:'+node.func.attr)
+                  if node.func.attr == 'update_one':
+                      mutators.append(node)
+          if len(mutators) != 2:
+              raise SystemExit(f'ANA_LUCIA_F2_6_UPDATE_ONE_SURFACE:{len(mutators)}')
+          required=(
+              'ANA_LUCIA_F2_6_EXPLICIT_PRODUCTION_WRITE_AUTHORIZATION_REQUIRED',
+              '--authorize-production-writes',
+              'SAFE_ROLLBACK',
+              'MANUAL_RECOVERY_REQUIRED',
+              'APPLIED_AND_VERIFIED',
+              'ALREADY_APPLIED_VERIFIED',
+              '"$set": {"course_id": current_id}',
+              '"$set": {"course_id": legacy_id}',
+              'attendance_missing_tenant_preserved',
+              'legacy_aggregate_attendance_preserved',
+              'copied_from_id_mutations',
+          )
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit('ANA_LUCIA_F2_6_REQUIRED_MARKER_MISSING:'+marker)
+          for forbidden_text in (
+              '"$set": {"mantenedora_id"',
+              '"$set": {"aula_numero"',
+              '"$set": {"copied_from_id"',
+              'db.students', 'db.enrollments', '"records": 1', '"content": 1',
+              '"b1": 1', '"b2": 1', '"b3": 1', '"b4": 1',
+          ):
+              if forbidden_text in source:
+                  raise SystemExit('ANA_LUCIA_F2_6_BOUNDARY_VIOLATION:'+forbidden_text)
+          print('ANA_LUCIA_F2_6_SURGICAL_BOUNDARY=PASS')
+          PY
+
+  production-remap:
+    name: Apply exact course-id remap in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ANA-LUCIA-F2.6-RUNTIME] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped exact-SHA authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,re,urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          owner=os.environ['REPOSITORY_OWNER']
+          if ((issue.get('user') or {}).get('login') or '') != owner:
+              raise SystemExit('ANA_LUCIA_F2_6_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('ANA_LUCIA_F2_6_GATE_MUST_BE_OPEN')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              line=raw.strip()
+              if not line or '=' not in line: continue
+              key,value=line.split('=',1)
+              key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'ANA_LUCIA_F2_6_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          if values.get('ANA_LUCIA_F2_6_RUNTIME') != 'AUTHORIZED':
+              raise SystemExit('ANA_LUCIA_F2_6_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'SURGICAL_COURSE_ID_REMAP':
+              raise SystemExit('ANA_LUCIA_F2_6_CONFIRMATION_INVALID')
+          if values.get('ACADEMIC_YEAR') != '2026':
+              raise SystemExit('ANA_LUCIA_F2_6_YEAR_INVALID')
+          if values.get('TRACKING_ISSUE') != '480':
+              raise SystemExit('ANA_LUCIA_F2_6_TRACKING_INVALID')
+          if values.get('EXPECTED_LEARNING_CANDIDATES') != '198':
+              raise SystemExit('ANA_LUCIA_F2_6_LEARNING_BASELINE_INVALID')
+          if values.get('EXPECTED_ATTENDANCE_CANDIDATES') != '392':
+              raise SystemExit('ANA_LUCIA_F2_6_ATTENDANCE_BASELINE_INVALID')
+          target=values.get('TARGET_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target):
+              raise SystemExit('ANA_LUCIA_F2_6_SHA_INVALID')
+          if issue.get('title') != f'[ANA-LUCIA-F2.6-RUNTIME] {target}':
+              raise SystemExit('ANA_LUCIA_F2_6_TITLE_MISMATCH')
+          req=urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",
+              headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-ana-lucia-f2-6'},
+          )
+          with urllib.request.urlopen(req,timeout=30) as response:
+              main_sha=json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'ANA_LUCIA_F2_6_MAIN_MOVED:{main_sha}')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+          print('ANA_LUCIA_F2_6_CONTEXT=PASS')
+          print('PRODUCTION_WRITES=AUTHORIZED')
+          print('MUTATION_FIELD=course_id')
+          PY
+
+      - name: Checkout exact authorized main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Re-seal executor and focused test
+        shell: bash
+        env:
+          PYTHONPATH: backend
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pymongo
+          python -m py_compile backend/scripts/ana_lucia_f2_6_surgical_course_id_remap.py
+          python -m pytest -q --noconftest backend/tests/test_ana_lucia_f2_6_surgical_course_id_remap.py
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "ANA_LUCIA_F2_6_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/ana_lucia_f2_6_prod_key
+          chmod 600 ~/.ssh/ana_lucia_f2_6_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_6_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute authorized surgical remap
+        id: execute
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/ana-lucia-f2-6-raw.log'
+          remote_command="timeout 1200 docker exec -i ${BACKEND_CONTAINER} python - --authorize-production-writes"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_f2_6_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < backend/scripts/ana_lucia_f2_6_surgical_course_id_remap.py > "$raw" 2>&1
+          rc=$?
+          set -e
+          prefix='ANA_LUCIA_F2_6_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [ -z "$line" ]; then
+            tail -n 220 "$raw" || true
+            exit "${rc:-2}"
+          fi
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          python -m json.tool evidence/runtime.json >/dev/null
+          rm -f "$raw"
+          echo "executor_rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Validate receipt and build diagnosis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'ANA_LUCIA_F2_6_SURGICAL_COURSE_ID_REMAP_V1':
+              raise SystemExit('ANA_LUCIA_F2_6_RECEIPT_SCHEMA_INVALID')
+          status=p.get('status')
+          if status not in {'APPLIED_AND_VERIFIED','ALREADY_APPLIED_VERIFIED'}:
+              raise SystemExit(f'ANA_LUCIA_F2_6_EXECUTION_NOT_SUCCESSFUL:{status}')
+          if p.get('target_pair_count') != 8:
+              raise SystemExit('ANA_LUCIA_F2_6_PAIR_COUNT_INVALID')
+          if p.get('learning_documents') != 198 or p.get('attendance_documents') != 392:
+              raise SystemExit('ANA_LUCIA_F2_6_DOCUMENT_COUNTS_INVALID')
+          if status == 'APPLIED_AND_VERIFIED':
+              if p.get('total_documents') != 590:
+                  raise SystemExit('ANA_LUCIA_F2_6_TOTAL_INVALID')
+              if p.get('updated_fields') != ['course_id']:
+                  raise SystemExit('ANA_LUCIA_F2_6_FIELD_SURFACE_INVALID')
+              if p.get('tenant_backfill_documents') != 0 or p.get('aula_numero_backfill_documents') != 0:
+                  raise SystemExit('ANA_LUCIA_F2_6_FORBIDDEN_BACKFILL_DETECTED')
+              if p.get('copied_from_id_mutations') != 0:
+                  raise SystemExit('ANA_LUCIA_F2_6_LINEAGE_MUTATION_DETECTED')
+              if p.get('rollback_performed') is not False:
+                  raise SystemExit('ANA_LUCIA_F2_6_UNEXPECTED_ROLLBACK')
+          lines=[
+              '## ANA-LUCIA-F2.6 — remapeamento cirúrgico concluído',
+              '',
+              f"**Status:** `{status}`",
+              f"**Documentos:** learning_objects={p.get('learning_documents')} | attendance={p.get('attendance_documents')}",
+              f"**Total:** {p.get('total_documents', 590)}",
+              f"**Campo alterado:** `{','.join(p.get('updated_fields') or ['course_id'])}`",
+              '',
+              '### Preservações',
+              f"- tenant backfill: {p.get('tenant_backfill_documents', 0)}",
+              f"- aula_numero backfill: {p.get('aula_numero_backfill_documents', 0)}",
+              f"- copied_from_id mutations: {p.get('copied_from_id_mutations', 0)}",
+              f"- rollback: {p.get('rollback_performed', False)}",
+              '',
+              f"Identidade: `{p.get('legacy_course_fingerprint')}` → `{p.get('current_course_fingerprint')}`",
+          ]
+          Path('evidence/diagnosis.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+          print('\n'.join(lines))
+          PY
+
+      - name: Upload execution evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ana-lucia-f2-6-surgical-course-id-remap-${{ github.run_id }}
+          path: evidence/
+          retention-days: 90
+
+      - name: Comment receipt and close execution gate
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.gate_issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          repo=os.environ['GITHUB_REPOSITORY']
+          issue=os.environ['ISSUE_NUMBER']
+          token=os.environ['GH_TOKEN']
+          body=Path('evidence/diagnosis.md').read_text(encoding='utf-8')
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f'Bearer {token}',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-ana-lucia-f2-6',
+              'Content-Type':'application/json',
+          }
+          def request(method,url,payload=None):
+              data=None if payload is None else json.dumps(payload).encode('utf-8')
+              req=urllib.request.Request(url,data=data,headers=headers,method=method)
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return response.read()
+          request('POST',f'https://api.github.com/repos/{repo}/issues/{issue}/comments',{'body':body})
+          request('PATCH',f'https://api.github.com/repos/{repo}/issues/{issue}',{'state':'closed','state_reason':'completed'})
+          print('ANA_LUCIA_F2_6_GATE_CLOSED=YES')
+          PY
