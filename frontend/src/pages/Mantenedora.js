@@ -13,6 +13,7 @@ import { ibgeCodesFromViaCep } from '@/utils/ibgeAddress';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import AssessmentPolicyPanel from '@/components/assessment-policy/AssessmentPolicyPanel';
+import MantenedoraAccessControlPanel from '@/components/mantenedora/MantenedoraAccessControlPanel';
 
 export default function Mantenedora() {
   const navigate = useNavigate();
@@ -1006,6 +1007,7 @@ export default function Mantenedora() {
         </div>
       </form>
 
+      <MantenedoraAccessControlPanel />
       <AssessmentPolicyPanel />
     </div>
   );
