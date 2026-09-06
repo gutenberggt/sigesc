@@ -5,6 +5,9 @@ A identidade de leitura do diário é institucional, não autoral:
 - frequência de Anos Finais é comprovada por turma/data/componente/slot;
 - um documento agregado legado sem ``aula_numero`` nunca é expandido
   artificialmente para cobrir dois ou mais slots estritos;
+- quando todos os slots numerados esperados já existem, um agregado legado
+  estruturalmente equivalente é preservado como rastreabilidade, mas não vira
+  uma aula extra nem um falso órfão;
 - conteúdo é comprovado por turma/data/componente e pode cobrir todos os slots
   do componente naquele dia quando existe um único registro válido;
 - ``teacher_id``, ``created_by`` e ``updated_by`` são metadados de autoria e
@@ -44,6 +47,13 @@ def _version(row: Mapping[str, Any]) -> int:
 
 def _stable_id(row: Mapping[str, Any]) -> str:
     return _sid(row.get("id"))
+
+
+def _declared_classes(row: Mapping[str, Any]) -> int:
+    try:
+        return int(row.get("number_of_classes") or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _latest(rows: Iterable[Mapping[str, Any]]) -> Mapping[str, Any] | None:
@@ -91,6 +101,58 @@ def select_strict_attendance(
     if len(aggregates) != 1:
         return None
     return aggregates[0]
+
+
+def shadowed_legacy_attendance_ids(
+    expected_entries: Iterable[Mapping[str, Any]],
+    attendance_rows: Iterable[Mapping[str, Any]],
+) -> set[str]:
+    """Identifica agregados legados cobertos integralmente por sessões exatas.
+
+    É uma regra conservadora. Um agregado sem ``aula_numero`` só é classificado
+    como *shadowed* quando, no mesmo dia+componente:
+
+    - existe ao menos um slot esperado numerado;
+    - há uma sessão numerada para CADA ``aula_numero`` esperado; e
+    - ``number_of_classes`` do agregado coincide exatamente com a quantidade
+      de slots esperados.
+
+    O agregado não é apagado nem alterado. Ele apenas deixa de representar uma
+    terceira aula e deixa de ser sinalizado como órfão na projeção canônica.
+    """
+    expected_aulas: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for entry in expected_entries:
+        key = (_day(entry), _component(entry))
+        aula = _aula(entry)
+        if key[0] and key[1] and aula:
+            expected_aulas[key].add(aula)
+
+    session_aulas: dict[tuple[str, str], set[str]] = defaultdict(set)
+    aggregates: list[Mapping[str, Any]] = []
+    for row in attendance_rows:
+        key = (_day(row), _component(row))
+        if not key[0] or not key[1]:
+            continue
+        aula = _aula(row)
+        if aula:
+            session_aulas[key].add(aula)
+        else:
+            aggregates.append(row)
+
+    shadowed: set[str] = set()
+    for row in aggregates:
+        key = (_day(row), _component(row))
+        expected = expected_aulas.get(key) or set()
+        if not expected:
+            continue
+        if not expected.issubset(session_aulas.get(key) or set()):
+            continue
+        if _declared_classes(row) != len(expected):
+            continue
+        row_id = _stable_id(row)
+        if row_id:
+            shadowed.add(row_id)
+    return shadowed
 
 
 def build_content_day_index(
