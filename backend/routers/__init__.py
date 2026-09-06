@@ -40,8 +40,8 @@ from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_generalization
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
-from .announcements import router as announcements_router, setup_router as setup_announcements_router
-from .analytics import router as analytics_router, setup_router as setup_analytics_router
+from .announcements import router as announcements_router, setup_announcements_router
+from .analytics import router as analytics_router, setup_analytics_router
 
 # FastAPI resolve anotações postergadas usando o namespace global do módulo que
 # declara a função. O adaptador de abas registra o mesmo payload Pydantic da
