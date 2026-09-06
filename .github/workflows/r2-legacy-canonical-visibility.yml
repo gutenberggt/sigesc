@@ -1,0 +1,32 @@
+name: R2.0g.4 Legacy Canonical Visibility Guard
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityBridge.js'
+      - 'frontend/src/hooks/useDiaryPrefill.js'
+      - 'backend/tests/test_r2g4_legacy_canonical_visibility.py'
+      - 'memory/audit/R2_0G4_LEGACY_CANONICAL_VISIBILITY_2026-09-06.md'
+      - '.github/workflows/r2-legacy-canonical-visibility.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityBridge.js'
+      - 'frontend/src/hooks/useDiaryPrefill.js'
+      - 'backend/tests/test_r2g4_legacy_canonical_visibility.py'
+      - '.github/workflows/r2-legacy-canonical-visibility.yml'
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate R2.0g.4 visibility contract
+        run: |
+          python -m pytest -q backend/tests/test_r2g4_legacy_canonical_visibility.py
+      - name: Syntax-check frontend bridge
+        run: |
+          node --check frontend/src/services/contentLegacyCanonicalVisibilityBridge.js
