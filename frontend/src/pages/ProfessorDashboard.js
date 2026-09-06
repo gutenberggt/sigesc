@@ -9,9 +9,7 @@ import {
   GraduationCap, 
   Users, 
   BookOpen, 
-  ClipboardList,
   Calendar,
-  CheckSquare,
   User,
   School,
   Clock,
@@ -67,7 +65,7 @@ export default function ProfessorDashboard() {
   };
 
   // No DVD, ações pedagógicas precisam nascer do card do vínculo para carregar
-  // assignment_id. Atalhos genéricos apenas posicionam o professor em Meus Diários.
+  // assignment_id. O atalho Meus Diários apenas posiciona o professor na seção correta.
   const openFromMyDiaries = () => {
     const section = document.querySelector('[data-testid="meus-diarios-section"]');
     if (section) {
@@ -297,36 +295,12 @@ export default function ProfessorDashboard() {
                 <Card 
                   className="cursor-pointer hover:bg-blue-50 transition-colors"
                   onClick={openFromMyDiaries}
-                  data-testid="menu-lancar-notas"
+                  data-testid="menu-meus-diarios"
                 >
                   <CardContent className="p-4 text-center">
-                    <ClipboardList className="mx-auto mb-2 text-blue-600" size={32} />
-                    <p className="font-medium">Lançar Notas</p>
-                    <p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p>
-                  </CardContent>
-                </Card>
-
-                <Card 
-                  className="cursor-pointer hover:bg-green-50 transition-colors"
-                  onClick={openFromMyDiaries}
-                  data-testid="menu-frequencia"
-                >
-                  <CardContent className="p-4 text-center">
-                    <CheckSquare className="mx-auto mb-2 text-green-600" size={32} />
-                    <p className="font-medium">Frequência</p>
-                    <p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p>
-                  </CardContent>
-                </Card>
-
-                <Card 
-                  className="cursor-pointer hover:bg-purple-50 transition-colors"
-                  onClick={openFromMyDiaries}
-                  data-testid="menu-objetos-conhecimento"
-                >
-                  <CardContent className="p-4 text-center">
-                    <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
-                    <p className="font-medium">Objetos de Conhecimento</p>
-                    <p className="text-[11px] text-slate-500 mt-1">Escolha o diário/vínculo abaixo</p>
+                    <BookOpen className="mx-auto mb-2 text-blue-600" size={32} />
+                    <p className="font-medium">Meus Diários</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Frequência, conteúdo e notas das suas turmas</p>
                   </CardContent>
                 </Card>
 
