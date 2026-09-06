@@ -29,7 +29,7 @@ def test_component_specific_fallback_revalidates_scope_locally():
     assert "return selectCanonicalVisibilityRecords(items, meta)" in bridge
     assert "record.class_id !== meta.classId" in policy
     assert "componentOf(record) !== meta.componentId" in policy
-    assert "if (record.assignment_id) return false" in policy
+    assert "record.assignment_id && !meta.includeAssignedCanonical" in policy
     assert "if (meta.date && recordDate !== dayOf(meta.date)) return false" in policy
     assert "recordYear !== Number(meta.academicYear)" in policy
     assert "recordMonth !== Number(meta.month)" in policy
@@ -44,7 +44,7 @@ def test_dvd_rewrite_keeps_precedence_over_legacy_visibility_fallback():
     assert "!url.includes('/content-entries')" in policy
 
 
-def test_check_date_sees_only_exact_assignmentless_canonical_record():
+def test_check_date_sees_only_exact_scoped_canonical_record():
     bridge = _bridge()
     assert "__legacyCanonicalVisibilityCheckDate" in bridge
     assert "if (response.data?.has_record) return response" in bridge
@@ -71,7 +71,7 @@ def test_canonical_record_get_edit_delete_never_fall_back_to_learning_objects():
     assert "canonicalCache.get(id)" in source
     assert "config.url = `${canonicalRoot(url)}/${encodeURIComponent(id)}`" in source
     assert "if (method === 'put')" in source
-    assert "assignment_id: null" in source
+    assert "assignment_id: current.assignment_id || null" in source
     assert "teacher_id: current.teacher_id || null" in source
     assert "__legacyCanonicalAutoPublish" in source
     assert "if (method === 'delete')" in source
