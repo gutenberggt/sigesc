@@ -3,6 +3,7 @@ from services.diary_canonical_evidence_policy import (
     expected_slot_counts,
     select_content_for_slot,
     select_strict_attendance,
+    shadowed_legacy_attendance_ids,
 )
 
 
@@ -15,7 +16,10 @@ def _entry(*, date="2026-03-12", component="english-final", aula=1, teacher="tea
     }
 
 
-def _attendance(id_, *, date="2026-03-12", course="english-final", aula=1, creator="teacher-a", version=1):
+def _attendance(
+    id_, *, date="2026-03-12", course="english-final", aula=1,
+    creator="teacher-a", version=1, number_of_classes=1,
+):
     return {
         "id": id_,
         "date": date,
@@ -23,6 +27,7 @@ def _attendance(id_, *, date="2026-03-12", course="english-final", aula=1, creat
         "aula_numero": aula,
         "created_by": creator,
         "version": version,
+        "number_of_classes": number_of_classes,
     }
 
 
@@ -62,7 +67,7 @@ def test_two_expected_lessons_require_two_distinct_attendance_documents():
 
 def test_legacy_aggregate_never_fans_out_to_two_strict_slots():
     entries = [_entry(aula=1), _entry(aula=2)]
-    aggregate = _attendance("agg", aula=None)
+    aggregate = _attendance("agg", aula=None, number_of_classes=2)
     counts = expected_slot_counts(entries)
 
     for entry in entries:
@@ -97,6 +102,45 @@ def test_attendance_matching_ignores_author_but_requires_component_and_slot():
         expected_slot_count_for_component_day=2,
     )
     assert picked["id"] == "right"
+
+
+def test_mixed_legacy_aggregate_is_shadowed_when_all_two_exact_slots_exist():
+    entries = [_entry(aula=1), _entry(aula=2)]
+    rows = [
+        _attendance("agg", aula=None, number_of_classes=2),
+        _attendance("a1", aula=1),
+        _attendance("a2", aula=2),
+    ]
+    assert shadowed_legacy_attendance_ids(entries, rows) == {"agg"}
+
+
+def test_legacy_aggregate_is_not_shadowed_when_one_expected_session_is_missing():
+    entries = [_entry(aula=1), _entry(aula=2)]
+    rows = [
+        _attendance("agg", aula=None, number_of_classes=2),
+        _attendance("a1", aula=1),
+    ]
+    assert shadowed_legacy_attendance_ids(entries, rows) == set()
+
+
+def test_legacy_aggregate_is_not_shadowed_when_declared_class_count_disagrees():
+    entries = [_entry(aula=1), _entry(aula=2)]
+    rows = [
+        _attendance("agg", aula=None, number_of_classes=3),
+        _attendance("a1", aula=1),
+        _attendance("a2", aula=2),
+    ]
+    assert shadowed_legacy_attendance_ids(entries, rows) == set()
+
+
+def test_legacy_aggregate_is_not_shadowed_by_sessions_from_another_component():
+    entries = [_entry(aula=1), _entry(aula=2)]
+    rows = [
+        _attendance("agg", aula=None, number_of_classes=2),
+        _attendance("a1", course="literature", aula=1),
+        _attendance("a2", course="literature", aula=2),
+    ]
+    assert shadowed_legacy_attendance_ids(entries, rows) == set()
 
 
 def test_one_content_entry_can_cover_two_lessons_same_component_day_regardless_of_author():
