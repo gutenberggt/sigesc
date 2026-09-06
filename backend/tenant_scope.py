@@ -2,18 +2,24 @@
 Multi-tenancy — escopo canônico por Mantenedora.
 
 MT-1 (31/08/2026):
-- o plano operacional exige exatamente uma mantenedora ativa;
+- o plano operacional exige exatamente uma mantenedora selecionada;
 - `super_admin` pode alternar a mantenedora ativa, mas não opera em modo
   "Todas" nas rotas de negócio;
 - cross-tenant permanece permitido somente em uma allowlist explícita de
   control plane;
-- ausência, tenant inexistente/inativo e documento de domínio sem tenant
-  falham fechados.
+- ausência, tenant inexistente e documento de domínio sem tenant falham fechados.
+
+Controle de disponibilidade da mantenedora (Set/2026):
+- mantenedora ativa segue o fluxo operacional normal;
+- mantenedora desativada bloqueia por padrão;
+- somente papéis explicitamente assinalados podem atravessar a trava, ainda
+  sujeitos ao RBAC/escopo escolar normais;
+- super_admin mantém bypass administrativo para diagnóstico e reativação.
 
 Helpers principais:
 - get_mantenedora_scope(user, request): ID efetivo ou sentinela fail-closed.
 - resolve_operational_tenant_context(db, user, request): SSoT assíncrona que
-  valida existência/status da mantenedora e registra o contexto na request.
+  valida existência/disponibilidade da mantenedora e registra o contexto na request.
 - apply_tenant_filter(query, user, request): injeta o tenant em queries.
 - assert_same_tenant(doc, user, request): rejeita documento sem tenant ou de
   outro tenant em rotas operacionais.
@@ -25,6 +31,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Request
 
+from services.mantenedora_access_policy import can_access_tenant, is_tenant_active
 from tenant_audit import log_tenant_event
 
 
@@ -40,7 +47,8 @@ CONTROL_PLANE_PATH_PREFIXES = (
 )
 
 # Endpoints de sessão/identidade que precisam continuar acessíveis antes da
-# seleção da mantenedora (login bootstrap, perfil da sessão, logout e CSRF).
+# seleção/disponibilidade operacional da mantenedora (login bootstrap, perfil,
+# logout, CSRF e consulta leve do bloqueio pós-login).
 # `register` NÃO está aqui: criação de identidade pertence ao plano operacional
 # quando houver usuário autenticado e será endurecida definitivamente na MT-2.
 SESSION_PLANE_PATHS = frozenset(
@@ -59,6 +67,8 @@ SESSION_PLANE_PATHS = frozenset(
         "/auth/change-account",
         "/api/auth/resend-email-change",
         "/auth/resend-email-change",
+        "/api/mantenedoras/access-status",
+        "/mantenedoras/access-status",
     }
 )
 
@@ -192,23 +202,8 @@ def get_mantenedora_scope(
 
 
 def _tenant_is_active(doc: dict) -> bool:
-    """Compatibilidade com schemas `ativo`, `ativa` e `status`.
-
-    Registros legados sem marcador de status continuam operáveis nesta fase,
-    mas o contexto registra `legacy_status_implicit=True` para rastreabilidade.
-    """
-    if doc.get("ativo") is False or doc.get("ativa") is False:
-        return False
-    status_value = str(doc.get("status") or "").strip().lower()
-    if status_value in {
-        "inactive",
-        "inativo",
-        "disabled",
-        "desativado",
-        "desativada",
-    }:
-        return False
-    return True
+    """Compatibilidade pública: delega a leitura de status à política canônica."""
+    return is_tenant_active(doc)
 
 
 async def resolve_operational_tenant_context(
@@ -216,7 +211,11 @@ async def resolve_operational_tenant_context(
     user: dict,
     request: Optional[Request] = None,
 ) -> OperationalTenantContext:
-    """SSoT do tenant operacional: exige tenant existente e ativo.
+    """SSoT do tenant operacional: exige tenant existente e acesso liberado.
+
+    Mantenedora desativada permanece fail-closed para todos os papéis não
+    assinalados. A liberação seletiva remove somente esta trava de disponibilidade;
+    toda autorização funcional posterior continua intacta.
 
     O resultado é cacheado em `request.state` para que múltiplas verificações
     no mesmo ciclo HTTP não repitam consulta ao MongoDB.
@@ -234,7 +233,7 @@ async def resolve_operational_tenant_context(
             detail={
                 "code": "TENANT_CONTEXT_REQUIRED",
                 "message": (
-                    "Selecione uma mantenedora ativa antes de acessar "
+                    "Selecione uma mantenedora antes de acessar "
                     "módulos operacionais."
                 ),
             },
@@ -256,18 +255,19 @@ async def resolve_operational_tenant_context(
             },
         )
 
-    if not _tenant_is_active(doc):
+    if not can_access_tenant(doc, user):
         log_tenant_event(
             "inactive_tenant",
             user,
             request,
             requested_mantenedora=mid,
+            extra={"role": user.get("role")},
         )
         raise HTTPException(
             status_code=403,
             detail={
                 "code": "TENANT_INACTIVE",
-                "message": "A mantenedora selecionada está inativa.",
+                "message": "A mantenedora selecionada está desativada.",
             },
         )
 
@@ -385,7 +385,11 @@ async def resolve_active_mantenedora(
     *,
     fallback_to_first: bool = False,
 ) -> Optional[dict]:
-    """Resolve a mantenedora ativa sem fallback operacional silencioso.
+    """Resolve a mantenedora operacional sem fallback silencioso.
+
+    O nome histórico desta função é preservado por compatibilidade. Uma
+    mantenedora desativada só é retornada quando o papel atual está liberado pela
+    política seletiva (ou é super_admin).
 
     `fallback_to_first` só é honrado em CONTROL PLANE explícito; em rotas de
     negócio, ausência de tenant gera erro via OperationalTenantContext.
@@ -396,7 +400,7 @@ async def resolve_active_mantenedora(
         and get_mantenedora_scope(user, request) is None
     ):
         doc = await db.mantenedoras.find_one({}, {"_id": 0})
-        if doc and _tenant_is_active(doc):
+        if doc and can_access_tenant(doc, user):
             return doc
         return None
 
