@@ -75,7 +75,9 @@ async def _collect_active_tenant_users(
     """Cruza presença em memória com a identidade persistida do tenant.
 
     O tracker não é usado como fonte de tenant/role; ele fornece somente IDs
-    potencialmente presentes. Tenant, papel e status são sempre relidos de users.
+    potencialmente presentes. Tenant e papel são sempre relidos de ``users``.
+    Qualquer identidade efetivamente conectada bloqueia a transição, mesmo que
+    o documento do usuário tenha marcador de status legado ou divergente.
     """
     candidate_ids: set[str] = set()
     if active_sessions is not None:
@@ -98,7 +100,6 @@ async def _collect_active_tenant_users(
         {
             "id": {"$in": list(candidate_ids)},
             "mantenedora_id": tenant_id,
-            "status": "active",
         },
         {
             "_id": 0,
@@ -291,11 +292,15 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 )
                 if blockers:
                     await _audit_access_control(
-                        action="mantenedora_deactivation_blocked",
+                        action="reject",
                         tenant=tenant,
                         current_user=current_user,
                         request=request,
-                        extra_data={"connected_users": blockers, "count": len(blockers)},
+                        extra_data={
+                            "event": "mantenedora_deactivation_blocked",
+                            "connected_users": blockers,
+                            "count": len(blockers),
+                        },
                     )
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
@@ -333,11 +338,12 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
             )
 
             await _audit_access_control(
-                action="mantenedora_access_control_updated",
+                action="update",
                 tenant=updated or tenant,
                 current_user=current_user,
                 request=request,
                 extra_data={
+                    "event": "mantenedora_access_control_updated",
                     "old_active": current_active,
                     "new_active": requested_active,
                     "allowed_roles": target_roles,
