@@ -102,7 +102,15 @@ def reconcile_strict_payload(
     days = [dict(day) for day in (payload.get("days") or [])]
     expected_entries: list[dict] = []
     for day in days:
-        copied = [dict(entry) for entry in (day.get("entries") or [])]
+        iso = _sid(day.get("date"))[:10]
+        copied = []
+        for raw_entry in (day.get("entries") or []):
+            entry = dict(raw_entry)
+            # O contrato original mantém a data no objeto do dia. A política de
+            # evidência trabalha com entradas autocontidas, então herdamos a
+            # data explicitamente antes de qualquer matching.
+            entry["date"] = iso
+            copied.append(entry)
         day["entries"] = copied
         expected_entries.extend(copied)
 
