@@ -37,6 +37,7 @@ def _request(path="/api/students", *, tenant_header=None):
         headers["X-Mantenedora-Id"] = tenant_header
     return SimpleNamespace(
         url=SimpleNamespace(path=path),
+        method="GET",
         headers=headers,
         query_params={},
         scope={"path": path},
