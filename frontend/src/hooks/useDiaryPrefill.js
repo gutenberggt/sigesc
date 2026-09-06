@@ -4,6 +4,7 @@ import '@/services/contentDvdBridge';
 import '@/services/contentDvdClassWideResolver';
 import '@/services/contentDvdHistoricalBackfillResolver';
 import '@/services/contentPartialCutoverResolver';
+import '@/services/contentLegacyCanonicalVisibilityBridge';
 import '@/utils/contentCopyErrorNormalizerLate';
 
 /**
