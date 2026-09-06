@@ -74,9 +74,19 @@ def install_content_institutional_visibility_policy(
         content_history_bridge_mod,
     )
 
+    # O mesmo contrato de identidade institucional precisa valer no agregador
+    # visual do calendário. O módulo original continua dono de RBAC, calendário
+    # e expansão de slots; a extensão #480 apenas reconcilia evidências strict.
+    from routers import calendar_diary_state as calendar_diary_state_mod
+    from routers.calendar_diary_state_canonical import (
+        install_calendar_diary_state_canonical_setup,
+    )
+    install_calendar_diary_state_canonical_setup(calendar_diary_state_mod)
+
     return {
         "content_view_roles": tuple(content_entries_mod.VIEW_ROLES),
         "dvd_history_view_roles": tuple(content_dvd_history_mod.VIEW_ROLES),
         "management_view_roles": tuple(sorted(management_view_roles)),
         "institutional_history_scope": True,
+        "canonical_calendar_evidence": True,
     }
