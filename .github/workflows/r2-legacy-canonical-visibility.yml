@@ -1,0 +1,58 @@
+name: R2.0g.4 Legacy Canonical Visibility Guard
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityBridge.js'
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityPolicy.js'
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityPolicy.test.js'
+      - 'frontend/src/hooks/useDiaryPrefill.js'
+      - 'backend/tests/test_r2g4_legacy_canonical_visibility.py'
+      - 'memory/audit/R2_0G4_LEGACY_CANONICAL_VISIBILITY_2026-09-06.md'
+      - '.github/workflows/r2-legacy-canonical-visibility.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityBridge.js'
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityPolicy.js'
+      - 'frontend/src/services/contentLegacyCanonicalVisibilityPolicy.test.js'
+      - 'frontend/src/hooks/useDiaryPrefill.js'
+      - 'backend/tests/test_r2g4_legacy_canonical_visibility.py'
+      - '.github/workflows/r2-legacy-canonical-visibility.yml'
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install focused test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Validate R2.0g.4 static contract
+        run: |
+          # Estes testes são estáticos/contratuais e não usam banco. O conftest
+          # global pertence à regressão de Transferência e exige Mongo, portanto
+          # deve permanecer fora deste guard focado.
+          python -m pytest -q --noconftest backend/tests/test_r2g4_legacy_canonical_visibility.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile --non-interactive
+      - name: R2.0g.4 behavioral regression
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: |
+          yarn test --watchAll=false --runTestsByPath src/services/contentLegacyCanonicalVisibilityPolicy.test.js
+      - name: Syntax-check frontend policy and bridge
+        run: |
+          node --check frontend/src/services/contentLegacyCanonicalVisibilityPolicy.js
+          node --check frontend/src/services/contentLegacyCanonicalVisibilityBridge.js
