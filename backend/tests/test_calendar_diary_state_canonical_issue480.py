@@ -1,7 +1,17 @@
-from routers.calendar_diary_state_canonical import (
-    merge_content_sources,
-    reconcile_strict_payload,
+import importlib.util
+from pathlib import Path
+
+SCRIPT = (
+    Path(__file__).resolve().parents[1]
+    / "routers"
+    / "calendar_diary_state_canonical.py"
 )
+spec = importlib.util.spec_from_file_location("issue480_calendar_scope", SCRIPT)
+assert spec and spec.loader
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+merge_content_sources = mod.merge_content_sources
+reconcile_strict_payload = mod.reconcile_strict_payload
 
 
 def _entry(aula, component="english-final", teacher="current-teacher"):
