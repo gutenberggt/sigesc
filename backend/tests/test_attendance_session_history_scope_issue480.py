@@ -1,9 +1,19 @@
+import importlib.util
+from pathlib import Path
+
 import pytest
 
-from routers.attendance_session_history_scope import (
-    SessionHistoryCollision,
-    normalize_session_history_docs,
+SCRIPT = (
+    Path(__file__).resolve().parents[1]
+    / "routers"
+    / "attendance_session_history_scope.py"
 )
+spec = importlib.util.spec_from_file_location("issue480_attendance_scope", SCRIPT)
+assert spec and spec.loader
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+SessionHistoryCollision = mod.SessionHistoryCollision
+normalize_session_history_docs = mod.normalize_session_history_docs
 
 
 SLOTS = [
