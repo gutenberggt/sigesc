@@ -1,44 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout } from '@/components/Layout';
-import { 
-  Shield, 
-  Search, 
-  Filter, 
-  RefreshCw, 
+import {
   AlertTriangle,
-  User,
-  Calendar,
-  FileText,
-  LogIn,
-  Edit,
-  Trash2,
-  Plus,
   ChevronLeft,
   ChevronRight,
   Download,
+  Edit,
+  FileText,
   FileText as FilePdf,
-  X,
-  Home
+  Home,
+  LogIn,
+  Plus,
+  RefreshCw,
+  Shield,
+  Trash2,
+  User,
+  X
 } from 'lucide-react';
+
+import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch, buildFetchAuthHeaders } from '@/services/api';
 import { hasRole } from '@/utils/permissions';
-import { downloadBlob } from '@/utils/downloadBlob';
 import { browserLocalTodayISO } from '@/utils/browserLocalDate';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
-// Ícones por ação
 const ACTION_ICONS = {
   login: LogIn,
   logout: LogIn,
@@ -49,21 +46,6 @@ const ACTION_ICONS = {
   import: Download
 };
 
-// Cores por severidade
-const SEVERITY_COLORS = {
-  info: 'bg-blue-100 text-blue-800',
-  warning: 'bg-yellow-100 text-yellow-800',
-  critical: 'bg-red-100 text-red-800'
-};
-
-// Labels de severidade em português
-const SEVERITY_LABELS = {
-  info: 'Informação',
-  warning: 'Aviso',
-  critical: 'Crítico'
-};
-
-// Labels legíveis
 const ACTION_LABELS = {
   login: 'Login',
   logout: 'Logout',
@@ -71,7 +53,9 @@ const ACTION_LABELS = {
   update: 'Alteração',
   delete: 'Exclusão',
   export: 'Exportação',
-  import: 'Importação'
+  import: 'Importação',
+  approve: 'Aprovação',
+  reject: 'Rejeição'
 };
 
 const COLLECTION_LABELS = {
@@ -79,6 +63,7 @@ const COLLECTION_LABELS = {
   students: 'Estudantes',
   grades: 'Notas',
   attendance: 'Frequência',
+  content_entries: 'Conteúdos',
   staff: 'Servidores(as)',
   schools: 'Escolas',
   classes: 'Turmas',
@@ -88,21 +73,35 @@ const COLLECTION_LABELS = {
   teacher_assignments: 'Alocações'
 };
 
+async function apiErrorMessage(response, fallback) {
+  try {
+    const body = await response.json();
+    const detail = body?.detail;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (detail?.message) return detail.message;
+    if (body?.message) return body.message;
+  } catch (_error) {
+    // O status HTTP continua sendo exibido abaixo.
+  }
+  return `${fallback} (HTTP ${response.status})`;
+}
+
 export const AuditLogs = () => {
   const navigate = useNavigate();
   const { accessToken: token, user } = useAuth();
+
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [statsError, setStatsError] = useState('');
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [limit] = useState(20);
   const [users, setUsers] = useState([]);
-  const [userQuery, setUserQuery] = useState(''); // texto digitado no "Buscar por Usuário"
+  const [userQuery, setUserQuery] = useState('');
   const [showUserSuggestions, setShowUserSuggestions] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
-  
-  // Filtros
   const [filters, setFilters] = useState({
     collection: '',
     search: '',
@@ -110,28 +109,32 @@ export const AuditLogs = () => {
   });
 
   const fetchLogs = async () => {
+    setLoading(true);
+    setLoadError('');
     try {
-      setLoading(true);
       const params = new URLSearchParams({
-        skip: page * limit,
-        limit: limit
+        skip: String(page * limit),
+        limit: String(limit)
       });
-      
       if (filters.collection) params.append('collection', filters.collection);
       if (filters.search) params.append('search', filters.search);
       if (filters.user_id) params.append('user_id', filters.user_id);
-      
-      const response = await fetch(`${API}/api/audit-logs?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setLogs(data.items);
-        setTotal(data.total);
+
+      // MT-1: apiFetch injeta Authorization, cookie e X-Mantenedora-Id no
+      // momento da chamada. Não montar headers manualmente nesta tela.
+      const response = await apiFetch(`${API}/api/audit-logs?${params}`);
+      if (!response.ok) {
+        throw new Error(await apiErrorMessage(response, 'Não foi possível carregar a auditoria'));
       }
+
+      const data = await response.json();
+      setLogs(Array.isArray(data.items) ? data.items : []);
+      setTotal(Number(data.total || 0));
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
+      setLogs([]);
+      setTotal(0);
+      setLoadError(error?.message || 'Não foi possível carregar os logs de auditoria.');
     } finally {
       setLoading(false);
     }
@@ -139,35 +142,35 @@ export const AuditLogs = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API}/api/users`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Ordenar por nome
-        const sortedUsers = (data.users || data || []).sort((a, b) => 
+      const response = await apiFetch(`${API}/api/users`);
+      if (!response.ok) {
+        throw new Error(await apiErrorMessage(response, 'Não foi possível carregar usuários'));
+      }
+      const data = await response.json();
+      const sortedUsers = (data.users || data || [])
+        .slice()
+        .sort((a, b) =>
           (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')
         );
-        setUsers(sortedUsers);
-      }
+      setUsers(sortedUsers);
     } catch (error) {
-      console.error('Erro ao buscar usuários:', error);
+      console.error('Erro ao buscar usuários da auditoria:', error);
+      setUsers([]);
     }
   };
 
   const fetchStats = async () => {
+    setStatsError('');
     try {
-      const response = await fetch(`${API}/api/audit-logs/stats?days=7`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+      const response = await apiFetch(`${API}/api/audit-logs/stats?days=7`);
+      if (!response.ok) {
+        throw new Error(await apiErrorMessage(response, 'Não foi possível carregar as estatísticas'));
       }
+      setStats(await response.json());
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
+      setStats(null);
+      setStatsError(error?.message || 'Estatísticas de auditoria indisponíveis.');
     }
   };
 
@@ -177,6 +180,8 @@ export const AuditLogs = () => {
       fetchStats();
       fetchUsers();
     }
+    // Mantém a semântica anterior: filtros e paginação recarregam a visão.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, page, filters]);
 
   const formatDate = (dateStr) => {
@@ -192,24 +197,25 @@ export const AuditLogs = () => {
   };
 
   const totalPages = Math.ceil(total / limit);
-
-  // Sugestões de usuário (a partir do 3º caractere), filtrando pela lista já carregada
   const userSuggestions = userQuery.trim().length >= 3
-    ? users.filter(u => {
-        const q = userQuery.trim().toLowerCase();
-        return (u.full_name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+    ? users.filter((candidate) => {
+        const query = userQuery.trim().toLowerCase();
+        return (
+          (candidate.full_name || '').toLowerCase().includes(query)
+          || (candidate.email || '').toLowerCase().includes(query)
+        );
       }).slice(0, 8)
     : [];
 
-  const selectUser = (u) => {
-    setFilters({ ...filters, user_id: u.id });
-    setUserQuery(u.full_name || u.email || '');
+  const selectUser = (candidate) => {
+    setFilters((current) => ({ ...current, user_id: candidate.id }));
+    setUserQuery(candidate.full_name || candidate.email || '');
     setShowUserSuggestions(false);
     setPage(0);
   };
 
   const clearUser = () => {
-    setFilters({ ...filters, user_id: '' });
+    setFilters((current) => ({ ...current, user_id: '' }));
     setUserQuery('');
     setShowUserSuggestions(false);
     setPage(0);
@@ -223,18 +229,28 @@ export const AuditLogs = () => {
       if (filters.search) params.append('search', filters.search);
       if (filters.user_id) params.append('user_id', filters.user_id);
       const filename = `logs_auditoria_${browserLocalTodayISO()}.pdf`;
-      await downloadBlob(`${API}/api/audit-logs/pdf?${params}`, filename, {
-        Authorization: token ? `Bearer ${token}` : ''
-      });
-    } catch (e) {
-      console.error('Erro ao gerar PDF:', e);
-      alert('Não foi possível gerar o PDF. Tente novamente.');
+
+      // downloadBlob é fetch nativo; portanto recebe explicitamente o helper
+      // canônico de auth/tenant em vez de somente Authorization.
+      await downloadBlob(
+        `${API}/api/audit-logs/pdf?${params}`,
+        filename,
+        buildFetchAuthHeaders('GET')
+      );
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert(error?.message || 'Não foi possível gerar o PDF. Tente novamente.');
     } finally {
       setGeneratingPdf(false);
     }
   };
 
-  // Verifica permissão
+  const refreshAll = () => {
+    fetchLogs();
+    fetchStats();
+    fetchUsers();
+  };
+
   if (!hasRole(user, ['admin', 'admin_teste', 'secretario', 'semed'])) {
     return (
       <Layout>
@@ -242,7 +258,9 @@ export const AuditLogs = () => {
           <div className="text-center">
             <Shield className="w-16 h-16 mx-auto text-gray-400 mb-4" />
             <h2 className="text-xl font-semibold text-gray-700">Acesso Restrito</h2>
-            <p className="text-gray-500 mt-2">Você não tem permissão para visualizar os logs de auditoria.</p>
+            <p className="text-gray-500 mt-2">
+              Você não tem permissão para visualizar os logs de auditoria.
+            </p>
           </div>
         </div>
       </Layout>
@@ -252,7 +270,6 @@ export const AuditLogs = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -274,18 +291,21 @@ export const AuditLogs = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={handleGeneratePdf} disabled={generatingPdf} data-testid="audit-generate-pdf-button">
+            <Button
+              onClick={handleGeneratePdf}
+              disabled={generatingPdf || Boolean(loadError)}
+              data-testid="audit-generate-pdf-button"
+            >
               <FilePdf className="w-4 h-4 mr-2" />
               {generatingPdf ? 'Gerando...' : 'Gerar PDF'}
             </Button>
-            <Button onClick={() => { fetchLogs(); fetchStats(); }} variant="outline">
+            <Button onClick={refreshAll} variant="outline">
               <RefreshCw className="w-4 h-4 mr-2" />
               Atualizar
             </Button>
           </div>
         </div>
 
-        {/* Estatísticas */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-lg shadow-sm border p-4">
@@ -295,47 +315,62 @@ export const AuditLogs = () => {
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-sm text-gray-500">Ação mais comum</div>
               <div className="text-2xl font-bold text-gray-900">
-                {stats.by_action?.[0]?._id ? ACTION_LABELS[stats.by_action[0]._id] || stats.by_action[0]._id : '-'}
+                {stats.by_action?.[0]?._id
+                  ? ACTION_LABELS[stats.by_action[0]._id] || stats.by_action[0]._id
+                  : '-'}
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-sm text-gray-500">Coleção mais afetada</div>
               <div className="text-2xl font-bold text-gray-900">
-                {stats.by_collection?.[0]?._id ? COLLECTION_LABELS[stats.by_collection[0]._id] || stats.by_collection[0]._id : '-'}
+                {stats.by_collection?.[0]?._id
+                  ? COLLECTION_LABELS[stats.by_collection[0]._id] || stats.by_collection[0]._id
+                  : '-'}
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-sm text-gray-500">Eventos críticos</div>
               <div className="text-2xl font-bold text-red-600">
-                {stats.by_severity?.find(s => s._id === 'critical')?.count || 0}
+                {stats.by_severity?.find((item) => item._id === 'critical')?.count || 0}
               </div>
             </div>
           </div>
         )}
 
-        {/* Filtros */}
+        {statsError && !loadError && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+            <span>{statsError}</span>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <Input
                 placeholder="Buscar na descrição..."
                 value={filters.search}
-                onChange={(e) => setFilters({...filters, search: e.target.value})}
+                onChange={(event) => {
+                  setFilters((current) => ({ ...current, search: event.target.value }));
+                  setPage(0);
+                }}
                 className="w-full"
                 data-testid="audit-search-input"
               />
             </div>
-            {/* Buscar por Usuário — autocomplete a partir do 3º caractere */}
+
             <div className="relative w-[260px]">
               <div className="relative">
                 <User className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Buscar por usuário..."
                   value={userQuery}
-                  onChange={(e) => {
-                    setUserQuery(e.target.value);
+                  onChange={(event) => {
+                    setUserQuery(event.target.value);
                     setShowUserSuggestions(true);
-                    if (filters.user_id) setFilters({ ...filters, user_id: '' });
+                    if (filters.user_id) {
+                      setFilters((current) => ({ ...current, user_id: '' }));
+                    }
                   }}
                   onFocus={() => setShowUserSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowUserSuggestions(false), 150)}
@@ -353,35 +388,53 @@ export const AuditLogs = () => {
                   </button>
                 )}
               </div>
+
               {showUserSuggestions && userQuery.trim().length >= 3 && (
-                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto" data-testid="audit-user-suggestions">
+                <div
+                  className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto"
+                  data-testid="audit-user-suggestions"
+                >
                   {userSuggestions.length > 0 ? (
-                    userSuggestions.map(u => (
+                    userSuggestions.map((candidate) => (
                       <button
-                        key={u.id}
+                        key={candidate.id}
                         type="button"
-                        onMouseDown={() => selectUser(u)}
+                        onMouseDown={() => selectUser(candidate)}
                         className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
-                        data-testid={`audit-user-suggestion-${u.id}`}
+                        data-testid={`audit-user-suggestion-${candidate.id}`}
                       >
-                        <div className="font-medium text-gray-900">{u.full_name || u.email}</div>
-                        {u.full_name && <div className="text-xs text-gray-500">{u.email}</div>}
+                        <div className="font-medium text-gray-900">
+                          {candidate.full_name || candidate.email}
+                        </div>
+                        {candidate.full_name && (
+                          <div className="text-xs text-gray-500">{candidate.email}</div>
+                        )}
                       </button>
                     ))
                   ) : (
-                    <div className="px-3 py-2 text-sm text-gray-500">Nenhum usuário encontrado</div>
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      Nenhum usuário encontrado
+                    </div>
                   )}
                 </div>
               )}
+
               {userQuery.trim().length > 0 && userQuery.trim().length < 3 && (
                 <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-sm px-3 py-2 text-xs text-gray-400">
                   Digite pelo menos 3 caracteres…
                 </div>
               )}
             </div>
+
             <Select
               value={filters.collection || 'all'}
-              onValueChange={(value) => setFilters({...filters, collection: value === 'all' ? '' : value})}
+              onValueChange={(value) => {
+                setFilters((current) => ({
+                  ...current,
+                  collection: value === 'all' ? '' : value
+                }));
+                setPage(0);
+              }}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Coleção" />
@@ -399,12 +452,21 @@ export const AuditLogs = () => {
           </div>
         </div>
 
-        {/* Tabela de Logs */}
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           {loading ? (
             <div className="p-8 text-center">
               <RefreshCw className="w-8 h-8 mx-auto text-gray-400 animate-spin" />
               <p className="text-gray-500 mt-2">Carregando...</p>
+            </div>
+          ) : loadError ? (
+            <div className="p-8 text-center" data-testid="audit-load-error">
+              <AlertTriangle className="w-9 h-9 mx-auto text-red-500" />
+              <p className="font-medium text-red-700 mt-3">Falha ao carregar a auditoria</p>
+              <p className="text-sm text-gray-600 mt-1 max-w-xl mx-auto">{loadError}</p>
+              <Button variant="outline" className="mt-4" onClick={refreshAll}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Tentar novamente
+              </Button>
             </div>
           ) : logs.length === 0 ? (
             <div className="p-8 text-center">
@@ -424,12 +486,14 @@ export const AuditLogs = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {logs.map((log, idx) => {
+                  {logs.map((log, index) => {
                     const ActionIcon = ACTION_ICONS[log.action] || FileText;
                     return (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{formatDate(log.timestamp_local || log.timestamp)}</div>
+                      <tr key={`${log.timestamp || 'log'}-${index}`} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap align-top">
+                          <div className="text-sm text-gray-900">
+                            {formatDate(log.timestamp_local || log.timestamp)}
+                          </div>
                           <div className="text-xs text-gray-500">{log.ip_address}</div>
                         </td>
                         <td className="px-4 py-3 align-top">
@@ -438,30 +502,37 @@ export const AuditLogs = () => {
                               <User className="h-4 w-4 text-gray-500" />
                             </div>
                             <div className="ml-3 min-w-0 max-w-[220px]">
-                              <div className="text-sm font-medium text-gray-900 whitespace-normal break-words" data-testid="audit-user-cell">{log.user_name || log.user_email}</div>
-                              <div className="text-xs text-gray-500 whitespace-normal break-words">{log.user_role}</div>
+                              <div
+                                className="text-sm font-medium text-gray-900 whitespace-normal break-words"
+                                data-testid="audit-user-cell"
+                              >
+                                {log.user_name || log.user_email || '-'}
+                              </div>
+                              <div className="text-xs text-gray-500 whitespace-normal break-words">
+                                {log.user_role}
+                              </div>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap align-top">
                           <div className="flex items-center gap-2">
                             <ActionIcon className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">
-                              {ACTION_LABELS[log.action] || log.action}
-                            </span>
+                            <span className="text-sm">{ACTION_LABELS[log.action] || log.action}</span>
                           </div>
                           <div className="text-xs text-gray-500">
                             {COLLECTION_LABELS[log.collection] || log.collection}
                           </div>
                         </td>
                         <td className="px-4 py-3 align-top">
-                          <div className="text-sm text-gray-900 max-w-md whitespace-normal break-words" title={log.description} data-testid="audit-description-cell">
+                          <div
+                            className="text-sm text-gray-900 max-w-md whitespace-normal break-words"
+                            title={log.description}
+                            data-testid="audit-description-cell"
+                          >
                             {log.description}
                           </div>
                           {log.school_name && (
-                            <div className="text-xs text-gray-500">
-                              Escola: {log.school_name}
-                            </div>
+                            <div className="text-xs text-gray-500">Escola: {log.school_name}</div>
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap" data-testid="audit-tempo-cell">
@@ -481,8 +552,7 @@ export const AuditLogs = () => {
             </div>
           )}
 
-          {/* Paginação */}
-          {totalPages > 1 && (
+          {!loadError && totalPages > 1 && (
             <div className="px-4 py-3 border-t flex items-center justify-between">
               <div className="text-sm text-gray-500">
                 Mostrando {page * limit + 1} a {Math.min((page + 1) * limit, total)} de {total}
@@ -491,7 +561,7 @@ export const AuditLogs = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
                   disabled={page === 0}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -499,7 +569,7 @@ export const AuditLogs = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => p + 1)}
+                  onClick={() => setPage((current) => current + 1)}
                   disabled={page >= totalPages - 1}
                 >
                   <ChevronRight className="h-4 w-4" />
