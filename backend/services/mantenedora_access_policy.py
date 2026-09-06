@@ -32,7 +32,7 @@ CONFIGURABLE_INACTIVE_ACCESS_ROLES = (
     "ass_social",
     "ass_social_2",
     "agente_vacinas",
-    "aluno",
+    "aluno",  # nomenclature-allow: identificador técnico legado da role; UI usa Estudante
     "responsavel",
 )
 
@@ -53,7 +53,7 @@ INACTIVE_ACCESS_ROLE_LABELS = {
     "ass_social": "Assistente Social",
     "ass_social_2": "Assistente Social 2",
     "agente_vacinas": "Agente de Vacinas",
-    "aluno": "Estudante",
+    "aluno": "Estudante",  # nomenclature-allow: chave técnica legada; rótulo institucional é Estudante
     "responsavel": "Responsável(is)",
 }
 
