@@ -1,4 +1,10 @@
 import axios from 'axios';
+import {
+  mergeLegacyAndCanonicalVisibility,
+  normalizeCanonicalVisibilityRecord,
+  selectCanonicalVisibilityRecords,
+  shouldComposeLegacyCanonicalFallback,
+} from './contentLegacyCanonicalVisibilityPolicy';
 
 // R2.0g.4 — compatibilidade de leitura para conteúdo canônico sem assignment.
 //
@@ -6,7 +12,7 @@ import axios from 'axios';
 // ainda opera pelo fluxo legado, o contentDvdBridge mantém GET /learning-objects
 // quando /professor/diarios não entrega candidato DVD. Esta camada, registrada
 // depois dos bridges DVD, preserva a resposta legada e acrescenta somente os
-// content_entries sem assignment_id da mesma turma/componente.
+// content_entries sem assignment_id da MESMA turma/componente/período.
 //
 // Nenhum dado é migrado ou duplicado por esta ponte. Se um item canônico assim
 // composto for editado/excluído pelo formulário histórico, a operação continua
@@ -28,46 +34,18 @@ const isLearningObjectsList = (url = '') => (
 const isCheckDateUrl = (url = '') => String(url || '').includes('/learning-objects/check-date/');
 
 const apiRoot = (url = '') => String(url || '').split('/learning-objects')[0];
-const canonicalRoot = (url = '') => `${apiRoot(url)}/content-entries`;
-
-const normalizeCanonical = (record = {}) => ({
-  ...record,
-  course_id: record.course_id || record.component_id || null,
-  component_id: record.component_id || record.course_id || null,
-  source: 'content_entries',
-  legacy: false,
-  read_only: false,
-});
+const canonicalRoot = (url = '') => {
+  const value = String(url || '');
+  if (value.includes('/content-entries')) {
+    return `${value.split('/content-entries')[0]}/content-entries`;
+  }
+  return `${apiRoot(value)}/content-entries`;
+};
 
 const cacheCanonical = (records = []) => {
   records.forEach((record) => {
-    if (record?.id) canonicalCache.set(record.id, normalizeCanonical(record));
+    if (record?.id) canonicalCache.set(record.id, normalizeCanonicalVisibilityRecord(record));
   });
-};
-
-const filterByLegacyWindow = (records = [], meta = {}) => records.filter((record) => {
-  if (meta.academicYear && Number(record.academic_year) !== Number(meta.academicYear)) return false;
-  if (meta.month) {
-    const month = Number(String(record.date || '').slice(5, 7));
-    if (month !== Number(meta.month)) return false;
-  }
-  return true;
-});
-
-const semanticKey = (record = {}) => [
-  record.class_id || '',
-  record.component_id || record.course_id || '',
-  record.date || '',
-  record.teacher_id || record.recorded_by || '',
-].join('|');
-
-const mergeLegacyAndCanonical = (legacy = [], canonical = []) => {
-  const canonicalKeys = new Set(canonical.map(semanticKey));
-  const canonicalLegacyIds = new Set(canonical.map((item) => item.legacy_id).filter(Boolean));
-  const legacyFiltered = legacy.filter((item) => (
-    !canonicalLegacyIds.has(item.id) && !canonicalKeys.has(semanticKey(item))
-  ));
-  return [...canonical, ...legacyFiltered].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 };
 
 const loadCanonicalLegacyMode = async (config, meta) => {
@@ -81,10 +59,11 @@ const loadCanonicalLegacyMode = async (config, meta) => {
     __skipContentDvdBridge: true,
   });
   const items = Array.isArray(response.data?.items) ? response.data.items : [];
-  const assignmentless = items
-    .filter((item) => !item?.assignment_id)
-    .map(normalizeCanonical);
-  return filterByLegacyWindow(assignmentless, meta);
+
+  // Defesa em profundidade: mesmo que o endpoint canônico retorne algo além do
+  // filtro solicitado, a composição local exige novamente turma + componente +
+  // data/ano/mês e ausência de assignment. Outros componentes jamais entram.
+  return selectCanonicalVisibilityRecords(items, meta);
 };
 
 // Axios executa request interceptors em ordem inversa. Como este módulo é
@@ -200,15 +179,21 @@ axios.interceptors.response.use(async (response) => {
   const config = response.config || {};
   const finalUrl = String(config.url || '');
 
-  if (config.__legacyCanonicalVisibilityList && finalUrl.includes('/learning-objects')) {
+  if (
+    config.__legacyCanonicalVisibilityList &&
+    shouldComposeLegacyCanonicalFallback(finalUrl)
+  ) {
     const canonical = await loadCanonicalLegacyMode(config, config.__legacyCanonicalVisibilityList);
     cacheCanonical(canonical);
     const legacy = Array.isArray(response.data) ? response.data : [];
-    response.data = mergeLegacyAndCanonical(legacy, canonical);
+    response.data = mergeLegacyAndCanonicalVisibility(legacy, canonical);
     return response;
   }
 
-  if (config.__legacyCanonicalVisibilityCheckDate && finalUrl.includes('/learning-objects')) {
+  if (
+    config.__legacyCanonicalVisibilityCheckDate &&
+    shouldComposeLegacyCanonicalFallback(finalUrl)
+  ) {
     if (response.data?.has_record) return response;
     const canonical = await loadCanonicalLegacyMode(config, config.__legacyCanonicalVisibilityCheckDate);
     cacheCanonical(canonical);
@@ -219,14 +204,14 @@ axios.interceptors.response.use(async (response) => {
   }
 
   if (config.__legacyCanonicalAutoPublish && response.data?.id) {
-    const draft = normalizeCanonical(response.data);
+    const draft = normalizeCanonicalVisibilityRecord(response.data);
     if (draft.status === 'draft') {
       const publish = await axios.post(
         `${canonicalRoot(config.url)}/${encodeURIComponent(draft.id)}/publish`,
         { expected_version: draft.version ?? null },
         { __skipContentDvdBridge: true }
       );
-      const published = normalizeCanonical(publish.data);
+      const published = normalizeCanonicalVisibilityRecord(publish.data);
       cacheCanonical([published]);
       response.data = published;
       return response;
@@ -234,7 +219,7 @@ axios.interceptors.response.use(async (response) => {
   }
 
   if (config.__legacyCanonicalRecord && response.data?.id) {
-    const record = normalizeCanonical(response.data);
+    const record = normalizeCanonicalVisibilityRecord(response.data);
     cacheCanonical([record]);
     response.data = record;
   }
