@@ -125,3 +125,18 @@ select option {
         text-transform: none !important;
     }
 }
+
+/* Histórico do Estudante — Turma/Observações.
+ * O cabeçalho abaixo é único em StudentsComplete.js. O seletor estrutural
+ * mantém a regra restrita a essa tabela e neutraliza inclusive o
+ * `whitespace-nowrap` legado da coluna Data/Hora, permitindo que qualquer
+ * coluna que precise de espaço quebre linha sem estourar o modal. */
+h3.text-lg.font-semibold.text-gray-900.border-b.pb-2.mt-8.flex.items-center.gap-2
+    + .overflow-x-auto > table.min-w-full.text-sm th,
+h3.text-lg.font-semibold.text-gray-900.border-b.pb-2.mt-8.flex.items-center.gap-2
+    + .overflow-x-auto > table.min-w-full.text-sm td {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    vertical-align: top;
+}
