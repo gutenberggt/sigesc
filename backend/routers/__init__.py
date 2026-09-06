@@ -29,6 +29,7 @@ from .grades_dvd_hardening import install_grades_dvd_hardening
 from . import grades_dvd_parity as _grades_dvd_parity_mod
 from .grades_dvd_parity import install_grades_dvd_parity
 from .grades_dvd_student_scope import install_grades_dvd_student_scope
+from .grades_dvd_institutional_visibility import install_grades_dvd_institutional_visibility
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
 from . import attendance_dvd as _attendance_dvd_mod
 from .attendance_dvd import install_attendance_dvd_adapter
@@ -219,6 +220,7 @@ def setup_grades_router(
         db,
         sandbox_db=sandbox_db,
     )
+    install_grades_dvd_institutional_visibility()
     return install_grades_dvd_student_scope(
         configured,
         db,
