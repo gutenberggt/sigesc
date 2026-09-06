@@ -17,9 +17,12 @@ LEARNING_OBJECTS_PAGE = ROOT / "frontend/src/pages/LearningObjects.js"
 
 def test_quick_access_content_requires_diary_context():
     source = DASHBOARD.read_text(encoding="utf-8")
-    assert 'data-testid="menu-objetos-conhecimento"' in source
+    assert 'data-testid="menu-meus-diarios"' in source
+    assert source.count('data-testid="menu-meus-diarios"') == 1
+    assert 'data-testid="menu-objetos-conhecimento"' not in source
+    assert 'Objetos de Conhecimento</p>' not in source
+    assert 'Frequência, conteúdo e notas das suas turmas' in source
     assert 'onClick={openFromMyDiaries}' in source
-    assert source.count('Escolha o diário/vínculo abaixo') >= 2
     assert "onClick={() => navigate('/professor/objetos-conhecimento')}" not in source
 
 

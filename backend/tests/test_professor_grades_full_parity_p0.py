@@ -19,9 +19,12 @@ GRADES_TABLE = (REPO / "frontend" / "src" / "components" / "grades" / "GradesTab
 
 
 def test_entrada_rapida_de_notas_nasce_de_meus_diarios():
-    assert 'data-testid="menu-lancar-notas"' in DASHBOARD
+    assert 'data-testid="menu-meus-diarios"' in DASHBOARD
+    assert DASHBOARD.count('data-testid="menu-meus-diarios"') == 1
+    assert 'data-testid="menu-lancar-notas"' not in DASHBOARD
+    assert 'Lançar Notas</p>' not in DASHBOARD
+    assert 'Frequência, conteúdo e notas das suas turmas' in DASHBOARD
     assert 'onClick={openFromMyDiaries}' in DASHBOARD
-    assert 'Escolha o diário/vínculo abaixo' in DASHBOARD
 
 
 def test_roster_do_professor_deriva_de_assignment_e_capability_grades():

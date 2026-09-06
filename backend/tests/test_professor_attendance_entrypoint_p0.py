@@ -34,7 +34,10 @@ def test_quick_access_frequency_does_not_open_naked_legacy_route():
 
     assert "const openFromMyDiaries = () =>" in source
     assert "document.querySelector('[data-testid=\"meus-diarios-section\"]')" in source
-    assert 'data-testid="menu-frequencia"' in source
+    assert 'data-testid="menu-meus-diarios"' in source
+    assert source.count('data-testid="menu-meus-diarios"') == 1
+    assert 'Frequência, conteúdo e notas das suas turmas' in source
+    assert 'data-testid="menu-frequencia"' not in source
     assert "onClick={openFromMyDiaries}" in source
     assert "onClick={() => navigate('/professor/frequencia')}" not in source
 
