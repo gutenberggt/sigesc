@@ -10,7 +10,7 @@ Após uma cópia administrativa R2.0g para uma turma/componente ainda operando n
 
 ## Correção
 
-Foi adicionada uma camada de compatibilidade read-only no frontend:
+Foi adicionada uma camada de compatibilidade de leitura no frontend:
 
 - atua somente na página de conteúdo do professor;
 - marca apenas listagens com turma e componente específicos;
@@ -22,11 +22,15 @@ Foi adicionada uma camada de compatibilidade read-only no frontend:
 - mantém cache local dos canônicos para que o GET individual permaneça canônico;
 - aplica compatibilidade equivalente ao `check-date`.
 
+A composição automática de listagem/check-date é estritamente read-only. Se, depois de enxergar um registro canônico já existente, o professor executar explicitamente uma edição ou exclusão pela tela histórica, a operação é mantida nos endpoints de `content_entries`; ela nunca volta a gravar em `learning_objects`.
+
 ## Limites
 
 - nenhuma migração;
-- nenhuma escrita em `learning_objects`;
-- nenhuma mutação de dados de produção;
+- nenhuma escrita automática decorrente da mera visualização;
+- nenhuma nova escrita em `learning_objects`;
+- nenhuma mutação de dados de produção durante a preparação desta PR;
 - nenhuma alteração de RBAC do R2.0g;
 - `content_entries` permanece SSoT;
+- qualquer edição/exclusão futura depende de ação explícita do usuário e continua canônica;
 - deploy depende de gate humano separado.
