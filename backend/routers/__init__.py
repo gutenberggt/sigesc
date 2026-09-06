@@ -61,6 +61,7 @@ install_dvd_historical_bridge_generalization(
 from . import content_entries as _content_entries_mod
 from . import learning_objects as _learning_objects_mod
 from . import assignments as _assignments_mod
+from . import content_dvd_history as _content_dvd_history_mod
 from .content_dvd_history import install_content_history_setups
 from .content_partial_cutover import install_professor_content_partial_cutover_setup
 from .content_copy_dvd import install_content_copy_setup
@@ -68,6 +69,11 @@ from . import manual_content_copy_admin as _manual_content_copy_admin_mod
 from .manual_content_copy_admin import install_manual_content_copy_setup
 from .manual_content_copy_identity_bridge import install_manual_content_copy_identity_bridge
 from services.course_missing_containment import install_course_missing_containment_setup
+from services import diary_assignment_access as _diary_assignment_access_mod
+from services import diary_assignment_snapshot_access as _diary_assignment_snapshot_access_mod
+from services.content_institutional_visibility_policy import (
+    install_content_institutional_visibility_policy,
+)
 
 # Sprint 007 — a gestão da política avaliativa é exposta dentro do cadastro da
 # mantenedora, mas sua SSoT permanece em assessment_policies. Envolver o setup
@@ -119,6 +125,12 @@ from aee_v2.plan_write_governance import install_aee_v2_plan_write_governance_se
 # setup aqui garante que o endpoint legado de PDF/alertas seja protegido antes
 # de ser registrado na aplicação, sem alterar o gerador/layout legado.
 install_attendance_ext_dvd_setup()
+install_content_institutional_visibility_policy(
+    _content_entries_mod,
+    _content_dvd_history_mod,
+    _diary_assignment_access_mod,
+    _diary_assignment_snapshot_access_mod,
+)
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 install_professor_content_partial_cutover_setup(_learning_objects_mod)
 install_content_copy_setup(_content_entries_mod)

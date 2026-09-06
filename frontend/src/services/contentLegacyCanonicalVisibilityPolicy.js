@@ -1,4 +1,4 @@
-// R2.0g.4 — política pura para composição canônica no fluxo legado.
+// R2.0g.4/R2.0g.5 — política pura para composição canônica no fluxo legado.
 //
 // Este módulo não registra interceptors nem executa I/O. Ele existe para que a
 // regra de escopo possa ser provada por testes comportamentais independentes da
@@ -18,7 +18,7 @@ export const normalizeCanonicalVisibilityRecord = (record = {}) => ({
 
 export const matchesLegacyCanonicalScope = (record = {}, meta = {}) => {
   if (!meta.classId || !meta.componentId) return false;
-  if (record.assignment_id) return false;
+  if (record.assignment_id && !meta.includeAssignedCanonical) return false;
   if (record.class_id !== meta.classId) return false;
   if (componentOf(record) !== meta.componentId) return false;
 
