@@ -1,9 +1,12 @@
 import { cloneElement, isValidElement, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMantenedora } from '@/contexts/MantenedoraContext';
+import MantenedoraDesativada from '@/pages/MantenedoraDesativada';
 
 export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
+  const { accessStatus, accessLoading, refreshAccessStatus } = useMantenedora();
   const [tenantRevision, setTenantRevision] = useState(0);
 
   // MT-1: a troca de mantenedora precisa remontar a PÁGINA protegida inteira.
@@ -20,7 +23,7 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return () => window.removeEventListener('tenant-changed', handleTenantChange);
   }, []);
 
-  if (loading) {
+  if (loading || (user && accessLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -33,6 +36,21 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // A trava institucional vem antes do RBAC da página. Quando a mantenedora
+  // está desativada e o papel atual não foi explicitamente liberado, nenhuma
+  // rota protegida é montada. O backend aplica a mesma decisão fail-closed.
+  if (
+    accessStatus?.access_allowed === false
+    && accessStatus?.reason === 'TENANT_INACTIVE'
+  ) {
+    return (
+      <MantenedoraDesativada
+        accessStatus={accessStatus}
+        onRetry={refreshAccessStatus}
+      />
+    );
   }
 
   // super_admin tem TODOS os poderes de admin; admin_teste idem
