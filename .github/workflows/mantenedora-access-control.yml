@@ -61,7 +61,7 @@ jobs:
             tenant_scope.py
 
       - name: Run access-control policy tests
-        run: PYTHONPATH=. pytest -q tests/test_mantenedora_access_policy.py
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_mantenedora_access_policy.py
 
       - name: Guard frontend integration points
         run: |
