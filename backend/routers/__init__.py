@@ -39,10 +39,10 @@ from .attendance_tabs_dvd import install_attendance_tabs_dvd_adapter
 from .attendance_pdf_dvd_parity import install_attendance_pdf_dvd_parity
 from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_generalization
-from .calendar import router as calendar_router, setup_calendar_router
-from .staff import router as staff_router, setup_staff_router
-from .announcements import router as announcements_router, setup_announcements_router
-from .analytics import router as analytics_router, setup_analytics_router
+from .calendar import router as calendar_router, setup_router as setup_calendar_router
+from .staff import router as staff_router, setup_router as setup_staff_router
+from .announcements import router as announcements_router, setup_router as setup_announcements_router
+from .analytics import router as analytics_router, setup_router as setup_analytics_router
 
 # FastAPI resolve anotações postergadas usando o namespace global do módulo que
 # declara a função. O adaptador de abas registra o mesmo payload Pydantic da
@@ -82,6 +82,12 @@ from services.content_institutional_visibility_policy import (
 # evita tocar no server.py e não instala qualquer runtime de Notas/cutover.
 from . import mantenedora as _mantenedora_mod
 from .assessment_policy_admin import install_assessment_policy_admin_setup
+
+# Controle de disponibilidade por mantenedora — instalado sobre o admin setup
+# para reutilizar ActiveSessionsTracker/ConnectionManager já injetados pelo
+# server, sem criar nova fonte de presença ou tocar no bootstrap principal.
+from . import admin as _admin_mod
+from .mantenedora_access_control import install_admin_mantenedora_access_setup
 
 # AEE v2 — evolução incremental autorizada pelo proprietário em 21/08/2026.
 # O router legado bloqueado permanece intacto. P0 protege integridade/autoria;
@@ -140,6 +146,7 @@ install_manual_content_copy_identity_bridge(_manual_content_copy_admin_mod)
 install_manual_content_copy_setup(_content_entries_mod)
 install_course_missing_containment_setup(_learning_objects_mod, _assignments_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
+install_admin_mantenedora_access_setup(_admin_mod)
 install_aee_v2_p0_setup(_aee_mod)
 install_aee_v2_dossier_setup(_aee_mod)
 install_aee_v2_persistence_setup(_aee_mod)
