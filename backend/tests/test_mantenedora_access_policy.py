@@ -69,9 +69,9 @@ def test_inactive_tenant_allows_only_selected_active_role():
     assert can_access_tenant(tenant, {"role": "secretario"}) is False
 
 
-def test_super_admin_keeps_administrative_bypass_when_inactive():
+def test_super_admin_has_no_implicit_operational_bypass_when_inactive():
     tenant = {"id": "t1", "status": "inactive", "acesso_desativado_roles": []}
-    assert can_access_tenant(tenant, {"role": "super_admin"}) is True
+    assert can_access_tenant(tenant, {"role": "super_admin"}) is False
 
 
 def test_allowed_roles_are_normalized_and_unknown_roles_are_not_persistable():
@@ -110,14 +110,26 @@ def test_access_status_is_session_plane_for_blocked_user():
     ) is False
 
 
-def test_super_admin_can_operate_selected_inactive_tenant_to_reactivate_it():
+def test_super_admin_is_blocked_on_operational_route_for_inactive_tenant():
     tenant = {"id": "t1", "nome": "Rede Teste", "status": "inactive"}
     user = {"id": "root", "role": "super_admin"}
-    ctx = asyncio.run(
-        resolve_operational_tenant_context(
-            _Db(tenant),
-            user,
-            _request(tenant_header="t1"),
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            resolve_operational_tenant_context(
+                _Db(tenant),
+                user,
+                _request("/api/students", tenant_header="t1"),
+            )
         )
-    )
+    assert exc.value.status_code == 403
+    assert exc.value.detail["code"] == "TENANT_INACTIVE"
+
+
+def test_super_admin_can_resolve_inactive_tenant_only_in_control_plane():
+    tenant = {"id": "t1", "nome": "Rede Teste", "status": "inactive"}
+    user = {"id": "root", "role": "super_admin"}
+    request = _request("/api/mantenedora", tenant_header="t1")
+    assert requires_operational_tenant_context(user, request) is False
+    ctx = asyncio.run(resolve_operational_tenant_context(_Db(tenant), user, request))
     assert ctx.id == "t1"
+    assert request.state.active_mantenedora_id == "t1"
