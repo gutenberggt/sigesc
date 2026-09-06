@@ -166,4 +166,5 @@ jobs:
             tests/test_initial_years_schedule_normalization_phase2_apply.py \
             tests/test_p0_teacher_binding_integrity.py \
             tests/test_p0_teacher_binding_containment.py \
-            tests/test_p0c_teacher_identity_preflight.py
+            tests/test_p0c_teacher_identity_preflight.py \
+            tests/test_student_history_responsible_name_p0.py
