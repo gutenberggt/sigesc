@@ -64,6 +64,7 @@ from . import assignments as _assignments_mod
 from .content_dvd_history import install_content_history_setups
 from .content_partial_cutover import install_professor_content_partial_cutover_setup
 from .content_copy_dvd import install_content_copy_setup
+from .manual_content_copy_admin import install_manual_content_copy_setup
 from services.course_missing_containment import install_course_missing_containment_setup
 
 # Sprint 007 — a gestão da política avaliativa é exposta dentro do cadastro da
@@ -119,6 +120,7 @@ install_attendance_ext_dvd_setup()
 install_content_history_setups(_content_entries_mod, _learning_objects_mod)
 install_professor_content_partial_cutover_setup(_learning_objects_mod)
 install_content_copy_setup(_content_entries_mod)
+install_manual_content_copy_setup(_content_entries_mod)
 install_course_missing_containment_setup(_learning_objects_mod, _assignments_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
 install_aee_v2_p0_setup(_aee_mod)

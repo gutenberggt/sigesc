@@ -1,0 +1,60 @@
+name: "R2.0g.1 Manual Content Copy SuperAdmin Guard"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/routers/manual_content_copy_admin.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_manual_content_copy_superadmin.py'
+      - 'memory/audit/R2_0G1_MANUAL_CONTENT_COPY_SUPERADMIN_2026-09-05.md'
+      - '.github/workflows/r2-manual-content-copy-superadmin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Guard R2.0g.1 super_admin-only contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Install focused test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pydantic fastapi pymongo
+
+      - name: Compile R2.0g.1 adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/routers/manual_content_copy_admin.py
+
+      - name: Run exclusive-access and safety contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          pytest -q --noconftest backend/tests/test_manual_content_copy_superadmin.py
+
+      - name: Static fail-closed assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('backend/routers/manual_content_copy_admin.py').read_text(encoding='utf-8')
+          assert 'AuthMiddleware.require_roles(["super_admin"])' in p
+          assert p.count('user = await _require_super_admin(request)') == 5
+          assert 'expected_version=0' in p
+          assert 'save_content_canonical' in p
+          assert 'learning_objects.insert' not in p
+          assert 'learning_objects.update' not in p
+          assert 'MANUAL_MAPPED_CONTENT_COPY' in p
+          assert 'DUPLICATE_TARGET_DATE' in p
+          assert 'TARGET_TEACHER_NOT_RESOLVED' in p
+          assert 'DuplicateKeyError' in p
+          print('R2G1_CONTRACT=PASS')
+          PY
