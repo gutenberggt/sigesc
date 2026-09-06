@@ -55,7 +55,7 @@ export const MantenedoraProvider = ({ children }) => {
     if (!user) {
       setMantenedora(null);
       setLoading(false);
-      return;
+      return null;
     }
 
     // MT-1: super_admin sem tenant selecionado permanece apenas no control plane.
@@ -63,13 +63,14 @@ export const MantenedoraProvider = ({ children }) => {
     if (user.role === 'super_admin' && !getActiveTenantId()) {
       setMantenedora(null);
       setLoading(false);
-      return;
+      return null;
     }
 
     try {
       setLoading(true);
       const data = await mantenedoraAPI.get();
       setMantenedora(data);
+      return data;
     } catch (error) {
       console.error('Erro ao carregar mantenedora:', error);
       // Se a trava de disponibilidade foi a causa, a tela global específica será
@@ -81,6 +82,7 @@ export const MantenedoraProvider = ({ children }) => {
         estado: '',
         brasao_url: ''
       });
+      return null;
     } finally {
       setLoading(false);
     }
@@ -109,10 +111,9 @@ export const MantenedoraProvider = ({ children }) => {
     return () => window.removeEventListener('tenant-changed', handler);
   }, [loadAccessStatus, loadMantenedora]);
 
-  // Função para recarregar os dados (útil após atualização).
-  const refreshMantenedora = () => {
-    loadMantenedora();
-  };
+  // Função para recarregar os dados (útil após atualização). Retorna a Promise
+  // para que fluxos de ativação possam aguardar a projeção institucional nova.
+  const refreshMantenedora = () => loadMantenedora();
 
   // Revalida a trava. Retorna o novo status para telas que desejam reagir
   // imediatamente ao botão "Verificar novamente".
