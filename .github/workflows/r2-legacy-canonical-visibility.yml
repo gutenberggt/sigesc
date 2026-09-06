@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install focused test dependency
+        run: python -m pip install --disable-pip-version-check pytest
       - name: Validate R2.0g.4 visibility contract
         run: |
           python -m pytest -q backend/tests/test_r2g4_legacy_canonical_visibility.py
