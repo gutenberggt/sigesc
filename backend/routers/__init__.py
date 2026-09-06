@@ -29,6 +29,7 @@ from .grades_dvd_hardening import install_grades_dvd_hardening
 from . import grades_dvd_parity as _grades_dvd_parity_mod
 from .grades_dvd_parity import install_grades_dvd_parity
 from .grades_dvd_student_scope import install_grades_dvd_student_scope
+from .grades_dvd_institutional_visibility import install_grades_dvd_institutional_visibility
 from .attendance import router as attendance_router, setup_attendance_router as _setup_attendance_router
 from . import attendance_dvd as _attendance_dvd_mod
 from .attendance_dvd import install_attendance_dvd_adapter
@@ -39,8 +40,8 @@ from .attendance_ext_dvd import install_attendance_ext_dvd_setup
 from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_generalization
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
-from .announcements import router as announcements_router, setup_announcements_router
-from .analytics import router as analytics_router, setup_analytics_router
+from .announcements import router as announcements_router, setup_router as setup_announcements_router
+from .analytics import router as analytics_router, setup_router as setup_analytics_router
 
 # FastAPI resolve anotações postergadas usando o namespace global do módulo que
 # declara a função. O adaptador de abas registra o mesmo payload Pydantic da
@@ -219,6 +220,7 @@ def setup_grades_router(
         db,
         sandbox_db=sandbox_db,
     )
+    install_grades_dvd_institutional_visibility()
     return install_grades_dvd_student_scope(
         configured,
         db,
