@@ -6,23 +6,27 @@ import {
   shouldComposeLegacyCanonicalFallback,
 } from './contentLegacyCanonicalVisibilityPolicy';
 
-// R2.0g.4 — compatibilidade de leitura para conteúdo canônico sem assignment.
+// R2.0g.4/R2.0g.5 — compatibilidade institucional de leitura para conteúdo
+// canônico enquanto ainda coexistem `learning_objects` e `content_entries`.
 //
 // O assistente administrativo grava sempre em content_entries. Em uma turma que
 // ainda opera pelo fluxo legado, o contentDvdBridge mantém GET /learning-objects
-// quando /professor/diarios não entrega candidato DVD. Esta camada, registrada
-// depois dos bridges DVD, preserva a resposta legada e acrescenta somente os
-// content_entries sem assignment_id da MESMA turma/componente/período.
+// quando /professor/diarios não entrega candidato DVD. A R2.0g.4 recompôs esse
+// conteúdo para o professor; a R2.0g.5 estende a mesma projeção à superfície de
+// gestão, sem transformar dados canônicos em legado.
 //
-// Nenhum dado é migrado ou duplicado por esta ponte. Se um item canônico assim
-// composto for editado/excluído pelo formulário histórico, a operação continua
-// exclusivamente nos endpoints canônicos.
+// Professor no fallback legado: compõe apenas content_entries sem assignment_id.
+// Gestão institucional: compõe também content_entries DVD que o backend canônico
+// autorizar por escola/tenant/RBAC. Permissões de escrita continuam independentes.
 
 const canonicalCache = new Map();
 
-const isProfessorContentPage = () => {
-  if (typeof window === 'undefined') return false;
-  return window.location.pathname === '/professor/objetos-conhecimento';
+const contentPageMode = () => {
+  if (typeof window === 'undefined') return '';
+  const path = window.location.pathname;
+  if (path === '/professor/objetos-conhecimento') return 'professor';
+  if (path === '/admin/learning-objects') return 'management';
+  return '';
 };
 
 const isLearningObjectsList = (url = '') => (
@@ -62,7 +66,8 @@ const loadCanonicalLegacyMode = async (config, meta) => {
 
   // Defesa em profundidade: mesmo que o endpoint canônico retorne algo além do
   // filtro solicitado, a composição local exige novamente turma + componente +
-  // data/ano/mês e ausência de assignment. Outros componentes jamais entram.
+  // data/ano/mês. No professor legado, assignment_id continua excluído. Na
+  // gestão, assignment_id é admitido somente depois do filtro canônico de RBAC.
   return selectCanonicalVisibilityRecords(items, meta);
 };
 
@@ -71,7 +76,8 @@ const loadCanonicalLegacyMode = async (config, meta) => {
 // os bridges DVD terem a oportunidade de reescrever a rota. A resposta só é
 // composta se a URL final continuar sendo /learning-objects.
 axios.interceptors.request.use((config) => {
-  if (config.__skipContentDvdBridge || !isProfessorContentPage()) return config;
+  const pageMode = contentPageMode();
+  if (config.__skipContentDvdBridge || !pageMode) return config;
 
   const method = String(config.method || 'get').toLowerCase();
   const url = String(config.url || '');
@@ -89,6 +95,7 @@ axios.interceptors.request.use((config) => {
       date: params.date || null,
       academicYear: params.academic_year || null,
       month: params.month || null,
+      includeAssignedCanonical: pageMode === 'management',
     };
     return config;
   }
@@ -102,6 +109,7 @@ axios.interceptors.request.use((config) => {
       componentId: decodeURIComponent(match[2]),
       date: decodeURIComponent(match[3]),
       academicYear: config.params?.academic_year || Number(decodeURIComponent(match[3]).slice(0, 4)),
+      includeAssignedCanonical: pageMode === 'management',
     };
     return config;
   }
@@ -112,8 +120,8 @@ axios.interceptors.request.use((config) => {
   const current = id ? canonicalCache.get(id) : null;
   if (!current) return config;
 
-  // O item veio da composição canônica no fluxo legado. A partir daqui nenhum
-  // acesso individual pode voltar para learning_objects.
+  // O item veio da composição canônica sobre a tela histórica. A partir daqui
+  // nenhum acesso individual pode voltar para learning_objects.
   if (method === 'get') {
     config.url = `${canonicalRoot(url)}/${encodeURIComponent(id)}`;
     config.__skipContentDvdBridge = true;
@@ -149,7 +157,7 @@ axios.interceptors.request.use((config) => {
       academic_year: current.academic_year,
       aula_numero: current.aula_numero ?? null,
       teacher_id: current.teacher_id || null,
-      assignment_id: null,
+      assignment_id: current.assignment_id || null,
       number_of_classes: patch.number_of_classes ?? current.number_of_classes ?? 1,
       content: patch.content ?? current.content ?? '',
       methodology: patch.methodology ?? current.methodology ?? null,
