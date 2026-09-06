@@ -1,0 +1,51 @@
+name: R2.0g.3 Manual Content Copy Identity Hotfix Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/routers/manual_content_copy_admin.py'
+      - 'backend/routers/manual_content_copy_identity_bridge.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_manual_content_copy_superadmin.py'
+      - 'backend/tests/test_manual_content_copy_identity_bridge.py'
+      - '.github/workflows/r2-manual-content-copy-identity-hotfix.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/routers/manual_content_copy_admin.py'
+      - 'backend/routers/manual_content_copy_identity_bridge.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_manual_content_copy_superadmin.py'
+      - 'backend/tests/test_manual_content_copy_identity_bridge.py'
+      - '.github/workflows/r2-manual-content-copy-identity-hotfix.yml'
+
+jobs:
+  identity-bridge-guard:
+    name: Guard staff.id → staff.user_id → users.id
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_r2g3_guard
+      CI_SEED_TRANSFER: '0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pymongo python-dotenv
+
+      - name: Compile identity bridge
+        run: |
+          python -m py_compile backend/routers/manual_content_copy_identity_bridge.py
+
+      - name: Run R2.0g manual copy guards
+        run: |
+          pytest -q \
+            backend/tests/test_manual_content_copy_superadmin.py \
+            backend/tests/test_manual_content_copy_identity_bridge.py
