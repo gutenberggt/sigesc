@@ -22,6 +22,7 @@ from .student_enrollment_identity_continuity import install_student_enrollment_i
 from .student_enrollment_audit_semantics import install_student_enrollment_audit_semantics
 from .student_legacy_compat import install_student_legacy_compat
 from .student_transfer_destination_access import install_student_transfer_destination_access
+from .student_history_responsible_name import install_student_history_responsible_name
 from .student_list_filters import install_student_list_filters
 from .grades import router as grades_router, setup_grades_router as _setup_grades_router
 from .grades_dvd import install_grades_dvd_adapter
@@ -184,6 +185,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
     configured = install_student_enrollment_audit_semantics(configured, db, sandbox_db)
     configured = install_student_legacy_compat(configured, db, sandbox_db)
     configured = install_student_transfer_destination_access(configured, db, sandbox_db)
+    configured = install_student_history_responsible_name(configured, db, sandbox_db)
     return install_student_list_filters(configured, db, sandbox_db)
 
 
