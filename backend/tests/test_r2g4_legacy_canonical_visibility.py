@@ -31,8 +31,6 @@ def test_dvd_rewrite_keeps_precedence_over_legacy_visibility_fallback():
     source = _bridge()
     assert "finalUrl.includes('/learning-objects')" in source
     assert "if (config.__legacyCanonicalVisibilityList" in source
-    # Se um bridge DVD anterior reescrever para /content-entries, este fallback
-    # não deve compor uma segunda resposta canônica.
     assert "&& finalUrl.includes('/learning-objects')" in source
 
 
@@ -43,22 +41,35 @@ def test_check_date_sees_assignmentless_canonical_record():
     assert "response.data = { has_record: true, record: canonical[0] }" in source
 
 
-def test_visibility_bridge_does_not_write_or_migrate_content():
+def test_visibility_read_path_does_not_mutate_or_migrate_content():
     source = _bridge()
-    forbidden = [
-        "axios.post(",
-        "axios.put(",
-        "axios.delete(",
-        "learning_objects.insert",
-        "content_entries.insert",
-        "save_content_canonical",
-    ]
-    for marker in forbidden:
-        assert marker not in source
+    start = source.index("const loadCanonicalLegacyMode")
+    end = source.index("// Axios executa request interceptors", start)
+    read_block = source[start:end]
+    assert "axios.get(" in read_block
+    assert "axios.post(" not in read_block
+    assert "axios.put(" not in read_block
+    assert "axios.delete(" not in read_block
+    assert "learning_objects.insert" not in source
+    assert "content_entries.insert" not in source
+    assert "save_content_canonical" not in source
 
 
 def test_canonical_record_get_stays_on_canonical_endpoint_after_list_merge():
     source = _bridge()
     assert "canonicalCache" in source
-    assert "canonicalCache.has(id)" in source
+    assert "canonicalCache.get(id)" in source
     assert "config.url = `${canonicalRoot(url)}/${encodeURIComponent(id)}`" in source
+    assert "__legacyCanonicalRecord" in source
+
+
+def test_explicit_edit_and_delete_never_fall_back_to_learning_objects():
+    source = _bridge()
+    assert "if (method === 'put')" in source
+    assert "config.url = canonicalRoot(url)" in source
+    assert "assignment_id: null" in source
+    assert "teacher_id: current.teacher_id || null" in source
+    assert "__legacyCanonicalAutoPublish" in source
+    assert "if (method === 'delete')" in source
+    assert "__legacyCanonicalDelete" in source
+    assert "Exclusão realizada pelo formulário histórico sobre conteúdo canônico." in source
