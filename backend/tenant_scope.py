@@ -14,7 +14,9 @@ Controle de disponibilidade da mantenedora (Set/2026):
 - mantenedora desativada bloqueia por padrão;
 - somente papéis explicitamente assinalados podem atravessar a trava, ainda
   sujeitos ao RBAC/escopo escolar normais;
-- super_admin mantém bypass administrativo para diagnóstico e reativação.
+- `super_admin` NÃO recebe bypass em rotas operacionais de tenant inativo;
+- o bypass administrativo existe somente em rotas explicitamente allowlisted
+  de CONTROL PLANE, suficiente para diagnóstico, configuração e reativação.
 
 Helpers principais:
 - get_mantenedora_scope(user, request): ID efetivo ou sentinela fail-closed.
@@ -37,11 +39,16 @@ from tenant_audit import log_tenant_event
 
 INVALID_TENANT_SENTINEL = "__INVALID_TENANT__"
 
-# Cross-tenant é permitido somente nestes endpoints de CONTROL PLANE e somente
-# para super_admin. Prefixos sem /api existem apenas para testes/unitários.
+# Cross-tenant/gestão de tenant é permitido somente nestes endpoints de
+# CONTROL PLANE e somente para super_admin. A rota singular /mantenedora é
+# incluída porque representa a configuração institucional do tenant; isso NÃO
+# libera /schools, /students, /grades ou qualquer outro domínio operacional.
+# Prefixos sem /api existem apenas para testes/unitários.
 CONTROL_PLANE_PATH_PREFIXES = (
     "/api/mantenedoras",
     "/mantenedoras",
+    "/api/mantenedora",
+    "/mantenedora",
     "/api/tenant",
     "/tenant",
 )
@@ -121,7 +128,7 @@ def _matches_prefix(path: str, prefix: str) -> bool:
 
 
 def is_control_plane_request(user: dict, request: Optional[Request]) -> bool:
-    """Retorna True apenas para super_admin em endpoint explicitamente global."""
+    """Retorna True apenas para super_admin em endpoint explicitamente global/administrativo."""
     if not is_super_admin(user):
         return False
     path = _request_path(request)
@@ -217,6 +224,10 @@ async def resolve_operational_tenant_context(
     assinalados. A liberação seletiva remove somente esta trava de disponibilidade;
     toda autorização funcional posterior continua intacta.
 
+    Exceção estrita: super_admin pode resolver tenant inativo somente em rota
+    explicitamente classificada como CONTROL PLANE. Esse bypass não alcança
+    escolas, estudantes, diários, notas, frequência ou outros dados operacionais.
+
     O resultado é cacheado em `request.state` para que múltiplas verificações
     no mesmo ciclo HTTP não repitam consulta ao MongoDB.
     """
@@ -255,7 +266,7 @@ async def resolve_operational_tenant_context(
             },
         )
 
-    if not can_access_tenant(doc, user):
+    if not can_access_tenant(doc, user) and not is_control_plane_request(user, request):
         log_tenant_event(
             "inactive_tenant",
             user,
@@ -385,14 +396,15 @@ async def resolve_active_mantenedora(
     *,
     fallback_to_first: bool = False,
 ) -> Optional[dict]:
-    """Resolve a mantenedora operacional sem fallback silencioso.
+    """Resolve a mantenedora operacional/administrativa sem fallback silencioso.
 
-    O nome histórico desta função é preservado por compatibilidade. Uma
-    mantenedora desativada só é retornada quando o papel atual está liberado pela
-    política seletiva (ou é super_admin).
+    O nome histórico desta função é preservado por compatibilidade. Em rotas
+    operacionais, uma mantenedora desativada só é retornada quando o papel atual
+    está explicitamente liberado. Em CONTROL PLANE, super_admin selecionado pode
+    resolver a configuração de tenant inativo para diagnóstico e reativação.
 
-    `fallback_to_first` só é honrado em CONTROL PLANE explícito; em rotas de
-    negócio, ausência de tenant gera erro via OperationalTenantContext.
+    `fallback_to_first` só é honrado em CONTROL PLANE explícito e nunca escolhe
+    silenciosamente uma mantenedora inativa.
     """
     if (
         fallback_to_first
@@ -400,7 +412,7 @@ async def resolve_active_mantenedora(
         and get_mantenedora_scope(user, request) is None
     ):
         doc = await db.mantenedoras.find_one({}, {"_id": 0})
-        if doc and can_access_tenant(doc, user):
+        if doc and is_tenant_active(doc):
             return doc
         return None
 
