@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -14,6 +15,10 @@ from tenant_scope import (
     requires_operational_tenant_context,
     resolve_operational_tenant_context,
 )
+
+
+BACKEND = Path(__file__).resolve().parents[1]
+REPO = BACKEND.parent
 
 
 class _Mantenedoras:
@@ -145,3 +150,27 @@ def test_super_admin_can_resolve_inactive_tenant_only_in_control_plane():
     ctx = asyncio.run(resolve_operational_tenant_context(_Db(tenant), user, request))
     assert ctx.id == "t1"
     assert request.state.active_mantenedora_id == "t1"
+
+
+def test_access_control_panel_uses_canonical_tenant_aware_transport_and_selector():
+    source = (
+        REPO
+        / "frontend"
+        / "src"
+        / "components"
+        / "mantenedora"
+        / "MantenedoraAccessControlPanel.jsx"
+    ).read_text(encoding="utf-8")
+    assert "apiFetch" in source
+    assert "getActiveTenantId" in source
+    assert "mantenedora-access-selector" in source
+    assert "Mantenedora a gerenciar" in source
+    assert "axios.get(API)" not in source
+    assert "axios.put(API" not in source
+
+
+def test_generic_mantenedora_edit_cannot_bypass_availability_control():
+    source = (BACKEND / "routers" / "mantenedoras.py").read_text(encoding="utf-8")
+    assert "MANTENEDORA_AVAILABILITY_REQUIRES_ACCESS_CONTROL" in source
+    assert 'k not in {"ativo", "ativa", "status", "acesso_desativado_roles"}' in source
+    assert "/mantenedoras/access-control" in source
