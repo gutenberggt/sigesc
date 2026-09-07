@@ -15,6 +15,7 @@ on:
       - 'frontend/src/components/ProtectedRoute.js'
       - 'frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx'
       - 'frontend/src/pages/MantenedoraDesativada.jsx'
+      - 'frontend/src/pages/MantenedoraManutencao.jsx'
       - 'frontend/src/pages/Mantenedora.js'
       - '.github/workflows/mantenedora-access-control.yml'
   push:
@@ -31,12 +32,13 @@ on:
       - 'frontend/src/components/ProtectedRoute.js'
       - 'frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx'
       - 'frontend/src/pages/MantenedoraDesativada.jsx'
+      - 'frontend/src/pages/MantenedoraManutencao.jsx'
       - 'frontend/src/pages/Mantenedora.js'
       - '.github/workflows/mantenedora-access-control.yml'
 
 jobs:
   access-control-contract:
-    name: Backend - Mantenedora availability contract
+    name: Backend - Mantenedora availability + maintenance contract
     runs-on: ubuntu-latest
 
     defaults:
@@ -70,15 +72,23 @@ jobs:
         run: |
           grep -q 'MantenedoraAccessControlPanel' ../frontend/src/pages/Mantenedora.js
           grep -q 'TENANT_INACTIVE' ../frontend/src/components/ProtectedRoute.js
+          grep -q 'TENANT_MAINTENANCE' ../frontend/src/components/ProtectedRoute.js
+          grep -q 'MantenedoraManutencao' ../frontend/src/components/ProtectedRoute.js
           grep -q 'SUPER_ADMIN_INACTIVE_CONTROL_PATHS' ../frontend/src/components/ProtectedRoute.js
           grep -q 'direção da sua escola' ../frontend/src/pages/MantenedoraDesativada.jsx
+          grep -q 'Sistema em manutenção' ../frontend/src/pages/MantenedoraManutencao.jsx
+          grep -q 'Seus dados permanecem preservados' ../frontend/src/pages/MantenedoraManutencao.jsx
           grep -q 'apiFetch' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           grep -q 'getActiveTenantId' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           ! grep -q 'TENANTS_API' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           ! grep -q 'mantenedora_id=' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           ! grep -q 'tenants.map' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           grep -q 'mantenedora-access-card-current' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'mantenedora-control-cards-grid' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           grep -q 'mantenedora-active-switch' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'mantenedora-maintenance-card' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'mantenedora-maintenance-switch' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'MAINTENANCE_CONTROL_API' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           grep -q 'role="switch"' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           grep -q 'Acesso excepcional enquanto desativada' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           grep -q 'Secretário Escolar' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
@@ -90,4 +100,7 @@ jobs:
           grep -q 'query and query != header' routers/mantenedora_access_control.py
           grep -q 'management_allowed' routers/mantenedora_access_control.py
           grep -q 'super_admin_management_bypass' routers/mantenedora_access_control.py
+          grep -q 'maintenance-control' routers/mantenedora_access_control.py
+          grep -q 'mantenedora_maintenance_updated' routers/mantenedora_access_control.py
+          grep -q 'TENANT_MAINTENANCE' tenant_scope.py
           grep -q 'MANTENEDORA_AVAILABILITY_REQUIRES_ACCESS_CONTROL' routers/mantenedoras.py
