@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const MantenedoraContext = createContext(null);
 const ACCESS_STATUS_URL = `${process.env.REACT_APP_BACKEND_URL}/api/mantenedora/access-status`;
+const ACCESS_BLOCK_CODES = new Set(['TENANT_INACTIVE', 'TENANT_MAINTENANCE']);
 
 export const MantenedoraProvider = ({ children }) => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export const MantenedoraProvider = ({ children }) => {
       const status = {
         tenant_selected: false,
         active: true,
+        maintenance_mode: false,
         access_allowed: true,
         reason: 'SUPER_ADMIN_CONTROL_PLANE',
         mantenedora: null,
@@ -43,7 +45,7 @@ export const MantenedoraProvider = ({ children }) => {
     } catch (error) {
       // Não converte falha de rede em "mantenedora ativa". Preserva o último
       // estado conhecido e deixa a política offline existente decidir a sessão.
-      console.error('Erro ao verificar disponibilidade da mantenedora:', error);
+      console.error('Erro ao verificar disponibilidade/manutenção da mantenedora:', error);
       return null;
     } finally {
       setAccessLoading(false);
@@ -51,7 +53,6 @@ export const MantenedoraProvider = ({ children }) => {
   }, [user]);
 
   const loadMantenedora = useCallback(async () => {
-    // Sem usuário autenticado, não tenta carregar (o axios falharia com 401).
     if (!user) {
       setMantenedora(null);
       setLoading(false);
@@ -59,7 +60,6 @@ export const MantenedoraProvider = ({ children }) => {
     }
 
     // MT-1: super_admin sem tenant selecionado permanece apenas no control plane.
-    // Não dispara /api/mantenedora nem cria fallback visual de outra prefeitura.
     if (user.role === 'super_admin' && !getActiveTenantId()) {
       setMantenedora(null);
       setLoading(false);
@@ -73,9 +73,8 @@ export const MantenedoraProvider = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Erro ao carregar mantenedora:', error);
-      // Se a trava de disponibilidade foi a causa, a tela global específica será
-      // renderizada pelo ProtectedRoute. Este fallback continua servindo aos
-      // demais erros sem inferir dados de outra mantenedora.
+      // Se disponibilidade/manutenção bloquear a rota, ProtectedRoute renderiza
+      // a página institucional correspondente. O fallback não projeta outro tenant.
       setMantenedora({
         nome: 'Mantenedora não disponível',
         municipio: '',
@@ -111,16 +110,47 @@ export const MantenedoraProvider = ({ children }) => {
     return () => window.removeEventListener('tenant-changed', handler);
   }, [loadAccessStatus, loadMantenedora]);
 
-  // Função para recarregar os dados (útil após atualização). Retorna a Promise
-  // para que fluxos de ativação possam aguardar a projeção institucional nova.
-  const refreshMantenedora = () => loadMantenedora();
+  // Usuários que já estavam conectados quando a manutenção foi ativada precisam
+  // sair do plano operacional sem depender de novo login. Há três gatilhos:
+  // 1) qualquer resposta axios com código TENANT_MAINTENANCE/TENANT_INACTIVE;
+  // 2) retorno da aba/janela ao foco;
+  // 3) revalidação leve de segurança a cada 60s como fallback para telas ociosas.
+  useEffect(() => {
+    if (!user) return undefined;
 
-  // Revalida a trava. Retorna o novo status para telas que desejam reagir
-  // imediatamente ao botão "Verificar novamente".
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        const code = error?.response?.data?.detail?.code;
+        if (ACCESS_BLOCK_CODES.has(code)) {
+          loadAccessStatus();
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadAccessStatus();
+      }
+    };
+    const refreshOnFocus = () => loadAccessStatus();
+    const intervalId = window.setInterval(() => loadAccessStatus(), 60000);
+
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      axios.interceptors.response.eject(responseInterceptor);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshOnFocus);
+      window.clearInterval(intervalId);
+    };
+  }, [user, loadAccessStatus]);
+
+  const refreshMantenedora = () => loadMantenedora();
   const refreshAccessStatus = async () => loadAccessStatus();
 
-  // Dados padrão para formulários. Sem contexto válido, usa campos vazios para
-  // não projetar silenciosamente município/UF de outro tenant.
   const getDefaultLocation = () => ({
     municipio: mantenedora?.municipio || '',
     estado: mantenedora?.estado || '',
@@ -128,7 +158,6 @@ export const MantenedoraProvider = ({ children }) => {
     state: mantenedora?.estado || ''
   });
 
-  // Retorna o brasão (ou fallback para logotipo antigo).
   const getBrasaoUrl = () => mantenedora?.brasao_url || mantenedora?.logotipo_url || '';
 
   const value = {
