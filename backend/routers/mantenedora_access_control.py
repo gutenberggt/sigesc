@@ -38,14 +38,22 @@ class MantenedoraAccessControlUpdate(BaseModel):
 
 
 def _selected_superadmin_tenant(request: Request) -> Optional[str]:
-    header = (request.headers.get("X-Mantenedora-Id") or "").strip()
-    if header:
-        return header
+    """Resolve o tenant explícito do control plane antes do contexto operacional.
+
+    O painel de Super Administrador pode administrar várias mantenedoras sem trocar
+    o tenant operacional da sessão. Por isso, ``mantenedora_id`` da própria ação
+    administrativa é autoritativo; o header permanece apenas como fallback para
+    compatibilidade com os fluxos que gerenciam a mantenedora atualmente ativa.
+    """
     try:
         query = (request.query_params.get("mantenedora_id") or "").strip()
     except Exception:
         query = ""
-    return query or None
+    if query:
+        return query
+
+    header = (request.headers.get("X-Mantenedora-Id") or "").strip()
+    return header or None
 
 
 def _role_options() -> list[dict[str, str]]:
@@ -227,7 +235,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
             current_db = get_db_for_user(current_user) if get_db_for_user else db
             tenant = await _tenant_for_request(current_db, current_user, request)
             if not tenant:
-                raise HTTPException(status_code=409, detail="Selecione uma mantenedora para gerenciar")
+                raise HTTPException(status_code=409, detail="Mantenedora não encontrada ou não informada")
 
             blockers = await _collect_active_tenant_users(
                 current_db,
@@ -259,7 +267,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
             current_db = get_db_for_user(current_user) if get_db_for_user else db
             tenant = await _tenant_for_request(current_db, current_user, request)
             if not tenant:
-                raise HTTPException(status_code=409, detail="Selecione uma mantenedora para gerenciar")
+                raise HTTPException(status_code=409, detail="Mantenedora não encontrada ou não informada")
 
             current_active = is_tenant_active(tenant)
             requested_active = current_active if payload.ativo is None else bool(payload.ativo)

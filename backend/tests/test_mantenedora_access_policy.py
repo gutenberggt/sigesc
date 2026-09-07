@@ -152,7 +152,7 @@ def test_super_admin_can_resolve_inactive_tenant_only_in_control_plane():
     assert request.state.active_mantenedora_id == "t1"
 
 
-def test_access_control_panel_uses_canonical_tenant_aware_transport_and_selector():
+def test_access_control_panel_uses_independent_cards_and_direct_switches():
     source = (
         REPO
         / "frontend"
@@ -163,10 +163,28 @@ def test_access_control_panel_uses_canonical_tenant_aware_transport_and_selector
     ).read_text(encoding="utf-8")
     assert "apiFetch" in source
     assert "getActiveTenantId" in source
-    assert "mantenedora-access-selector" in source
-    assert "Mantenedora a gerenciar" in source
+    assert "mantenedora_id=" in source
+    assert "mantenedora-access-card-" in source
+    assert "mantenedora-active-switch-" in source
+    assert 'role="switch"' in source
+    assert "Acesso excepcional enquanto desativada" in source
+    assert "!active && (" in source
+    assert "Mantenedora a gerenciar" not in source
+    assert "mantenedora-access-selector" not in source
+    assert "Verificar conexões" not in source
+    assert "Sim, desativar" not in source
     assert "axios.get(API)" not in source
     assert "axios.put(API" not in source
+
+
+def test_super_admin_control_plane_explicit_query_precedes_ambient_header():
+    source = (BACKEND / "routers" / "mantenedora_access_control.py").read_text(encoding="utf-8")
+    helper = source.split("def _selected_superadmin_tenant", 1)[1].split("def _role_options", 1)[0]
+    query_lookup = 'request.query_params.get("mantenedora_id")'
+    header_lookup = 'request.headers.get("X-Mantenedora-Id")'
+    assert query_lookup in helper
+    assert header_lookup in helper
+    assert helper.index(query_lookup) < helper.index(header_lookup)
 
 
 def test_generic_mantenedora_edit_cannot_bypass_availability_control():
