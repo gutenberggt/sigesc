@@ -1,0 +1,44 @@
+name: Curriculum Canonical Core
+
+on:
+  pull_request:
+    paths:
+      - 'backend/routers/curriculum_core.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_curriculum_canonical_core.py'
+      - '.github/workflows/curriculum-canonical-core.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/routers/curriculum_core.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_curriculum_canonical_core.py'
+      - '.github/workflows/curriculum-canonical-core.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backend-contract:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_contract
+      JWT_SECRET_KEY: ci-only-jwt-secret-0123456789abcdef0123456789abcdef
+      PYTHONPATH: .
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile curricular core
+        run: python -m py_compile routers/curriculum_core.py routers/__init__.py
+      - name: Run curricular core contract tests
+        run: pytest -q tests/test_curriculum_canonical_core.py
