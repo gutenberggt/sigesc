@@ -11,6 +11,9 @@ on:
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
       - 'backend/tests/test_curriculum_coverage_v2.py'
+      - 'backend/tests/test_curriculum_coverage_v2_frontend_contract.py'
+      - 'frontend/src/pages/CurriculumCoverage.jsx'
+      - 'frontend/src/services/curriculumCoverageV2.js'
       - '.github/workflows/curriculum-canonical-core.yml'
   push:
     branches: [main]
@@ -23,6 +26,9 @@ on:
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
       - 'backend/tests/test_curriculum_coverage_v2.py'
+      - 'backend/tests/test_curriculum_coverage_v2_frontend_contract.py'
+      - 'frontend/src/pages/CurriculumCoverage.jsx'
+      - 'frontend/src/services/curriculumCoverageV2.js'
       - '.github/workflows/curriculum-canonical-core.yml'
 
 permissions:
@@ -51,4 +57,4 @@ jobs:
       - name: Compile curricular core, F4 writer and F5 coverage
         run: python -m py_compile routers/curriculum_core.py routers/curriculum_coverage_v2.py routers/content_partial_cutover.py services/content_form_canonical_cutover.py routers/__init__.py
       - name: Run curricular core contract tests
-        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py tests/test_curriculum_coverage_v2.py
+        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py tests/test_curriculum_coverage_v2.py tests/test_curriculum_coverage_v2_frontend_contract.py
