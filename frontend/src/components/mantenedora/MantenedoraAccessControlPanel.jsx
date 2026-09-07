@@ -4,6 +4,7 @@ import {
   Loader2,
   LockKeyhole,
   ShieldCheck,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import { apiFetch, getActiveTenantId } from '@/services/api';
 
 const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const ACCESS_CONTROL_API = `${API_BASE}/mantenedora/access-control`;
+const MAINTENANCE_CONTROL_API = `${API_BASE}/mantenedora/maintenance-control`;
 
 const ROLE_PRIORITY = new Map([
   ['diretor', 0],
@@ -64,7 +66,7 @@ const assertCurrentTenantResponse = (data, tenantId) => {
     const error = new Error('O servidor retornou um contexto de mantenedora divergente.');
     error.detail = {
       code: 'TENANT_CONTEXT_MISMATCH',
-      message: 'O controle de disponibilidade foi bloqueado por divergência de mantenedora.',
+      message: 'O controle administrativo foi bloqueado por divergência de mantenedora.',
     };
     throw error;
   }
@@ -75,10 +77,12 @@ export default function MantenedoraAccessControlPanel() {
   const { user } = useAuth();
   const { mantenedora, refreshAccessStatus, refreshMantenedora } = useMantenedora();
   const [control, setControl] = useState(null);
+  const [maintenance, setMaintenance] = useState(null);
   const [roleDrafts, setRoleDrafts] = useState([]);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [maintenanceBusy, setMaintenanceBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const isSuperAdmin = user?.role === 'super_admin' || (user?.roles || []).includes('super_admin');
@@ -91,6 +95,7 @@ export default function MantenedoraAccessControlPanel() {
     }
 
     setControl(null);
+    setMaintenance(null);
     setRoleDrafts([]);
     setMessage(null);
 
@@ -103,18 +108,22 @@ export default function MantenedoraAccessControlPanel() {
     setLoading(true);
     setError(null);
     try {
-      const data = assertCurrentTenantResponse(
-        await requestJson(ACCESS_CONTROL_API),
-        tenantId,
-      );
-      setControl(data);
-      setRoleDrafts(data.allowed_roles || []);
+      const [accessData, maintenanceData] = await Promise.all([
+        requestJson(ACCESS_CONTROL_API),
+        requestJson(MAINTENANCE_CONTROL_API),
+      ]);
+      const access = assertCurrentTenantResponse(accessData, tenantId);
+      const maintenanceControl = assertCurrentTenantResponse(maintenanceData, tenantId);
+      setControl(access);
+      setMaintenance(maintenanceControl);
+      setRoleDrafts(access.allowed_roles || []);
     } catch (requestError) {
       setControl(null);
+      setMaintenance(null);
       setRoleDrafts([]);
       setError(detailMessage(
         requestError.detail,
-        'Não foi possível carregar a disponibilidade desta mantenedora.',
+        'Não foi possível carregar os controles desta mantenedora.',
       ));
     } finally {
       setLoading(false);
@@ -151,7 +160,7 @@ export default function MantenedoraAccessControlPanel() {
       setMessage({
         type: 'success',
         text: targetActive
-          ? 'Mantenedora ativada. O acesso normal foi restabelecido.'
+          ? 'Mantenedora ativada. A disponibilidade institucional foi restabelecida.'
           : 'Mantenedora desativada. Defina abaixo, se necessário, os acessos excepcionais.',
       });
       await refreshContext();
@@ -179,6 +188,50 @@ export default function MantenedoraAccessControlPanel() {
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleMaintenance = async () => {
+    if (!maintenance || !tenantId) return;
+
+    const targetMode = !maintenance.maintenance_mode;
+    const connectedCount = maintenance.online_user_count || 0;
+
+    if (targetMode && connectedCount > 0) {
+      const confirmed = window.confirm(
+        `Há ${connectedCount} usuário(s) conectado(s) nesta mantenedora. `
+        + 'Ao ativar a manutenção, eles terão o acesso operacional interrompido e serão direcionados para a página de manutenção. Deseja continuar?'
+      );
+      if (!confirmed) return;
+    }
+
+    setMaintenanceBusy(true);
+    setMessage(null);
+    try {
+      const data = assertCurrentTenantResponse(
+        await requestJson(MAINTENANCE_CONTROL_API, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ maintenance_mode: targetMode }),
+        }),
+        tenantId,
+      );
+      setMaintenance(data);
+      setError(null);
+      setMessage({
+        type: 'success',
+        text: targetMode
+          ? 'Modo de manutenção ativado. O Super Administrador permanece com acesso operacional completo.'
+          : 'Modo de manutenção encerrado. O acesso normal foi restabelecido.',
+      });
+      await refreshContext();
+    } catch (requestError) {
+      setMessage({
+        type: 'error',
+        text: detailMessage(requestError.detail, 'Não foi possível alterar o modo de manutenção.'),
+      });
+    } finally {
+      setMaintenanceBusy(false);
     }
   };
 
@@ -233,7 +286,9 @@ export default function MantenedoraAccessControlPanel() {
   if (!isSuperAdmin) return null;
 
   const active = Boolean(control?.active);
+  const maintenanceMode = Boolean(maintenance?.maintenance_mode);
   const tenantName = control?.nome || mantenedora?.nome || mantenedora?.name || 'Mantenedora selecionada';
+  const maintenanceDisabled = maintenanceBusy || busy || (!active && !maintenanceMode);
 
   return (
     <section className="space-y-4" data-testid="mantenedora-access-control-panel">
@@ -251,7 +306,7 @@ export default function MantenedoraAccessControlPanel() {
         <Card className="border-slate-200">
           <CardContent className="flex min-h-32 items-center justify-center text-slate-500">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Carregando disponibilidade...
+            Carregando controles...
           </CardContent>
         </Card>
       ) : error ? (
@@ -268,7 +323,7 @@ export default function MantenedoraAccessControlPanel() {
                     size="sm"
                     className="mt-3 bg-white"
                     onClick={loadControl}
-                    disabled={busy}
+                    disabled={busy || maintenanceBusy}
                   >
                     Tentar novamente
                   </Button>
@@ -277,48 +332,99 @@ export default function MantenedoraAccessControlPanel() {
             </div>
           </CardContent>
         </Card>
-      ) : control ? (
+      ) : control && maintenance ? (
         <Card className="border-slate-200" data-testid="mantenedora-access-card-current">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">{tenantName}</CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="font-semibold text-slate-900">Disponibilidade</h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  {active
-                    ? 'Acesso normal liberado para esta mantenedora.'
-                    : 'Mantenedora desativada; os dados permanecem preservados.'}
-                </p>
-              </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="mantenedora-control-cards-grid">
+              <section className="flex min-h-32 flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div>
+                  <h3 className="font-semibold text-slate-900">Disponibilidade</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {active
+                      ? 'Acesso normal liberado para esta mantenedora.'
+                      : 'Mantenedora desativada; os dados permanecem preservados.'}
+                  </p>
+                </div>
 
-              <div className="flex items-center gap-3">
-                {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
-                <span className={`text-sm font-semibold ${active ? 'text-emerald-700' : 'text-slate-700'}`}>
-                  {active ? 'Ativa' : 'Desativada'}
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={active}
-                  aria-label={active ? 'Desativar mantenedora' : 'Ativar mantenedora'}
-                  data-testid="mantenedora-active-switch"
-                  onClick={toggleAvailability}
-                  disabled={busy}
-                  className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
-                    active ? 'bg-emerald-600' : 'bg-slate-300'
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      active ? 'translate-x-6' : 'translate-x-1'
+                <div className="flex items-center justify-end gap-3">
+                  {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+                  <span className={`text-sm font-semibold ${active ? 'text-emerald-700' : 'text-slate-700'}`}>
+                    {active ? 'Ativa' : 'Desativada'}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={active}
+                    aria-label={active ? 'Desativar mantenedora' : 'Ativar mantenedora'}
+                    data-testid="mantenedora-active-switch"
+                    onClick={toggleAvailability}
+                    disabled={busy || maintenanceBusy}
+                    className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      active ? 'bg-emerald-600' : 'bg-slate-300'
                     }`}
-                  />
-                </button>
-              </div>
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        active ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </section>
+
+              <section
+                className={`flex min-h-32 flex-col justify-between gap-4 rounded-2xl border p-4 ${
+                  maintenanceMode
+                    ? 'border-amber-200 bg-amber-50/70'
+                    : 'border-slate-200 bg-slate-50/60'
+                }`}
+                data-testid="mantenedora-maintenance-card"
+              >
+                <div>
+                  <h3 className="flex items-center gap-2 font-semibold text-slate-900">
+                    <Wrench className={`h-4 w-4 ${maintenanceMode ? 'text-amber-700' : 'text-slate-500'}`} />
+                    Manutenção
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {!active && !maintenanceMode
+                      ? 'Ative a mantenedora antes de iniciar uma manutenção.'
+                      : maintenanceMode
+                      ? 'Acesso operacional restrito. O Super Administrador permanece com acesso completo.'
+                      : 'Sistema operando normalmente para os usuários desta mantenedora.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3">
+                  {maintenanceBusy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+                  <span className={`text-sm font-semibold ${maintenanceMode ? 'text-amber-800' : 'text-slate-700'}`}>
+                    {maintenanceMode ? 'Em manutenção' : 'Operação normal'}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={maintenanceMode}
+                    aria-label={maintenanceMode ? 'Encerrar manutenção' : 'Ativar manutenção'}
+                    data-testid="mantenedora-maintenance-switch"
+                    onClick={toggleMaintenance}
+                    disabled={maintenanceDisabled}
+                    className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+                      maintenanceMode ? 'bg-amber-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        maintenanceMode ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </section>
             </div>
 
             {message && (
@@ -367,7 +473,7 @@ export default function MantenedoraAccessControlPanel() {
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleRole(option.value)}
-                          disabled={busy}
+                          disabled={busy || maintenanceBusy}
                           className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                         />
                         <span className="text-sm font-medium">{roleLabel(option)}</span>
@@ -377,7 +483,7 @@ export default function MantenedoraAccessControlPanel() {
                 </div>
 
                 <div className="mt-4 flex justify-end">
-                  <Button type="button" onClick={saveRoles} disabled={busy}>
+                  <Button type="button" onClick={saveRoles} disabled={busy || maintenanceBusy}>
                     {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Salvar acessos excepcionais
                   </Button>
