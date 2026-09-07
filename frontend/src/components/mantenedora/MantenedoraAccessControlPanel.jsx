@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
   LockKeyhole,
   Power,
-  RefreshCw,
   ShieldCheck,
-  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,18 +19,19 @@ const TENANTS_API = `${API_BASE}/mantenedoras`;
 
 const roleLabel = (item) => item?.label || item?.value || '';
 
-const isTenantActive = (tenant) => {
-  if (!tenant) return false;
-  if (tenant.ativo === false || tenant.ativa === false) return false;
-  const status = String(tenant.status || '').trim().toLowerCase();
-  return !['inactive', 'inativo', 'disabled', 'desativado', 'desativada'].includes(status);
-};
-
 const detailMessage = (detail, fallback) => {
   if (typeof detail === 'string' && detail.trim()) return detail;
   if (detail && typeof detail === 'object' && detail.message) return detail.message;
   return fallback;
 };
+
+const blockerNames = (users = []) => (
+  users.map((item) => item?.full_name || item?.email || 'Usuário').filter(Boolean)
+);
+
+const accessControlUrl = (tenantId) => (
+  `${ACCESS_CONTROL_API}?mantenedora_id=${encodeURIComponent(tenantId)}`
+);
 
 const requestJson = async (url, options = {}) => {
   const response = await apiFetch(url, options);
@@ -54,430 +53,426 @@ const requestJson = async (url, options = {}) => {
 export default function MantenedoraAccessControlPanel() {
   const { user } = useAuth();
   const { refreshAccessStatus, refreshMantenedora } = useMantenedora();
-  const [state, setState] = useState(null);
   const [tenants, setTenants] = useState([]);
-  const [selectedTenantId, setSelectedTenantId] = useState(getActiveTenantId() || '');
-  const [selectedRoles, setSelectedRoles] = useState([]);
+  const [controls, setControls] = useState({});
+  const [roleDrafts, setRoleDrafts] = useState({});
+  const [controlErrors, setControlErrors] = useState({});
+  const [messages, setMessages] = useState({});
+  const [busyByTenant, setBusyByTenant] = useState({});
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [globalError, setGlobalError] = useState(null);
 
   const isSuperAdmin = user?.role === 'super_admin' || (user?.roles || []).includes('super_admin');
 
-  const loadTenants = useCallback(async () => {
-    if (!isSuperAdmin) return [];
+  const loadAll = useCallback(async () => {
+    if (!isSuperAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setGlobalError(null);
     try {
       const data = await requestJson(TENANTS_API);
       const items = Array.isArray(data) ? data : [];
       setTenants(items);
-      return items;
+
+      const results = await Promise.all(items.map(async (tenant) => {
+        try {
+          const control = await requestJson(accessControlUrl(tenant.id));
+          return { tenantId: tenant.id, control, error: null };
+        } catch (error) {
+          return {
+            tenantId: tenant.id,
+            control: null,
+            error: detailMessage(
+              error.detail,
+              'Não foi possível carregar o controle de disponibilidade desta mantenedora.'
+            ),
+          };
+        }
+      }));
+
+      const nextControls = {};
+      const nextDrafts = {};
+      const nextErrors = {};
+      results.forEach(({ tenantId, control, error }) => {
+        if (control) {
+          nextControls[tenantId] = control;
+          nextDrafts[tenantId] = control.allowed_roles || [];
+        }
+        if (error) nextErrors[tenantId] = error;
+      });
+      setControls(nextControls);
+      setRoleDrafts(nextDrafts);
+      setControlErrors(nextErrors);
     } catch (error) {
       setTenants([]);
-      setMessage({
-        type: 'error',
-        text: detailMessage(error.detail, 'Não foi possível carregar as mantenedoras disponíveis.'),
-      });
-      return [];
-    }
-  }, [isSuperAdmin]);
-
-  const load = useCallback(async ({ quiet = false } = {}) => {
-    if (!isSuperAdmin) {
-      setLoading(false);
-      return null;
-    }
-
-    const tenantId = getActiveTenantId() || '';
-    setSelectedTenantId(tenantId);
-
-    if (!tenantId) {
-      setState(null);
-      setSelectedRoles([]);
-      setLoading(false);
-      return null;
-    }
-
-    try {
-      if (!quiet) setLoading(true);
-      const data = await requestJson(ACCESS_CONTROL_API);
-      setState(data);
-      setSelectedRoles(data?.allowed_roles || []);
-      return data;
-    } catch (error) {
-      setState(null);
-      setSelectedRoles([]);
-      setMessage({
-        type: 'error',
-        text: detailMessage(error.detail, 'Não foi possível carregar o controle de acesso da mantenedora selecionada.'),
-      });
-      return null;
+      setControls({});
+      setRoleDrafts({});
+      setControlErrors({});
+      setGlobalError(detailMessage(error.detail, 'Não foi possível carregar as mantenedoras.'));
     } finally {
       setLoading(false);
     }
   }, [isSuperAdmin]);
 
   useEffect(() => {
-    if (!isSuperAdmin) {
-      setLoading(false);
-      return;
-    }
-    Promise.all([loadTenants(), load()]);
-  }, [isSuperAdmin, load, loadTenants]);
-
-  useEffect(() => {
-    const handleTenantChange = () => {
-      setState(null);
-      setSelectedRoles([]);
-      setConfirmDeactivate(false);
-      setMessage(null);
-      setSelectedTenantId(getActiveTenantId() || '');
-      load();
-    };
-    window.addEventListener('tenant-changed', handleTenantChange);
-    return () => window.removeEventListener('tenant-changed', handleTenantChange);
-  }, [load]);
-
-  const blockerNames = useMemo(
-    () => (state?.online_blockers || []).map((item) => item.full_name || item.email || 'Usuário').filter(Boolean),
-    [state]
-  );
+    loadAll();
+  }, [loadAll]);
 
   if (!isSuperAdmin) return null;
 
-  const selectTenant = (tenantId) => {
-    if (!tenantId) {
-      localStorage.removeItem('activeMantenedoraId');
-      setSelectedTenantId('');
-      setState(null);
-      setSelectedRoles([]);
-      setConfirmDeactivate(false);
-      setMessage(null);
-      window.dispatchEvent(new Event('tenant-changed'));
-      return;
-    }
-
-    localStorage.setItem('activeMantenedoraId', tenantId);
-    setSelectedTenantId(tenantId);
-    setState(null);
-    setSelectedRoles([]);
-    setConfirmDeactivate(false);
-    setMessage(null);
-    window.dispatchEvent(new Event('tenant-changed'));
+  const setBusy = (tenantId, value) => {
+    setBusyByTenant((current) => ({ ...current, [tenantId]: value }));
   };
 
-  const toggleRole = (role) => {
-    setSelectedRoles((current) => (
-      current.includes(role)
-        ? current.filter((item) => item !== role)
-        : [...current, role]
-    ));
+  const setTenantMessage = (tenantId, message) => {
+    setMessages((current) => ({ ...current, [tenantId]: message }));
   };
 
-  const saveRoles = async () => {
+  const refreshContextIfCurrent = async (tenantId) => {
+    if (String(getActiveTenantId() || '') !== String(tenantId)) return;
+    await Promise.allSettled([refreshAccessStatus(), refreshMantenedora()]);
+  };
+
+  const reloadTenant = async (tenantId) => {
+    setBusy(tenantId, true);
+    setTenantMessage(tenantId, null);
     try {
-      setBusy(true);
-      setMessage(null);
-      const data = await requestJson(ACCESS_CONTROL_API, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ allowed_roles: selectedRoles }),
+      const control = await requestJson(accessControlUrl(tenantId));
+      setControls((current) => ({ ...current, [tenantId]: control }));
+      setRoleDrafts((current) => ({ ...current, [tenantId]: control.allowed_roles || [] }));
+      setControlErrors((current) => {
+        const next = { ...current };
+        delete next[tenantId];
+        return next;
       });
-      setState((current) => ({ ...current, ...data }));
-      setSelectedRoles(data?.allowed_roles || []);
-      await refreshAccessStatus();
-      setMessage({ type: 'success', text: 'Permissões excepcionais salvas com sucesso.' });
     } catch (error) {
-      setMessage({
-        type: 'error',
-        text: detailMessage(error.detail, 'Não foi possível salvar as permissões.'),
-      });
+      setControlErrors((current) => ({
+        ...current,
+        [tenantId]: detailMessage(
+          error.detail,
+          'Não foi possível carregar o controle de disponibilidade desta mantenedora.'
+        ),
+      }));
     } finally {
-      setBusy(false);
+      setBusy(tenantId, false);
     }
   };
 
-  const setActive = async (active) => {
-    if (!active && (state?.online_blocker_count || 0) > 0) {
-      setMessage({
-        type: 'error',
-        text: 'A desativação não pode ser realizada enquanto houver usuários conectados.',
-      });
-      return;
-    }
+  const toggleAvailability = async (tenantId) => {
+    const control = controls[tenantId];
+    if (!control) return;
+
+    const targetActive = !control.active;
+    setBusy(tenantId, true);
+    setTenantMessage(tenantId, null);
 
     try {
-      setBusy(true);
-      setMessage(null);
-      const data = await requestJson(ACCESS_CONTROL_API, {
+      const data = await requestJson(accessControlUrl(tenantId), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ativo: active,
-          allowed_roles: selectedRoles,
-        }),
+        body: JSON.stringify({ ativo: targetActive }),
       });
-      setState((current) => ({ ...current, ...data }));
-      setSelectedRoles(data?.allowed_roles || []);
-      setConfirmDeactivate(false);
-      await Promise.all([refreshAccessStatus(), refreshMantenedora()]);
-      setMessage({
+      setControls((current) => ({ ...current, [tenantId]: data }));
+      setRoleDrafts((current) => ({ ...current, [tenantId]: data.allowed_roles || [] }));
+      setControlErrors((current) => {
+        const next = { ...current };
+        delete next[tenantId];
+        return next;
+      });
+      setTenantMessage(tenantId, {
         type: 'success',
-        text: active
+        text: targetActive
           ? 'Mantenedora ativada. O acesso normal foi restabelecido.'
-          : 'Mantenedora desativada. Somente os perfis assinalados poderão acessar.',
+          : 'Mantenedora desativada. Configure abaixo, se necessário, os perfis com acesso excepcional.',
       });
-      await load({ quiet: true });
-      await loadTenants();
+      await refreshContextIfCurrent(tenantId);
     } catch (error) {
       const detail = error.detail;
       if (detail?.code === 'TENANT_HAS_ACTIVE_SESSIONS') {
-        setState((current) => ({
+        const names = blockerNames(detail.users || []);
+        const count = detail.count || names.length;
+        setControls((current) => ({
           ...current,
-          online_blockers: detail.users || [],
-          online_blocker_count: detail.count || 0,
+          [tenantId]: {
+            ...current[tenantId],
+            online_blockers: detail.users || [],
+            online_blocker_count: count,
+          },
         }));
-        setConfirmDeactivate(false);
-        setMessage({
+        setTenantMessage(tenantId, {
           type: 'error',
-          text: 'A desativação foi bloqueada porque existem usuários conectados. Aguarde a saída deles e verifique novamente.',
+          text: names.length
+            ? `Não foi possível desativar: ${count} usuário(s) estão conectados — ${names.join(', ')}.`
+            : `Não foi possível desativar: ${count} usuário(s) estão conectados.`,
         });
       } else {
-        setMessage({
+        setTenantMessage(tenantId, {
           type: 'error',
-          text: detailMessage(detail, 'Não foi possível alterar o estado da mantenedora.'),
+          text: detailMessage(detail, 'Não foi possível alterar a disponibilidade da mantenedora.'),
         });
       }
     } finally {
-      setBusy(false);
+      setBusy(tenantId, false);
+    }
+  };
+
+  const toggleRole = (tenantId, role) => {
+    setRoleDrafts((current) => {
+      const roles = current[tenantId] || [];
+      return {
+        ...current,
+        [tenantId]: roles.includes(role)
+          ? roles.filter((item) => item !== role)
+          : [...roles, role],
+      };
+    });
+  };
+
+  const saveRoles = async (tenantId) => {
+    const control = controls[tenantId];
+    if (!control || control.active) return;
+
+    setBusy(tenantId, true);
+    setTenantMessage(tenantId, null);
+    try {
+      const data = await requestJson(accessControlUrl(tenantId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowed_roles: roleDrafts[tenantId] || [] }),
+      });
+      setControls((current) => ({ ...current, [tenantId]: data }));
+      setRoleDrafts((current) => ({ ...current, [tenantId]: data.allowed_roles || [] }));
+      setTenantMessage(tenantId, {
+        type: 'success',
+        text: 'Acessos excepcionais salvos com sucesso.',
+      });
+      await refreshContextIfCurrent(tenantId);
+    } catch (error) {
+      setTenantMessage(tenantId, {
+        type: 'error',
+        text: detailMessage(error.detail, 'Não foi possível salvar os acessos excepcionais.'),
+      });
+    } finally {
+      setBusy(tenantId, false);
     }
   };
 
   return (
-    <Card className="border-slate-200">
-      <CardHeader className="pb-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <LockKeyhole className="h-5 w-5 text-indigo-600" />
-              Disponibilidade e Controle de Acesso
-            </CardTitle>
-            <p className="mt-1 text-sm text-slate-500">
-              Controle global da mantenedora e dos perfis que podem acessar durante uma suspensão.
-            </p>
-          </div>
-          {state && (
-            <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${
-              state.active
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-amber-50 text-amber-800 border border-amber-200'
-            }`}>
-              {state.active ? <CheckCircle2 className="h-4 w-4" /> : <Power className="h-4 w-4" />}
-              {state.active ? 'Mantenedora ativa' : 'Mantenedora desativada'}
-            </span>
-          )}
+    <section className="space-y-4" data-testid="mantenedora-access-control-panels">
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+          <LockKeyhole className="h-5 w-5 text-indigo-600" />
+          Disponibilidade e Controle de Acesso
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Ative ou desative cada mantenedora diretamente em seu painel. A desativação preserva todos os dados.
+        </p>
+      </div>
+
+      {globalError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {globalError}
         </div>
-      </CardHeader>
+      )}
 
-      <CardContent className="space-y-6">
-        <section className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:p-5">
-          <label htmlFor="mantenedora-access-selector" className="block text-sm font-semibold text-slate-900">
-            Mantenedora a gerenciar
-          </label>
-          <p className="mt-1 text-sm text-slate-600">
-            Escolha a mantenedora. Os controles de ativação, desativação e acesso excepcional aparecem logo abaixo.
-          </p>
-          <select
-            id="mantenedora-access-selector"
-            value={selectedTenantId}
-            onChange={(event) => selectTenant(event.target.value)}
-            disabled={busy}
-            className="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:max-w-xl"
-            data-testid="mantenedora-access-selector"
-          >
-            <option value="">Selecione uma mantenedora</option>
-            {tenants.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.nome || tenant.name || tenant.id}{isTenantActive(tenant) ? '' : ' — desativada'}
-              </option>
-            ))}
-          </select>
-        </section>
-
-        {message && (
-          <div className={`rounded-xl border px-4 py-3 text-sm ${
-            message.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-red-200 bg-red-50 text-red-800'
-          }`}>
-            {String(message.text)}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex min-h-32 items-center justify-center text-slate-500">
+      {loading ? (
+        <Card className="border-slate-200">
+          <CardContent className="flex min-h-32 items-center justify-center text-slate-500">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Carregando controle de acesso...
-          </div>
-        ) : !selectedTenantId ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Selecione uma mantenedora no campo acima para ativar, desativar ou configurar acessos excepcionais.
-          </div>
-        ) : !state ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            O controle da mantenedora selecionada não pôde ser carregado. Verifique a mensagem acima e tente novamente.
-          </div>
-        ) : (
-          <>
-            <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="max-w-2xl">
-                  <h3 className="font-semibold text-slate-900">Ativar ou desativar a mantenedora</h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Desativar não apaga escolas, estudantes, diários ou documentos. O sistema bloqueia
-                    operacionalmente tudo que pertence à mantenedora, preservando os dados para reativação.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => load({ quiet: true })}
-                  disabled={busy}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Verificar conexões
-                </Button>
-              </div>
+            Carregando mantenedoras...
+          </CardContent>
+        </Card>
+      ) : tenants.length === 0 && !globalError ? (
+        <Card className="border-slate-200">
+          <CardContent className="py-8 text-center text-sm text-slate-500">
+            Nenhuma mantenedora cadastrada.
+          </CardContent>
+        </Card>
+      ) : (
+        tenants.map((tenant) => {
+          const tenantId = tenant.id;
+          const control = controls[tenantId];
+          const error = controlErrors[tenantId];
+          const message = messages[tenantId];
+          const busy = Boolean(busyByTenant[tenantId]);
+          const active = Boolean(control?.active);
+          const roles = roleDrafts[tenantId] || [];
 
-              <div className={`mt-4 rounded-xl border p-4 ${
-                state.online_blocker_count > 0
-                  ? 'border-amber-200 bg-amber-50'
-                  : 'border-emerald-200 bg-emerald-50'
-              }`}>
-                <div className="flex items-start gap-3">
-                  <Users className={`mt-0.5 h-5 w-5 flex-none ${
-                    state.online_blocker_count > 0 ? 'text-amber-700' : 'text-emerald-700'
-                  }`} />
-                  <div className="min-w-0">
-                    <p className={`font-medium ${
-                      state.online_blocker_count > 0 ? 'text-amber-900' : 'text-emerald-900'
-                    }`}>
-                      {state.online_blocker_count > 0
-                        ? `${state.online_blocker_count} usuário(s) conectado(s)`
-                        : 'Nenhum usuário conectado à mantenedora'}
-                    </p>
-                    {state.online_blocker_count > 0 && (
-                      <p className="mt-1 text-sm text-amber-800 break-words">
-                        {blockerNames.join(', ')}
-                      </p>
+          return (
+            <Card
+              key={tenantId}
+              className="border-slate-200"
+              data-testid={`mantenedora-access-card-${tenantId}`}
+            >
+              <CardHeader className="pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="text-lg">
+                      {tenant.nome || tenant.name || tenantId}
+                    </CardTitle>
+                    {tenant.cnpj && (
+                      <p className="mt-1 text-sm text-slate-500">CNPJ: {tenant.cnpj}</p>
                     )}
-                    <p className={`mt-1 text-xs ${
-                      state.online_blocker_count > 0 ? 'text-amber-700' : 'text-emerald-700'
-                    }`}>
-                      {state.online_blocker_count > 0
-                        ? 'Por segurança, a desativação permanece indisponível enquanto qualquer desses usuários estiver conectado.'
-                        : 'A condição de presença permite uma eventual desativação neste momento.'}
-                    </p>
                   </div>
+                  {control && (
+                    <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold ${
+                      active
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                    }`}>
+                      {active ? <CheckCircle2 className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                      {active ? 'Mantenedora ativa' : 'Mantenedora desativada'}
+                    </span>
+                  )}
                 </div>
-              </div>
+              </CardHeader>
 
-              <div className="mt-4 flex flex-wrap gap-3">
-                {state.active ? (
-                  !confirmDeactivate ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={() => setConfirmDeactivate(true)}
-                      disabled={busy || state.online_blocker_count > 0}
-                    >
-                      <Power className="mr-2 h-4 w-4" />
-                      Desativar mantenedora
-                    </Button>
-                  ) : (
-                    <div className="w-full rounded-xl border border-red-200 bg-red-50 p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="mt-0.5 h-5 w-5 flex-none text-red-700" />
-                        <div>
-                          <p className="font-semibold text-red-900">Confirmar desativação?</p>
-                          <p className="mt-1 text-sm text-red-800">
-                            Os usuários não liberados serão direcionados ao aviso de acesso temporariamente indisponível após o login.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Button type="button" variant="destructive" onClick={() => setActive(false)} disabled={busy}>
+              <CardContent className="space-y-4">
+                {error ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 flex-none" />
+                      <div className="flex-1">
+                        <p>{error}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 bg-white"
+                          onClick={() => reloadTenant(tenantId)}
+                          disabled={busy}
+                        >
                           {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Sim, desativar
-                        </Button>
-                        <Button type="button" variant="outline" onClick={() => setConfirmDeactivate(false)} disabled={busy}>
-                          Cancelar
+                          Tentar novamente
                         </Button>
                       </div>
                     </div>
-                  )
+                  </div>
+                ) : !control ? (
+                  <div className="flex min-h-24 items-center justify-center text-sm text-slate-500">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Carregando disponibilidade...
+                  </div>
                 ) : (
-                  <Button type="button" onClick={() => setActive(true)} disabled={busy}>
-                    {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Power className="mr-2 h-4 w-4" />}
-                    Ativar mantenedora
-                  </Button>
+                  <>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">Disponibilidade</h3>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">
+                            {active
+                              ? 'Acesso normal liberado para os usuários desta mantenedora.'
+                              : 'A mantenedora está suspensa. Escolas, estudantes, diários e documentos permanecem preservados.'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {busy && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
+                          <span className={`text-sm font-semibold ${active ? 'text-emerald-700' : 'text-slate-600'}`}>
+                            {active ? 'Ativa' : 'Desativada'}
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={active}
+                            aria-label={active ? 'Desativar mantenedora' : 'Ativar mantenedora'}
+                            data-testid={`mantenedora-active-switch-${tenantId}`}
+                            onClick={() => toggleAvailability(tenantId)}
+                            disabled={busy}
+                            className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                              active ? 'bg-emerald-600' : 'bg-slate-300'
+                            }`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                                active ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {message && (
+                      <div className={`rounded-xl border px-4 py-3 text-sm ${
+                        message.type === 'success'
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : 'border-red-200 bg-red-50 text-red-800'
+                      }`}>
+                        {message.type === 'error' && (
+                          <AlertTriangle className="mr-2 inline h-4 w-4 align-text-bottom" />
+                        )}
+                        {String(message.text)}
+                      </div>
+                    )}
+
+                    {!active && (
+                      <section
+                        className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4 sm:p-5"
+                        data-testid={`mantenedora-exceptional-access-${tenantId}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <ShieldCheck className="mt-0.5 h-5 w-5 flex-none text-indigo-600" />
+                          <div>
+                            <h3 className="font-semibold text-slate-900">
+                              Acesso excepcional enquanto desativada
+                            </h3>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                              Assinale os tipos de usuário que poderão continuar entrando no SIGESC. Cada usuário
+                              mantém somente as permissões normais do próprio perfil; esta seleção não amplia privilégios.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {(control.role_options || []).map((option) => {
+                            const checked = roles.includes(option.value);
+                            return (
+                              <label
+                                key={option.value}
+                                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 transition-colors ${
+                                  checked
+                                    ? 'border-indigo-300 bg-indigo-50 text-indigo-900'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleRole(tenantId, option.value)}
+                                  disabled={busy}
+                                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-sm font-medium">{roleLabel(option)}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-4 rounded-xl border border-indigo-100 bg-white/70 px-4 py-3 text-sm text-indigo-900">
+                          <strong>Super Administrador:</strong> o acesso administrativo ao control plane permanece
+                          disponível para diagnóstico, ajuste desta lista e reativação da mantenedora.
+                        </div>
+
+                        <div className="mt-4 flex justify-end">
+                          <Button type="button" onClick={() => saveRoles(tenantId)} disabled={busy}>
+                            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Salvar acessos excepcionais
+                          </Button>
+                        </div>
+                      </section>
+                    )}
+                  </>
                 )}
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 p-4 sm:p-5">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 flex-none text-indigo-600" />
-                <div>
-                  <h3 className="font-semibold text-slate-900">Acesso excepcional enquanto desativada</h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Assinale os tipos de usuário que continuarão entrando no SIGESC. Eles manterão exatamente
-                    as permissões normais do próprio perfil; esta seleção não amplia nenhum privilégio.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {(state.role_options || []).map((option) => {
-                  const checked = selectedRoles.includes(option.value);
-                  return (
-                    <label
-                      key={option.value}
-                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 transition-colors ${
-                        checked
-                          ? 'border-indigo-300 bg-indigo-50 text-indigo-900'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleRole(option.value)}
-                        disabled={busy}
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm font-medium">{roleLabel(option)}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-                <strong>Super Administrador:</strong> o acesso operacional continua bloqueado quando a mantenedora está
-                desativada. Este painel administrativo permanece disponível apenas para diagnóstico, ajuste desta lista e reativação.
-              </div>
-
-              <div className="mt-4 flex justify-end">
-                <Button type="button" onClick={saveRoles} disabled={busy}>
-                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar acessos excepcionais
-                </Button>
-              </div>
-            </section>
-          </>
-        )}
-      </CardContent>
-    </Card>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
+    </section>
   );
 }
