@@ -25,7 +25,14 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return () => window.removeEventListener('tenant-changed', handleTenantChange);
   }, []);
 
-  if (loading || (user && accessLoading)) {
+  // O loader de acesso só pode substituir a rota na validação INICIAL, quando
+  // ainda não existe um estado conhecido da mantenedora. As revalidações de
+  // segurança em background (ex.: fallback de 60s) mantêm a página montada para
+  // não destruir formulários/rascunhos locais. Se a resposta bloquear o tenant,
+  // accessStatus muda e a tela institucional é aplicada imediatamente abaixo.
+  const isInitialAccessCheck = Boolean(user && accessLoading && !accessStatus);
+
+  if (loading || isInitialAccessCheck) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

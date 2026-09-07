@@ -4,6 +4,8 @@ import re
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PAGES_DIR = REPO_ROOT / "frontend" / "src" / "pages"
+COMPONENTS_DIR = REPO_ROOT / "frontend" / "src" / "components"
+CONTEXTS_DIR = REPO_ROOT / "frontend" / "src" / "contexts"
 PAGE_EXTENSIONS = {".js", ".jsx", ".ts", ".tsx"}
 SET_INTERVAL_RE = re.compile(r"\b(?:window\.)?setInterval\s*\(")
 
@@ -57,3 +59,21 @@ def test_online_users_is_manual_refresh_only():
 def test_learning_objects_has_no_recurring_refresh_timer():
     source = (PAGES_DIR / "LearningObjects.js").read_text(encoding="utf-8")
     assert not SET_INTERVAL_RE.search(source)
+
+
+def test_background_access_revalidation_does_not_unmount_the_current_page():
+    protected_route = (COMPONENTS_DIR / "ProtectedRoute.js").read_text(encoding="utf-8")
+    mantenedora_context = (CONTEXTS_DIR / "MantenedoraContext.js").read_text(encoding="utf-8")
+
+    # A revalidação periódica de segurança continua existindo.
+    assert "window.setInterval(() => loadAccessStatus(), 60000)" in mantenedora_context
+
+    # Mas o loader de rota só pode entrar quando ainda não há accessStatus conhecido.
+    # Revalidações em background precisam manter a página montada para preservar
+    # formulários e rascunhos locais (Objetos de Conhecimento, notas, frequência etc.).
+    assert re.search(
+        r"const\s+isInitialAccessCheck\s*=\s*Boolean\(user\s*&&\s*accessLoading\s*&&\s*!accessStatus\)",
+        protected_route,
+    )
+    assert "if (loading || isInitialAccessCheck)" in protected_route
+    assert "if (loading || (user && accessLoading))" not in protected_route
