@@ -305,15 +305,21 @@ async def test_tenant_scope_is_required_before_any_classwide_read(monkeypatch):
     assert exc.value.code == "TENANT_SCOPE_REQUIRED"
 
 
-def test_frontend_and_router_contract_keep_component_scoped_flow_unchanged():
+def test_frontend_contract_stays_stable_while_backend_component_scope_moves_to_f4():
     root = Path(__file__).resolve().parents[2]
     frontend = (root / "frontend/src/services/contentPartialCutoverResolver.js").read_text(encoding="utf-8")
     hook = (root / "frontend/src/hooks/useDiaryPrefill.js").read_text(encoding="utf-8")
     adapter = (root / "backend/routers/content_partial_cutover.py").read_text(encoding="utf-8")
     routers_init = (root / "backend/routers/__init__.py").read_text(encoding="utf-8")
 
+    # A UI e o bridge de prefill continuam intocados: a mudança F4 é backend-only.
     assert "if (!classId || componentId) return config;" in frontend
     assert "config.__skipContentDvdBridge = true;" in frontend
     assert "@/services/contentPartialCutoverResolver" in hook
-    assert 'current_user.get("role") != "professor" or not class_id or course_id' in adapter
+
+    # F4 remove o bypass component-scoped no backend para que o professor veja
+    # imediatamente a escrita canônica feita pela mesma tela/URL histórica.
+    assert "list_learning_objects_cutover" in adapter
+    assert 'course_id = call_kwargs.get("course_id")' in adapter
+    assert "create_from_learning_object_form" in adapter
     assert "install_professor_content_partial_cutover_setup(_learning_objects_mod)" in routers_init
