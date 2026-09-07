@@ -69,6 +69,18 @@ def test_inactive_tenant_allows_only_selected_active_role():
     assert can_access_tenant(tenant, {"role": "secretario"}) is False
 
 
+def test_only_active_session_role_can_cross_inactive_tenant_gate():
+    tenant = {
+        "id": "t1",
+        "status": "inactive",
+        "acesso_desativado_roles": ["diretor"],
+    }
+    # Uma role secundária presente em `roles` não muda o papel ativo da sessão.
+    # A trava institucional só libera o papel ativo; RBAC continua independente.
+    user = {"role": "professor", "roles": ["professor", "diretor"]}
+    assert can_access_tenant(tenant, user) is False
+
+
 def test_super_admin_has_no_implicit_operational_bypass_when_inactive():
     tenant = {"id": "t1", "status": "inactive", "acesso_desativado_roles": []}
     assert can_access_tenant(tenant, {"role": "super_admin"}) is False
