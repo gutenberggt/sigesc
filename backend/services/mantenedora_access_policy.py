@@ -1,4 +1,4 @@
-"""Política canônica de ativação e acesso seletivo por Mantenedora.
+"""Política canônica de ativação, manutenção e acesso por Mantenedora.
 
 Este módulo é deliberadamente puro: não acessa banco, request ou autenticação.
 A mesma regra é consumida pelo tenant_scope (enforcement global) e pelo
@@ -8,7 +8,10 @@ Invariantes de segurança:
 - tenant desativado é fail-closed por padrão;
 - a exceção por papel remove apenas a trava institucional, nunca o RBAC;
 - apenas o papel ativo da sessão é considerado para a exceção;
-- super_admin não recebe bypass operacional implícito.
+- super_admin não recebe bypass operacional implícito em tenant desativado;
+- manutenção é um estado independente da disponibilidade institucional;
+- em mantenedora ativa sob manutenção, somente super_admin mantém acesso
+  operacional; os demais usuários são bloqueados antes do RBAC.
 """
 from __future__ import annotations
 
@@ -16,6 +19,7 @@ from typing import Iterable, Mapping, Any
 
 
 INACTIVE_ACCESS_ROLES_FIELD = "acesso_desativado_roles"
+MAINTENANCE_MODE_FIELD = "maintenance_mode"
 
 # Papéis que podem ser explicitamente liberados enquanto a mantenedora estiver
 # desativada. super_admin é propositalmente ausente: seu acesso administrativo
@@ -90,6 +94,15 @@ def is_tenant_active(doc: Mapping[str, Any] | None) -> bool:
     return True
 
 
+def is_tenant_in_maintenance(doc: Mapping[str, Any] | None) -> bool:
+    """Retorna o estado canônico de manutenção, com default seguro ``False``.
+
+    O campo é propositalmente independente de ``ativo``/``status``: suspensão
+    institucional e manutenção técnica possuem semânticas e políticas distintas.
+    """
+    return bool(doc and doc.get(MAINTENANCE_MODE_FIELD) is True)
+
+
 def normalize_allowed_roles(values: Iterable[Any] | None) -> list[str]:
     allowed = set(CONFIGURABLE_INACTIVE_ACCESS_ROLES)
     normalized = {
@@ -107,9 +120,10 @@ def inactive_allowed_roles(doc: Mapping[str, Any] | None) -> list[str]:
 
 
 def can_access_tenant(doc: Mapping[str, Any] | None, user: Mapping[str, Any] | None) -> bool:
-    """Decide somente a trava OPERACIONAL da mantenedora.
+    """Decide somente a trava de DISPONIBILIDADE institucional da mantenedora.
 
-    - mantenedora ativa: acesso segue o fluxo normal;
+    - mantenedora ativa: esta trava está liberada; manutenção é avaliada depois,
+      de forma independente, pelo ``tenant_scope``;
     - mantenedora desativada: somente o papel ATIVO da sessão pode atravessar
       quando estiver explicitamente assinalado na configuração;
     - super_admin não recebe bypass operacional implícito. Seu acesso de gestão
