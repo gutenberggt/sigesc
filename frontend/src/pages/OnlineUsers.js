@@ -104,11 +104,6 @@ export default function OnlineUsers() {
   useEffect(() => {
     fetchOnlineUsers();
     fetchLoginCount();
-    const interval = setInterval(() => {
-      fetchOnlineUsers();
-      fetchLoginCount();
-    }, 10000);
-    return () => clearInterval(interval);
   }, []);
 
   const getInitials = (name) => {
@@ -144,7 +139,7 @@ export default function OnlineUsers() {
               </div>
               Usuários Online
             </h1>
-            <p className="text-gray-500 mt-1">Monitoramento em tempo real de usuários conectados</p>
+            <p className="text-gray-500 mt-1">Monitoramento de usuários conectados</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -226,7 +221,7 @@ export default function OnlineUsers() {
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Users size={48} className="mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500 text-lg">Nenhum usuário online no momento</p>
-          <p className="text-gray-400 text-sm mt-1">A lista atualiza automaticamente a cada 10 segundos</p>
+          <p className="text-gray-400 text-sm mt-1">Use o botão Atualizar para consultar novamente.</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
