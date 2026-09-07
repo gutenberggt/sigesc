@@ -18,10 +18,19 @@ Controle de disponibilidade da mantenedora (Set/2026):
 - o bypass administrativo existe somente em rotas explicitamente allowlisted
   de CONTROL PLANE, suficiente para diagnóstico, configuração e reativação.
 
+Modo de manutenção:
+- é independente do estado ativa/desativada;
+- só produz efeito operacional quando a mantenedora está ativa;
+- durante manutenção, usuários comuns falham fechados com `TENANT_MAINTENANCE`;
+- `super_admin` mantém acesso operacional completo para executar diagnóstico e
+  manutenção, sempre dentro da mantenedora explicitamente selecionada;
+- se a mantenedora estiver desativada, prevalece a política de disponibilidade
+  institucional e seus acessos excepcionais por papel.
+
 Helpers principais:
 - get_mantenedora_scope(user, request): ID efetivo ou sentinela fail-closed.
 - resolve_operational_tenant_context(db, user, request): SSoT assíncrona que
-  valida existência/disponibilidade da mantenedora e registra o contexto na request.
+  valida existência/disponibilidade/manutenção e registra o contexto na request.
 - apply_tenant_filter(query, user, request): injeta o tenant em queries.
 - assert_same_tenant(doc, user, request): rejeita documento sem tenant ou de
   outro tenant em rotas operacionais.
@@ -33,7 +42,11 @@ from typing import Optional
 
 from fastapi import HTTPException, Request
 
-from services.mantenedora_access_policy import can_access_tenant, is_tenant_active
+from services.mantenedora_access_policy import (
+    can_access_tenant,
+    is_tenant_active,
+    is_tenant_in_maintenance,
+)
 from tenant_audit import log_tenant_event
 
 
@@ -224,9 +237,13 @@ async def resolve_operational_tenant_context(
     assinalados. A liberação seletiva remove somente esta trava de disponibilidade;
     toda autorização funcional posterior continua intacta.
 
-    Exceção estrita: super_admin pode resolver tenant inativo somente em rota
-    explicitamente classificada como CONTROL PLANE. Esse bypass não alcança
-    escolas, estudantes, diários, notas, frequência ou outros dados operacionais.
+    Exceção estrita para inatividade: super_admin pode resolver tenant inativo
+    somente em rota explicitamente classificada como CONTROL PLANE. Esse bypass
+    não alcança escolas, estudantes, diários, notas, frequência ou outros dados.
+
+    Manutenção possui contrato diferente: quando a mantenedora está ativa e em
+    manutenção, usuários comuns são bloqueados antes do RBAC, enquanto super_admin
+    mantém acesso operacional completo ao tenant explicitamente selecionado.
 
     O resultado é cacheado em `request.state` para que múltiplas verificações
     no mesmo ciclo HTTP não repitam consulta ao MongoDB.
@@ -279,6 +296,29 @@ async def resolve_operational_tenant_context(
             detail={
                 "code": "TENANT_INACTIVE",
                 "message": "A mantenedora selecionada está desativada.",
+            },
+        )
+
+    # Precedência deliberada: disponibilidade institucional é avaliada primeiro.
+    # Apenas uma mantenedora ATIVA em manutenção aplica esta segunda trava.
+    if (
+        is_tenant_active(doc)
+        and is_tenant_in_maintenance(doc)
+        and not is_super_admin(user)
+        and not is_control_plane_request(user, request)
+    ):
+        log_tenant_event(
+            "maintenance_tenant",
+            user,
+            request,
+            requested_mantenedora=mid,
+            extra={"role": user.get("role")},
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "TENANT_MAINTENANCE",
+                "message": "O SIGESC desta mantenedora está em manutenção.",
             },
         )
 
@@ -402,6 +442,9 @@ async def resolve_active_mantenedora(
     operacionais, uma mantenedora desativada só é retornada quando o papel atual
     está explicitamente liberado. Em CONTROL PLANE, super_admin selecionado pode
     resolver a configuração de tenant inativo para diagnóstico e reativação.
+
+    Em manutenção, a resolução operacional segue o contrato acima: super_admin
+    continua operando e usuários comuns são bloqueados antes de chegar aqui.
 
     `fallback_to_first` só é honrado em CONTROL PLANE explícito e nunca escolhe
     silenciosamente uma mantenedora inativa.

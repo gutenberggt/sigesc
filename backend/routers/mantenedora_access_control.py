@@ -1,18 +1,20 @@
-"""Controle administrativo de ativação da Mantenedora.
+"""Controle administrativo de disponibilidade e manutenção da Mantenedora.
 
 Instalado sobre ``routers.admin.setup_router`` para reutilizar o rastreador de
 sessões e o ConnectionManager já injetados pelo bootstrap, sem criar uma segunda
 fonte de verdade de presença.
 
 Invariantes:
-- somente super_admin altera o estado da mantenedora;
+- somente super_admin altera disponibilidade ou manutenção;
 - desativação falha fechada se houver usuário do tenant conectado;
-- nenhuma cascata altera escolas/dados: a trava é operacional no tenant_scope;
-- papéis excepcionalmente autorizados continuam sujeitos ao RBAC normal;
-- super_admin mantém bypass administrativo apenas no control plane para
-  diagnóstico/configuração/reativação; não recebe bypass operacional;
-- o controle administrativo atua somente sobre a mantenedora explicitamente
-  selecionada no contexto da sessão, sem enumeração cross-tenant.
+- manutenção NÃO é bloqueada por usuários conectados: ela precisa poder ser
+  acionada durante incidentes e os usuários serão desviados para a página própria;
+- nenhuma cascata altera escolas/dados: as travas são operacionais no tenant_scope;
+- papéis excepcionalmente autorizados em tenant desativado continuam sujeitos ao RBAC;
+- super_admin mantém bypass administrativo em tenant desativado apenas no control
+  plane, mas durante manutenção de tenant ativo mantém acesso operacional completo;
+- os controles atuam somente sobre a mantenedora explicitamente selecionada no
+  contexto da sessão, sem enumeração cross-tenant.
 """
 from __future__ import annotations
 
@@ -30,6 +32,7 @@ from services.mantenedora_access_policy import (
     inactive_allowed_roles,
     is_super_admin,
     is_tenant_active,
+    is_tenant_in_maintenance,
     normalize_allowed_roles,
 )
 
@@ -37,6 +40,10 @@ from services.mantenedora_access_policy import (
 class MantenedoraAccessControlUpdate(BaseModel):
     ativo: Optional[bool] = None
     allowed_roles: Optional[list[str]] = None
+
+
+class MantenedoraMaintenanceUpdate(BaseModel):
+    maintenance_mode: bool
 
 
 def _selected_superadmin_tenant(request: Request) -> Optional[str]:
@@ -60,7 +67,7 @@ def _selected_superadmin_tenant(request: Request) -> Optional[str]:
             detail={
                 "code": "CROSS_TENANT_CONTROL_FORBIDDEN",
                 "message": (
-                    "O controle de disponibilidade só pode atuar sobre a "
+                    "O controle administrativo só pode atuar sobre a "
                     "mantenedora selecionada no contexto atual."
                 ),
             },
@@ -132,7 +139,7 @@ async def _collect_active_tenant_users(
     ).to_list(None)
 
     blockers = [row for row in rows if not is_super_admin(row)]
-    blockers.sort(key=lambda row: (str(row.get("full_name") or row.get("email") or "").casefold()))
+    blockers.sort(key=lambda row: str(row.get("full_name") or row.get("email") or "").casefold())
     return blockers
 
 
@@ -153,12 +160,23 @@ async def _audit_access_control(
             user=current_user,
             request=request,
             document_id=tenant.get("id"),
-            description=f"Controle de acesso da mantenedora: {tenant.get('nome') or tenant.get('id')}",
+            description=f"Controle da mantenedora: {tenant.get('nome') or tenant.get('id')}",
             extra_data=extra_data or {},
         )
     except Exception:
         # Auditoria não deve transformar uma leitura/erro de governança em 500.
         pass
+
+
+def _maintenance_response(tenant: dict, online_users: list[dict[str, Any]]) -> dict:
+    return {
+        "id": tenant.get("id"),
+        "nome": tenant.get("nome") or tenant.get("name"),
+        "maintenance_mode": is_tenant_in_maintenance(tenant),
+        "online_users": online_users,
+        "online_user_count": len(online_users),
+        "super_admin_operational_bypass": True,
+    }
 
 
 def install_admin_mantenedora_access_setup(admin_module) -> None:
@@ -189,11 +207,10 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
 
         # As rotas usam o namespace singular /mantenedora para não colidirem
         # com o endpoint dinâmico legado /mantenedoras/{mid}, registrado antes
-        # deste router no FastAPI. A colisão fazia "access-control" ser tratado
-        # como um ID de mantenedora e retornava 404 antes de chegar aqui.
+        # deste router no FastAPI.
         @router.get("/mantenedora/access-status")
         async def get_mantenedora_access_status(request: Request):
-            """Status leve pós-login, acessível mesmo se o tenant estiver desativado."""
+            """Status leve pós-login, acessível sob inatividade e manutenção."""
             current_user = await AuthMiddleware.get_current_user(request)
             current_db = get_db_for_user(current_user) if get_db_for_user else db
             tenant = await _tenant_for_request(current_db, current_user, request)
@@ -203,6 +220,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                     return {
                         "tenant_selected": False,
                         "active": True,
+                        "maintenance_mode": False,
                         "access_allowed": True,
                         "management_allowed": True,
                         "reason": "SUPER_ADMIN_CONTROL_PLANE",
@@ -218,20 +236,33 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 )
 
             active = is_tenant_active(tenant)
-            operational_allowed = can_access_tenant(tenant, current_user)
+            maintenance_mode = is_tenant_in_maintenance(tenant)
+            availability_allowed = can_access_tenant(tenant, current_user)
             management_allowed = is_super_admin(current_user)
+
+            # Precedência: tenant desativado continua obedecendo exclusivamente à
+            # política de disponibilidade. Manutenção só bloqueia tenant ativo.
+            if not active:
+                access_allowed = availability_allowed
+                reason = "INACTIVE_ROLE_ALLOWED" if availability_allowed else "TENANT_INACTIVE"
+            elif maintenance_mode:
+                access_allowed = is_super_admin(current_user)
+                reason = (
+                    "TENANT_MAINTENANCE_SUPER_ADMIN"
+                    if access_allowed
+                    else "TENANT_MAINTENANCE"
+                )
+            else:
+                access_allowed = True
+                reason = "ACTIVE"
+
             return {
                 "tenant_selected": True,
                 "active": active,
-                "access_allowed": operational_allowed,
+                "maintenance_mode": maintenance_mode,
+                "access_allowed": access_allowed,
                 "management_allowed": management_allowed,
-                "reason": (
-                    "ACTIVE"
-                    if active
-                    else "INACTIVE_ROLE_ALLOWED"
-                    if operational_allowed
-                    else "TENANT_INACTIVE"
-                ),
+                "reason": reason,
                 "mantenedora": {
                     "id": tenant.get("id"),
                     "nome": tenant.get("nome") or tenant.get("name"),
@@ -385,6 +416,82 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 "online_blocker_count": 0,
                 "super_admin_management_bypass": True,
             }
+
+        @router.get("/mantenedora/maintenance-control")
+        async def get_mantenedora_maintenance_control(request: Request):
+            current_user = await AuthMiddleware.get_current_user(request)
+            if not is_super_admin(current_user):
+                raise HTTPException(status_code=403, detail="Apenas Super Administrador pode gerenciar a manutenção")
+
+            current_db = get_db_for_user(current_user) if get_db_for_user else db
+            tenant = await _tenant_for_request(current_db, current_user, request)
+            if not tenant:
+                raise HTTPException(status_code=409, detail="Mantenedora não encontrada ou não informada")
+
+            online_users = await _collect_active_tenant_users(
+                current_db,
+                tenant_id=str(tenant.get("id")),
+                current_user_id=current_user.get("id"),
+                active_sessions=active_sessions,
+                connection_manager=connection_manager,
+            )
+            return _maintenance_response(tenant, online_users)
+
+        @router.put("/mantenedora/maintenance-control")
+        async def update_mantenedora_maintenance_control(
+            payload: MantenedoraMaintenanceUpdate,
+            request: Request,
+        ):
+            current_user = await AuthMiddleware.get_current_user(request)
+            if not is_super_admin(current_user):
+                raise HTTPException(status_code=403, detail="Apenas Super Administrador pode gerenciar a manutenção")
+
+            current_db = get_db_for_user(current_user) if get_db_for_user else db
+            tenant = await _tenant_for_request(current_db, current_user, request)
+            if not tenant:
+                raise HTTPException(status_code=409, detail="Mantenedora não encontrada ou não informada")
+
+            old_mode = is_tenant_in_maintenance(tenant)
+            requested_mode = bool(payload.maintenance_mode)
+
+            # Manutenção é ação operacional emergencial e NÃO falha por presença.
+            # Coletamos usuários apenas para evidência/auditoria e UX de confirmação.
+            online_users = await _collect_active_tenant_users(
+                current_db,
+                tenant_id=str(tenant.get("id")),
+                current_user_id=current_user.get("id"),
+                active_sessions=active_sessions,
+                connection_manager=connection_manager,
+            )
+
+            await current_db.mantenedoras.update_one(
+                {"id": tenant.get("id")},
+                {"$set": {
+                    "maintenance_mode": requested_mode,
+                    "maintenance_updated_at": datetime.now(timezone.utc).isoformat(),
+                    "maintenance_updated_by": current_user.get("id"),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }},
+            )
+            updated = await current_db.mantenedoras.find_one(
+                {"id": tenant.get("id")},
+                {"_id": 0},
+            ) or tenant
+
+            await _audit_access_control(
+                action="update",
+                tenant=updated,
+                current_user=current_user,
+                request=request,
+                extra_data={
+                    "event": "mantenedora_maintenance_updated",
+                    "old_maintenance_mode": old_mode,
+                    "new_maintenance_mode": requested_mode,
+                    "connected_users_at_change": online_users,
+                    "connected_user_count": len(online_users),
+                },
+            )
+            return _maintenance_response(updated, online_users)
 
         router._mantenedora_access_control_routes_installed = True
         return result
