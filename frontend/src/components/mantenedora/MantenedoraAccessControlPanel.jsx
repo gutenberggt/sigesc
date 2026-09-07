@@ -12,7 +12,7 @@ import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { apiFetch, getActiveTenantId } from '@/services/api';
 
 const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const ACCESS_CONTROL_API = `${API_BASE}/mantenedoras/access-control`;
+const ACCESS_CONTROL_API = `${API_BASE}/mantenedora/access-control`;
 
 const ROLE_PRIORITY = new Map([
   ['diretor', 0],

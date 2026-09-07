@@ -123,7 +123,7 @@ def test_access_status_is_session_plane_for_blocked_user():
     user = {"id": "u1", "role": "professor", "mantenedora_id": "t1"}
     assert requires_operational_tenant_context(
         user,
-        _request("/api/mantenedoras/access-status"),
+        _request("/api/mantenedora/access-status"),
     ) is False
 
 
@@ -200,8 +200,32 @@ def test_super_admin_control_plane_header_is_authoritative_and_cross_tenant_quer
     assert "return query" not in helper
 
 
+def test_access_control_routes_do_not_collide_with_dynamic_mantenedora_detail():
+    access_source = (BACKEND / "routers" / "mantenedora_access_control.py").read_text(encoding="utf-8")
+    tenants_source = (BACKEND / "routers" / "mantenedoras.py").read_text(encoding="utf-8")
+    panel_source = (
+        REPO
+        / "frontend"
+        / "src"
+        / "components"
+        / "mantenedora"
+        / "MantenedoraAccessControlPanel.jsx"
+    ).read_text(encoding="utf-8")
+    context_source = (
+        REPO / "frontend" / "src" / "contexts" / "MantenedoraContext.js"
+    ).read_text(encoding="utf-8")
+
+    assert '@router.get("/mantenedoras/{mid}")' in tenants_source
+    assert '@router.get("/mantenedora/access-control")' in access_source
+    assert '@router.put("/mantenedora/access-control")' in access_source
+    assert '@router.get("/mantenedora/access-status")' in access_source
+    assert '`${API_BASE}/mantenedora/access-control`' in panel_source
+    assert '/api/mantenedora/access-status' in context_source
+    assert '@router.get("/mantenedoras/access-control")' not in access_source
+    assert '@router.get("/mantenedoras/access-status")' not in access_source
+
+
 def test_generic_mantenedora_edit_cannot_bypass_availability_control():
     source = (BACKEND / "routers" / "mantenedoras.py").read_text(encoding="utf-8")
     assert "MANTENEDORA_AVAILABILITY_REQUIRES_ACCESS_CONTROL" in source
     assert 'k not in {"ativo", "ativa", "status", "acesso_desativado_roles"}' in source
-    assert "/mantenedoras/access-control" in source
