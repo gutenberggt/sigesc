@@ -384,6 +384,8 @@ def auth(db):
     csrf = data.get("csrf_token") or session.cookies.get("csrf_token")
     if csrf:
         session.headers.update({"X-CSRF-Token": csrf})
+    # Rotas operacionais exigem contexto explícito de mantenedora inclusive para super_admin.
+    session.headers.update({"X-Mantenedora-Id": TENANT})
     return session
 
 
@@ -576,6 +578,7 @@ def test_multigrade_conceptual_preview_and_pdf(auth, db):
     assert "CONCEITO FINAL" in text
     assert "LEGENDA" in text
     assert "CONSOLIDADO" in text
+    assert "EM DESENVVIMENTO" not in text
     assert "EM DESENVOLVIMENTO" in text
     assert "PROMOVIDO(A)" in text
     assert "15 DE AGOSTO DE 2026" in text
