@@ -67,5 +67,8 @@ jobs:
         run: |
           grep -q 'MantenedoraAccessControlPanel' ../frontend/src/pages/Mantenedora.js
           grep -q 'TENANT_INACTIVE' ../frontend/src/components/ProtectedRoute.js
+          grep -q 'SUPER_ADMIN_INACTIVE_CONTROL_PATHS' ../frontend/src/components/ProtectedRoute.js
           grep -q 'direção da sua escola' ../frontend/src/pages/MantenedoraDesativada.jsx
           grep -q 'online_blocker_count' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'management_allowed' routers/mantenedora_access_control.py
+          grep -q 'super_admin_management_bypass' routers/mantenedora_access_control.py
