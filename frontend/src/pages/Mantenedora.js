@@ -325,6 +325,10 @@ export default function Mantenedora() {
         </div>
       </div>
 
+      {/* Controle institucional de disponibilidade: separado do formulário para
+          que a ação de ativar/desativar nunca seja confundida com "Salvar Alterações". */}
+      <MantenedoraAccessControlPanel />
+
       {/* Alert */}
       {alert && (
         <div className={`p-4 rounded-lg ${
@@ -1007,7 +1011,6 @@ export default function Mantenedora() {
         </div>
       </form>
 
-      <MantenedoraAccessControlPanel />
       <AssessmentPolicyPanel />
     </div>
   );
