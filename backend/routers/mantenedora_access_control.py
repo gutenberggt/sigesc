@@ -187,7 +187,11 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
         if getattr(router, "_mantenedora_access_control_routes_installed", False):
             return result
 
-        @router.get("/mantenedoras/access-status")
+        # As rotas usam o namespace singular /mantenedora para não colidirem
+        # com o endpoint dinâmico legado /mantenedoras/{mid}, registrado antes
+        # deste router no FastAPI. A colisão fazia "access-control" ser tratado
+        # como um ID de mantenedora e retornava 404 antes de chegar aqui.
+        @router.get("/mantenedora/access-status")
         async def get_mantenedora_access_status(request: Request):
             """Status leve pós-login, acessível mesmo se o tenant estiver desativado."""
             current_user = await AuthMiddleware.get_current_user(request)
@@ -239,7 +243,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 "allowed_roles": inactive_allowed_roles(tenant),
             }
 
-        @router.get("/mantenedoras/access-control")
+        @router.get("/mantenedora/access-control")
         async def get_mantenedora_access_control(request: Request):
             current_user = await AuthMiddleware.get_current_user(request)
             if not is_super_admin(current_user):
@@ -268,7 +272,7 @@ def install_admin_mantenedora_access_setup(admin_module) -> None:
                 "super_admin_management_bypass": True,
             }
 
-        @router.put("/mantenedoras/access-control")
+        @router.put("/mantenedora/access-control")
         async def update_mantenedora_access_control(
             payload: MantenedoraAccessControlUpdate,
             request: Request,
