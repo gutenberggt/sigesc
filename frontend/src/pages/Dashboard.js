@@ -308,6 +308,10 @@ export const Dashboard = () => {
         ];
       case 'diretor':
       case 'coordenador':
+        return [
+          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'blue', route: '/admin/classes' },
+          { title: 'Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green', route: '/admin/students' }
+        ];
       case 'apoio_pedagogico':
       case 'auxiliar_secretaria':
         return [
@@ -340,6 +344,7 @@ export const Dashboard = () => {
   };
 
   const cards = getDashboardCards();
+  const isDirectorCoordinatorDashboard = isDiretor || isCoordenador;
 
   const colorClasses = {
     blue: 'bg-blue-100 text-blue-600',
@@ -476,32 +481,55 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          {cards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <Card key={index} data-testid={`dashboard-card-${index}`}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">{card.title}</p>
-                      <p className="text-3xl font-bold text-gray-900">{card.value}</p>
+        {/* Informações / Acesso Rápido para Diretor e Coordenador; estatísticas para os demais perfis */}
+        <div>
+          {isDirectorCoordinatorDashboard && (
+            <h2 className="text-xl font-bold mb-4" data-testid="dashboard-info-quick-title">
+              Informações/Acesso Rápido
+            </h2>
+          )}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${isDirectorCoordinatorDashboard ? 'lg:grid-cols-2' : 'lg:grid-cols-5'} gap-6`}>
+            {cards.map((card, index) => {
+              const Icon = card.icon;
+              const isClickable = Boolean(card.route);
+              const openCard = () => {
+                if (card.route) navigate(card.route);
+              };
+              return (
+                <Card
+                  key={index}
+                  data-testid={`dashboard-card-${index}`}
+                  className={isClickable ? 'cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : undefined}
+                  onClick={isClickable ? openCard : undefined}
+                  onKeyDown={isClickable ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openCard();
+                    }
+                  } : undefined}
+                  role={isClickable ? 'button' : undefined}
+                  tabIndex={isClickable ? 0 : undefined}
+                  aria-label={isClickable ? `Abrir ${card.title}` : undefined}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">{card.title}</p>
+                        <p className="text-3xl font-bold text-gray-900">{card.value}</p>
+                      </div>
+                      <div className={`p-3 rounded-lg ${colorClasses[card.color]}`}>
+                        <Icon size={24} />
+                      </div>
                     </div>
-                    <div className={`p-3 rounded-lg ${colorClasses[card.color]}`}>
-                      <Icon size={24} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Acesso Rápido — visível para admin/secretário/diretor/coordenador/SEMED.
-            Cada card é filtrado individualmente para respeitar a Matriz de Permissões
-            (ex.: diretor só vê Turmas/Alunos/Servidores — não Escolas/Usuários). */}
-        {(isAdmin || isAdminOrSecretary || isSchoolStaff || isSemed) && (
+        {/* Acesso Rápido geral — Diretor e Coordenador usam os cards numéricos acima. */}
+        {!isDirectorCoordinatorDashboard && (isAdmin || isAdminOrSecretary || isSchoolStaff || isSemed) && (
           <div>
             <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
