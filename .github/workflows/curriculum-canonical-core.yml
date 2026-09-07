@@ -24,6 +24,7 @@ jobs:
     env:
       MONGO_URL: mongodb://127.0.0.1:27017
       DB_NAME: sigesc_ci_contract
+      PYTHONPATH: .
     defaults:
       run:
         working-directory: backend
