@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -14,15 +13,50 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
+import { apiFetch, getActiveTenantId } from '@/services/api';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api/mantenedoras/access-control`;
+const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const ACCESS_CONTROL_API = `${API_BASE}/mantenedoras/access-control`;
+const TENANTS_API = `${API_BASE}/mantenedoras`;
 
 const roleLabel = (item) => item?.label || item?.value || '';
+
+const isTenantActive = (tenant) => {
+  if (!tenant) return false;
+  if (tenant.ativo === false || tenant.ativa === false) return false;
+  const status = String(tenant.status || '').trim().toLowerCase();
+  return !['inactive', 'inativo', 'disabled', 'desativado', 'desativada'].includes(status);
+};
+
+const detailMessage = (detail, fallback) => {
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (detail && typeof detail === 'object' && detail.message) return detail.message;
+  return fallback;
+};
+
+const requestJson = async (url, options = {}) => {
+  const response = await apiFetch(url, options);
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+  if (!response.ok) {
+    const error = new Error(detailMessage(data?.detail, `Falha HTTP ${response.status}`));
+    error.status = response.status;
+    error.detail = data?.detail;
+    throw error;
+  }
+  return data;
+};
 
 export default function MantenedoraAccessControlPanel() {
   const { user } = useAuth();
   const { refreshAccessStatus, refreshMantenedora } = useMantenedora();
   const [state, setState] = useState(null);
+  const [tenants, setTenants] = useState([]);
+  const [selectedTenantId, setSelectedTenantId] = useState(getActiveTenantId() || '');
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -31,21 +65,51 @@ export default function MantenedoraAccessControlPanel() {
 
   const isSuperAdmin = user?.role === 'super_admin' || (user?.roles || []).includes('super_admin');
 
+  const loadTenants = useCallback(async () => {
+    if (!isSuperAdmin) return [];
+    try {
+      const data = await requestJson(TENANTS_API);
+      const items = Array.isArray(data) ? data : [];
+      setTenants(items);
+      return items;
+    } catch (error) {
+      setTenants([]);
+      setMessage({
+        type: 'error',
+        text: detailMessage(error.detail, 'Não foi possível carregar as mantenedoras disponíveis.'),
+      });
+      return [];
+    }
+  }, [isSuperAdmin]);
+
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!isSuperAdmin) {
       setLoading(false);
       return null;
     }
+
+    const tenantId = getActiveTenantId() || '';
+    setSelectedTenantId(tenantId);
+
+    if (!tenantId) {
+      setState(null);
+      setSelectedRoles([]);
+      setLoading(false);
+      return null;
+    }
+
     try {
       if (!quiet) setLoading(true);
-      const response = await axios.get(API);
-      setState(response.data);
-      setSelectedRoles(response.data.allowed_roles || []);
-      return response.data;
+      const data = await requestJson(ACCESS_CONTROL_API);
+      setState(data);
+      setSelectedRoles(data?.allowed_roles || []);
+      return data;
     } catch (error) {
+      setState(null);
+      setSelectedRoles([]);
       setMessage({
         type: 'error',
-        text: error.response?.data?.detail || 'Não foi possível carregar o controle de acesso da mantenedora.',
+        text: detailMessage(error.detail, 'Não foi possível carregar o controle de acesso da mantenedora selecionada.'),
       });
       return null;
     } finally {
@@ -54,8 +118,12 @@ export default function MantenedoraAccessControlPanel() {
   }, [isSuperAdmin]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!isSuperAdmin) {
+      setLoading(false);
+      return;
+    }
+    Promise.all([loadTenants(), load()]);
+  }, [isSuperAdmin, load, loadTenants]);
 
   useEffect(() => {
     const handleTenantChange = () => {
@@ -63,6 +131,7 @@ export default function MantenedoraAccessControlPanel() {
       setSelectedRoles([]);
       setConfirmDeactivate(false);
       setMessage(null);
+      setSelectedTenantId(getActiveTenantId() || '');
       load();
     };
     window.addEventListener('tenant-changed', handleTenantChange);
@@ -76,6 +145,27 @@ export default function MantenedoraAccessControlPanel() {
 
   if (!isSuperAdmin) return null;
 
+  const selectTenant = (tenantId) => {
+    if (!tenantId) {
+      localStorage.removeItem('activeMantenedoraId');
+      setSelectedTenantId('');
+      setState(null);
+      setSelectedRoles([]);
+      setConfirmDeactivate(false);
+      setMessage(null);
+      window.dispatchEvent(new Event('tenant-changed'));
+      return;
+    }
+
+    localStorage.setItem('activeMantenedoraId', tenantId);
+    setSelectedTenantId(tenantId);
+    setState(null);
+    setSelectedRoles([]);
+    setConfirmDeactivate(false);
+    setMessage(null);
+    window.dispatchEvent(new Event('tenant-changed'));
+  };
+
   const toggleRole = (role) => {
     setSelectedRoles((current) => (
       current.includes(role)
@@ -88,16 +178,19 @@ export default function MantenedoraAccessControlPanel() {
     try {
       setBusy(true);
       setMessage(null);
-      const response = await axios.put(API, { allowed_roles: selectedRoles });
-      setState((current) => ({ ...current, ...response.data }));
-      setSelectedRoles(response.data.allowed_roles || []);
+      const data = await requestJson(ACCESS_CONTROL_API, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowed_roles: selectedRoles }),
+      });
+      setState((current) => ({ ...current, ...data }));
+      setSelectedRoles(data?.allowed_roles || []);
       await refreshAccessStatus();
       setMessage({ type: 'success', text: 'Permissões excepcionais salvas com sucesso.' });
     } catch (error) {
-      const detail = error.response?.data?.detail;
       setMessage({
         type: 'error',
-        text: typeof detail === 'string' ? detail : detail?.message || 'Não foi possível salvar as permissões.',
+        text: detailMessage(error.detail, 'Não foi possível salvar as permissões.'),
       });
     } finally {
       setBusy(false);
@@ -116,12 +209,16 @@ export default function MantenedoraAccessControlPanel() {
     try {
       setBusy(true);
       setMessage(null);
-      const response = await axios.put(API, {
-        ativo: active,
-        allowed_roles: selectedRoles,
+      const data = await requestJson(ACCESS_CONTROL_API, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ativo: active,
+          allowed_roles: selectedRoles,
+        }),
       });
-      setState((current) => ({ ...current, ...response.data }));
-      setSelectedRoles(response.data.allowed_roles || []);
+      setState((current) => ({ ...current, ...data }));
+      setSelectedRoles(data?.allowed_roles || []);
       setConfirmDeactivate(false);
       await Promise.all([refreshAccessStatus(), refreshMantenedora()]);
       setMessage({
@@ -131,8 +228,9 @@ export default function MantenedoraAccessControlPanel() {
           : 'Mantenedora desativada. Somente os perfis assinalados poderão acessar.',
       });
       await load({ quiet: true });
+      await loadTenants();
     } catch (error) {
-      const detail = error.response?.data?.detail;
+      const detail = error.detail;
       if (detail?.code === 'TENANT_HAS_ACTIVE_SESSIONS') {
         setState((current) => ({
           ...current,
@@ -147,7 +245,7 @@ export default function MantenedoraAccessControlPanel() {
       } else {
         setMessage({
           type: 'error',
-          text: typeof detail === 'string' ? detail : detail?.message || 'Não foi possível alterar o estado da mantenedora.',
+          text: detailMessage(detail, 'Não foi possível alterar o estado da mantenedora.'),
         });
       }
     } finally {
@@ -182,27 +280,55 @@ export default function MantenedoraAccessControlPanel() {
       </CardHeader>
 
       <CardContent className="space-y-6">
+        <section className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:p-5">
+          <label htmlFor="mantenedora-access-selector" className="block text-sm font-semibold text-slate-900">
+            Mantenedora a gerenciar
+          </label>
+          <p className="mt-1 text-sm text-slate-600">
+            Escolha a mantenedora. Os controles de ativação, desativação e acesso excepcional aparecem logo abaixo.
+          </p>
+          <select
+            id="mantenedora-access-selector"
+            value={selectedTenantId}
+            onChange={(event) => selectTenant(event.target.value)}
+            disabled={busy}
+            className="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:max-w-xl"
+            data-testid="mantenedora-access-selector"
+          >
+            <option value="">Selecione uma mantenedora</option>
+            {tenants.map((tenant) => (
+              <option key={tenant.id} value={tenant.id}>
+                {tenant.nome || tenant.name || tenant.id}{isTenantActive(tenant) ? '' : ' — desativada'}
+              </option>
+            ))}
+          </select>
+        </section>
+
+        {message && (
+          <div className={`rounded-xl border px-4 py-3 text-sm ${
+            message.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}>
+            {String(message.text)}
+          </div>
+        )}
+
         {loading ? (
           <div className="flex min-h-32 items-center justify-center text-slate-500">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Carregando controle de acesso...
           </div>
-        ) : !state ? (
+        ) : !selectedTenantId ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Selecione uma mantenedora para gerenciar sua disponibilidade.
+            Selecione uma mantenedora no campo acima para ativar, desativar ou configurar acessos excepcionais.
+          </div>
+        ) : !state ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            O controle da mantenedora selecionada não pôde ser carregado. Verifique a mensagem acima e tente novamente.
           </div>
         ) : (
           <>
-            {message && (
-              <div className={`rounded-xl border px-4 py-3 text-sm ${
-                message.type === 'success'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                  : 'border-red-200 bg-red-50 text-red-800'
-              }`}>
-                {String(message.text)}
-              </div>
-            )}
-
             <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="max-w-2xl">
@@ -338,8 +464,8 @@ export default function MantenedoraAccessControlPanel() {
               </div>
 
               <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-                <strong>Super Administrador:</strong> acesso administrativo permanece disponível mesmo com a
-                mantenedora desativada, exclusivamente para permitir diagnóstico, ajuste desta lista e reativação.
+                <strong>Super Administrador:</strong> o acesso operacional continua bloqueado quando a mantenedora está
+                desativada. Este painel administrativo permanece disponível apenas para diagnóstico, ajuste desta lista e reativação.
               </div>
 
               <div className="mt-4 flex justify-end">
