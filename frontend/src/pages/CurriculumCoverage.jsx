@@ -1,22 +1,17 @@
 /**
- * CurriculumCoverage — Widget de Cobertura Curricular (v2).
+ * CurriculumCoverage — Cobertura Curricular canônica (F5).
  *
  * Rota: /admin/curriculo/cobertura
- * Consome: GET /api/curriculum/coverage
+ * Consome: GET /api/curriculum/coverage-v2
  *
- * Regras de cor:
- *   ≥90%  → verde  (ok)
- *   70–89 → âmbar  (atenção)
- *   <70%  → vermelho (crítico)
- *   bimestre futuro → cinza neutro (não iniciado, sem %)
- *
- * Forecast:
- *   no_ritmo / em_risco / nao_cumpre / fechado_critico / nao_iniciado
+ * O percentual só existe quando há Plano de Ensino Bimestral publicado.
+ * A cobertura legada continua disponível no backend durante o rollout.
  */
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, AlertTriangle, ChevronDown, ChevronUp, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
-import { curriculumAPI, classesAPI } from '@/services/api';
+import { classesAPI } from '@/services/api';
+import { curriculumCoverageV2API } from '@/services/curriculumCoverageV2';
 
 const STATUS_STYLE = {
   ok: { bar: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Adequado' },
@@ -52,7 +47,7 @@ export default function CurriculumCoverage() {
     try {
       const params = { academic_year: academicYear };
       if (classId) params.class_id = classId;
-      const r = await curriculumAPI.coverage(params);
+      const r = await curriculumCoverageV2API.get(params);
       setData(r);
     } catch {
       setData(null);
@@ -63,7 +58,6 @@ export default function CurriculumCoverage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Agrupa por componente → ano
   const grouped = useMemo(() => {
     const map = {};
     (data?.rows || []).forEach(r => {
@@ -76,19 +70,20 @@ export default function CurriculumCoverage() {
     return map;
   }, [data]);
 
-  // Totais por componente
+  // Futuro não reduz artificialmente a cobertura acumulada do componente.
   const componentTotals = useMemo(() => {
     const tot = {};
     Object.entries(grouped).forEach(([comp, byYear]) => {
       let total = 0, covered = 0;
       Object.values(byYear).forEach(rows => rows.forEach(r => {
+        if (r.bimestre_state === 'futuro') return;
         total += r.total;
         covered += r.covered;
       }));
       tot[comp] = {
         total,
         covered,
-        pct: total ? Math.round((covered / total) * 1000) / 10 : 0,
+        pct: total ? Math.round((covered / total) * 1000) / 10 : null,
       };
     });
     return tot;
@@ -96,6 +91,10 @@ export default function CurriculumCoverage() {
 
   const closedCritical = data?.totals?.closed_critical || 0;
   const criticalRows = data?.totals?.critical_rows || 0;
+  const planMissing = data?.coverage_state === 'plano_inexistente';
+  const percentageAvailable = data?.totals?.percentage_available !== false && data?.totals?.pct != null;
+  const outsidePlan = data?.totals?.worked_outside_plan_count || 0;
+  const historicalUnstructured = data?.totals?.historical_unstructured_count || 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6" data-testid="curriculum-coverage-page">
@@ -106,7 +105,7 @@ export default function CurriculumCoverage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Cobertura Curricular</h1>
           <p className="text-sm text-gray-500">
-            O que foi dado · o que falta · projeção até o fim do bimestre
+            Plano de Ensino publicado × o que foi efetivamente trabalhado
           </p>
         </div>
         <div className="flex items-end gap-2">
@@ -140,8 +139,23 @@ export default function CurriculumCoverage() {
         </div>
       </div>
 
-      {/* Banner de alerta crítico */}
-      {(closedCritical > 0 || criticalRows > 0) && (
+      {planMissing && !loading && (
+        <div
+          className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4"
+          data-testid="cov-plan-missing"
+        >
+          <AlertTriangle className="h-5 w-5 text-amber-700 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="text-sm font-semibold text-amber-900">Percentual indisponível</div>
+            <div className="text-xs text-amber-800 mt-0.5">
+              {data?.message || 'Não há Plano de Ensino Bimestral publicado para este escopo.'}
+              {' '}O SIGESC não calcula 0% quando o denominador curricular não existe.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(closedCritical > 0 || criticalRows > 0) && !planMissing && (
         <div
           className="flex items-start gap-3 bg-red-50 border border-red-300 rounded-lg px-4 py-3 mb-4"
           data-testid="cov-alert-banner"
@@ -159,15 +173,16 @@ export default function CurriculumCoverage() {
         </div>
       )}
 
-      {/* Resumo geral */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 grid grid-cols-3 gap-4" data-testid="cov-summary">
+      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3 grid grid-cols-3 gap-4" data-testid="cov-summary">
         <div>
           <div className="text-xs text-gray-500">Cobertura total</div>
           <div className="text-3xl font-bold text-gray-900">
-            {data?.totals?.pct ?? 0}%
+            {percentageAvailable ? `${data.totals.pct}%` : '—'}
           </div>
           <div className="text-xs text-gray-500">
-            {data?.totals?.covered || 0} de {data?.totals?.total || 0} habilidades
+            {percentageAvailable
+              ? `${data?.totals?.covered || 0} de ${data?.totals?.total || 0} itens do plano`
+              : 'Aguardando plano publicado'}
           </div>
         </div>
         <div>
@@ -184,33 +199,38 @@ export default function CurriculumCoverage() {
         </div>
       </div>
 
+      {(outsidePlan > 0 || historicalUnstructured > 0) && (
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 mb-4 text-xs text-slate-600" data-testid="cov-classification-summary">
+          {outsidePlan > 0 && <span><strong>{outsidePlan}</strong> registro(s) estruturado(s) fora do plano vigente. </span>}
+          {historicalUnstructured > 0 && <span><strong>{historicalUnstructured}</strong> registro(s) histórico(s) sem estrutura curricular — preservados, mas fora do numerador.</span>}
+        </div>
+      )}
+
       {loading && (
         <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-500">
           Calculando cobertura...
         </div>
       )}
 
-      {!loading && Object.keys(grouped).length === 0 && (
+      {!loading && !planMissing && Object.keys(grouped).length === 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-500" data-testid="cov-empty">
-          Nenhuma base curricular cadastrada ainda. Importe um PDF ou rode a sincronização BNCC em{' '}
-          <Link to="/admin/curriculo/adaptacoes" className="text-purple-700 underline">Adaptações</Link>.
+          Nenhum Plano de Ensino publicado foi encontrado para compor esta visão.
         </div>
       )}
 
-      {/* Lista de componentes */}
       <div className="space-y-3">
         {Object.entries(grouped).map(([comp, byYear]) => {
           const total = componentTotals[comp];
-          const compStatus = total.pct >= 90 ? 'ok' : total.pct >= 70 ? 'atencao' : 'critico';
+          const compStatus = total.pct == null ? 'nao_iniciado' : total.pct >= 90 ? 'ok' : total.pct >= 70 ? 'atencao' : 'critico';
           const compStyle = STATUS_STYLE[compStatus];
           return (
             <div key={comp} className="bg-white border border-gray-200 rounded-lg" data-testid={`cov-comp-${comp}`}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="font-mono text-sm font-bold text-purple-700 bg-purple-50 px-2 py-1 rounded">{comp}</span>
                   <span className="text-sm text-gray-700">
-                    <span className="font-semibold">{total.pct}%</span> coberto
-                    <span className="text-gray-400"> · {total.covered}/{total.total}</span>
+                    <span className="font-semibold">{total.pct == null ? '—' : `${total.pct}%`}</span> coberto
+                    {total.total > 0 && <span className="text-gray-400"> · {total.covered}/{total.total}</span>}
                   </span>
                   <span className={`text-[10px] px-2 py-0.5 rounded border ${compStyle.badge}`}>{compStyle.label}</span>
                 </div>
@@ -235,16 +255,13 @@ export default function CurriculumCoverage() {
 }
 
 function YearBlock({ ano, rows, expanded, setExpanded }) {
-  // Garante 4 bimestres + linha "sem bimestre" (null)
   const byBim = {};
   rows.forEach(r => { byBim[r.bimestre ?? 'null'] = r; });
-  const slots = [1, 2, 3, 4].map(b => byBim[b]).filter(Boolean);
-  const transversais = byBim['null'];
 
   return (
     <div className="border border-gray-100 rounded p-2" data-testid={`cov-year-${ano}`}>
       <div className="text-xs font-semibold text-gray-600 mb-1">
-        {ano === '0' || ano === 0 ? 'Transversal' : `${ano}º ano`}
+        {ano === '0' || ano === 0 ? (rows[0]?.grade_scope || 'Faixa curricular') : `${ano}º ano`}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
         {[1, 2, 3, 4].map(b => {
@@ -252,28 +269,20 @@ function YearBlock({ ano, rows, expanded, setExpanded }) {
           if (!row) {
             return (
               <div key={b} className="border border-dashed border-gray-200 rounded px-2 py-1 text-[11px] text-gray-400">
-                {b}º bim — sem base
+                {b}º bim — sem plano
               </div>
             );
           }
           return <BimestreCard key={b} row={row} expanded={expanded} setExpanded={setExpanded} />;
         })}
       </div>
-      {transversais && (
-        <div className="mt-2 text-[11px] text-gray-500">
-          <strong>Transversais (sem bimestre):</strong> {transversais.covered}/{transversais.total} ({transversais.pct}%)
-        </div>
-      )}
-      {slots.length === 0 && !transversais && (
-        <div className="text-[11px] text-gray-400">Sem adaptações cadastradas.</div>
-      )}
     </div>
   );
 }
 
 function BimestreCard({ row, expanded, setExpanded }) {
-  const key = `${row.componente_codigo}-${row.ano}-${row.bimestre}`;
-  const style = STATUS_STYLE[row.status];
+  const key = `${row.componente_codigo}-${row.grade_scope || row.ano}-${row.bimestre}`;
+  const style = STATUS_STYLE[row.status] || STATUS_STYLE.nao_iniciado;
   const forecast = FORECAST_LABEL[row.forecast];
   const ForecastIcon = forecast?.icon;
   const isFuture = row.bimestre_state === 'futuro';
@@ -308,6 +317,14 @@ function BimestreCard({ row, expanded, setExpanded }) {
           </span>
         )}
       </div>
+
+      {(row.worked_outside_plan_count > 0 || row.historical_unstructured_count > 0) && (
+        <div className="mt-1 text-[9px] text-slate-500 leading-tight">
+          {row.worked_outside_plan_count > 0 && <span>{row.worked_outside_plan_count} fora do plano. </span>}
+          {row.historical_unstructured_count > 0 && <span>{row.historical_unstructured_count} histórico(s) não estruturado(s).</span>}
+        </div>
+      )}
+
       {row.pending_count > 0 && !isFuture && (
         <button
           onClick={() => setExpanded(x => ({ ...x, [key]: !x[key] }))}
@@ -325,8 +342,9 @@ function BimestreCard({ row, expanded, setExpanded }) {
         >
           <ul className="space-y-0.5 text-[10px]">
             {row.pending.map(p => (
-              <li key={p.adaptation_id} className="font-mono text-gray-700">
-                {p.codigo || p.bncc_skill_id?.slice(0, 10) || p.adaptation_id.slice(0, 10)}
+              <li key={p.plan_item_id || p.adaptation_id} className="text-gray-700">
+                <span className="font-mono">{p.codigo || p.adaptation_id?.slice(0, 12) || p.plan_item_id?.slice(0, 12)}</span>
+                {p.descricao && <span className="font-sans text-gray-500"> · {p.descricao}</span>}
               </li>
             ))}
           </ul>
