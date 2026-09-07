@@ -10,7 +10,9 @@ Invariantes:
 - nenhuma cascata altera escolas/dados: a trava é operacional no tenant_scope;
 - papéis excepcionalmente autorizados continuam sujeitos ao RBAC normal;
 - super_admin mantém bypass administrativo apenas no control plane para
-  diagnóstico/configuração/reativação; não recebe bypass operacional.
+  diagnóstico/configuração/reativação; não recebe bypass operacional;
+- o controle administrativo atua somente sobre a mantenedora explicitamente
+  selecionada no contexto da sessão, sem enumeração cross-tenant.
 """
 from __future__ import annotations
 
@@ -38,21 +40,32 @@ class MantenedoraAccessControlUpdate(BaseModel):
 
 
 def _selected_superadmin_tenant(request: Request) -> Optional[str]:
-    """Resolve o tenant explícito do control plane antes do contexto operacional.
+    """Resolve exclusivamente a mantenedora selecionada no contexto atual.
 
-    O painel de Super Administrador pode administrar várias mantenedoras sem trocar
-    o tenant operacional da sessão. Por isso, ``mantenedora_id`` da própria ação
-    administrativa é autoritativo; o header permanece apenas como fallback para
-    compatibilidade com os fluxos que gerenciam a mantenedora atualmente ativa.
+    ``X-Mantenedora-Id`` é a fonte autoritativa do control plane. O parâmetro
+    histórico ``mantenedora_id`` não pode selecionar outra mantenedora: quando
+    presente, ele só é tolerado se repetir exatamente o header atual. Assim, o
+    endpoint não funciona como enumerador cross-tenant e o super_admin precisa
+    trocar explicitamente a mantenedora ativa antes de administrar outra rede.
     """
+    header = (request.headers.get("X-Mantenedora-Id") or "").strip()
     try:
         query = (request.query_params.get("mantenedora_id") or "").strip()
     except Exception:
         query = ""
-    if query:
-        return query
 
-    header = (request.headers.get("X-Mantenedora-Id") or "").strip()
+    if query and query != header:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "CROSS_TENANT_CONTROL_FORBIDDEN",
+                "message": (
+                    "O controle de disponibilidade só pode atuar sobre a "
+                    "mantenedora selecionada no contexto atual."
+                ),
+            },
+        )
+
     return header or None
 
 
