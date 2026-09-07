@@ -1,0 +1,74 @@
+name: Mantenedora - Access Control Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/services/mantenedora_access_policy.py'
+      - 'backend/routers/mantenedora_access_control.py'
+      - 'backend/tenant_scope.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_mantenedora_access_policy.py'
+      - 'frontend/src/contexts/MantenedoraContext.js'
+      - 'frontend/src/components/ProtectedRoute.js'
+      - 'frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx'
+      - 'frontend/src/pages/MantenedoraDesativada.jsx'
+      - 'frontend/src/pages/Mantenedora.js'
+      - '.github/workflows/mantenedora-access-control.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/services/mantenedora_access_policy.py'
+      - 'backend/routers/mantenedora_access_control.py'
+      - 'backend/tenant_scope.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_mantenedora_access_policy.py'
+      - 'frontend/src/contexts/MantenedoraContext.js'
+      - 'frontend/src/components/ProtectedRoute.js'
+      - 'frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx'
+      - 'frontend/src/pages/MantenedoraDesativada.jsx'
+      - 'frontend/src/pages/Mantenedora.js'
+      - '.github/workflows/mantenedora-access-control.yml'
+
+jobs:
+  access-control-contract:
+    name: Backend - Mantenedora availability contract
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install minimal test dependencies
+        run: pip install pytest fastapi
+
+      - name: Compile access-control runtime
+        run: |
+          python -m py_compile \
+            services/mantenedora_access_policy.py \
+            routers/mantenedora_access_control.py \
+            tenant_scope.py
+
+      - name: Run access-control policy tests
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_mantenedora_access_policy.py
+
+      - name: Guard frontend integration points
+        run: |
+          grep -q 'MantenedoraAccessControlPanel' ../frontend/src/pages/Mantenedora.js
+          grep -q 'TENANT_INACTIVE' ../frontend/src/components/ProtectedRoute.js
+          grep -q 'SUPER_ADMIN_INACTIVE_CONTROL_PATHS' ../frontend/src/components/ProtectedRoute.js
+          grep -q 'direção da sua escola' ../frontend/src/pages/MantenedoraDesativada.jsx
+          grep -q 'online_blocker_count' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'management_allowed' routers/mantenedora_access_control.py
+          grep -q 'super_admin_management_bypass' routers/mantenedora_access_control.py

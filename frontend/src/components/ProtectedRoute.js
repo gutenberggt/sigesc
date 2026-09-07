@@ -1,9 +1,18 @@
 import { cloneElement, isValidElement, useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMantenedora } from '@/contexts/MantenedoraContext';
+import MantenedoraDesativada from '@/pages/MantenedoraDesativada';
+
+const SUPER_ADMIN_INACTIVE_CONTROL_PATHS = new Set([
+  '/admin/mantenedoras',
+  '/admin/mantenedora',
+]);
 
 export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
+  const { accessStatus, accessLoading, refreshAccessStatus } = useMantenedora();
+  const location = useLocation();
   const [tenantRevision, setTenantRevision] = useState(0);
 
   // MT-1: a troca de mantenedora precisa remontar a PÁGINA protegida inteira.
@@ -20,7 +29,7 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return () => window.removeEventListener('tenant-changed', handleTenantChange);
   }, []);
 
-  if (loading) {
+  if (loading || (user && accessLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -33,6 +42,29 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  const isSuperAdmin = user.role === 'super_admin' || (user.roles || []).includes('super_admin');
+  const isInactiveTenant = (
+    accessStatus?.access_allowed === false
+    && accessStatus?.reason === 'TENANT_INACTIVE'
+  );
+  const isSuperAdminControlPage = (
+    isSuperAdmin
+    && SUPER_ADMIN_INACTIVE_CONTROL_PATHS.has(location.pathname)
+  );
+
+  // A trava institucional vem antes do RBAC da página. Mantenedora inativa
+  // bloqueia também o super_admin em rotas operacionais. A única exceção no
+  // frontend é a allowlist administrativa necessária para selecionar, configurar
+  // e reativar o tenant; o backend aplica a mesma separação via CONTROL PLANE.
+  if (isInactiveTenant && !isSuperAdminControlPage) {
+    return (
+      <MantenedoraDesativada
+        accessStatus={accessStatus}
+        onRetry={refreshAccessStatus}
+      />
+    );
   }
 
   // super_admin tem TODOS os poderes de admin; admin_teste idem
