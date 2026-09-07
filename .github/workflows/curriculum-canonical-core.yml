@@ -4,21 +4,25 @@ on:
   pull_request:
     paths:
       - 'backend/routers/curriculum_core.py'
+      - 'backend/routers/curriculum_coverage_v2.py'
       - 'backend/routers/content_partial_cutover.py'
       - 'backend/routers/__init__.py'
       - 'backend/services/content_form_canonical_cutover.py'
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
+      - 'backend/tests/test_curriculum_coverage_v2.py'
       - '.github/workflows/curriculum-canonical-core.yml'
   push:
     branches: [main]
     paths:
       - 'backend/routers/curriculum_core.py'
+      - 'backend/routers/curriculum_coverage_v2.py'
       - 'backend/routers/content_partial_cutover.py'
       - 'backend/routers/__init__.py'
       - 'backend/services/content_form_canonical_cutover.py'
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
+      - 'backend/tests/test_curriculum_coverage_v2.py'
       - '.github/workflows/curriculum-canonical-core.yml'
 
 permissions:
@@ -44,7 +48,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
-      - name: Compile curricular core and F4 cutover
-        run: python -m py_compile routers/curriculum_core.py routers/content_partial_cutover.py services/content_form_canonical_cutover.py routers/__init__.py
+      - name: Compile curricular core, F4 writer and F5 coverage
+        run: python -m py_compile routers/curriculum_core.py routers/curriculum_coverage_v2.py routers/content_partial_cutover.py services/content_form_canonical_cutover.py routers/__init__.py
       - name: Run curricular core contract tests
-        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py
+        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py tests/test_curriculum_coverage_v2.py
