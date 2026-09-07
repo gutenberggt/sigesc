@@ -18,6 +18,7 @@ import uuid
 from models import Mantenedora, MantenedoraBase, MantenedoraUpdate
 from auth_middleware import AuthMiddleware
 from tenant_scope import is_super_admin, get_user_mantenedora_id
+from services.mantenedora_access_policy import is_tenant_active
 
 
 def create_mantenedoras_router(db):
@@ -73,7 +74,33 @@ def create_mantenedoras_router(db):
         existing = await db.mantenedoras.find_one({"id": mid})
         if not existing:
             raise HTTPException(status_code=404, detail="Mantenedora não encontrada")
-        update = {k: v for k, v in data.model_dump().items() if v is not None}
+
+        # P0 disponibilidade: a rota genérica de edição NÃO pode alterar o
+        # estado operacional da mantenedora. Essa transição precisa passar pelo
+        # endpoint /mantenedoras/access-control, que revalida usuários conectados,
+        # normaliza marcadores legados e registra a auditoria governada.
+        submitted = data.model_dump(exclude_unset=True)
+        if "ativo" in submitted:
+            requested_active = bool(submitted.get("ativo"))
+            if requested_active != is_tenant_active(existing):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "MANTENEDORA_AVAILABILITY_REQUIRES_ACCESS_CONTROL",
+                        "message": (
+                            "Ative ou desative a mantenedora pelo painel "
+                            "Disponibilidade e Controle de Acesso."
+                        ),
+                    },
+                )
+
+        # Mesmo quando o formulário legado reenviar o valor atual de `ativo`,
+        # ele é removido do write para preservar uma única SSoT de disponibilidade.
+        update = {
+            k: v
+            for k, v in submitted.items()
+            if v is not None and k not in {"ativo", "ativa", "status", "acesso_desativado_roles"}
+        }
         update['updated_at'] = datetime.now(timezone.utc)
         await db.mantenedoras.update_one({"id": mid}, {"$set": update})
         return await db.mantenedoras.find_one({"id": mid}, {"_id": 0})

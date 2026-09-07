@@ -7,6 +7,7 @@ on:
     paths:
       - 'backend/services/mantenedora_access_policy.py'
       - 'backend/routers/mantenedora_access_control.py'
+      - 'backend/routers/mantenedoras.py'
       - 'backend/tenant_scope.py'
       - 'backend/routers/__init__.py'
       - 'backend/tests/test_mantenedora_access_policy.py'
@@ -22,6 +23,7 @@ on:
     paths:
       - 'backend/services/mantenedora_access_policy.py'
       - 'backend/routers/mantenedora_access_control.py'
+      - 'backend/routers/mantenedoras.py'
       - 'backend/tenant_scope.py'
       - 'backend/routers/__init__.py'
       - 'backend/tests/test_mantenedora_access_policy.py'
@@ -58,6 +60,7 @@ jobs:
           python -m py_compile \
             services/mantenedora_access_policy.py \
             routers/mantenedora_access_control.py \
+            routers/mantenedoras.py \
             tenant_scope.py
 
       - name: Run access-control policy tests
@@ -70,5 +73,8 @@ jobs:
           grep -q 'SUPER_ADMIN_INACTIVE_CONTROL_PATHS' ../frontend/src/components/ProtectedRoute.js
           grep -q 'direção da sua escola' ../frontend/src/pages/MantenedoraDesativada.jsx
           grep -q 'online_blocker_count' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'apiFetch' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
+          grep -q 'mantenedora-access-selector' ../frontend/src/components/mantenedora/MantenedoraAccessControlPanel.jsx
           grep -q 'management_allowed' routers/mantenedora_access_control.py
           grep -q 'super_admin_management_bypass' routers/mantenedora_access_control.py
+          grep -q 'MANTENEDORA_AVAILABILITY_REQUIRES_ACCESS_CONTROL' routers/mantenedoras.py
