@@ -62,7 +62,7 @@ export default function MantenedoraDesativada({ accessStatus, onRetry }) {
 
             <div className="mx-auto mt-7 max-w-xl rounded-2xl bg-slate-50 border border-slate-200 px-5 py-5 text-left">
               <p className="text-slate-700 leading-7">
-                Neste momento, o acesso da sua unidade ao SIGESC está temporariamente suspenso.
+                Neste momento, o acesso da sua rede de ensino ao SIGESC está temporariamente suspenso.
                 Seus dados permanecem preservados no sistema.
               </p>
               <p className="mt-3 text-slate-700 leading-7">
@@ -104,7 +104,7 @@ export default function MantenedoraDesativada({ accessStatus, onRetry }) {
         </div>
 
         <p className="mt-5 text-center text-xs text-slate-500">
-          Esta mensagem é exibida automaticamente enquanto a unidade estiver com o acesso suspenso.
+          Esta mensagem é exibida automaticamente enquanto a mantenedora estiver com o acesso suspenso.
         </p>
       </main>
     </div>
