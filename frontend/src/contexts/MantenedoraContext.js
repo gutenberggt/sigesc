@@ -4,7 +4,7 @@ import { mantenedoraAPI, getActiveTenantId } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 const MantenedoraContext = createContext(null);
-const ACCESS_STATUS_URL = `${process.env.REACT_APP_BACKEND_URL}/api/mantenedoras/access-status`;
+const ACCESS_STATUS_URL = `${process.env.REACT_APP_BACKEND_URL}/api/mantenedora/access-status`;
 
 export const MantenedoraProvider = ({ children }) => {
   const { user } = useAuth();
