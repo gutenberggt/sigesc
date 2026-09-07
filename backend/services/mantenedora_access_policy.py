@@ -3,6 +3,12 @@
 Este módulo é deliberadamente puro: não acessa banco, request ou autenticação.
 A mesma regra é consumida pelo tenant_scope (enforcement global) e pelo
 control-plane da mantenedora (configuração/preview), evitando divergência.
+
+Invariantes de segurança:
+- tenant desativado é fail-closed por padrão;
+- a exceção por papel remove apenas a trava institucional, nunca o RBAC;
+- apenas o papel ativo da sessão é considerado para a exceção;
+- super_admin não recebe bypass operacional implícito.
 """
 from __future__ import annotations
 
