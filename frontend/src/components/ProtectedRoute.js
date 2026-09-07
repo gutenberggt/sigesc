@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import MantenedoraDesativada from '@/pages/MantenedoraDesativada';
+import MantenedoraManutencao from '@/pages/MantenedoraManutencao';
 
 const SUPER_ADMIN_INACTIVE_CONTROL_PATHS = new Set([
   '/admin/mantenedoras',
@@ -15,11 +16,6 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const location = useLocation();
   const [tenantRevision, setTenantRevision] = useState(0);
 
-  // MT-1: a troca de mantenedora precisa remontar a PÁGINA protegida inteira.
-  // O TenantSyncBoundary vive dentro de Layout e, sozinho, remonta apenas o
-  // subtree visual recebido por Layout. Estados/effects pertencentes à página
-  // (ex.: os cards do Dashboard) ficam acima desse boundary e não eram refeitos,
-  // preservando resultados vazios obtidos antes da seleção do tenant.
   useEffect(() => {
     const handleTenantChange = () => {
       setTenantRevision((revision) => revision + 1);
@@ -49,18 +45,33 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     accessStatus?.access_allowed === false
     && accessStatus?.reason === 'TENANT_INACTIVE'
   );
+  const isMaintenanceTenant = (
+    accessStatus?.access_allowed === false
+    && accessStatus?.reason === 'TENANT_MAINTENANCE'
+  );
   const isSuperAdminControlPage = (
     isSuperAdmin
     && SUPER_ADMIN_INACTIVE_CONTROL_PATHS.has(location.pathname)
   );
 
-  // A trava institucional vem antes do RBAC da página. Mantenedora inativa
-  // bloqueia também o super_admin em rotas operacionais. A única exceção no
-  // frontend é a allowlist administrativa necessária para selecionar, configurar
-  // e reativar o tenant; o backend aplica a mesma separação via CONTROL PLANE.
+  // Precedência: a suspensão institucional continua sendo a trava mais forte.
+  // O super_admin só atravessa tenant DESATIVADO nas páginas administrativas
+  // explicitamente allowlisted, conforme o backend/control plane.
   if (isInactiveTenant && !isSuperAdminControlPage) {
     return (
       <MantenedoraDesativada
+        accessStatus={accessStatus}
+        onRetry={refreshAccessStatus}
+      />
+    );
+  }
+
+  // Manutenção é diferente de inatividade: enquanto a mantenedora está ativa em
+  // manutenção, usuários comuns veem a página própria; o super_admin permanece
+  // com acesso operacional completo para executar a manutenção.
+  if (isMaintenanceTenant && !isSuperAdmin) {
+    return (
+      <MantenedoraManutencao
         accessStatus={accessStatus}
         onRetry={refreshAccessStatus}
       />
@@ -85,9 +96,6 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     );
   }
 
-  // Trocar a key desmonta/remonta o elemento de página sem hard reload do browser.
-  // Assim todos os useEffect([]) da rota executam novamente já com
-  // X-Mantenedora-Id atualizado pelo TenantSwitcher.
   if (isValidElement(children)) {
     return cloneElement(children, { key: `tenant-${tenantRevision}` });
   }
