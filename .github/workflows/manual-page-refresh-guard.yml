@@ -5,12 +5,16 @@ on:
     branches: [main]
     paths:
       - 'frontend/src/pages/**'
+      - 'frontend/src/components/ProtectedRoute.js'
+      - 'frontend/src/contexts/MantenedoraContext.js'
       - 'backend/tests/test_frontend_manual_page_refresh_policy.py'
       - '.github/workflows/manual-page-refresh-guard.yml'
   push:
     branches: [main]
     paths:
       - 'frontend/src/pages/**'
+      - 'frontend/src/components/ProtectedRoute.js'
+      - 'frontend/src/contexts/MantenedoraContext.js'
       - 'backend/tests/test_frontend_manual_page_refresh_policy.py'
       - '.github/workflows/manual-page-refresh-guard.yml'
 
