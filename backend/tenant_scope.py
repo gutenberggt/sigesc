@@ -74,8 +74,8 @@ SESSION_PLANE_PATHS = frozenset(
         "/auth/change-account",
         "/api/auth/resend-email-change",
         "/auth/resend-email-change",
-        "/api/mantenedoras/access-status",
-        "/mantenedoras/access-status",
+        "/api/mantenedora/access-status",
+        "/mantenedora/access-status",
     }
 )
 
