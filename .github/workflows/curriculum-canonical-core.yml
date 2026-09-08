@@ -8,10 +8,12 @@ on:
       - 'backend/routers/content_partial_cutover.py'
       - 'backend/routers/__init__.py'
       - 'backend/services/content_form_canonical_cutover.py'
+      - 'backend/services/content_reporting_projection.py'
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
       - 'backend/tests/test_curriculum_coverage_v2.py'
       - 'backend/tests/test_curriculum_coverage_v2_frontend_contract.py'
+      - 'backend/tests/test_content_reporting_projection.py'
       - 'frontend/src/pages/CurriculumCoverage.jsx'
       - 'frontend/src/services/curriculumCoverageV2.js'
       - '.github/workflows/curriculum-canonical-core.yml'
@@ -23,10 +25,12 @@ on:
       - 'backend/routers/content_partial_cutover.py'
       - 'backend/routers/__init__.py'
       - 'backend/services/content_form_canonical_cutover.py'
+      - 'backend/services/content_reporting_projection.py'
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
       - 'backend/tests/test_curriculum_coverage_v2.py'
       - 'backend/tests/test_curriculum_coverage_v2_frontend_contract.py'
+      - 'backend/tests/test_content_reporting_projection.py'
       - 'frontend/src/pages/CurriculumCoverage.jsx'
       - 'frontend/src/services/curriculumCoverageV2.js'
       - '.github/workflows/curriculum-canonical-core.yml'
@@ -54,7 +58,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
-      - name: Compile curricular core, F4 writer and F5 coverage
-        run: python -m py_compile routers/curriculum_core.py routers/curriculum_coverage_v2.py routers/content_partial_cutover.py services/content_form_canonical_cutover.py routers/__init__.py
+      - name: Compile curricular core, F4/F5 and reporting shadow
+        run: python -m py_compile routers/curriculum_core.py routers/curriculum_coverage_v2.py routers/content_partial_cutover.py services/content_form_canonical_cutover.py services/content_reporting_projection.py routers/__init__.py
       - name: Run curricular core contract tests
-        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py tests/test_curriculum_coverage_v2.py tests/test_curriculum_coverage_v2_frontend_contract.py
+        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py tests/test_curriculum_coverage_v2.py tests/test_curriculum_coverage_v2_frontend_contract.py tests/test_content_reporting_projection.py
