@@ -5,39 +5,64 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PARITY = (ROOT / "routers" / "grades_dvd_parity.py").read_text(encoding="utf-8")
+WRITE = (ROOT / "routers" / "grades_historical_backfill_dvd.py").read_text(encoding="utf-8")
+CUTOVER = (ROOT / "services" / "grade_cutover_history.py").read_text(encoding="utf-8")
 ROUTERS_INIT = (ROOT / "routers" / "__init__.py").read_text(encoding="utf-8")
 GRADE_SCOPE = (ROOT / "services" / "grade_assignment_scope.py").read_text(encoding="utf-8")
 
 
-def test_paridade_revalida_exatamente_o_cutover_38g_b():
-    assert 'source_legacy_assignment_id' in PARITY
-    assert 'provenance.get("apply_phase") != "38G-B"' in PARITY
-    assert 'provenance.get("apply_state") != "ACTIVATED"' in PARITY
-    assert '"course_id": context.course_id' in PARITY
-    assert '"status": "ativo"' in PARITY
-    assert '_legacy_staff_matches_teacher' in PARITY
+def test_paridade_e_escrita_compartilham_ssot_do_cutover_38g_b():
+    assert "from services.grade_cutover_history import" in PARITY
+    assert "from services.grade_cutover_history import" in WRITE
+    assert "safe_cutover_legacy_assignment as _safe_cutover_legacy_assignment" in PARITY
+    assert "historical_grade_write_evidence" in WRITE
+    assert 'provenance.get("apply_phase") != "38G-B"' in CUTOVER
+    assert 'provenance.get("apply_state") != "ACTIVATED"' in CUTOVER
+    assert 'source_legacy_assignment_id' in CUTOVER
+    assert '"course_id": context.course_id' in CUTOVER
+    assert '"status": "ativo"' in CUTOVER
+    assert "legacy_staff_matches_teacher" in CUTOVER
 
 
-def test_legado_e_visivel_mas_permanece_sem_autoria():
+def test_legado_e_visivel_mas_permanece_sem_apropriacao_automatica():
     assert 'dvd_read_only_fields' in PARITY
     assert 'history_source' in PARITY
     assert 'grades_legacy' in PARITY
     assert 'field not in ownership' in PARITY
     assert 'out["grade_ownership"]' in PARITY
     assert 'GRADE_LEGACY_FIELD_REQUIRES_REVIEW' in GRADE_SCOPE
+    assert 'GRADE_LEGACY_FIELD_REQUIRES_REVIEW' not in WRITE  # motor canônico continua decidindo
 
 
-def test_paridade_nao_escreve_em_grades_nem_em_ownership():
+def test_ponte_historica_nao_grava_dados_crus_nem_retrodata_assignment():
     forbidden = (
         '.grades.insert_one(',
         '.grades.update_one(',
         '.grades.update_many(',
         '.grades.delete_one(',
         '.grades.delete_many(',
-        'apply_grade_field_ownership(',
+        '.teacher_class_assignments.update_one(',
+        '.teacher_class_assignments.update_many(',
     )
     for token in forbidden:
-        assert token not in PARITY
+        assert token not in CUTOVER
+        assert token not in WRITE
+    assert 'assignment["valid_from"] = evidence[HISTORICAL_WRITE_PERIOD_START_FLAG]' in WRITE
+    assert "contexto efêmero" in WRITE
+
+
+def test_escrita_reutiliza_motor_canonico_de_ownership():
+    assert "_build_historical_ownership_adapter" in WRITE
+    assert "ownership = await base_apply(" in WRITE
+    assert "apply_grade_field_ownership(" not in WRITE
+    assert "field_context = _historical_context(context, evidence)" in WRITE
+
+
+def test_auditoria_de_escrita_historica_e_explicita():
+    assert '"historical_grade_write": True' in WRITE
+    assert '"historical_fields": sorted(historical_fields)' in WRITE
+    assert '"historical_source_legacy_assignment_ids": sorted(source_ids)' in WRITE
+    assert "_build_historical_save_adapter" in WRITE
 
 
 def test_pdf_usa_a_mesma_projecao_historica_da_tela():
@@ -56,10 +81,13 @@ def test_instalacao_ocorre_adapter_hardening_paridade_student_scope():
     assert ROUTERS_INIT.index('install_grades_dvd_adapter(') < ROUTERS_INIT.index('install_grades_dvd_hardening(')
     assert ROUTERS_INIT.index('install_grades_dvd_hardening(') < ROUTERS_INIT.index('install_grades_dvd_parity(')
     assert ROUTERS_INIT.index('install_grades_dvd_parity(') < ROUTERS_INIT.index('install_grades_dvd_student_scope(')
+    assert "install_grades_historical_backfill_dvd()" in PARITY
 
 
-def test_adaptador_p0_nao_substitui_rotas_de_escrita():
-    assert '_save_one_dvd_grade' not in PARITY
+def test_paridade_nao_substitui_rotas_de_escrita():
     assert '@base_router.post' not in PARITY
     assert '@base_router.put' not in PARITY
     assert '@base_router.delete' not in PARITY
+    assert '@base_router.post' not in WRITE
+    assert '@base_router.put' not in WRITE
+    assert '@base_router.delete' not in WRITE
