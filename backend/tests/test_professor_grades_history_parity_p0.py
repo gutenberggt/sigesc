@@ -7,21 +7,24 @@ ROOT = Path(__file__).resolve().parents[1]
 PARITY = (ROOT / "routers" / "grades_dvd_parity.py").read_text(encoding="utf-8")
 WRITE = (ROOT / "routers" / "grades_historical_backfill_dvd.py").read_text(encoding="utf-8")
 CUTOVER = (ROOT / "services" / "grade_cutover_history.py").read_text(encoding="utf-8")
+GENERIC = (ROOT / "services" / "dvd_cutover_legacy_provenance.py").read_text(encoding="utf-8")
 ROUTERS_INIT = (ROOT / "routers" / "__init__.py").read_text(encoding="utf-8")
 GRADE_SCOPE = (ROOT / "services" / "grade_assignment_scope.py").read_text(encoding="utf-8")
 
 
-def test_paridade_e_escrita_compartilham_ssot_do_cutover_38g_b():
+def test_paridade_e_escrita_compartilham_ssot_geral_do_cutover():
     assert "from services.grade_cutover_history import" in PARITY
     assert "from services.grade_cutover_history import" in WRITE
-    assert "safe_cutover_legacy_assignment as _safe_cutover_legacy_assignment" in PARITY
+    assert "resolve_validated_cutover_legacy_assignment" in CUTOVER
+    assert "expected_class_id=context.class_id" in CUTOVER
+    assert "expected_component_id=context.course_id" in CUTOVER
+    assert "APPROVED_HISTORICAL_CUTOVER_PHASES" in GENERIC
+    assert '"38G-B"' in GENERIC
+    assert 'provenance.get("apply_state") == "ACTIVATED"' in GENERIC
+    assert 'source_legacy_assignment_id' in GENERIC
+    assert '"status": "ativo"' in GENERIC
+    assert "_legacy_staff_matches_teacher" in GENERIC
     assert "historical_grade_write_evidence" in WRITE
-    assert 'provenance.get("apply_phase") != "38G-B"' in CUTOVER
-    assert 'provenance.get("apply_state") != "ACTIVATED"' in CUTOVER
-    assert 'source_legacy_assignment_id' in CUTOVER
-    assert '"course_id": context.course_id' in CUTOVER
-    assert '"status": "ativo"' in CUTOVER
-    assert "legacy_staff_matches_teacher" in CUTOVER
 
 
 def test_legado_e_visivel_mas_permanece_sem_apropriacao_automatica():
@@ -82,6 +85,11 @@ def test_instalacao_ocorre_adapter_hardening_paridade_student_scope():
     assert ROUTERS_INIT.index('install_grades_dvd_hardening(') < ROUTERS_INIT.index('install_grades_dvd_parity(')
     assert ROUTERS_INIT.index('install_grades_dvd_parity(') < ROUTERS_INIT.index('install_grades_dvd_student_scope(')
     assert "install_grades_historical_backfill_dvd()" in PARITY
+
+
+def test_generalizacao_runtime_continua_podendo_patchar_a_prova_de_leitura():
+    assert "safe_cutover_legacy_assignment as _safe_cutover_legacy_assignment" in PARITY
+    assert "legacy = await _safe_cutover_legacy_assignment" in PARITY
 
 
 def test_paridade_nao_substitui_rotas_de_escrita():
