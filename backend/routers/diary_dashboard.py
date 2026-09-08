@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from auth_middleware import AuthMiddleware
 from utils.school_resolution import get_school_scope_for_period, school_scope_to_date_match, get_school_class_ids_at
+from tenant_scope import get_mantenedora_scope
+from services.content_reporting_dashboard_s5 import get_diary_dashboard_content_stats
 import os
 import logging
 
@@ -195,59 +197,23 @@ def create_diary_dashboard_router():
         user = await check_access(request)
         
         try:
-            # Construir filtro base
-            filter_query = {"academic_year": academic_year}
+            tenant_id = get_mantenedora_scope(user, request)
+            if not tenant_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Escopo de mantenedora obrigatório para o dashboard de conteúdo",
+                )
+            return await get_diary_dashboard_content_stats(
+                db,
+                tenant_id=tenant_id,
+                academic_year=academic_year,
+                school_id=school_id,
+                class_id=class_id,
+                course_id=course_id,
+            )
             
-            if school_id:
-                filter_query["school_id"] = school_id
-            
-            if class_id:
-                filter_query["class_id"] = class_id
-            
-            if course_id:
-                filter_query["course_id"] = course_id
-            
-            # Contar registros por mês
-            pipeline = [
-                {"$match": filter_query},
-                {"$addFields": {
-                    "month": {"$month": {"$dateFromString": {"dateString": "$date"}}}
-                }},
-                {"$group": {
-                    "_id": "$month",
-                    "count": {"$sum": 1},
-                    "total_classes": {"$sum": "$number_of_classes"}
-                }},
-                {"$sort": {"_id": 1}}
-            ]
-            
-            monthly_data = await db.learning_objects.aggregate(pipeline).to_list(12)
-            
-            # Total de registros
-            total_records = await db.learning_objects.count_documents(filter_query)
-            
-            # Estimar taxa de preenchimento
-            # ~200 dias letivos x componentes
-            expected_days = 200
-            completion_rate = min(100, round((total_records / max(expected_days, 1)) * 100))
-            
-            # Formatar dados por mês
-            month_names = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-            by_month = []
-            for m in monthly_data:
-                month_num = m['_id']
-                by_month.append({
-                    "month": month_names[month_num] if month_num <= 12 else str(month_num),
-                    "registros": m['count'],
-                    "aulas": m.get('total_classes', m['count'])
-                })
-            
-            return {
-                "completion_rate": completion_rate,
-                "total_records": total_records,
-                "by_month": by_month
-            }
-            
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Erro ao buscar estatísticas de conteúdos: {e}")
             raise HTTPException(status_code=500, detail=str(e))
