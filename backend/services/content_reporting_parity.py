@@ -43,6 +43,13 @@ CONSUMER_METRICS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+ADDITIVE_METRICS = {
+    "record_count",
+    "number_of_classes_sum",
+    "monthly_record_count",
+    "monthly_number_of_classes_sum",
+}
+
 CLASSIFICATIONS = {
     "MATCH",
     "EXPECTED_CANONICAL_GAIN",
@@ -121,6 +128,20 @@ def _delta(legacy: Any, projected: Any) -> Any:
     return projected - legacy
 
 
+def _net_delta(value: Any) -> Optional[float]:
+    """Saldo de uma diferença escalar ou dimensional, sem tolerância implícita."""
+    if isinstance(value, Mapping):
+        total = 0.0
+        for raw in value.values():
+            if not isinstance(raw, (int, float)):
+                return None
+            total += float(raw)
+        return total
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
 def _equal(metric: str, legacy: Any, projected: Any) -> bool:
     if metric == "average_delay_days":
         if legacy is None and projected is None:
@@ -131,6 +152,47 @@ def _equal(metric: str, legacy: Any, projected: Any) -> bool:
     return legacy == projected
 
 
+def _record_count_reconciliation(
+    *,
+    shadow: Mapping[str, Any],
+    legacy_metrics: Mapping[str, Any],
+    canonical_metrics: Mapping[str, Any],
+    projected_metrics: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Prova a identidade estrutural básica do merge, em tolerância zero.
+
+    Todo registro projetado deve ser explicável por:
+
+      legado + canônico - legado_pós_cutover - duplicidade_suprimida
+
+    O total canônico calculado pelas métricas também deve coincidir com o contador
+    interno do merge. Se qualquer lado divergir, a paridade permanece fail-closed.
+    """
+    legacy_count = int(legacy_metrics.get("record_count") or 0)
+    canonical_metric_count = int(canonical_metrics.get("record_count") or 0)
+    canonical_shadow_count = int(shadow.get("canonical_count") or 0)
+    excluded = int(shadow.get("legacy_excluded_post_cutover") or 0)
+    duplicates = int(shadow.get("legacy_duplicate_suppressed") or 0)
+    projected_count = int(projected_metrics.get("record_count") or 0)
+    expected_delta = canonical_metric_count - excluded - duplicates
+    observed_delta = projected_count - legacy_count
+    canonical_count_exact = canonical_metric_count == canonical_shadow_count
+    delta_exact = observed_delta == expected_delta
+    return {
+        "legacy_record_count": legacy_count,
+        "canonical_record_count": canonical_metric_count,
+        "canonical_shadow_count": canonical_shadow_count,
+        "legacy_excluded_post_cutover": excluded,
+        "legacy_duplicate_suppressed": duplicates,
+        "projected_record_count": projected_count,
+        "expected_record_count_delta": expected_delta,
+        "observed_record_count_delta": observed_delta,
+        "canonical_count_exact": canonical_count_exact,
+        "delta_exact": delta_exact,
+        "exact": canonical_count_exact and delta_exact,
+    }
+
+
 def _structural_classification(
     *,
     metric: str,
@@ -138,17 +200,33 @@ def _structural_classification(
     projected: Any,
     shadow: Mapping[str, Any],
     legacy_metrics: Mapping[str, Any],
+    canonical_metrics: Mapping[str, Any],
     projected_metrics: Mapping[str, Any],
-) -> tuple[str, str]:
+) -> tuple[str, str, dict[str, Any]]:
     tenant_rejected = int(shadow.get("tenant_mismatch_rejected") or 0)
     canonical = int(shadow.get("canonical_count") or 0)
     excluded = int(shadow.get("legacy_excluded_post_cutover") or 0)
     duplicates = int(shadow.get("legacy_duplicate_suppressed") or 0)
+    drivers = sum(bool(value) for value in (canonical, excluded, duplicates))
+    scalar_delta = _delta(legacy, projected)
+    net_delta = _net_delta(scalar_delta)
+    count_identity = _record_count_reconciliation(
+        shadow=shadow,
+        legacy_metrics=legacy_metrics,
+        canonical_metrics=canonical_metrics,
+        projected_metrics=projected_metrics,
+    )
+    reconciliation = {
+        "record_count_identity": count_identity,
+        "metric_net_delta": net_delta,
+        "driver_count": drivers,
+    }
 
     if tenant_rejected:
         return (
             "SCOPE_ERROR",
             f"{tenant_rejected} registro(s) com tenant explícito incompatível foram rejeitados.",
+            reconciliation,
         )
 
     if metric == "average_delay_days":
@@ -158,55 +236,106 @@ def _structural_classification(
             return (
                 "PROVENANCE_INCOMPARABLE",
                 "Atraso possui registros sem date/created_at comparáveis; não há paridade segura.",
+                reconciliation,
             )
+
+    # Métricas aditivas só podem receber uma classificação esperada quando a
+    # identidade básica de composição fecha exatamente. Isso impede que a
+    # coexistência de múltiplos drivers masque uma regressão estrutural.
+    if metric in ADDITIVE_METRICS and drivers and not count_identity["exact"]:
+        return (
+            "UNEXPECTED_DIFFERENCE",
+            "A identidade estrutural de contagem não fecha exatamente para os drivers shadow.",
+            reconciliation,
+        )
 
     if _equal(metric, legacy, projected):
         if duplicates and canonical == duplicates and not excluded:
             return (
                 "HISTORICAL_OVERLAP_SUPPRESSED",
                 "O valor líquido coincide porque sobreposição histórica foi substituída pelo canônico.",
+                reconciliation,
             )
-        return "MATCH", "Valor legado e valor projetado são equivalentes dentro da tolerância."
+        return (
+            "MATCH",
+            "Valor legado e valor projetado são equivalentes dentro da tolerância.",
+            reconciliation,
+        )
 
-    drivers = sum(bool(value) for value in (canonical, excluded, duplicates))
-    scalar_delta = _delta(legacy, projected)
+    # Para métricas aditivas, uma identidade de contagem exata permite tratar
+    # coexistência de ganho canônico + exclusão/duplicidade sem perder o gate.
+    # A classificação usa o saldo líquido da própria métrica; distribuições
+    # mensais podem conter meses positivos e negativos, mas o relatório conserva
+    # o mapa completo de delta e a reconciliação que justificou a decisão.
+    if metric in ADDITIVE_METRICS and count_identity["exact"]:
+        if net_delta is not None and net_delta > 0 and canonical:
+            explanation = (
+                "A identidade estrutural fecha exatamente; ganho canônico e remoções legadas "
+                "podem coexistir, com saldo líquido positivo nesta métrica."
+                if drivers > 1
+                else "A projeção contém lançamentos canônicos que a fonte legada não pode conter."
+            )
+            return "EXPECTED_CANONICAL_GAIN", explanation, reconciliation
+        if net_delta is not None and net_delta < 0 and excluded:
+            explanation = (
+                "A identidade estrutural fecha exatamente; ganho canônico e remoções legadas "
+                "podem coexistir, com saldo líquido negativo por exclusão pós-cutover."
+                if drivers > 1
+                else "A projeção excluiu legado posterior ao cutover explícito."
+            )
+            return "EXPECTED_POST_CUTOVER_LEGACY_EXCLUSION", explanation, reconciliation
+        if net_delta == 0 and duplicates:
+            return (
+                "HISTORICAL_OVERLAP_SUPPRESSED",
+                "A identidade estrutural fecha com saldo líquido zero e sobreposição histórica suprimida.",
+                reconciliation,
+            )
+
+    # Mantém a semântica anterior para métricas não aditivas comparáveis, onde a
+    # direção ainda pode ser explicada por um único driver estrutural.
     delta_sign = 0
     if isinstance(scalar_delta, (int, float)):
         delta_sign = 1 if scalar_delta > 0 else -1 if scalar_delta < 0 else 0
-
     if canonical and not excluded and not duplicates:
         return (
             "EXPECTED_CANONICAL_GAIN",
             "A projeção contém lançamentos canônicos que a fonte legada não pode conter.",
+            reconciliation,
         )
     if excluded and not canonical and not duplicates:
         return (
             "EXPECTED_POST_CUTOVER_LEGACY_EXCLUSION",
             "A projeção excluiu legado posterior ao cutover explícito.",
+            reconciliation,
         )
     if duplicates and not excluded and canonical == duplicates and delta_sign <= 0:
         return (
             "HISTORICAL_OVERLAP_SUPPRESSED",
             "A diferença é compatível com sobreposição histórica suprimida pelo canônico.",
+            reconciliation,
         )
     if canonical and not excluded and delta_sign > 0:
         return (
             "EXPECTED_CANONICAL_GAIN",
             "A divergência positiva é explicável por novos lançamentos canônicos.",
+            reconciliation,
         )
     if excluded and delta_sign < 0:
         return (
             "EXPECTED_POST_CUTOVER_LEGACY_EXCLUSION",
             "A divergência negativa é compatível com exclusão de legado pós-cutover.",
+            reconciliation,
         )
     if duplicates and drivers == 1:
         return (
             "HISTORICAL_OVERLAP_SUPPRESSED",
             "A divergência é explicável por duplicidade histórica suprimida.",
+            reconciliation,
         )
     return (
         "UNEXPECTED_DIFFERENCE",
         "A divergência não é explicada de forma determinística pelos drivers shadow conhecidos.",
+        reconciliation,
     )
 
 
@@ -214,17 +343,19 @@ def _metric_row(
     metric: str,
     *,
     legacy_metrics: Mapping[str, Any],
+    canonical_metrics: Mapping[str, Any],
     projected_metrics: Mapping[str, Any],
     shadow: Mapping[str, Any],
 ) -> dict[str, Any]:
     legacy = legacy_metrics.get(metric)
     projected = projected_metrics.get(metric)
-    classification, explanation = _structural_classification(
+    classification, explanation, reconciliation = _structural_classification(
         metric=metric,
         legacy=legacy,
         projected=projected,
         shadow=shadow,
         legacy_metrics=legacy_metrics,
+        canonical_metrics=canonical_metrics,
         projected_metrics=projected_metrics,
     )
     assert classification in CLASSIFICATIONS
@@ -235,6 +366,7 @@ def _metric_row(
         "delta": _delta(legacy, projected),
         "classification": classification,
         "explanation": explanation,
+        "reconciliation": reconciliation,
     }
 
 
@@ -360,12 +492,14 @@ async def execute_content_reporting_parity(
 
     source_metrics = projection.get("source_metrics") or {}
     legacy_metrics = source_metrics.get("legacy") or {}
+    canonical_metrics = source_metrics.get("canonical") or {}
     projected_metrics = source_metrics.get("projected") or {}
     shadow = dict(projection.get("shadow") or {})
     metrics = [
         _metric_row(
             metric,
             legacy_metrics=legacy_metrics,
+            canonical_metrics=canonical_metrics,
             projected_metrics=projected_metrics,
             shadow=shadow,
         )
@@ -390,6 +524,7 @@ async def execute_content_reporting_parity(
         "classifications": classifications,
         "source_metrics": {
             "legacy": legacy_metrics,
+            "canonical": canonical_metrics,
             "projected": projected_metrics,
         },
         "shadow": shadow,
