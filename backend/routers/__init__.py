@@ -42,7 +42,8 @@ from .dvd_historical_bridge_generalization import install_dvd_historical_bridge_
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
-from .analytics import router as analytics_router, setup_analytics_router
+from .analytics import router as analytics_router, setup_analytics_router as _setup_analytics_router
+from services.content_reporting_analytics_s5 import install_content_reporting_analytics_setup
 
 # FastAPI resolve anotações postergadas usando o namespace global do módulo que
 # declara a função. O adaptador de abas registra o mesmo payload Pydantic da
@@ -261,6 +262,11 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         db,
         sandbox_db=sandbox_db,
     )
+
+
+# S5.4 — somente o Analytics recebe a visão projetada de Conteúdo. Nenhum outro
+# router compartilha esse proxy, mantendo o cutover incremental e rollback simples.
+setup_analytics_router = install_content_reporting_analytics_setup(_setup_analytics_router)
 
 
 __all__ = [
