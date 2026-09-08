@@ -48,10 +48,10 @@ export function normalizeDownloadErrorDetail(payload, fallback = '') {
  *
  * @param {string} url Endpoint absoluto (ex.: `${BACKEND_URL}/api/...`)
  * @param {string} filename Nome sugerido do arquivo (extensão incluída)
- * @param {object} [headers={}] Headers extras; sobrepõem os canônicos apenas quando deliberado.
+ * @param {object} [headers={}] Headers extras processados pela SSoT de auth/tenant.
  */
 export async function downloadBlob(url, filename, headers = {}) {
-  const finalHeaders = { ...buildFetchAuthHeaders('GET'), ...headers };
+  const finalHeaders = buildFetchAuthHeaders('GET', headers);
   const response = await fetch(url, { headers: finalHeaders, credentials: 'include' });
   if (!response.ok) {
     let detail = '';
