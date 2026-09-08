@@ -5,6 +5,7 @@ import pytest
 
 from services.content_reporting_parity import (
     ContentReportingParityError,
+    _structural_classification,
     execute_content_reporting_parity,
 )
 
@@ -189,15 +190,14 @@ async def test_s3_match_quando_legado_e_projecao_sao_equivalentes():
 
 @pytest.mark.asyncio
 async def test_s3_classifica_ganho_canônico_esperado():
-    report = await _execute(
-        FakeDb(legacy=[_legacy()], canonical=[_canonical()])
-    )
+    report = await _execute(FakeDb(legacy=[_legacy()], canonical=[_canonical()]))
 
     metric = _metric(report, "record_count")
     assert metric["legacy"] == 1
     assert metric["projected"] == 2
     assert metric["delta"] == 1
     assert metric["classification"] == "EXPECTED_CANONICAL_GAIN"
+    assert metric["reconciliation"]["record_count_identity"]["exact"] is True
 
 
 @pytest.mark.asyncio
@@ -231,6 +231,92 @@ async def test_s3_classifica_sobreposicao_historica_suprimida():
     assert metric["projected"] == 1
     assert metric["classification"] == "HISTORICAL_OVERLAP_SUPPRESSED"
     assert report["shadow"]["legacy_duplicate_suppressed"] == 1
+
+
+@pytest.mark.asyncio
+async def test_s3_reconcilia_ganho_e_exclusao_coexistentes_sem_tolerancia():
+    report = await _execute(
+        FakeDb(
+            assignments=[_assignment()],
+            legacy=[
+                _legacy("2026-06-10", item_id="lo-old"),
+                _legacy("2026-08-20", item_id="lo-cut", teacher="teacher-b"),
+            ],
+            canonical=[
+                _canonical("2026-09-01", item_id="ce-1"),
+                _canonical("2026-09-02", item_id="ce-2"),
+            ],
+        ),
+        consumer="DIARY_DASHBOARD_CONTENT",
+    )
+
+    total = _metric(report, "record_count")
+    monthly = _metric(report, "monthly_record_count")
+    assert total["legacy"] == 2
+    assert total["projected"] == 3
+    assert total["delta"] == 1
+    assert total["classification"] == "EXPECTED_CANONICAL_GAIN"
+    assert total["reconciliation"]["record_count_identity"] == {
+        "legacy_record_count": 2,
+        "canonical_record_count": 2,
+        "canonical_shadow_count": 2,
+        "legacy_excluded_post_cutover": 1,
+        "legacy_duplicate_suppressed": 0,
+        "projected_record_count": 3,
+        "expected_record_count_delta": 1,
+        "observed_record_count_delta": 1,
+        "canonical_count_exact": True,
+        "delta_exact": True,
+        "exact": True,
+    }
+    assert monthly["delta"] == {"2026-06": 0, "2026-08": -1, "2026-09": 2}
+    assert monthly["reconciliation"]["metric_net_delta"] == 1.0
+    assert monthly["classification"] == "EXPECTED_CANONICAL_GAIN"
+
+
+@pytest.mark.asyncio
+async def test_s3_reconcilia_transicao_mensal_mista_com_saldo_de_exclusao():
+    report = await _execute(
+        FakeDb(
+            assignments=[_assignment()],
+            legacy=[
+                _legacy("2026-06-10", item_id="lo-old"),
+                _legacy("2026-08-20", item_id="lo-cut-1", teacher="teacher-b"),
+                _legacy("2026-08-21", item_id="lo-cut-2", teacher="teacher-c"),
+            ],
+            canonical=[_canonical("2026-09-01", item_id="ce-new")],
+        ),
+        consumer="DIARY_DASHBOARD_CONTENT",
+    )
+
+    total = _metric(report, "record_count")
+    monthly = _metric(report, "monthly_record_count")
+    assert total["delta"] == -1
+    assert total["classification"] == "EXPECTED_POST_CUTOVER_LEGACY_EXCLUSION"
+    assert monthly["delta"] == {"2026-06": 0, "2026-08": -2, "2026-09": 1}
+    assert monthly["reconciliation"]["metric_net_delta"] == -1.0
+    assert monthly["classification"] == "EXPECTED_POST_CUTOVER_LEGACY_EXCLUSION"
+
+
+def test_s3_fail_closed_quando_identidade_de_contagem_nao_fecha():
+    classification, explanation, reconciliation = _structural_classification(
+        metric="record_count",
+        legacy=10,
+        projected=12,
+        shadow={
+            "canonical_count": 5,
+            "legacy_excluded_post_cutover": 1,
+            "legacy_duplicate_suppressed": 0,
+            "tenant_mismatch_rejected": 0,
+        },
+        legacy_metrics={"record_count": 10},
+        canonical_metrics={"record_count": 4},
+        projected_metrics={"record_count": 12},
+    )
+    assert classification == "UNEXPECTED_DIFFERENCE"
+    assert "não fecha" in explanation
+    assert reconciliation["record_count_identity"]["exact"] is False
+    assert reconciliation["record_count_identity"]["canonical_count_exact"] is False
 
 
 @pytest.mark.asyncio
