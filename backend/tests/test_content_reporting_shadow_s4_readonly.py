@@ -51,7 +51,24 @@ def test_structural_collection_ignora_projection_ampla_e_nao_le_texto():
         assert forbidden not in projection
 
 
-def test_sanitizer_remove_ids_brutos_e_preserva_fingerprints_e_metricas():
+def test_sanitizer_remove_ids_brutos_e_preserva_fingerprints_metricas_e_reconciliacao():
+    reconciliation = {
+        "record_count_identity": {
+            "legacy_record_count": 2,
+            "canonical_record_count": 2,
+            "canonical_shadow_count": 2,
+            "legacy_excluded_post_cutover": 1,
+            "legacy_duplicate_suppressed": 0,
+            "projected_record_count": 3,
+            "expected_record_count_delta": 1,
+            "observed_record_count_delta": 1,
+            "canonical_count_exact": True,
+            "delta_exact": True,
+            "exact": True,
+        },
+        "metric_net_delta": 1.0,
+        "driver_count": 2,
+    }
     report = {
         "consumer": "DIARY_DASHBOARD_CONTENT",
         "code_sha": "a" * 40,
@@ -85,10 +102,11 @@ def test_sanitizer_remove_ids_brutos_e_preserva_fingerprints_e_metricas():
                 "delta": 1,
                 "classification": "EXPECTED_CANONICAL_GAIN",
                 "explanation": "ganho esperado",
+                "reconciliation": reconciliation,
             }
         ],
         "classifications": ["EXPECTED_CANONICAL_GAIN"],
-        "shadow": {"canonical_count": 1, "tenant_mismatch_rejected": 0},
+        "shadow": {"canonical_count": 2, "tenant_mismatch_rejected": 0},
         "resolver_diagnostics": {"classes_considered": 1},
         "errors": [],
     }
@@ -100,6 +118,7 @@ def test_sanitizer_remove_ids_brutos_e_preserva_fingerprints_e_metricas():
     assert sanitized["tenant_fp"]
     assert sanitized["cutover"]["scopes"][0]["class_fp"]
     assert sanitized["metrics"][0]["delta"] == 1
+    assert sanitized["metrics"][0]["reconciliation"] == reconciliation
 
 
 def test_classification_counts_nao_trata_divergencia_esperada_como_bloqueio():
