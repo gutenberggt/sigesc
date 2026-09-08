@@ -1,30 +1,26 @@
 /**
- * Interventions Feed — /admin/intervencoes
+ * Intervenções Curriculares — S5.5
  *
- * Lista intervenções ativas ordenadas por severidade + antiguidade.
- * Cada item tem botão "Resolver agora" (link direto para o slot).
+ * Feed informativo da Cobertura Curricular F5. Não há escalonamento punitivo:
+ * após a tolerância inicial, <70% alerta; nos últimos 15 dias letivos, <=50%
+ * é grave. O detalhe continua apontando para a Cobertura Curricular.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ChevronLeft, AlertTriangle, CheckCircle2, TrendingUp, Clock, ExternalLink } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, CheckCircle2, Info, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const STATUS_META = {
-  em_risco: { label: 'Em risco', badge: 'bg-amber-50 text-amber-700 border-amber-200', icon: TrendingUp },
-  nao_cumpre: { label: 'Não cumprirá', badge: 'bg-red-50 text-red-700 border-red-200', icon: AlertTriangle },
-  fechado_critico: { label: 'Bimestre fechado <90%', badge: 'bg-red-100 text-red-800 border-red-300', icon: AlertTriangle },
-};
-
-const LEVEL_META = {
-  1: { label: 'Coordenação', color: 'bg-amber-100 text-amber-700' },
-  2: { label: 'Direção', color: 'bg-orange-100 text-orange-700' },
-  3: { label: 'Secretaria', color: 'bg-red-100 text-red-800' },
+const SEVERITY_META = {
+  informativo: { label: 'Informativo', badge: 'bg-amber-50 text-amber-700 border-amber-200', icon: Info },
+  grave: { label: 'Grave', badge: 'bg-red-100 text-red-800 border-red-300', icon: AlertTriangle },
 };
 
 export default function Interventions() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [runningDetection, setRunningDetection] = useState(false);
@@ -48,7 +44,7 @@ export default function Interventions() {
     try {
       const r = await axios.post(`${API}/intervencoes/run-detection`);
       toast.success(
-        `Detecção: +${r.data.created} criados, ${r.data.resolved} resolvidos, ${r.data.notified_inapp} notificações`,
+        `Detecção: +${r.data.created || 0} novos, ${r.data.resolved || 0} resolvidos, ${r.data.notified_inapp || 0} notificações`,
         { duration: 8000 },
       );
       load();
@@ -60,10 +56,10 @@ export default function Interventions() {
   };
 
   const resolve = async (alert) => {
-    if (!window.confirm(`Marcar como resolvido "${alert.componente_codigo} · ${alert.class_name}"? (o sistema vai verificar automaticamente na próxima rodada)`)) return;
+    if (!window.confirm(`Marcar como resolvido o alerta de "${alert.componente_codigo} · ${alert.class_name}"? A próxima detecção reabre o alerta se a condição continuar.`)) return;
     try {
       await axios.post(`${API}/intervencoes/${alert.id}/resolve`);
-      toast.success('Marcado como resolvido');
+      toast.success('Alerta marcado como resolvido');
       load();
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Erro');
@@ -72,15 +68,7 @@ export default function Interventions() {
 
   const items = data?.items || [];
   const summary = data?.summary || {};
-
-  const weeksSince = (iso) => {
-    if (!iso) return 0;
-    try {
-      const d = new Date(iso);
-      const diff = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 7);
-      return Math.max(Math.floor(diff), 0);
-    } catch { return 0; }
-  };
+  const canRun = ['super_admin', 'admin'].includes(user?.role);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6" data-testid="interventions-page">
@@ -89,34 +77,39 @@ export default function Interventions() {
           <Link to="/dashboard" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 mb-2">
             <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">📌 Intervenções Necessárias</h1>
+          <h1 className="text-2xl font-bold text-gray-900">📌 Alertas de Cobertura Curricular</h1>
           <p className="text-sm text-gray-500">
-            O sistema identifica turmas em risco e cobra a ação da gestão semanalmente.
+            Alertas informativos calculados pela Cobertura F5 e por dias letivos reais.
           </p>
         </div>
-        <button
-          onClick={runDetection}
-          disabled={runningDetection}
-          className="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-60"
-          data-testid="btn-run-detection"
-        >
-          {runningDetection ? 'Rodando...' : 'Rodar detecção agora'}
-        </button>
+        {canRun && (
+          <button
+            onClick={runDetection}
+            disabled={runningDetection}
+            className="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-60"
+            data-testid="btn-run-detection"
+          >
+            {runningDetection ? 'Rodando...' : 'Atualizar alertas agora'}
+          </button>
+        )}
       </div>
 
-      {/* Summary */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
+        Estes alertas têm caráter <strong>informativo e preventivo</strong>. Nos primeiros 15 dias letivos do bimestre há tolerância; depois, cobertura abaixo de 70% gera alerta. Nos últimos 15 dias letivos, cobertura de até 50% é classificada como grave.
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" data-testid="interv-summary">
         <div className="bg-white border border-gray-200 rounded-lg p-3">
-          <div className="text-xs text-gray-500">Ativas</div>
+          <div className="text-xs text-gray-500">Alertas ativos</div>
           <div className="text-3xl font-bold text-gray-900">{summary.total_active ?? 0}</div>
         </div>
-        <div className="bg-white border border-red-200 rounded-lg p-3">
-          <div className="text-xs text-red-600">Críticas (não cumprirá / fechado)</div>
-          <div className="text-3xl font-bold text-red-600">{summary.critical ?? 0}</div>
+        <div className="bg-white border border-amber-200 rounded-lg p-3">
+          <div className="text-xs text-amber-700">Informativos</div>
+          <div className="text-3xl font-bold text-amber-700">{summary.informativo ?? 0}</div>
         </div>
         <div className="bg-white border border-red-300 rounded-lg p-3">
-          <div className="text-xs text-red-700">Nível 3 — Secretaria</div>
-          <div className="text-3xl font-bold text-red-700">{summary.level_3 ?? 0}</div>
+          <div className="text-xs text-red-700">Graves</div>
+          <div className="text-3xl font-bold text-red-700">{summary.grave ?? 0}</div>
         </div>
       </div>
 
@@ -128,18 +121,17 @@ export default function Interventions() {
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 flex items-center gap-3" data-testid="interv-empty">
           <CheckCircle2 className="h-8 w-8 text-emerald-600" />
           <div>
-            <div className="font-semibold text-emerald-800">Nenhuma intervenção pendente</div>
-            <div className="text-xs text-emerald-700">Todas as turmas/componentes estão em ritmo adequado.</div>
+            <div className="font-semibold text-emerald-800">Nenhum alerta de cobertura ativo</div>
+            <div className="text-xs text-emerald-700">Não há escopos F5 que atendam aos critérios de alerta neste momento.</div>
           </div>
         </div>
       )}
 
       <div className="space-y-2">
         {items.map((it) => {
-          const meta = STATUS_META[it.status] || STATUS_META.em_risco;
+          const severity = it.severity || it.status || 'informativo';
+          const meta = SEVERITY_META[severity] || SEVERITY_META.informativo;
           const MetaIcon = meta.icon;
-          const level = LEVEL_META[it.escalation_level] || LEVEL_META[1];
-          const weeks = weeksSince(it.first_detected_at);
           const link = `/admin/curriculo/cobertura?class_id=${it.class_id || ''}&component=${it.componente_codigo || ''}&ano=${it.ano || ''}&bim=${it.bimestre || ''}`;
           return (
             <div
@@ -148,7 +140,7 @@ export default function Interventions() {
               data-testid={`interv-row-${it.id.slice(0, 8)}`}
             >
               <div className="flex items-start gap-3 flex-1">
-                <MetaIcon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${it.status === 'em_risco' ? 'text-amber-600' : 'text-red-600'}`} />
+                <MetaIcon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${severity === 'grave' ? 'text-red-600' : 'text-amber-600'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-mono font-semibold text-purple-700">{it.componente_codigo || '—'}</span>
@@ -158,11 +150,11 @@ export default function Interventions() {
                       {it.ano != null ? `· ${it.ano}º ano` : ''} {it.bimestre != null ? `· ${it.bimestre}º bim.` : ''}
                     </span>
                     <span className={`text-[10px] px-2 py-0.5 rounded border ${meta.badge}`}>{meta.label}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded ${level.color}`}>Nível {it.escalation_level} · {level.label}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                    <span><strong>{it.last_coverage_pct}%</strong> cobertura</span>
-                    <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{weeks} semana{weeks === 1 ? '' : 's'} sem resolver</span>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-1">
+                    <span><strong>{it.last_coverage_pct}%</strong> de cobertura F5</span>
+                    <span>{it.instructional_days_elapsed ?? '—'} dias letivos decorridos</span>
+                    <span>{it.instructional_days_remaining ?? '—'} dias letivos restantes</span>
                     {it.last_notified_at && (
                       <span className="text-gray-400">Último aviso: {new Date(it.last_notified_at).toLocaleDateString('pt-BR')}</span>
                     )}
@@ -173,14 +165,14 @@ export default function Interventions() {
                 <Link
                   to={link}
                   className="inline-flex items-center gap-1 px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
-                  data-testid={`interv-resolve-now-${it.id.slice(0, 8)}`}
+                  data-testid={`interv-view-coverage-${it.id.slice(0, 8)}`}
                 >
-                  Resolver agora <ExternalLink className="h-3 w-3" />
+                  Ver cobertura <ExternalLink className="h-3 w-3" />
                 </Link>
                 <button
                   onClick={() => resolve(it)}
                   className="px-2 py-1 border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50"
-                  title="Marcar manualmente como resolvida"
+                  title="Marcar manualmente como resolvido"
                   data-testid={`interv-mark-resolved-${it.id.slice(0, 8)}`}
                 >
                   ✓
