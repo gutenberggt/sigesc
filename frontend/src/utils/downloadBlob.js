@@ -1,24 +1,63 @@
+import { buildFetchAuthHeaders } from '@/services/api';
+
+/**
+ * Normaliza os formatos de erro devolvidos pelo backend para texto legível.
+ * Nunca deve permitir coerção implícita de objeto para "[object Object]".
+ */
+export function normalizeDownloadErrorDetail(payload, fallback = '') {
+  const detail = payload?.detail ?? payload?.message ?? '';
+
+  if (typeof detail === 'string') {
+    return detail.trim() || fallback;
+  }
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') return item.message || item.msg || '';
+        return '';
+      })
+      .filter(Boolean);
+    if (messages.length) return messages.join('; ');
+  }
+
+  if (detail && typeof detail === 'object') {
+    const message = detail.message || detail.msg || detail.error || detail.detail;
+    if (typeof message === 'string' && message.trim()) return message.trim();
+    try {
+      return JSON.stringify(detail);
+    } catch (_e) {
+      return fallback;
+    }
+  }
+
+  return fallback;
+}
+
 /**
  * Faz o download de um PDF (ou qualquer blob) diretamente para o dispositivo
  * do usuário, sem abrir aba intermediária.
  *
  * Padrão:
- *   1. Faz fetch com headers autenticados.
- *   2. Lê resposta como blob.
- *   3. Cria <a download> programaticamente e dispara click.
- *   4. Revoga o objectURL após pequena espera (libera memória).
+ *   1. Monta Authorization/X-Mantenedora-Id no momento efetivo da chamada.
+ *   2. Faz fetch autenticado com credentials: include.
+ *   3. Lê resposta como blob.
+ *   4. Cria <a download> programaticamente e dispara click.
+ *   5. Revoga o objectURL após pequena espera (libera memória).
  *
  * @param {string} url Endpoint absoluto (ex.: `${BACKEND_URL}/api/...`)
  * @param {string} filename Nome sugerido do arquivo (extensão incluída)
- * @param {object} [headers={}] Headers extras (Authorization, X-Mantenedora-Id, etc.)
+ * @param {object} [headers={}] Headers extras; sobrepõem os canônicos apenas quando deliberado.
  */
 export async function downloadBlob(url, filename, headers = {}) {
-  const response = await fetch(url, { headers, credentials: 'include' });
+  const finalHeaders = { ...buildFetchAuthHeaders('GET'), ...headers };
+  const response = await fetch(url, { headers: finalHeaders, credentials: 'include' });
   if (!response.ok) {
     let detail = '';
     try {
-      const body = await response.json();
-      detail = body?.detail || '';
+      const body = await response.clone().json();
+      detail = normalizeDownloadErrorDetail(body);
     } catch (_e) {
       detail = await response.text().catch(() => '');
     }
@@ -64,8 +103,6 @@ export function filenameFromContentDisposition(headerValue, fallback) {
 //
 // Reutilizável em qualquer fluxo (PDF, CSV, etc). API preparada para SSE.
 // ============================================================================
-
-import { buildFetchAuthHeaders } from '@/services/api';
 
 // SSoT: Authorization/X-Mantenedora-Id/X-CSRF-Token vêm de buildFetchAuthHeaders
 // (services/api.js) — não duplicar a lógica de auth/tenant/CSRF aqui. Esta
@@ -121,8 +158,7 @@ export async function downloadBlobWithProgress({
     let detail = '';
     try {
       const obj = await response.clone().json();
-      detail = obj?.detail || obj?.message || '';
-      if (detail && typeof detail !== 'string') detail = JSON.stringify(detail);
+      detail = normalizeDownloadErrorDetail(obj);
     } catch (_e) {
       try { detail = await response.text(); } catch (_e2) { detail = ''; }
     }
