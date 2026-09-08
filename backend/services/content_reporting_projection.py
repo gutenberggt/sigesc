@@ -8,8 +8,7 @@ Princípios:
 - ``content_entries`` é a fonte canônica de novas escritas;
 - ``learning_objects`` permanece apenas como histórico/fallback compatível;
 - o corte legado→canônico NÃO é inferido de ``diary_settings.enabled``;
-- os escopos de corte são entrada explícita e devem vir de um resolver DVD já
-  autorizado/canônico em uma etapa posterior;
+- os escopos de corte são entrada explícita e devem vir do resolver canônico S2;
 - após o corte de um escopo, ``learning_objects`` posterior ao ``valid_from`` não
   entra na projeção;
 - no histórico sobreposto, o canônico prevalece sobre o legado pela mesma chave
@@ -22,7 +21,7 @@ Nenhuma função deste módulo executa insert/update/replace/delete/bulk_write.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Iterable, Mapping, Optional
 
 
@@ -42,20 +41,12 @@ def _component_id(item: Mapping[str, Any]) -> str:
 
 
 def _tenant_compatible(item: Mapping[str, Any], tenant_id: str) -> bool:
-    """Ausência histórica é tolerada só depois de a turma ancorar o tenant.
-
-    Um ``mantenedora_id`` explícito e divergente nunca cruza a projeção.
-    """
+    """Ausência histórica é tolerada só depois de a turma ancorar o tenant."""
     item_tenant = _norm(item.get("mantenedora_id"))
     return not item_tenant or item_tenant == tenant_id
 
 
 def _semantic_key(item: Mapping[str, Any]) -> tuple[str, str, str, str]:
-    """Mesma identidade defensiva usada pelo ``content_history_bridge``.
-
-    A autoria aqui serve somente para reconhecer sobreposição histórica; nunca é
-    usada como chave de autorização institucional.
-    """
     return (
         _norm(item.get("class_id")),
         _component_id(item),
@@ -64,13 +55,92 @@ def _semantic_key(item: Mapping[str, Any]) -> tuple[str, str, str, str]:
     )
 
 
+def _number_of_classes(item: Mapping[str, Any]) -> float:
+    value = item.get("number_of_classes")
+    if value is None or value == "":
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _month_key(item: Mapping[str, Any]) -> str:
+    raw = _norm(item.get("date"))[:10]
+    try:
+        parsed = date.fromisoformat(raw)
+    except ValueError:
+        return "UNKNOWN"
+    return parsed.strftime("%Y-%m")
+
+
+def _delay_days(item: Mapping[str, Any]) -> Optional[int]:
+    """Replica a semântica atual do PMPI: data criada - data da aula, >= 0."""
+    raw_date = _norm(item.get("date"))[:10]
+    created = item.get("created_at")
+    if not raw_date or created in (None, ""):
+        return None
+    try:
+        lesson = datetime.fromisoformat(raw_date)
+        if isinstance(created, datetime):
+            created_dt = created
+        else:
+            created_dt = datetime.fromisoformat(str(created).replace("Z", "+00:00"))
+        if created_dt.tzinfo:
+            created_dt = created_dt.replace(tzinfo=None)
+        delta = (created_dt - lesson).days
+    except (TypeError, ValueError):
+        return None
+    return delta if delta >= 0 else None
+
+
+def summarize_reporting_items(items: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Agrega métricas puras usadas pelo executor S3, sem I/O ou side effects."""
+    rows = [dict(item) for item in items]
+    monthly_records: dict[str, int] = {}
+    monthly_classes: dict[str, float] = {}
+    classes_sum = 0.0
+    delay_values: list[int] = []
+    delay_incomparable = 0
+
+    for item in rows:
+        month = _month_key(item)
+        monthly_records[month] = monthly_records.get(month, 0) + 1
+        classes = _number_of_classes(item)
+        classes_sum += classes
+        monthly_classes[month] = monthly_classes.get(month, 0.0) + classes
+        delay = _delay_days(item)
+        if delay is None:
+            delay_incomparable += 1
+        else:
+            delay_values.append(delay)
+
+    def _clean_number(value: float) -> int | float:
+        return int(value) if value.is_integer() else value
+
+    clean_monthly_classes = {
+        key: _clean_number(value)
+        for key, value in sorted(monthly_classes.items())
+    }
+    avg_delay = None
+    if delay_values:
+        avg_delay = round(sum(delay_values) / len(delay_values), 4)
+
+    return {
+        "record_count": len(rows),
+        "number_of_classes_sum": _clean_number(classes_sum),
+        "monthly_record_count": dict(sorted(monthly_records.items())),
+        "monthly_number_of_classes_sum": clean_monthly_classes,
+        "average_delay_days": avg_delay,
+        "delay_sample_count": len(delay_values),
+        "delay_incomparable_count": delay_incomparable,
+        "delay_fully_comparable": delay_incomparable == 0,
+    }
+
+
 @dataclass(frozen=True)
 class ContentReportingCutoverScope:
-    """Escopo de corte já resolvido/validado por uma camada canônica externa.
-
-    ``component_id=None`` representa um vínculo class-wide. Um corte específico
-    de componente tem precedência sobre o class-wide da mesma turma.
-    """
+    """Escopo de corte já resolvido/validado por uma camada canônica externa."""
 
     class_id: str
     valid_from: str
@@ -161,13 +231,7 @@ def merge_reporting_content(
     tenant_id: str,
     cutover_scopes: Iterable[ContentReportingCutoverScope] = (),
 ) -> dict[str, Any]:
-    """Compõe uma projeção única sem alterar origem alguma.
-
-    A função é pura. Os cortes precisam ser explícitos: sem corte conhecido para
-    um escopo, o legado continua elegível como fallback histórico. Isso evita que
-    esta fundação transforme presença de dados, flags cruas ou heurísticas em uma
-    decisão de cutover.
-    """
+    """Compõe uma projeção única sem alterar origem alguma."""
     tenant = _norm(tenant_id)
     if not tenant:
         raise ContentReportingProjectionError(
@@ -267,6 +331,10 @@ def _date_filter(start_date: Optional[str], end_date: Optional[str]) -> Optional
     return result
 
 
+def _empty_metrics() -> dict[str, Any]:
+    return summarize_reporting_items([])
+
+
 async def list_reporting_content_shadow(
     db,
     *,
@@ -278,12 +346,7 @@ async def list_reporting_content_shadow(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Carrega as duas fontes e aplica o merge read-only para observação.
-
-    ``classes`` é a âncora tenant-scoped. Se o chamador pedir uma turma que não
-    pertence à mantenedora/ano, a operação falha em vez de ampliar ou reduzir o
-    escopo silenciosamente.
-    """
+    """Carrega as duas fontes e aplica o merge read-only para observação."""
     tenant = _norm(mantenedora_id)
     if not tenant:
         raise ContentReportingProjectionError(
@@ -325,7 +388,29 @@ async def list_reporting_content_shadow(
             "Há escopo de corte fora das turmas autorizadas para o relatório.",
         )
 
+    components = {_norm(value) for value in (component_ids or []) if _norm(value)}
+    normalized_start = _iso_date(
+        start_date,
+        code="CONTENT_REPORTING_START_DATE_INVALID",
+        label="start_date",
+    )
+    normalized_end = _iso_date(
+        end_date,
+        code="CONTENT_REPORTING_END_DATE_INVALID",
+        label="end_date",
+    )
+    date_filter = _date_filter(start_date, end_date)
+    scope_payload = {
+        "mantenedora_id": tenant,
+        "academic_year": year,
+        "class_ids": sorted(allowed_classes),
+        "component_ids": sorted(components),
+        "start_date": normalized_start,
+        "end_date": normalized_end,
+    }
+
     if not allowed_classes:
+        empty = _empty_metrics()
         return {
             "items": [],
             "total": 0,
@@ -338,10 +423,13 @@ async def list_reporting_content_shadow(
                 "tenant_mismatch_rejected": 0,
                 "cutover_scope_count": len(normalized_cutovers),
             },
+            "source_metrics": {
+                "legacy": dict(empty),
+                "canonical": dict(empty),
+                "projected": dict(empty),
+            },
+            "scope": scope_payload,
         }
-
-    components = {_norm(value) for value in (component_ids or []) if _norm(value)}
-    date_filter = _date_filter(start_date, end_date)
 
     canonical_query: dict[str, Any] = {
         "mantenedora_id": tenant,
@@ -374,20 +462,10 @@ async def list_reporting_content_shadow(
         tenant_id=tenant,
         cutover_scopes=scopes,
     )
-    result["scope"] = {
-        "mantenedora_id": tenant,
-        "academic_year": year,
-        "class_ids": sorted(allowed_classes),
-        "component_ids": sorted(components),
-        "start_date": _iso_date(
-            start_date,
-            code="CONTENT_REPORTING_START_DATE_INVALID",
-            label="start_date",
-        ),
-        "end_date": _iso_date(
-            end_date,
-            code="CONTENT_REPORTING_END_DATE_INVALID",
-            label="end_date",
-        ),
+    result["source_metrics"] = {
+        "legacy": summarize_reporting_items(legacy),
+        "canonical": summarize_reporting_items(canonical),
+        "projected": summarize_reporting_items(result["items"]),
     }
+    result["scope"] = scope_payload
     return result
