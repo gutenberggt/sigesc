@@ -9,6 +9,10 @@ from routers.curriculum_scoped_versions import (
     _version_public,
     build_scoped_curriculum_router,
 )
+from services.curriculum_scoped_annual_guard import (
+    ANNUAL_SCOPE_CLAUSE,
+    _guard_annual_supersession_query,
+)
 from services.curriculum_scoped_coverage_bridge import (
     VIRTUAL_VERSION_ID,
     _rewrite_virtual_plan_query,
@@ -67,7 +71,13 @@ def test_parser_tabela_habilidades_reconhece_as_seis_obrigatorias_do_piloto():
         "Evidência de aprendizagem", "Origem",
     ]
     rows = [
-        [f"{code}\nDCM obrigatório", f"Foco {code}", "Objeto A; Objeto B", "Evidência", "DCM p. 41"]
+        [
+            f"{code}\nDCM obrigatório",
+            f"Foco {code}",
+            "Objeto A; Objeto B",
+            "Evidência",
+            "DCM p. 41",
+        ]
         for code in sorted(PILOT_MANDATORY)
     ]
     parsed = parse_skill_table([header, *rows], source_page=3)
@@ -110,7 +120,8 @@ def test_publicacao_supersede_somente_mesmo_scope_e_plano_usa_obrigatorias():
     assert '"status": "published"' in source
     assert "CURRICULUM_VERSION_SKILLS_UNRESOLVED" in source
     assert 'payload.get("mandatory_skills")' in source
-    assert 'payload.get("complementary_skills")' not in source[source.index("async def create_teaching_plan_from_version"):]
+    plan_block = source[source.index("async def create_teaching_plan_from_version"):]
+    assert 'payload.get("complementary_skills")' not in plan_block
     assert "delete_from_ftp(document_url)" in source
 
 
@@ -153,7 +164,9 @@ def test_bridge_evitar_plano_anual_duplicado_no_mesmo_escopo():
     assert base["component_id"] == "comp-lp"
     assert base["grade_scope"] == "6"
     assert "curriculum_version_id" not in base
-    assert version_clause["$or"][0] == {"curriculum_version_id": {"$in": ["v-lp-6-b3"]}}
+    assert version_clause["$or"][0] == {
+        "curriculum_version_id": {"$in": ["v-lp-6-b3"]}
+    }
     annual_branch = version_clause["$or"][1]["$and"]
     assert annual_branch[0] == {"curriculum_version_id": {"$in": ["v-anual"]}}
     assert annual_branch[1] == {
@@ -164,3 +177,24 @@ def test_bridge_evitar_plano_anual_duplicado_no_mesmo_escopo():
 def test_bridge_sem_virtual_nao_altera_query():
     query = {"curriculum_version_id": "versao-real", "status": "published"}
     assert _rewrite_virtual_plan_query(query, scoped_docs=[], annual_docs=[]) == query
+
+
+def test_publicador_anual_legado_nao_pode_superseder_versao_escopada():
+    legacy_query = {
+        "mantenedora_id": "tenant-a",
+        "academic_year": 2026,
+        "status": "published",
+        "id": {"$ne": "annual-v2"},
+    }
+    guarded = _guard_annual_supersession_query(legacy_query)
+    assert guarded == {"$and": [legacy_query, ANNUAL_SCOPE_CLAUSE]}
+
+    already_scoped = {**legacy_query, "scope_kind": SCOPED_KIND}
+    assert _guard_annual_supersession_query(already_scoped) == already_scoped
+
+
+def test_ordem_de_bootstrap_permite_instalar_guard_antes_do_curriculum_v2():
+    server = Path("server.py").read_text(encoding="utf-8")
+    assert server.index("curriculum_import_mod.setup_router(db)") < server.index(
+        "curriculum_v2_mod.setup_router(db)"
+    )
