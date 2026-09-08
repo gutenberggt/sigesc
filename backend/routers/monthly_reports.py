@@ -23,10 +23,12 @@ from pydantic import BaseModel, Field
 from auth_middleware import AuthMiddleware
 from services import monthly_report_service as mr_svc
 from services import snapshot_service as snap_svc
+from services.content_reporting_monthly_s5 import generate_monthly_report_s5
 from services.email_service import send_email
 from services.monthly_report_email import (render_monthly_report_email,
                                             report_url_for, verify_url_for)
 from services.snapshot_pdf import build_pdf
+from tenant_scope import resolve_operational_tenant_context
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/monthly-reports", tags=["Monthly Reports"])
@@ -52,16 +54,17 @@ def setup_router(db, **_kwargs):
             raise HTTPException(403, "Acesso restrito a relatórios mensais")
         return user
 
-    def _resolve_mantenedora(user: dict) -> Optional[str]:
-        """super_admin pode passar X-Mantenedora-Id (cross-tenant); demais usam o seu."""
-        return user.get("mantenedora_id")
+    async def _resolve_mantenedora(request: Request, user: dict) -> str:
+        """MT-1: Relatório Mensal é operação tenant-scoped, inclusive para super_admin."""
+        context = await resolve_operational_tenant_context(db, user, request)
+        return context.id
 
     @router.post("/generate")
     async def generate_report(body: GenerateRequest, request: Request):
         user = await _require_report_role(request)
-        mantenedora_id = _resolve_mantenedora(user)
+        mantenedora_id = await _resolve_mantenedora(request, user)
         try:
-            doc = await mr_svc.generate_monthly_report(
+            doc = await generate_monthly_report_s5(
                 db,
                 mantenedora_id=mantenedora_id,
                 year=body.year,
@@ -79,7 +82,7 @@ def setup_router(db, **_kwargs):
         limit: int = Query(24, ge=1, le=120),
     ):
         user = await _require_report_role(request)
-        mantenedora_id = _resolve_mantenedora(user)
+        mantenedora_id = await _resolve_mantenedora(request, user)
         items = await mr_svc.list_monthly_reports(
             db, mantenedora_id=mantenedora_id, limit=limit
         )

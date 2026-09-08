@@ -19,6 +19,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from services import monthly_report_service as mr_svc
+from services.content_reporting_monthly_s5 import generate_monthly_report_s5
 from services.email_service import send_email
 from services.monthly_report_email import (render_monthly_report_email,
                                             report_url_for, verify_url_for)
@@ -49,7 +50,7 @@ async def run_monthly_reports_for_all_tenants(db, *, year: int, month: int) -> d
 
     for t in tenants:
         try:
-            report = await mr_svc.generate_monthly_report(
+            report = await generate_monthly_report_s5(
                 db,
                 mantenedora_id=t["id"],
                 year=year,
