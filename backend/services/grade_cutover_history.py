@@ -1,25 +1,23 @@
-"""SSoT da prova histórica 38G-B para Notas/Conceitos no DVD.
+"""Domínio de continuidade histórica de Notas/Conceitos no DVD.
+
+A prova canônica de cutover já pertence a
+``services.dvd_cutover_legacy_provenance`` e é compartilhada por Frequência e
+Notas. Este módulo NÃO cria uma segunda política de proveniência: apenas ancora
+o contexto de Notas nessa SSoT e acrescenta as condições específicas para uma
+escrita estritamente pré-cutover.
 
 Esta camada não escreve em ``grades`` nem altera ``teacher_class_assignments``.
-Ela apenas revalida a continuidade pedagógica entre o vínculo DVD atual e a
-``teacher_assignment`` legada indicada por ``cutover_provenance``.
-
-A mesma prova é consumida por:
-- projeção histórica/read-only de Notas;
-- autorização estritamente retroativa de novos lançamentos pré-cutover;
-- guards de regressão.
-
-O ``valid_from`` persistido do DVD nunca é retrodatado. Escrita histórica só é
-candidata quando o período pedagógico inteiro termina antes do ``valid_from``
-técnico e o vínculo 38G-B permanece revalidável por professor, turma,
-componente, ano e status.
+O ``valid_from`` persistido do DVD nunca é retrodatado.
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
-import re
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
+
+from services.dvd_cutover_legacy_provenance import (
+    resolve_validated_cutover_legacy_assignment,
+)
 
 
 LEGACY_HISTORY_FLAG = "legacy_grade_history_read"
@@ -27,7 +25,7 @@ LEGACY_SOURCE_FLAG = "legacy_grade_source_assignment_id"
 LEGACY_YEAR_FLAG = "legacy_grade_history_academic_year"
 
 HISTORICAL_WRITE_FLAG = "historical_grade_write"
-HISTORICAL_WRITE_SOURCE = "cutover_38g_b_legacy_assignment"
+HISTORICAL_WRITE_SOURCE = "validated_dvd_cutover_legacy_assignment"
 HISTORICAL_WRITE_SOURCE_FLAG = "historical_grade_source_legacy_assignment_id"
 HISTORICAL_WRITE_AUTHORIZED_FROM_FLAG = "historical_grade_authorized_from"
 HISTORICAL_WRITE_PERIOD_FLAG = "historical_grade_period"
@@ -35,83 +33,25 @@ HISTORICAL_WRITE_PERIOD_START_FLAG = "historical_grade_period_start"
 HISTORICAL_WRITE_PERIOD_END_FLAG = "historical_grade_period_end"
 
 
-async def legacy_staff_matches_teacher(
-    db,
-    legacy: Mapping[str, Any],
-    teacher_id: str,
-) -> bool:
-    """Confirma que o ``staff_id`` legado pertence ao mesmo usuário do DVD."""
-    staff_id = legacy.get("staff_id")
-    if not staff_id:
-        return False
-
-    staff = await db.staff.find_one(
-        {"id": staff_id},
-        {"_id": 0, "user_id": 1, "email": 1},
-    )
-    if not staff:
-        return False
-
-    if staff.get("user_id"):
-        return str(staff.get("user_id")) == str(teacher_id)
-
-    email = str(staff.get("email") or "").strip()
-    if not email:
-        return False
-
-    user = await db.users.find_one(
-        {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}},
-        {"_id": 0, "id": 1},
-    )
-    return bool(user and str(user.get("id")) == str(teacher_id))
-
-
 async def safe_cutover_legacy_assignment(
     db,
     context,
     academic_year: int,
 ) -> Optional[dict[str, Any]]:
-    """Revalida a origem 38G-B sem transformar legado em nova autoridade.
+    """Ancora a SSoT genérica no contexto de Notas já autorizado.
 
-    Retorna a ``teacher_assignment`` legada apenas quando:
-    - ``apply_phase == 38G-B``;
-    - ``apply_state == ACTIVATED``;
-    - ``source_legacy_assignment_id`` existe;
-    - turma, componente, ano e status coincidem;
-    - o ``staff`` legado resolve para o mesmo ``teacher_id`` do DVD.
+    A lista de fases históricas aprovadas, a exigência de ``ACTIVATED``, a
+    revalidação de ``source_legacy_assignment_id`` e a cadeia staff -> user ficam
+    exclusivamente no serviço genérico compartilhado.
     """
     assignment = context.assignment
-    provenance = assignment.get("cutover_provenance") or {}
-    source_id = provenance.get("source_legacy_assignment_id")
-
-    if (
-        not source_id
-        or provenance.get("apply_phase") != "38G-B"
-        or provenance.get("apply_state") != "ACTIVATED"
-    ):
-        return None
-
-    legacy = await db.teacher_assignments.find_one(
-        {
-            "id": source_id,
-            "class_id": context.class_id,
-            "course_id": context.course_id,
-            "status": "ativo",
-            "academic_year": {"$in": [academic_year, str(academic_year)]},
-        },
-        {"_id": 0},
-    )
-    if not legacy:
-        return None
-
-    if not await legacy_staff_matches_teacher(
+    return await resolve_validated_cutover_legacy_assignment(
         db,
-        legacy,
-        str(assignment.get("teacher_id") or ""),
-    ):
-        return None
-
-    return legacy
+        assignment,
+        academic_year,
+        expected_class_id=context.class_id,
+        expected_component_id=context.course_id,
+    )
 
 
 async def decorate_context_with_legacy_history(
@@ -119,7 +59,7 @@ async def decorate_context_with_legacy_history(
     context,
     academic_year: int,
 ):
-    """Marca contexto de leitura quando a continuidade 38G-B foi comprovada."""
+    """Marca contexto de leitura quando a continuidade de cutover foi comprovada."""
     if context is None:
         return None
 
@@ -148,9 +88,10 @@ async def historical_grade_write_evidence(
     estudante. Ela só pode ser chamada depois que o ``GradeAssignmentContext``
     vivo foi autorizado. Além disso:
     - exige propriedade pedagógica do assignment atual;
-    - não atravessa ``valid_until``;
-    - não libera período que apenas encoste/intersecte o ``valid_from``;
-    - revalida a origem legada no ano institucional do período.
+    - não usa a ponte para um intervalo de assignment inconsistente;
+    - não libera período que encoste/intersecte o ``valid_from``;
+    - revalida a origem legada no ano institucional do período pela SSoT
+      ``resolve_validated_cutover_legacy_assignment``.
     """
     if not getattr(context.access, "is_owner", False):
         return None
@@ -167,8 +108,8 @@ async def historical_grade_write_evidence(
     if not start or not end or start > end:
         return None
 
-    # Ponte estritamente retroativa: se o período encosta ou ultrapassa o
-    # ``valid_from``, a regra normal de interseção deve decidir a autorização.
+    # Ponte estritamente retroativa. Falha causada por ``valid_until`` ou período
+    # que já intersecta ``valid_from`` continua sob a regra normal do DVD.
     if end >= valid_from:
         return None
 
