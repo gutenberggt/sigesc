@@ -85,6 +85,11 @@ from . import curriculum_v2 as _curriculum_v2_mod
 from .curriculum_core import install_curriculum_core_setup
 from .curriculum_coverage_v2 import install_curriculum_coverage_v2_setup
 
+# S5.5 — Intervenções Curriculares reutilizam o router existente, mas substituem
+# o motor/Feed/Inbox pelo contrato F5 + dias letivos + audiência institucional.
+from . import interventions as _interventions_mod
+from .interventions_coverage_s5 import install_interventions_coverage_s5_setup
+
 # Sprint 007 — a gestão da política avaliativa é exposta dentro do cadastro da
 # mantenedora, mas sua SSoT permanece em assessment_policies. Envolver o setup
 # evita tocar no server.py e não instala qualquer runtime de Notas/cutover.
@@ -155,6 +160,7 @@ install_manual_content_copy_setup(_content_entries_mod)
 install_course_missing_containment_setup(_learning_objects_mod, _assignments_mod)
 install_curriculum_core_setup(_curriculum_v2_mod)
 install_curriculum_coverage_v2_setup(_curriculum_v2_mod)
+install_interventions_coverage_s5_setup(_interventions_mod)
 install_assessment_policy_admin_setup(_mantenedora_mod)
 install_admin_mantenedora_access_setup(_admin_mod)
 install_aee_v2_p0_setup(_aee_mod)
