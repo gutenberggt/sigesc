@@ -15,6 +15,23 @@ def _global_admin_cards_block(source: str) -> str:
     return source[start:end]
 
 
+def _secretary_cards_block(source: str) -> str:
+    start = source.index("case 'secretario':")
+    end = source.index("case 'diretor':", start)
+    return source[start:end]
+
+
+def _general_quick_access_block(source: str) -> str:
+    start = source.index(
+        "{/* Acesso Rápido geral — para secretário esta é a única faixa-resumo operacional. */}"
+    )
+    end = source.index(
+        "{/* Menu de navegação completo - Admin/Secretário/Diretor/Coordenador/SEMED",
+        start,
+    )
+    return source[start:end]
+
+
 def test_global_admin_summary_cards_are_clickable_and_keep_their_counts():
     source = _dashboard_source()
     block = _global_admin_cards_block(source)
@@ -55,3 +72,51 @@ def test_summary_card_navigation_keeps_keyboard_accessibility():
     assert "role={isClickable ? 'button' : undefined}" in source
     assert "tabIndex={isClickable ? 0 : undefined}" in source
     assert "aria-label={isClickable ? `Abrir ${card.title}` : undefined}" in source
+
+
+def test_secretary_removes_old_top_statistics_row():
+    source = _dashboard_source()
+    block = _secretary_cards_block(source)
+
+    assert "return [];" in block
+    assert "title: 'Escolas'" not in block
+    assert "title: 'Turmas'" not in block
+    assert "title: 'Estudantes'" not in block
+    assert "title: 'Avisos'" not in block
+    assert "{cards.length > 0 && (" in source
+
+
+def test_secretary_promoted_quick_access_has_exact_requested_resources():
+    source = _dashboard_source()
+    block = _general_quick_access_block(source)
+
+    expected_testids = [
+        "quick-access-schools",
+        "quick-access-classes",
+        "quick-access-students",
+        "quick-access-staff",
+        "quick-access-users",
+    ]
+    for testid in expected_testids:
+        assert f'data-testid="{testid}"' in block
+
+    assert "Avisos" not in block
+
+
+def test_secretary_promoted_cards_show_existing_school_class_student_counts_only():
+    source = _dashboard_source()
+    block = _general_quick_access_block(source)
+
+    expected_counts = {
+        "quick-access-schools-count": "stats.schools.toString()",
+        "quick-access-classes-count": "stats.classes.toString()",
+        "quick-access-students-count": "stats.students.toString()",
+    }
+    for testid, expression in expected_counts.items():
+        assert f'data-testid="{testid}"' in block
+        assert expression in block
+
+    # Conforme decisão de produto, Servidores(as) permanece como estava e
+    # Usuários é filtrado no backend, sem introduzir uma nova métrica visual.
+    assert 'data-testid="quick-access-staff-count"' not in block
+    assert 'data-testid="quick-access-users-count"' not in block
