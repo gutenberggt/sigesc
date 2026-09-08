@@ -28,6 +28,36 @@ router = APIRouter(prefix="/users", tags=["Usuários"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _apply_secretary_school_scope(filter_query: dict, current_user: dict) -> dict:
+    """Restringe usuários ao escopo escolar da sessão de secretário.
+
+    O JWT já carrega ``school_ids`` resolvidos pelo contexto canônico do papel
+    ativo. Para o secretário, a ausência de escolas autorizadas deve resultar em
+    conjunto vazio (fail-closed), nunca em todos os usuários da mantenedora.
+
+    ``school_links.school_id`` é o vínculo atual dos usuários; ``school_ids`` é
+    mantido como fallback para registros legados ainda não normalizados.
+    """
+    if current_user.get('role') != 'secretario':
+        return filter_query
+
+    school_ids = list(dict.fromkeys(
+        school_id
+        for school_id in (current_user.get('school_ids') or [])
+        if school_id
+    ))
+    school_scope = {
+        '$or': [
+            {'school_links.school_id': {'$in': school_ids}},
+            {'school_ids': {'$in': school_ids}},
+        ]
+    }
+
+    if not filter_query:
+        return school_scope
+    return {'$and': [filter_query, school_scope]}
+
+
 def setup_router(db, audit_service, sandbox_db=None):
     """Configura o router com as dependências necessárias"""
     
@@ -39,8 +69,11 @@ def setup_router(db, audit_service, sandbox_db=None):
 
     @router.get("")
     async def list_users(request: Request, skip: int = 0, limit: int = 0):
-        """Lista usuários (admin, secretario e semed) — filtrado por mantenedora ativa.
-        Super_admin é usuário nato de toda mantenedora: aparece em qualquer tenant selecionado.
+        """Lista usuários no escopo autorizado.
+
+        Admin/SEMED: mantenedora ativa.
+        Secretário: mantenedora ativa + escolas vinculadas à sessão.
+        Super_admin é usuário nato de toda mantenedora no escopo administrativo.
 
         Paginação opcional:
           - skip>0 e/ou limit>0 → aplica paginação.
@@ -66,6 +99,10 @@ def setup_router(db, audit_service, sandbox_db=None):
             filter_query = {'$or': [
                 {'mantenedora_id': tenant_id}, {'role': 'super_admin'}
             ]}
+
+        # Secretário nunca enxerga usuários apenas por pertencerem à mesma
+        # mantenedora: exige vínculo com uma de suas escolas autorizadas.
+        filter_query = _apply_secretary_school_scope(filter_query, current_user)
         
         cursor = current_db.users.find(filter_query, {"_id": 0})
         if skip:
@@ -82,8 +119,9 @@ def setup_router(db, audit_service, sandbox_db=None):
 
     @router.get("/count")
     async def count_users(request: Request):
-        """Retorna o total real de usuários (não limitado ao paginado) da mantenedora ativa.
-        Usado pelo card 'Usuários' do Dashboard para evitar travar em 1000.
+        """Retorna o total real de usuários do escopo autorizado.
+
+        Para secretário, a contagem é limitada às escolas vinculadas à sessão.
         """
         current_user = await AuthMiddleware.require_roles(
             ['admin', 'admin_teste', 'secretario', 'semed', 'semed3']
@@ -101,17 +139,19 @@ def setup_router(db, audit_service, sandbox_db=None):
         else:
             filter_query = {'$or': [{'mantenedora_id': tenant_id}, {'role': 'super_admin'}]}
 
+        filter_query = _apply_secretary_school_scope(filter_query, current_user)
         total = await current_db.users.count_documents(filter_query)
         total_active = await current_db.users.count_documents({**filter_query, 'status': 'active'})
         return {"total": total, "total_active": total_active}
 
     @router.get("/{user_id}")
     async def get_user(user_id: str, request: Request):
-        """Busca usuário por ID"""
+        """Busca usuário por ID dentro do escopo autorizado."""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'diretor', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
-        
-        user_doc = await current_db.users.find_one({"id": user_id}, {"_id": 0})
+
+        user_filter = _apply_secretary_school_scope({"id": user_id}, current_user)
+        user_doc = await current_db.users.find_one(user_filter, {"_id": 0})
         
         if not user_doc:
             raise HTTPException(
@@ -128,12 +168,13 @@ def setup_router(db, audit_service, sandbox_db=None):
 
     @router.put("/{user_id}")
     async def update_user(user_id: str, user_update: UserUpdate, request: Request):
-        """Atualiza usuário"""
+        """Atualiza usuário dentro do escopo autorizado."""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario'])(request)
         current_db = get_db_for_user(current_user)
-        
-        # Busca usuário
-        user_doc = await current_db.users.find_one({"id": user_id}, {"_id": 0})
+
+        user_filter = _apply_secretary_school_scope({"id": user_id}, current_user)
+        # Busca usuário já limitado ao escopo escolar quando a sessão é de secretário.
+        user_doc = await current_db.users.find_one(user_filter, {"_id": 0})
         if not user_doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -151,6 +192,19 @@ def setup_router(db, audit_service, sandbox_db=None):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Apenas um Super Administrador pode atribuir o papel de Super Administrador"
             )
+        # Secretário não pode atribuir vínculo com escola fora do seu escopo.
+        if current_user.get('role') == 'secretario' and 'school_links' in update_raw:
+            allowed_school_ids = set(current_user.get('school_ids') or [])
+            requested_school_ids = {
+                link.get('school_id')
+                for link in (update_raw.get('school_links') or [])
+                if isinstance(link, dict) and link.get('school_id')
+            }
+            if not requested_school_ids.issubset(allowed_school_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Secretário só pode vincular usuários às suas escolas autorizadas"
+                )
         # Bloqueio: não permitir rebaixar o super_admin primário
         if user_doc.get('is_primary') and update_raw.get('role') and update_raw['role'] != 'super_admin':
             raise HTTPException(
@@ -172,11 +226,12 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         if update_data:
             await current_db.users.update_one(
-                {"id": user_id},
+                user_filter,
                 {"$set": update_data}
             )
         
-        # Retorna usuário atualizado
+        # Retorna usuário atualizado. A autorização foi validada antes da escrita;
+        # o usuário pode deixar de pertencer ao escopo se o último vínculo for removido.
         updated_user = await current_db.users.find_one({"id": user_id}, {"_id": 0})
         updated_user.pop('password_hash', None)
         
