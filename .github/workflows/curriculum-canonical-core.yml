@@ -11,6 +11,7 @@ on:
       - 'backend/services/content_reporting_projection.py'
       - 'backend/services/content_reporting_cutover_resolver.py'
       - 'backend/services/content_reporting_parity.py'
+      - 'backend/scripts/content_reporting_shadow_s4_readonly.py'
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
       - 'backend/tests/test_curriculum_coverage_v2.py'
@@ -18,9 +19,11 @@ on:
       - 'backend/tests/test_content_reporting_projection.py'
       - 'backend/tests/test_content_reporting_cutover_resolver.py'
       - 'backend/tests/test_content_reporting_parity.py'
+      - 'backend/tests/test_content_reporting_shadow_s4_readonly.py'
       - 'frontend/src/pages/CurriculumCoverage.jsx'
       - 'frontend/src/services/curriculumCoverageV2.js'
       - '.github/workflows/curriculum-canonical-core.yml'
+      - '.github/workflows/content-reporting-shadow-s4-readonly.yml'
   push:
     branches: [main]
     paths:
@@ -32,6 +35,7 @@ on:
       - 'backend/services/content_reporting_projection.py'
       - 'backend/services/content_reporting_cutover_resolver.py'
       - 'backend/services/content_reporting_parity.py'
+      - 'backend/scripts/content_reporting_shadow_s4_readonly.py'
       - 'backend/tests/test_curriculum_canonical_core.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
       - 'backend/tests/test_curriculum_coverage_v2.py'
@@ -39,9 +43,11 @@ on:
       - 'backend/tests/test_content_reporting_projection.py'
       - 'backend/tests/test_content_reporting_cutover_resolver.py'
       - 'backend/tests/test_content_reporting_parity.py'
+      - 'backend/tests/test_content_reporting_shadow_s4_readonly.py'
       - 'frontend/src/pages/CurriculumCoverage.jsx'
       - 'frontend/src/services/curriculumCoverageV2.js'
       - '.github/workflows/curriculum-canonical-core.yml'
+      - '.github/workflows/content-reporting-shadow-s4-readonly.yml'
 
 permissions:
   contents: read
@@ -67,6 +73,6 @@ jobs:
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
       - name: Compile curricular core, F4/F5 and reporting shadow
-        run: python -m py_compile routers/curriculum_core.py routers/curriculum_coverage_v2.py routers/content_partial_cutover.py services/content_form_canonical_cutover.py services/content_reporting_projection.py services/content_reporting_cutover_resolver.py services/content_reporting_parity.py routers/__init__.py
+        run: python -m py_compile routers/curriculum_core.py routers/curriculum_coverage_v2.py routers/content_partial_cutover.py services/content_form_canonical_cutover.py services/content_reporting_projection.py services/content_reporting_cutover_resolver.py services/content_reporting_parity.py scripts/content_reporting_shadow_s4_readonly.py routers/__init__.py
       - name: Run curricular core contract tests
-        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py tests/test_curriculum_coverage_v2.py tests/test_curriculum_coverage_v2_frontend_contract.py tests/test_content_reporting_projection.py tests/test_content_reporting_cutover_resolver.py tests/test_content_reporting_parity.py
+        run: pytest -q tests/test_curriculum_canonical_core.py tests/test_curriculum_teacher_writer_f4.py tests/test_curriculum_coverage_v2.py tests/test_curriculum_coverage_v2_frontend_contract.py tests/test_content_reporting_projection.py tests/test_content_reporting_cutover_resolver.py tests/test_content_reporting_parity.py tests/test_content_reporting_shadow_s4_readonly.py

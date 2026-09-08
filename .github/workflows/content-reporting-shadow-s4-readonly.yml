@@ -1,0 +1,401 @@
+name: "Content Reporting S4 - Production Shadow Read-only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/content_reporting_shadow_s4_readonly.py'
+      - 'backend/tests/test_content_reporting_shadow_s4_readonly.py'
+      - 'backend/services/content_reporting_projection.py'
+      - 'backend/services/content_reporting_cutover_resolver.py'
+      - 'backend/services/content_reporting_parity.py'
+      - '.github/workflows/content-reporting-shadow-s4-readonly.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: content-reporting-shadow-s4-readonly
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard S4 read-only boundary
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_contract
+      JWT_SECRET_KEY: ci-only-jwt-secret-0123456789abcdef0123456789abcdef
+      PYTHONPATH: .
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile and test S1-S4
+        run: |
+          set -euo pipefail
+          python -m py_compile services/content_reporting_projection.py services/content_reporting_cutover_resolver.py services/content_reporting_parity.py scripts/content_reporting_shadow_s4_readonly.py
+          pytest -q tests/test_content_reporting_projection.py tests/test_content_reporting_cutover_resolver.py tests/test_content_reporting_parity.py tests/test_content_reporting_shadow_s4_readonly.py
+      - name: Enforce Mongo read-only and privacy boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          files = (
+              Path('services/content_reporting_projection.py'),
+              Path('services/content_reporting_cutover_resolver.py'),
+              Path('services/content_reporting_parity.py'),
+              Path('scripts/content_reporting_shadow_s4_readonly.py'),
+          )
+          forbidden = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for path in files:
+              tree = ast.parse(path.read_text(encoding='utf-8'))
+              hits = sorted({
+                  node.func.attr
+                  for node in ast.walk(tree)
+                  if isinstance(node, ast.Call)
+                  and isinstance(node.func, ast.Attribute)
+                  and node.func.attr in forbidden
+              })
+              if hits:
+                  raise SystemExit(f'CONTENT_SHADOW_S4_MUTATOR_FOUND:{path}:{hits}')
+
+          collector = Path('scripts/content_reporting_shadow_s4_readonly.py').read_text(encoding='utf-8')
+          required = (
+              '"pedagogical_text_read": False',
+              '"student_data_read": False',
+              '"technical_ids_emitted": False',
+              'STRUCTURAL_CONTENT_PROJECTION',
+              'automatic_cutover_authorized',
+          )
+          for marker in required:
+              if marker not in collector:
+                  raise SystemExit(f'CONTENT_SHADOW_S4_BOUNDARY_MARKER_MISSING:{marker}')
+          print('CONTENT_SHADOW_S4_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-shadow:
+    name: Execute S4 shadow against production data
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[CONTENT-SHADOW-S4] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped exact-SHA S4 authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          from datetime import date
+
+          issue = (json.load(open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8')).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('CONTENT_SHADOW_S4_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('CONTENT_SHADOW_S4_ISSUE_MUST_BE_OPEN')
+
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              line = raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              key, value = key.strip(), value.strip()
+              if key in values:
+                  raise SystemExit(f'CONTENT_SHADOW_S4_DUPLICATE_FIELD:{key}')
+              values[key] = value
+
+          if values.get('CONTENT_SHADOW_S4') != 'AUTHORIZED':
+              raise SystemExit('CONTENT_SHADOW_S4_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'RUN_CONTENT_REPORTING_SHADOW_READ_ONLY':
+              raise SystemExit('CONTENT_SHADOW_S4_CONFIRMATION_INVALID')
+
+          target = values.get('TARGET_SHA', '')
+          production = values.get('EXPECTED_PRODUCTION_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('CONTENT_SHADOW_S4_TARGET_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{40}', production):
+              raise SystemExit('CONTENT_SHADOW_S4_PRODUCTION_SHA_INVALID')
+          if issue.get('title') != f'[CONTENT-SHADOW-S4] {target}':
+              raise SystemExit('CONTENT_SHADOW_S4_TITLE_MISMATCH')
+
+          try:
+              year = int(values.get('ACADEMIC_YEAR', ''))
+              reference = date.fromisoformat(values.get('REFERENCE_DATE', ''))
+          except Exception as exc:
+              raise SystemExit('CONTENT_SHADOW_S4_DATE_CONTEXT_INVALID') from exc
+          if year != 2026 or reference.year != year:
+              raise SystemExit('CONTENT_SHADOW_S4_YEAR_INVALID')
+
+          def branch_sha(name):
+              req = urllib.request.Request(
+                  f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/{name}",
+                  headers={
+                      'Accept':'application/vnd.github+json',
+                      'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'User-Agent':'sigesc-content-shadow-s4',
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)['commit']['sha']
+
+          main_sha = branch_sha('main')
+          production_sha = branch_sha('production')
+          if main_sha != target:
+              raise SystemExit(f'CONTENT_SHADOW_S4_MAIN_MOVED:{main_sha}')
+          if production_sha != production:
+              raise SystemExit(f'CONTENT_SHADOW_S4_PRODUCTION_MOVED:{production_sha}')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'production_sha={production}\n')
+              out.write(f'academic_year={year}\n')
+              out.write(f'reference_date={reference.isoformat()}\n')
+          print('CONTENT_SHADOW_S4_CONTEXT=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+      - name: Checkout exact reviewed main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Re-seal S1-S4 at runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          files = (
+              Path('backend/services/content_reporting_projection.py'),
+              Path('backend/services/content_reporting_cutover_resolver.py'),
+              Path('backend/services/content_reporting_parity.py'),
+              Path('backend/scripts/content_reporting_shadow_s4_readonly.py'),
+          )
+          forbidden = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          for path in files:
+              tree = ast.parse(path.read_text(encoding='utf-8'))
+              hits = sorted({
+                  node.func.attr for node in ast.walk(tree)
+                  if isinstance(node, ast.Call)
+                  and isinstance(node.func, ast.Attribute)
+                  and node.func.attr in forbidden
+              })
+              if hits:
+                  raise SystemExit(f'CONTENT_SHADOW_S4_RUNTIME_MUTATOR:{path}:{hits}')
+          print('CONTENT_SHADOW_S4_RUNTIME_SEAL=PASS')
+          PY
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "CONTENT_SHADOW_S4_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/content_shadow_s4_prod_key
+          chmod 600 ~/.ssh/content_shadow_s4_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve running backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/content_shadow_s4_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute S4 in-memory against production Mongo read-only
+        id: execute
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          ACADEMIC_YEAR: ${{ steps.context.outputs.academic_year }}
+          REFERENCE_DATE: ${{ steps.context.outputs.reference_date }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY' > evidence/content-shadow-s4-bundle.json
+          import json
+          from pathlib import Path
+          paths = {
+              'projection': 'backend/services/content_reporting_projection.py',
+              'resolver': 'backend/services/content_reporting_cutover_resolver.py',
+              'parity': 'backend/services/content_reporting_parity.py',
+              'collector': 'backend/scripts/content_reporting_shadow_s4_readonly.py',
+          }
+          print(json.dumps({key: Path(path).read_text(encoding='utf-8') for key, path in paths.items()}, ensure_ascii=False))
+          PY
+
+          generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          raw='evidence/content-shadow-s4-raw.log'
+          remote_command="timeout 1200 docker exec -i -e CONTENT_SHADOW_S4_ACADEMIC_YEAR=${ACADEMIC_YEAR} -e CONTENT_SHADOW_S4_REFERENCE_DATE=${REFERENCE_DATE} -e CONTENT_SHADOW_S4_CODE_SHA=${TARGET_SHA} -e CONTENT_SHADOW_S4_GENERATED_AT=${generated_at} ${BACKEND_CONTAINER} python -c 'import asyncio,json,sys,types;b=json.load(sys.stdin);m=types.ModuleType(\"services.content_reporting_projection\");m.__file__=\"content_reporting_projection.py\";sys.modules[\"services.content_reporting_projection\"]=m;exec(compile(b[\"projection\"],m.__file__,\"exec\"),m.__dict__);m=types.ModuleType(\"services.content_reporting_cutover_resolver\");m.__file__=\"content_reporting_cutover_resolver.py\";sys.modules[\"services.content_reporting_cutover_resolver\"]=m;exec(compile(b[\"resolver\"],m.__file__,\"exec\"),m.__dict__);m=types.ModuleType(\"services.content_reporting_parity\");m.__file__=\"content_reporting_parity.py\";sys.modules[\"services.content_reporting_parity\"]=m;exec(compile(b[\"parity\"],m.__file__,\"exec\"),m.__dict__);ns={\"__name__\":\"content_shadow_s4\",\"__file__\":\"content_reporting_shadow_s4_readonly.py\"};exec(compile(b[\"collector\"],ns[\"__file__\"],\"exec\"),ns);p=asyncio.run(ns[\"run_live_shadow\"]());print(\"CONTENT_SHADOW_S4_PUBLIC_JSON=\"+json.dumps(p,ensure_ascii=False,sort_keys=True,separators=(\",\",\":\")))'"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/content_shadow_s4_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < evidence/content-shadow-s4-bundle.json > "$raw" 2>&1
+
+          prefix='CONTENT_SHADOW_S4_PUBLIC_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          if [ -z "$line" ]; then
+            tail -n 100 "$raw" || true
+            exit 2
+          fi
+          printf '%s' "${line#${prefix}}" > evidence/content-shadow-s4-public.json
+          python -m json.tool evidence/content-shadow-s4-public.json >/dev/null
+          rm -f "$raw" evidence/content-shadow-s4-bundle.json
+          echo "generated_at=$generated_at" >> "$GITHUB_OUTPUT"
+
+      - name: Validate S4 evidence and privacy boundary
+        id: validate
+        env:
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          ACADEMIC_YEAR: ${{ steps.context.outputs.academic_year }}
+          REFERENCE_DATE: ${{ steps.context.outputs.reference_date }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          path = Path('evidence/content-shadow-s4-public.json')
+          payload = json.loads(path.read_text(encoding='utf-8'))
+          if payload.get('schema') != 'CONTENT_REPORTING_SHADOW_S4_V1':
+              raise SystemExit('CONTENT_SHADOW_S4_SCHEMA_INVALID')
+          if payload.get('code_sha') != os.environ['TARGET_SHA']:
+              raise SystemExit('CONTENT_SHADOW_S4_SHA_MISMATCH')
+          if payload.get('academic_year') != int(os.environ['ACADEMIC_YEAR']):
+              raise SystemExit('CONTENT_SHADOW_S4_YEAR_MISMATCH')
+          if payload.get('reference_date') != os.environ['REFERENCE_DATE']:
+              raise SystemExit('CONTENT_SHADOW_S4_REFERENCE_MISMATCH')
+          required_false = (
+              'database_mutation','production_writes','student_data_read','student_pii_emitted',
+              'grade_values_read','attendance_values_read','pedagogical_text_read',
+              'technical_ids_emitted','automatic_cutover_authorized','s5_authorized_by_collector',
+          )
+          for key in required_false:
+              if payload.get(key) is not False:
+                  raise SystemExit(f'CONTENT_SHADOW_S4_BOUNDARY_FAILED:{key}')
+          if payload.get('mongo_reads_only') is not True or payload.get('http_methods') != []:
+              raise SystemExit('CONTENT_SHADOW_S4_READ_BOUNDARY_FAILED')
+          if not payload.get('tenant_count'):
+              raise SystemExit('CONTENT_SHADOW_S4_EMPTY_TENANT_SET')
+
+          forbidden_keys = {'mantenedora_id','class_id','component_id','course_id','teacher_id','student_id'}
+          def walk(value):
+              if isinstance(value, dict):
+                  for key, child in value.items():
+                      if key in forbidden_keys:
+                          raise SystemExit(f'CONTENT_SHADOW_S4_RAW_ID_KEY_EMITTED:{key}')
+                      walk(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      walk(child)
+          walk(payload)
+
+          digest = hashlib.sha256(path.read_bytes()).hexdigest()
+          gate = payload.get('status') == 'PASS' and payload.get('classification') == 'S4_CLEAR_FOR_S5_CONSIDERATION'
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'gate_pass={str(gate).lower()}\n')
+              out.write(f'evidence_sha256={digest}\n')
+          print('CONTENT_SHADOW_S4_EVIDENCE_SHA256='+digest)
+          print('CONTENT_SHADOW_S4_GATE_PASS='+str(gate).lower())
+          print('CONTENT_SHADOW_S4_BLOCKING_COUNTS='+json.dumps(payload.get('blocking_counts') or {}, sort_keys=True))
+          print('CONTENT_SHADOW_S4_TENANT_COUNT='+str(payload.get('tenant_count')))
+          PY
+
+      - name: Upload sanitized S4 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-reporting-shadow-s4-${{ steps.context.outputs.target_sha }}
+          path: evidence/content-shadow-s4-public.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Write S4 step summary
+        if: always() && steps.validate.outputs.evidence_sha256 != ''
+        shell: bash
+        run: |
+          {
+            echo '## Content Reporting S4 — Production Shadow Read-only'
+            echo "- target SHA: `${{ steps.context.outputs.target_sha }}`"
+            echo "- production SHA preserved: `${{ steps.context.outputs.production_sha }}`"
+            echo "- academic year: `${{ steps.context.outputs.academic_year }}`"
+            echo "- reference date: `${{ steps.context.outputs.reference_date }}`"
+            echo "- evidence SHA-256: `${{ steps.validate.outputs.evidence_sha256 }}`"
+            echo "- S4 gate: `${{ steps.validate.outputs.gate_pass }}`"
+            echo '- database mutation: `false`'
+            echo '- production writes: `false`'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Final S4 gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ steps.validate.outputs.gate_pass }}" = "true" || {
+            echo 'CONTENT_SHADOW_S4_BLOCKED_REVIEW_EVIDENCE'
+            exit 1
+          }
+          echo 'CONTENT_SHADOW_S4_CERTIFIED=PASS'
