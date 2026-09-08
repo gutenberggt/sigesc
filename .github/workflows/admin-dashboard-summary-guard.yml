@@ -1,0 +1,38 @@
+name: Admin Dashboard Summary Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/src/pages/Dashboard.js'
+      - 'backend/tests/test_admin_dashboard_summary_links.py'
+      - '.github/workflows/admin-dashboard-summary-guard.yml'
+
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/src/pages/Dashboard.js'
+      - 'backend/tests/test_admin_dashboard_summary_links.py'
+      - '.github/workflows/admin-dashboard-summary-guard.yml'
+
+jobs:
+  admin-dashboard-summary:
+    name: Dashboard administrativo sem duplicação
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Validate consolidated administrative dashboard
+        run: pytest -q --noconftest backend/tests/test_admin_dashboard_summary_links.py

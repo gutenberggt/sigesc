@@ -293,11 +293,11 @@ export const Dashboard = () => {
       case 'admin':
       case 'admin_teste':
         return [
-          { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
-          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
-          { title: 'Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' },
-          { title: 'Servidores(as)', icon: Briefcase, value: loading ? '...' : stats.staff.toString(), color: 'amber' },
-          { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green' }
+          { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue', route: '/admin/schools' },
+          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple', route: '/admin/classes' },
+          { title: 'Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange', route: '/admin/students' },
+          { title: 'Servidores(as)', icon: Briefcase, value: loading ? '...' : stats.staff.toString(), color: 'amber', route: '/admin/staff' },
+          { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green', route: '/admin/users' }
         ];
       case 'secretario':
         return [
@@ -528,8 +528,8 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Acesso Rápido geral — Diretor e Coordenador usam os cards numéricos acima. */}
-        {!isDirectorCoordinatorDashboard && (isAdmin || isAdminOrSecretary || isSchoolStaff || isSemed) && (
+        {/* Acesso Rápido geral — os perfis administrativos globais usam os cards numéricos clicáveis acima. */}
+        {!isDirectorCoordinatorDashboard && !isAdmin && (isAdminOrSecretary || isSchoolStaff || isSemed) && (
           <div>
             <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
