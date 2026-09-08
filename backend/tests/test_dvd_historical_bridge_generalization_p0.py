@@ -9,6 +9,7 @@ ROUTERS_INIT = (ROOT / "routers" / "__init__.py").read_text(encoding="utf-8")
 SERVICE = (ROOT / "services" / "dvd_cutover_legacy_provenance.py").read_text(encoding="utf-8")
 ATTENDANCE = (ROOT / "routers" / "attendance_tabs_dvd.py").read_text(encoding="utf-8")
 GRADES = (ROOT / "routers" / "grades_dvd_parity.py").read_text(encoding="utf-8")
+GRADE_CUTOVER = (ROOT / "services" / "grade_cutover_history.py").read_text(encoding="utf-8")
 
 
 def test_runtime_instala_uma_politica_compartilhada_para_frequencia_e_notas():
@@ -30,6 +31,8 @@ def test_frequencia_preserva_restricao_class_daily_official():
 def test_notas_ancoram_revalidacao_no_contexto_ja_autorizado():
     assert "expected_class_id=context.class_id" in ADAPTER
     assert "expected_component_id=context.course_id" in ADAPTER
+    assert "expected_class_id=context.class_id" in GRADE_CUTOVER
+    assert "expected_component_id=context.course_id" in GRADE_CUTOVER
     assert "expected_class_id != assignment_class_id" in SERVICE
     assert "expected_component_id != assignment_component_id" in SERVICE
 
@@ -39,9 +42,13 @@ def test_instalacao_so_retorna_quando_os_dois_modulos_ja_estao_configurados():
     assert "_dvd_historical_cutover_generalization_installed = True" in ADAPTER
 
 
-def test_adaptadores_antigos_ficam_como_fallback_conservador_38g_b():
+def test_fallbacks_conservadores_delegam_para_a_ssot_aprovada():
+    # Frequência ainda mantém seu fallback 38G-B local; Notas foi refatorado para
+    # delegar diretamente à SSoT geral sem duplicar a lista de fases.
     assert 'provenance.get("apply_phase") != "38G-B"' in ATTENDANCE
-    assert 'provenance.get("apply_phase") != "38G-B"' in GRADES
+    assert "safe_cutover_legacy_assignment as _safe_cutover_legacy_assignment" in GRADES
+    assert "resolve_validated_cutover_legacy_assignment" in GRADE_CUTOVER
+    assert "APPROVED_HISTORICAL_CUTOVER_PHASES" in SERVICE
     assert ROUTERS_INIT.index("install_dvd_historical_bridge_generalization(") < ROUTERS_INIT.index("def setup_grades_router(")
     assert ROUTERS_INIT.index("install_dvd_historical_bridge_generalization(") < ROUTERS_INIT.index("def setup_attendance_router(")
 

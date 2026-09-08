@@ -1,0 +1,52 @@
+name: Grade Historical Backfill Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/grade_cutover_history.py'
+      - 'backend/services/grade_assignment_scope.py'
+      - 'backend/routers/grades_dvd.py'
+      - 'backend/routers/grades_dvd_parity.py'
+      - 'backend/routers/grades_historical_backfill_dvd.py'
+      - 'backend/tests/test_grade_historical_backfill_p0.py'
+      - 'backend/tests/test_professor_grades_history_parity_p0.py'
+      - '.github/workflows/grade-historical-backfill-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/services/grade_cutover_history.py'
+      - 'backend/services/grade_assignment_scope.py'
+      - 'backend/routers/grades_dvd.py'
+      - 'backend/routers/grades_dvd_parity.py'
+      - 'backend/routers/grades_historical_backfill_dvd.py'
+      - 'backend/tests/test_grade_historical_backfill_p0.py'
+      - 'backend/tests/test_professor_grades_history_parity_p0.py'
+      - '.github/workflows/grade-historical-backfill-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  historical-grade-write-parity:
+    name: P0 - Notas históricas 38G-B
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test runner
+        run: pip install pytest pytest-asyncio
+
+      - name: Run historical grade guards
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_grade_historical_backfill_p0.py \
+            tests/test_professor_grades_history_parity_p0.py
