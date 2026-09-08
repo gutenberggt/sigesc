@@ -25,6 +25,11 @@ jobs:
     name: Guard S4 read-only boundary
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: sigesc_ci_contract
+      JWT_SECRET_KEY: ci-only-jwt-secret-0123456789abcdef0123456789abcdef
+      PYTHONPATH: .
     defaults:
       run:
         working-directory: backend
@@ -375,12 +380,12 @@ jobs:
         run: |
           {
             echo '## Content Reporting S4 — Production Shadow Read-only'
-            echo "- target SHA: \`${{ steps.context.outputs.target_sha }}\`"
-            echo "- production SHA preserved: \`${{ steps.context.outputs.production_sha }}\`"
-            echo "- academic year: \`${{ steps.context.outputs.academic_year }}\`"
-            echo "- reference date: \`${{ steps.context.outputs.reference_date }}\`"
-            echo "- evidence SHA-256: \`${{ steps.validate.outputs.evidence_sha256 }}\`"
-            echo "- S4 gate: \`${{ steps.validate.outputs.gate_pass }}\`"
+            echo "- target SHA: `${{ steps.context.outputs.target_sha }}`"
+            echo "- production SHA preserved: `${{ steps.context.outputs.production_sha }}`"
+            echo "- academic year: `${{ steps.context.outputs.academic_year }}`"
+            echo "- reference date: `${{ steps.context.outputs.reference_date }}`"
+            echo "- evidence SHA-256: `${{ steps.validate.outputs.evidence_sha256 }}`"
+            echo "- S4 gate: `${{ steps.validate.outputs.gate_pass }}`"
             echo '- database mutation: `false`'
             echo '- production writes: `false`'
           } >> "$GITHUB_STEP_SUMMARY"
