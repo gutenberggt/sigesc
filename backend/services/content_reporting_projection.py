@@ -230,14 +230,40 @@ def merge_reporting_content(
     }
 
 
+def _iso_date(value: Optional[str], *, code: str, label: str) -> Optional[str]:
+    if not value:
+        return None
+    normalized = _norm(value)[:10]
+    try:
+        date.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ContentReportingProjectionError(code, f"{label} deve usar ISO YYYY-MM-DD.") from exc
+    return normalized
+
+
 def _date_filter(start_date: Optional[str], end_date: Optional[str]) -> Optional[dict[str, str]]:
-    if not start_date and not end_date:
+    start = _iso_date(
+        start_date,
+        code="CONTENT_REPORTING_START_DATE_INVALID",
+        label="start_date",
+    )
+    end = _iso_date(
+        end_date,
+        code="CONTENT_REPORTING_END_DATE_INVALID",
+        label="end_date",
+    )
+    if start and end and start > end:
+        raise ContentReportingProjectionError(
+            "CONTENT_REPORTING_DATE_RANGE_INVALID",
+            "start_date não pode ser posterior a end_date.",
+        )
+    if not start and not end:
         return None
     result: dict[str, str] = {}
-    if start_date:
-        result["$gte"] = _norm(start_date)[:10]
-    if end_date:
-        result["$lte"] = _norm(end_date)[:10]
+    if start:
+        result["$gte"] = start
+    if end:
+        result["$lte"] = end
     return result
 
 
@@ -272,10 +298,13 @@ async def list_reporting_content_shadow(
             "A projeção institucional exige academic_year válido.",
         ) from exc
 
+    scopes = list(cutover_scopes)
+    normalized_cutovers = normalize_cutover_scopes(scopes)
     requested_classes = {_norm(value) for value in (class_ids or []) if _norm(value)}
+    year_filter = {"$in": [year, str(year)]}
     class_query: dict[str, Any] = {
         "mantenedora_id": tenant,
-        "academic_year": year,
+        "academic_year": year_filter,
     }
     if requested_classes:
         class_query["id"] = {"$in": sorted(requested_classes)}
@@ -288,6 +317,14 @@ async def list_reporting_content_shadow(
             "CONTENT_REPORTING_CLASS_OUT_OF_SCOPE",
             "Uma ou mais turmas não pertencem à mantenedora/ano consultados.",
         )
+
+    cutover_classes = {class_id for class_id, _component in normalized_cutovers}
+    if not cutover_classes.issubset(allowed_classes):
+        raise ContentReportingProjectionError(
+            "CONTENT_REPORTING_CUTOVER_OUT_OF_SCOPE",
+            "Há escopo de corte fora das turmas autorizadas para o relatório.",
+        )
+
     if not allowed_classes:
         return {
             "items": [],
@@ -299,7 +336,7 @@ async def list_reporting_content_shadow(
                 "legacy_excluded_post_cutover": 0,
                 "legacy_duplicate_suppressed": 0,
                 "tenant_mismatch_rejected": 0,
-                "cutover_scope_count": len(normalize_cutover_scopes(cutover_scopes)),
+                "cutover_scope_count": len(normalized_cutovers),
             },
         }
 
@@ -308,7 +345,7 @@ async def list_reporting_content_shadow(
 
     canonical_query: dict[str, Any] = {
         "mantenedora_id": tenant,
-        "academic_year": year,
+        "academic_year": year_filter,
         "class_id": {"$in": sorted(allowed_classes)},
         "deleted": {"$ne": True},
     }
@@ -321,7 +358,7 @@ async def list_reporting_content_shadow(
         canonical_query["date"] = date_filter
 
     legacy_query: dict[str, Any] = {
-        "academic_year": year,
+        "academic_year": year_filter,
         "class_id": {"$in": sorted(allowed_classes)},
     }
     if components:
@@ -335,14 +372,22 @@ async def list_reporting_content_shadow(
         canonical,
         legacy,
         tenant_id=tenant,
-        cutover_scopes=cutover_scopes,
+        cutover_scopes=scopes,
     )
     result["scope"] = {
         "mantenedora_id": tenant,
         "academic_year": year,
         "class_ids": sorted(allowed_classes),
         "component_ids": sorted(components),
-        "start_date": _norm(start_date)[:10] or None,
-        "end_date": _norm(end_date)[:10] or None,
+        "start_date": _iso_date(
+            start_date,
+            code="CONTENT_REPORTING_START_DATE_INVALID",
+            label="start_date",
+        ),
+        "end_date": _iso_date(
+            end_date,
+            code="CONTENT_REPORTING_END_DATE_INVALID",
+            label="end_date",
+        ),
     }
     return result
