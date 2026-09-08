@@ -22,7 +22,9 @@ def test_download_blob_injects_canonical_mt1_context_at_request_time():
     source = _read(DOWNLOAD)
 
     assert "import { buildFetchAuthHeaders } from '@/services/api';" in source
-    assert "const finalHeaders = { ...buildFetchAuthHeaders('GET'), ...headers };" in source
+    # Headers extras entram na própria SSoT; Authorization/tenant canônicos têm
+    # precedência e não podem ser substituídos por um caller antigo/stale.
+    assert "const finalHeaders = buildFetchAuthHeaders('GET', headers);" in source
     assert "fetch(url, { headers: finalHeaders, credentials: 'include' })" in source
 
 
