@@ -1,11 +1,12 @@
 """Paridade histórica de Notas/Conceitos no Diário por Vínculo.
 
-A Fase 5 protege corretamente autoria por campo em ``grade_ownership``. No
-cutover 38G-B, porém, notas anteriores ao DVD permaneceram fisicamente em
+A Fase 5 protege corretamente autoria por campo em ``grade_ownership``. Nos
+cutovers históricos, porém, notas anteriores ao DVD permaneceram fisicamente em
 ``grades`` sem esse mapa de autoria.
 
 Esta camada mantém a VISIBILIDADE histórica segura e compõe a ponte P0 de
-ESCRITA histórica em módulo separado. A prova 38G-B é única e compartilhada em
+ESCRITA histórica em módulo separado. A prova de continuidade não é duplicada:
+ela usa a SSoT geral de cutover do DVD por meio de
 ``services.grade_cutover_history``.
 
 Leitura:
@@ -20,11 +21,12 @@ Escrita pré-cutover:
 - é instalada por ``grades_historical_backfill_dvd``;
 - continua usando ``grades_dvd`` + ``grade_assignment_scope`` como motor de
   persistência/autoria;
-- só atravessa ``valid_from`` técnico com prova 38G-B revalidada.
+- só atravessa ``valid_from`` técnico com prova de cutover revalidada.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Mapping, Optional
 
 from fastapi import HTTPException
@@ -39,9 +41,30 @@ from services.grade_assignment_scope import (
 )
 from services.grade_cutover_history import (
     LEGACY_HISTORY_FLAG,
-    decorate_context_with_legacy_history as _decorate_context_with_legacy_history,
+    LEGACY_SOURCE_FLAG,
+    LEGACY_YEAR_FLAG,
     safe_cutover_legacy_assignment as _safe_cutover_legacy_assignment,
 )
+
+
+async def _decorate_context_with_legacy_history(
+    db,
+    context: Optional[GradeAssignmentContext],
+    academic_year: int,
+) -> Optional[GradeAssignmentContext]:
+    """Marca leitura usando a função local patchável pela generalização DVD."""
+    if context is None:
+        return None
+
+    legacy = await _safe_cutover_legacy_assignment(db, context, academic_year)
+    if not legacy:
+        return context
+
+    snapshot = dict(context.snapshot)
+    snapshot[LEGACY_HISTORY_FLAG] = True
+    snapshot[LEGACY_SOURCE_FLAG] = legacy.get("id")
+    snapshot[LEGACY_YEAR_FLAG] = int(academic_year)
+    return replace(context, snapshot=snapshot)
 
 
 def _project_grade_for_assignment(
