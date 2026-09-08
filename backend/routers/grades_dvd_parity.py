@@ -1,26 +1,30 @@
-"""Paridade histórica read-only de Notas/Conceitos no Diário por Vínculo.
+"""Paridade histórica de Notas/Conceitos no Diário por Vínculo.
 
 A Fase 5 protege corretamente autoria por campo em ``grade_ownership``. No
 cutover 38G-B, porém, notas anteriores ao DVD permaneceram fisicamente em
-``grades`` sem esse mapa de autoria. O efeito esperado de segurança (não
-apropriar legado) acabou também ocultando o histórico do próprio professor.
+``grades`` sem esse mapa de autoria.
 
-Este adaptador separa VISIBILIDADE de AUTORIA:
+Esta camada mantém a VISIBILIDADE histórica segura e compõe a ponte P0 de
+ESCRITA histórica em módulo separado. A prova 38G-B é única e compartilhada em
+``services.grade_cutover_history``.
 
+Leitura:
 - revalida a origem legada indicada por ``cutover_provenance``;
 - torna campos legados sem ownership visíveis somente na leitura do vínculo;
 - marca esses campos em ``dvd_read_only_fields``;
 - mantém campos pertencentes a outro assignment mascarados;
 - faz o PDF usar exatamente a mesma projeção segura;
-- não cria ``grade_ownership`` retroativo e não escreve em ``grades``.
+- não cria ``grade_ownership`` retroativo.
 
-A escrita continua integralmente sob ``grades_dvd`` + ``grade_assignment_scope``.
+Escrita pré-cutover:
+- é instalada por ``grades_historical_backfill_dvd``;
+- continua usando ``grades_dvd`` + ``grade_assignment_scope`` como motor de
+  persistência/autoria;
+- só atravessa ``valid_from`` técnico com prova 38G-B revalidada.
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
-import re
 from typing import Any, Mapping, Optional
 
 from fastapi import HTTPException
@@ -33,94 +37,11 @@ from services.grade_assignment_scope import (
     GradeAssignmentContext,
     owned_fields_for_assignment,
 )
-
-
-LEGACY_HISTORY_FLAG = "legacy_grade_history_read"
-LEGACY_SOURCE_FLAG = "legacy_grade_source_assignment_id"
-
-
-async def _legacy_staff_matches_teacher(db, legacy: Mapping[str, Any], teacher_id: str) -> bool:
-    staff_id = legacy.get("staff_id")
-    if not staff_id:
-        return False
-
-    staff = await db.staff.find_one(
-        {"id": staff_id},
-        {"_id": 0, "user_id": 1, "email": 1},
-    )
-    if not staff:
-        return False
-
-    if staff.get("user_id"):
-        return str(staff.get("user_id")) == str(teacher_id)
-
-    email = str(staff.get("email") or "").strip()
-    if not email:
-        return False
-
-    user = await db.users.find_one(
-        {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}},
-        {"_id": 0, "id": 1},
-    )
-    return bool(user and str(user.get("id")) == str(teacher_id))
-
-
-async def _safe_cutover_legacy_assignment(
-    db,
-    context: GradeAssignmentContext,
-    academic_year: int,
-) -> Optional[dict[str, Any]]:
-    """Revalida a origem 38G-B antes de liberar leitura de campos sem ownership."""
-    assignment = context.assignment
-    provenance = assignment.get("cutover_provenance") or {}
-    source_id = provenance.get("source_legacy_assignment_id")
-
-    if (
-        not source_id
-        or provenance.get("apply_phase") != "38G-B"
-        or provenance.get("apply_state") != "ACTIVATED"
-    ):
-        return None
-
-    legacy = await db.teacher_assignments.find_one(
-        {
-            "id": source_id,
-            "class_id": context.class_id,
-            "course_id": context.course_id,
-            "status": "ativo",
-            "academic_year": {"$in": [academic_year, str(academic_year)]},
-        },
-        {"_id": 0},
-    )
-    if not legacy:
-        return None
-
-    if not await _legacy_staff_matches_teacher(
-        db,
-        legacy,
-        str(assignment.get("teacher_id") or ""),
-    ):
-        return None
-
-    return legacy
-
-
-async def _decorate_context_with_legacy_history(
-    db,
-    context: Optional[GradeAssignmentContext],
-    academic_year: int,
-) -> Optional[GradeAssignmentContext]:
-    if context is None:
-        return None
-
-    legacy = await _safe_cutover_legacy_assignment(db, context, academic_year)
-    if not legacy:
-        return context
-
-    snapshot = dict(context.snapshot)
-    snapshot[LEGACY_HISTORY_FLAG] = True
-    snapshot[LEGACY_SOURCE_FLAG] = legacy.get("id")
-    return replace(context, snapshot=snapshot)
+from services.grade_cutover_history import (
+    LEGACY_HISTORY_FLAG,
+    decorate_context_with_legacy_history as _decorate_context_with_legacy_history,
+    safe_cutover_legacy_assignment as _safe_cutover_legacy_assignment,
+)
 
 
 def _project_grade_for_assignment(
@@ -346,11 +267,18 @@ async def _dvd_pdf_with_history(
 
 
 def install_grades_dvd_parity(base_router, db, *, sandbox_db=None):
-    """Instala a ponte depois da Fase 5 e do hardening residual."""
+    """Instala ponte histórica de escrita + paridade de leitura após a Fase 5."""
     if getattr(base_router, "_dvd_grades_history_parity_installed", False):
         return base_router
 
     from routers import grades_dvd as dvd_mod
+    from routers.grades_historical_backfill_dvd import (
+        install_grades_historical_backfill_dvd,
+    )
+
+    # O backfill de escrita é composto aqui porque este instalador já é executado
+    # depois do adapter + hardening da Fase 5. Nenhuma nova rota é criada.
+    install_grades_historical_backfill_dvd()
 
     if not hasattr(dvd_mod, "_history_parity_original_context_or_legacy"):
         dvd_mod._history_parity_original_context_or_legacy = dvd_mod._context_or_legacy
