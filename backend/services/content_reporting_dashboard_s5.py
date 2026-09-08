@@ -13,6 +13,7 @@ from typing import Any, Optional
 
 from services.content_reporting_cutover_resolver import resolve_content_reporting_cutover_scopes
 from services.content_reporting_projection import list_reporting_content_shadow
+from services.content_reporting_structural_db import structural_reporting_db
 
 
 class ContentReportingDashboardError(ValueError):
@@ -96,6 +97,7 @@ async def get_diary_dashboard_content_stats(
             "Ano letivo inválido para o reporting de conteúdo.",
         ) from exc
 
+    reporting_db = structural_reporting_db(db)
     school = _norm(school_id)
     class_filter = _norm(class_id)
     component = _norm(course_id)
@@ -110,7 +112,7 @@ async def get_diary_dashboard_content_stats(
             class_query["school_id"] = school
         if class_filter:
             class_query["id"] = class_filter
-        class_docs = await db.classes.find(class_query, {"_id": 0, "id": 1}).to_list(5000)
+        class_docs = await reporting_db.classes.find(class_query, {"_id": 0, "id": 1}).to_list(5000)
         requested_class_ids = sorted(
             {_norm(doc.get("id")) for doc in class_docs if _norm(doc.get("id"))}
         )
@@ -119,7 +121,7 @@ async def get_diary_dashboard_content_stats(
 
     ref = _norm(reference_date) or _reference_date_for_year(year)
     resolution = await resolve_content_reporting_cutover_scopes(
-        db,
+        reporting_db,
         mantenedora_id=tenant,
         academic_year=year,
         reference_date=ref,
@@ -134,7 +136,7 @@ async def get_diary_dashboard_content_stats(
         ]
 
     projection = await list_reporting_content_shadow(
-        db,
+        reporting_db,
         mantenedora_id=tenant,
         academic_year=year,
         cutover_scopes=scopes,
