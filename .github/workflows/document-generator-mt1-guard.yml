@@ -1,0 +1,38 @@
+name: Document Generator MT-1 Guard
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/components/documents/DocumentGeneratorModal.js'
+      - 'frontend/src/utils/downloadBlob.js'
+      - 'backend/tests/test_document_generator_mt1_guard.py'
+      - '.github/workflows/document-generator-mt1-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/components/documents/DocumentGeneratorModal.js'
+      - 'frontend/src/utils/downloadBlob.js'
+      - 'backend/tests/test_document_generator_mt1_guard.py'
+      - '.github/workflows/document-generator-mt1-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Contexto MT-1 e erro legível em documentos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Enforce document generator MT-1 policy
+        run: pytest -q --noconftest backend/tests/test_document_generator_mt1_guard.py

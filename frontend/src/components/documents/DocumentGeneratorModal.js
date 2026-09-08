@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ExternalLink, GraduationCap, ClipboardCheck, Calendar, User, Award, ArrowRightLeft, BookOpen } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
-import { documentsAPI, getToken } from '@/services/api';
+import { documentsAPI } from '@/services/api';
 import { downloadBlob } from '@/utils/downloadBlob';
 
 export const DocumentGeneratorModal = ({ 
@@ -52,10 +52,9 @@ export const DocumentGeneratorModal = ({
         certificado: `certificado_${(student.full_name || 'aluno').replace(/\s+/g, '_')}.pdf`,
       };
 
-      const token = getToken();
-      await downloadBlob(url, filenameMap[type], {
-        Authorization: token ? `Bearer ${token}` : '',
-      });
+      // downloadBlob injeta Authorization + X-Mantenedora-Id no momento efetivo
+      // da chamada via buildFetchAuthHeaders. O modal não deve reconstruir MT-1.
+      await downloadBlob(url, filenameMap[type]);
     } catch (err) {
       console.error('Erro ao gerar documento:', err);
       setError(err.message || 'Erro ao gerar documento.');
