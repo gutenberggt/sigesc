@@ -34,7 +34,7 @@ def test_ui_expoe_separacao_normativa_e_objetos_de_conhecimento():
     source = _read("components/curriculum/ScopedCurriculumVersions.jsx")
     assert "Habilidades DCM obrigatórias" in source
     assert "Habilidades BNCC complementares" in source
-    assert "Integração transversal" in source
+    assert "Integrações transversais" in source
     assert "Objetos de Conhecimento" in source
     assert "Resolva as habilidades DCM obrigatórias antes de publicar." in source
 
