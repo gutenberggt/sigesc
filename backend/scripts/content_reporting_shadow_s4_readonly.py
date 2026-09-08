@@ -143,6 +143,7 @@ def _sanitize_metric(row: Mapping[str, Any]) -> dict[str, Any]:
         "delta": row.get("delta"),
         "classification": row.get("classification"),
         "explanation": row.get("explanation"),
+        "reconciliation": dict(row.get("reconciliation") or {}),
     }
 
 
