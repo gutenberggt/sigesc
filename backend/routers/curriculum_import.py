@@ -1,9 +1,13 @@
 """
 Importador de PDF curricular (BNCC / DCM) — May 2026.
 
-Pipeline: super_admin envia PDF → extract → fila de revisão → commit seletivo.
+Pipeline legado: super_admin envia PDF → extract → fila de revisão → commit seletivo.
 
-Endpoints (todos super_admin via Matriz `nav-curriculum-button`):
+A evolução de Versões Curriculares por Escopo é montada aditivamente sob
+``/api/curriculum/import/scoped-versions`` e não altera o commit legado de
+habilidades.
+
+Endpoints legados (todos super_admin via Matriz `nav-curriculum-button`):
   POST   /api/curriculum/import/upload                        (multipart, ?only=LP,MA)
   GET    /api/curriculum/import/batches?status=
   GET    /api/curriculum/import/batches/{batch_id}
@@ -31,6 +35,8 @@ from services.curriculum_v2_migration import (
     etapa_bncc_from_codigo as _etapa_bncc_from_codigo,
     escopo_from_fonte as _escopo_from_fonte,
 )
+from routers.curriculum_scoped_versions import build_scoped_curriculum_router
+from services.curriculum_scoped_coverage_bridge import install_scoped_curriculum_coverage_bridge
 
 router = APIRouter(prefix="/curriculum/import", tags=["Currículo - Importação"])
 
@@ -50,6 +56,18 @@ def setup_router(db):
         return await AuthMiddleware.require_permission(
             db, 'nav-curriculum-button', ['super_admin']
         )(request)
+
+    # Montagem aditiva do novo núcleo por escopo. O router global pode ser
+    # configurado mais de uma vez em testes; o marcador evita rotas duplicadas.
+    if not getattr(router, "_scoped_curriculum_versions_routes", False):
+        router.include_router(build_scoped_curriculum_router(db))
+        router._scoped_curriculum_versions_routes = True
+
+    # A Cobertura F5 resolve funções globais no momento da requisição. Instalar
+    # a ponte aqui preserva seu algoritmo e habilita múltiplas versões publicadas
+    # no mesmo ano sem tocar no motor legado.
+    from routers import curriculum_coverage_v2 as _coverage_v2_mod
+    install_scoped_curriculum_coverage_bridge(_coverage_v2_mod)
 
     # =================== UPLOAD + EXTRACT ===================
 
