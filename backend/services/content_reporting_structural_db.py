@@ -42,8 +42,14 @@ class StructuralReportingDb:
 
     def __init__(self, inner: Any):
         self._inner = inner
-        self.content_entries = StructuralContentCollection(inner.content_entries)
-        self.learning_objects = StructuralContentCollection(inner.learning_objects)
+
+    @property
+    def content_entries(self) -> StructuralContentCollection:
+        return StructuralContentCollection(self._inner.content_entries)
+
+    @property
+    def learning_objects(self) -> StructuralContentCollection:
+        return StructuralContentCollection(self._inner.learning_objects)
 
     def __getattr__(self, name: str):
         return getattr(self._inner, name)
