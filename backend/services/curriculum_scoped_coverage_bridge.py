@@ -92,7 +92,6 @@ def _rewrite_virtual_plan_query(
             branches.append(annual_clause)
 
     if not branches:
-        # Nunca deve ocorrer após o preflight do bridge; manter fail-closed.
         version_clause: dict[str, Any] = {"curriculum_version_id": {"$in": []}}
     elif len(branches) == 1:
         version_clause = branches[0]
@@ -220,7 +219,6 @@ async def _published_version_sets(
     if not scoped:
         return [], []
 
-    # A versão anual só participa como fallback nos escopos ainda não migrados.
     annual = await db.curriculum_versions.find(
         {
             "mantenedora_id": tenant_id,
@@ -276,6 +274,14 @@ async def _restore_actual_version_ids(
 
 
 def install_scoped_curriculum_coverage_bridge(coverage_mod: Any) -> None:
+    # O servidor monta curriculum_import antes de curriculum_v2. Aproveitamos
+    # essa ordem homologada para proteger também a publicação anual legada antes
+    # de o router curricular canônico capturar o DB.
+    from routers import curriculum_v2 as curriculum_v2_mod
+    from services.curriculum_scoped_annual_guard import install_scoped_annual_publish_guard
+
+    install_scoped_annual_publish_guard(curriculum_v2_mod)
+
     if getattr(coverage_mod, "_scoped_curriculum_versions_bridge_installed", False):
         return
     original = coverage_mod.calculate_curriculum_coverage_v2
