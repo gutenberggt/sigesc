@@ -1,13 +1,13 @@
 """
 Service compartilhado para cálculo de KPIs do PMPI-GE.
 
-Extraído de routers/pmpi.py para ser reusado por:
-- routers/pmpi_engine.py (motor de alertas + metas)
-- routers/pmpi_ai.py (IA preditiva, ranking, cron)
+S5.3 preserva a semântica dos cinco KPIs, mas os três indicadores dependentes
+de Conteúdo deixam de consultar ``learning_objects`` diretamente:
+- aulas_lancadas -> contagem projetada S1/S2;
+- atrasos_dias -> média projetada somente com proveniência integralmente comparável;
+- carga_horaria -> soma projetada de ``number_of_classes``.
 
-Todos os cálculos usam estratégia **school_id com fallback para class_id**,
-pois em produção collections como `grades`, `learning_objects` e `attendance`
-podem NÃO ter o campo `school_id` — apenas `class_id`.
+Frequência e notas permanecem nas fontes históricas próprias do PMPI.
 """
 
 from __future__ import annotations
@@ -15,9 +15,11 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+from services.content_reporting_pmpi_s5 import get_pmpi_content_facts
+
 
 async def _get_class_ids(current_db, school_id: str) -> list:
-    """Retorna lista de IDs de turmas vinculadas à escola."""
+    """Retorna lista histórica de IDs de turmas vinculadas à escola."""
     ids = []
     try:
         async for c in current_db.classes.find(
@@ -48,13 +50,14 @@ async def _count_with_fallback(current_db, coll: str, school_id: str,
     return n
 
 
-async def compute_kpis_for_school(current_db, school_id: str, days_window: int = 30) -> dict:
-    """Calcula os 5 KPIs para uma escola.
-    
-    Retorna dict {metric: {value, detail}} onde metric ∈
-    {frequencia, aulas_lancadas, notas_lancadas, atrasos_dias, carga_horaria}.
-    Status (verde/amarelo/vermelho) é adicionado pelo caller.
-    """
+async def compute_kpis_for_school(
+    current_db,
+    school_id: str,
+    days_window: int = 30,
+    *,
+    tenant_id: Optional[str] = None,
+) -> dict:
+    """Calcula os 5 KPIs para uma escola com Conteúdo projetado por S1/S2."""
     now = datetime.now(timezone.utc)
     window_start_iso = (now - timedelta(days=days_window)).isoformat()[:10]
 
@@ -68,7 +71,7 @@ async def compute_kpis_for_school(current_db, school_id: str, days_window: int =
 
     class_ids = await _get_class_ids(current_db, school_id)
 
-    # Academic year vigente (mais recente em classes)
+    # Academic year vigente (mais recente em classes) — contrato histórico do PMPI.
     academic_year = now.year
     try:
         latest = await current_db.classes.find_one(
@@ -80,7 +83,7 @@ async def compute_kpis_for_school(current_db, school_id: str, days_window: int =
     except Exception:
         pass
 
-    # 1. Frequência
+    # 1. Frequência — inalterada.
     try:
         total_records = 0
         presentes = 0
@@ -106,23 +109,40 @@ async def compute_kpis_for_school(current_db, school_id: str, days_window: int =
     except Exception as e:
         kpis["frequencia"]["detail"] = {"erro": str(e)}
 
-    # 2. Aulas lançadas
+    # Fatos de Conteúdo projetados uma única vez para os KPIs 2, 4 e 5.
+    content_facts = None
     try:
-        lancadas = await _count_with_fallback(
-            current_db, "learning_objects", school_id, class_ids,
-            {"date": {"$gte": window_start_iso}},
+        content_facts = await get_pmpi_content_facts(
+            current_db,
+            school_id=school_id,
+            days_window=days_window,
+            tenant_id=tenant_id,
+            now=now,
         )
-        n_classes = len(class_ids)
-        previstas = max(n_classes * 5 * days_window * 5 // 7, 1)
-        pct = 100.0 * lancadas / previstas if previstas else None
-        kpis["aulas_lancadas"]["value"] = round(min(pct, 100.0), 2) if pct is not None else None
-        kpis["aulas_lancadas"]["detail"] = {
-            "lancadas": lancadas, "previstas_estimadas": previstas, "n_classes": n_classes,
-        }
     except Exception as e:
-        kpis["aulas_lancadas"]["detail"] = {"erro": str(e)}
+        detail = {"erro": str(e), "source": "content_reporting_s1_s2"}
+        kpis["aulas_lancadas"]["detail"] = dict(detail)
+        kpis["atrasos_dias"]["detail"] = dict(detail)
+        kpis["carga_horaria"]["detail"] = dict(detail)
 
-    # 3. Notas lançadas (QUALQUER bimestre)
+    # 2. Aulas lançadas — mesma fórmula, novo numerador projetado.
+    if content_facts is not None:
+        try:
+            lancadas = int(content_facts.get("record_count_window") or 0)
+            n_classes = len(class_ids)
+            previstas = max(n_classes * 5 * days_window * 5 // 7, 1)
+            pct = 100.0 * lancadas / previstas if previstas else None
+            kpis["aulas_lancadas"]["value"] = round(min(pct, 100.0), 2) if pct is not None else None
+            kpis["aulas_lancadas"]["detail"] = {
+                "lancadas": lancadas,
+                "previstas_estimadas": previstas,
+                "n_classes": n_classes,
+                "source": "content_reporting_s1_s2",
+            }
+        except Exception as e:
+            kpis["aulas_lancadas"]["detail"] = {"erro": str(e)}
+
+    # 3. Notas lançadas — inalterada.
     try:
         total_enrol = await _count_with_fallback(
             current_db, "enrollments", school_id, class_ids,
@@ -156,81 +176,63 @@ async def compute_kpis_for_school(current_db, school_id: str, days_window: int =
         pct = 100.0 * filled / expected if expected else None
         kpis["notas_lancadas"]["value"] = round(min(pct, 100.0), 2) if pct is not None else None
         kpis["notas_lancadas"]["detail"] = {
-            "preenchidas": filled, "esperado_estimado": expected,
-            "total_matriculas": total_enrol, "n_courses": n_courses,
+            "preenchidas": filled,
+            "esperado_estimado": expected,
+            "total_matriculas": total_enrol,
+            "n_courses": n_courses,
         }
     except Exception as e:
         kpis["notas_lancadas"]["detail"] = {"erro": str(e)}
 
-    # 4. Atraso médio (dias)
-    try:
-        total_delay = 0
-        n = 0
-        query = {"date": {"$gte": window_start_iso}}
-        find_filter = {"school_id": school_id, **query}
-        first = await current_db.learning_objects.find_one(find_filter, {"_id": 0, "id": 1})
-        if first is None and class_ids:
-            find_filter = {"class_id": {"$in": class_ids}, **query}
-        cursor = current_db.learning_objects.find(
-            find_filter, {"_id": 0, "date": 1, "created_at": 1}
-        ).limit(500)
-        async for lo in cursor:
-            try:
-                date_s = lo.get("date")
-                created = lo.get("created_at")
-                if not date_s or not created:
-                    continue
-                d_date = datetime.fromisoformat(str(date_s)[:10])
-                d_created = datetime.fromisoformat(str(created).replace("Z", "+00:00"))
-                if d_created.tzinfo:
-                    d_created = d_created.replace(tzinfo=None)
-                delta = (d_created - d_date).days
-                if delta >= 0:
-                    total_delay += delta
-                    n += 1
-            except Exception:
-                continue
-        if n > 0:
-            kpis["atrasos_dias"]["value"] = round(total_delay / n, 2)
-            kpis["atrasos_dias"]["detail"] = {"amostras": n}
-    except Exception as e:
-        kpis["atrasos_dias"]["detail"] = {"erro": str(e)}
+    # 4. Atraso médio — não calcula média parcial quando a proveniência é incompleta.
+    if content_facts is not None:
+        try:
+            sample_count = int(content_facts.get("delay_sample_count") or 0)
+            incomparable = int(content_facts.get("delay_incomparable_count") or 0)
+            fully_comparable = bool(content_facts.get("delay_fully_comparable"))
+            if fully_comparable and sample_count > 0:
+                kpis["atrasos_dias"]["value"] = round(
+                    float(content_facts.get("delay_average_days") or 0), 2
+                )
+                kpis["atrasos_dias"]["detail"] = {
+                    "amostras": sample_count,
+                    "source": "content_reporting_s1_s2",
+                }
+            elif incomparable > 0:
+                kpis["atrasos_dias"]["detail"] = {
+                    "provenance_incomparable": True,
+                    "amostras_comparaveis": sample_count,
+                    "registros_sem_proveniencia": incomparable,
+                    "source": "content_reporting_s1_s2",
+                }
+        except Exception as e:
+            kpis["atrasos_dias"]["detail"] = {"erro": str(e)}
 
-    # 5. Carga horária
-    try:
-        lo_match = {"school_id": school_id, "academic_year": academic_year}
-        any_doc = await current_db.learning_objects.find_one(lo_match, {"_id": 0, "id": 1})
-        if any_doc is None and class_ids:
-            lo_match = {"class_id": {"$in": class_ids}, "academic_year": academic_year}
-            any_doc = await current_db.learning_objects.find_one(lo_match, {"_id": 0, "id": 1})
-            if any_doc is None:
-                lo_match = {"class_id": {"$in": class_ids}}
-        total_lo = 0
-        async for row in current_db.learning_objects.aggregate([
-            {"$match": lo_match},
-            {"$group": {"_id": None, "total": {"$sum": "$number_of_classes"}}},
-        ]):
-            total_lo = row.get("total") or 0
-        courses_match = {"school_id": school_id}
-        first_c = await current_db.courses.find_one(courses_match, {"_id": 0, "id": 1})
-        if first_c is None and class_ids:
-            courses_match = {"class_id": {"$in": class_ids}}
-        total_prev = 0
-        async for row in current_db.courses.aggregate([
-            {"$match": courses_match},
-            {"$group": {"_id": None, "total": {"$sum": "$workload"}}},
-        ]):
-            total_prev = row.get("total") or 0
-        prorated = (total_prev or 1) * (now.month / 12.0)
-        pct = 100.0 * total_lo / prorated if prorated else None
-        if pct is not None:
-            kpis["carga_horaria"]["value"] = round(min(pct, 100.0), 2)
-            kpis["carga_horaria"]["detail"] = {
-                "aulas_dadas_total": total_lo,
-                "previsto_proporcional": round(prorated, 1),
-                "mes_referencia": now.month,
-            }
-    except Exception as e:
-        kpis["carga_horaria"]["detail"] = {"erro": str(e)}
+    # 5. Carga horária — denominador histórico preservado; numerador projetado.
+    if content_facts is not None:
+        try:
+            total_lo = float(content_facts.get("number_of_classes_sum_year") or 0)
+            courses_match = {"school_id": school_id}
+            first_c = await current_db.courses.find_one(courses_match, {"_id": 0, "id": 1})
+            if first_c is None and class_ids:
+                courses_match = {"class_id": {"$in": class_ids}}
+            total_prev = 0
+            async for row in current_db.courses.aggregate([
+                {"$match": courses_match},
+                {"$group": {"_id": None, "total": {"$sum": "$workload"}}},
+            ]):
+                total_prev = row.get("total") or 0
+            prorated = (total_prev or 1) * (now.month / 12.0)
+            pct = 100.0 * total_lo / prorated if prorated else None
+            if pct is not None:
+                kpis["carga_horaria"]["value"] = round(min(pct, 100.0), 2)
+                kpis["carga_horaria"]["detail"] = {
+                    "aulas_dadas_total": int(total_lo) if total_lo.is_integer() else total_lo,
+                    "previsto_proporcional": round(prorated, 1),
+                    "mes_referencia": now.month,
+                    "source": "content_reporting_s1_s2",
+                }
+        except Exception as e:
+            kpis["carga_horaria"]["detail"] = {"erro": str(e)}
 
     return kpis
