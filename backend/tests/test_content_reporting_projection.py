@@ -18,11 +18,11 @@ COMP = "comp-a"
 TEACHER = "teacher-a"
 
 
-def _canonical(date, *, tenant=TENANT, item_id="ce-1", component=COMP, teacher=TEACHER):
+def _canonical(date, *, tenant=TENANT, item_id="ce-1", component=COMP, teacher=TEACHER, year=2026):
     return {
         "id": item_id,
         "mantenedora_id": tenant,
-        "academic_year": 2026,
+        "academic_year": year,
         "class_id": CLASS,
         "component_id": component,
         "teacher_id": teacher,
@@ -33,10 +33,10 @@ def _canonical(date, *, tenant=TENANT, item_id="ce-1", component=COMP, teacher=T
     }
 
 
-def _legacy(date, *, tenant=None, item_id="lo-1", component=COMP, teacher=TEACHER):
+def _legacy(date, *, tenant=None, item_id="lo-1", component=COMP, teacher=TEACHER, year=2026):
     row = {
         "id": item_id,
-        "academic_year": 2026,
+        "academic_year": year,
         "class_id": CLASS,
         "course_id": component,
         "recorded_by": teacher,
@@ -49,9 +49,9 @@ def _legacy(date, *, tenant=None, item_id="lo-1", component=COMP, teacher=TEACHE
     return row
 
 
-def _scope(component=COMP, valid_from="2026-08-18"):
+def _scope(component=COMP, valid_from="2026-08-18", class_id=CLASS):
     return ContentReportingCutoverScope(
-        class_id=CLASS,
+        class_id=class_id,
         component_id=component,
         valid_from=valid_from,
     )
@@ -191,13 +191,14 @@ class FakeCollection:
 
 
 class FakeDb:
-    def __init__(self):
+    def __init__(self, *, string_year=False):
+        year = "2026" if string_year else 2026
         self.classes = FakeCollection([
-            {"id": CLASS, "mantenedora_id": TENANT, "academic_year": 2026},
-            {"id": "class-other", "mantenedora_id": "tenant-b", "academic_year": 2026},
+            {"id": CLASS, "mantenedora_id": TENANT, "academic_year": year},
+            {"id": "class-other", "mantenedora_id": "tenant-b", "academic_year": year},
         ])
-        self.content_entries = FakeCollection([_canonical("2026-08-20")])
-        self.learning_objects = FakeCollection([_legacy("2026-06-01", item_id="lo-old")])
+        self.content_entries = FakeCollection([_canonical("2026-08-20", year=year)])
+        self.learning_objects = FakeCollection([_legacy("2026-06-01", item_id="lo-old", year=year)])
 
 
 @pytest.mark.asyncio
@@ -214,6 +215,18 @@ async def test_loader_ancora_turma_no_tenant_e_ano():
 
 
 @pytest.mark.asyncio
+async def test_loader_aceita_ano_historico_int_ou_string_sem_perder_registros():
+    result = await list_reporting_content_shadow(
+        FakeDb(string_year=True),
+        mantenedora_id=TENANT,
+        academic_year=2026,
+        class_ids=[CLASS],
+        cutover_scopes=[_scope()],
+    )
+    assert {item["id"] for item in result["items"]} == {"ce-1", "lo-old"}
+
+
+@pytest.mark.asyncio
 async def test_loader_rejeita_turma_de_outro_tenant_em_vez_de_filtrar_silenciosamente():
     with pytest.raises(ContentReportingProjectionError) as exc:
         await list_reporting_content_shadow(
@@ -223,6 +236,33 @@ async def test_loader_rejeita_turma_de_outro_tenant_em_vez_de_filtrar_silenciosa
             class_ids=["class-other"],
         )
     assert exc.value.code == "CONTENT_REPORTING_CLASS_OUT_OF_SCOPE"
+
+
+@pytest.mark.asyncio
+async def test_loader_rejeita_cutover_de_turma_fora_do_escopo():
+    with pytest.raises(ContentReportingProjectionError) as exc:
+        await list_reporting_content_shadow(
+            FakeDb(),
+            mantenedora_id=TENANT,
+            academic_year=2026,
+            class_ids=[CLASS],
+            cutover_scopes=[_scope(class_id="class-other")],
+        )
+    assert exc.value.code == "CONTENT_REPORTING_CUTOVER_OUT_OF_SCOPE"
+
+
+@pytest.mark.asyncio
+async def test_loader_rejeita_intervalo_temporal_invertido():
+    with pytest.raises(ContentReportingProjectionError) as exc:
+        await list_reporting_content_shadow(
+            FakeDb(),
+            mantenedora_id=TENANT,
+            academic_year=2026,
+            class_ids=[CLASS],
+            start_date="2026-09-01",
+            end_date="2026-08-01",
+        )
+    assert exc.value.code == "CONTENT_REPORTING_DATE_RANGE_INVALID"
 
 
 def test_fundacao_e_estritamente_read_only_e_nao_faz_cutover_de_consumidores():
