@@ -1,0 +1,40 @@
+name: Grades Save Feedback Guard
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/components/PainelSincronizacao.jsx'
+      - 'frontend/src/pages/Grades.js'
+      - 'frontend/src/utils/errorHandler.js'
+      - 'backend/tests/test_grades_save_feedback_guard.py'
+      - '.github/workflows/grades-save-feedback-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/components/PainelSincronizacao.jsx'
+      - 'frontend/src/pages/Grades.js'
+      - 'frontend/src/utils/errorHandler.js'
+      - 'backend/tests/test_grades_save_feedback_guard.py'
+      - '.github/workflows/grades-save-feedback-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Feedback fiel do salvamento de notas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Enforce grades save feedback policy
+        run: pytest -q --noconftest backend/tests/test_grades_save_feedback_guard.py
