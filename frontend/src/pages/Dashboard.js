@@ -300,12 +300,9 @@ export const Dashboard = () => {
           { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green', route: '/admin/users' }
         ];
       case 'secretario':
-        return [
-          { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
-          { title: 'Estudantes', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
-          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
-          { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
-        ];
+        // O secretário usa somente a faixa operacional de Acesso Rápido abaixo,
+        // evitando duplicação dos mesmos recursos em duas linhas.
+        return [];
       case 'diretor':
       case 'coordenador':
         return [
@@ -481,54 +478,56 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Informações / Acesso Rápido para Diretor e Coordenador; estatísticas para os demais perfis */}
-        <div>
-          {isDirectorCoordinatorDashboard && (
-            <h2 className="text-xl font-bold mb-4" data-testid="dashboard-info-quick-title">
-              Informações/Acesso Rápido
-            </h2>
-          )}
-          <div className={`grid grid-cols-1 md:grid-cols-2 ${isDirectorCoordinatorDashboard ? 'lg:grid-cols-2' : 'lg:grid-cols-5'} gap-6`}>
-            {cards.map((card, index) => {
-              const Icon = card.icon;
-              const isClickable = Boolean(card.route);
-              const openCard = () => {
-                if (card.route) navigate(card.route);
-              };
-              return (
-                <Card
-                  key={index}
-                  data-testid={`dashboard-card-${index}`}
-                  className={isClickable ? 'cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : undefined}
-                  onClick={isClickable ? openCard : undefined}
-                  onKeyDown={isClickable ? (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openCard();
-                    }
-                  } : undefined}
-                  role={isClickable ? 'button' : undefined}
-                  tabIndex={isClickable ? 0 : undefined}
-                  aria-label={isClickable ? `Abrir ${card.title}` : undefined}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">{card.title}</p>
-                        <p className="text-3xl font-bold text-gray-900">{card.value}</p>
+        {/* Informações / Acesso Rápido para Diretor e Coordenador; estatísticas para os demais perfis. */}
+        {cards.length > 0 && (
+          <div>
+            {isDirectorCoordinatorDashboard && (
+              <h2 className="text-xl font-bold mb-4" data-testid="dashboard-info-quick-title">
+                Informações/Acesso Rápido
+              </h2>
+            )}
+            <div className={`grid grid-cols-1 md:grid-cols-2 ${isDirectorCoordinatorDashboard ? 'lg:grid-cols-2' : 'lg:grid-cols-5'} gap-6`}>
+              {cards.map((card, index) => {
+                const Icon = card.icon;
+                const isClickable = Boolean(card.route);
+                const openCard = () => {
+                  if (card.route) navigate(card.route);
+                };
+                return (
+                  <Card
+                    key={index}
+                    data-testid={`dashboard-card-${index}`}
+                    className={isClickable ? 'cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' : undefined}
+                    onClick={isClickable ? openCard : undefined}
+                    onKeyDown={isClickable ? (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openCard();
+                      }
+                    } : undefined}
+                    role={isClickable ? 'button' : undefined}
+                    tabIndex={isClickable ? 0 : undefined}
+                    aria-label={isClickable ? `Abrir ${card.title}` : undefined}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">{card.title}</p>
+                          <p className="text-3xl font-bold text-gray-900">{card.value}</p>
+                        </div>
+                        <div className={`p-3 rounded-lg ${colorClasses[card.color]}`}>
+                          <Icon size={24} />
+                        </div>
                       </div>
-                      <div className={`p-3 rounded-lg ${colorClasses[card.color]}`}>
-                        <Icon size={24} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Acesso Rápido geral — os perfis administrativos globais usam os cards numéricos clicáveis acima. */}
+        {/* Acesso Rápido geral — para secretário esta é a única faixa-resumo operacional. */}
         {!isDirectorCoordinatorDashboard && !isAdmin && (isAdminOrSecretary || isSchoolStaff || isSemed) && (
           <div>
             <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
@@ -542,6 +541,11 @@ export const Dashboard = () => {
                   <CardContent className="p-4 text-center">
                     <School className="mx-auto mb-2 text-blue-600" size={32} />
                     <p className="font-medium">Escolas</p>
+                    {isSecretario && (
+                      <p className="text-2xl font-bold text-gray-900 mt-1" data-testid="quick-access-schools-count">
+                        {loading ? '...' : stats.schools.toString()}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -554,6 +558,11 @@ export const Dashboard = () => {
                 <CardContent className="p-4 text-center">
                   <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
                   <p className="font-medium">Turmas</p>
+                  {isSecretario && (
+                    <p className="text-2xl font-bold text-gray-900 mt-1" data-testid="quick-access-classes-count">
+                      {loading ? '...' : stats.classes.toString()}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -565,6 +574,11 @@ export const Dashboard = () => {
                 <CardContent className="p-4 text-center">
                   <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
                   <p className="font-medium">Estudantes</p>
+                  {isSecretario && (
+                    <p className="text-2xl font-bold text-gray-900 mt-1" data-testid="quick-access-students-count">
+                      {loading ? '...' : stats.students.toString()}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 

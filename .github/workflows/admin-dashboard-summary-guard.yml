@@ -6,7 +6,9 @@ on:
       - main
     paths:
       - 'frontend/src/pages/Dashboard.js'
+      - 'backend/routers/users.py'
       - 'backend/tests/test_admin_dashboard_summary_links.py'
+      - 'backend/tests/test_secretary_user_school_scope.py'
       - '.github/workflows/admin-dashboard-summary-guard.yml'
 
   push:
@@ -14,12 +16,14 @@ on:
       - main
     paths:
       - 'frontend/src/pages/Dashboard.js'
+      - 'backend/routers/users.py'
       - 'backend/tests/test_admin_dashboard_summary_links.py'
+      - 'backend/tests/test_secretary_user_school_scope.py'
       - '.github/workflows/admin-dashboard-summary-guard.yml'
 
 jobs:
   admin-dashboard-summary:
-    name: Dashboard administrativo sem duplicação
+    name: Dashboards administrativos sem duplicação e com escopo
     runs-on: ubuntu-latest
 
     steps:
@@ -34,5 +38,8 @@ jobs:
       - name: Install pytest
         run: pip install pytest
 
-      - name: Validate consolidated administrative dashboard
-        run: pytest -q --noconftest backend/tests/test_admin_dashboard_summary_links.py
+      - name: Validate consolidated administrative dashboards
+        run: >-
+          pytest -q --noconftest
+          backend/tests/test_admin_dashboard_summary_links.py
+          backend/tests/test_secretary_user_school_scope.py
