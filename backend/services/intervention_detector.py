@@ -1,8 +1,7 @@
 """Compatibilidade do detector de Intervenções Curriculares.
 
-S5.5 substitui o motor legado (<90%, forecast, escalonamento semanal e leitura
-`learning_objects`) pela política institucional baseada exclusivamente na
-Cobertura Curricular F5 e em dias letivos reais.
+S5.5 substitui o motor legado pela política institucional baseada exclusivamente
+na Cobertura Curricular F5 e em dias letivos reais.
 
 O nome público `run_intervention_detection` é preservado porque o router e o
 scheduler existentes dependem dele. A implementação canônica vive em
