@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import { useOffline } from '@/contexts/OfflineContext';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import {
   Wifi, WifiOff, CheckCircle2, AlertTriangle, RefreshCw,
   Clock, CloudOff, ChevronDown, ChevronUp
@@ -37,13 +39,17 @@ function tempoRelativo(date) {
   return `${d.toLocaleDateString('pt-BR')} às ${hhmm}`;
 }
 
-const CategoriaItem = ({ chave, dados }) => {
+const CategoriaItem = ({ chave, dados, directError = false }) => {
   const label = CATEGORIA_LABELS[chave] || CATEGORIA_LABELS.outros;
   const falhas = dados?.failed || 0;
   const pendentes = dados?.pending || 0;
 
   let icon, texto, cor;
-  if (falhas > 0) {
+  if (directError) {
+    icon = <AlertTriangle className="h-4 w-4" />;
+    texto = 'Falha no último envio';
+    cor = 'text-red-600';
+  } else if (falhas > 0) {
     icon = <AlertTriangle className="h-4 w-4" />;
     texto = `${falhas} não enviada${falhas > 1 ? 's' : ''}`;
     cor = 'text-red-600';
@@ -68,11 +74,32 @@ const CategoriaItem = ({ chave, dados }) => {
   );
 };
 
+const isGradesBatchWrite = (config) => {
+  const url = config?.url || '';
+  const method = (config?.method || 'get').toLowerCase();
+  return method === 'post' && url.includes('/grades/batch');
+};
+
+const newestDate = (a, b) => {
+  const da = a ? (a instanceof Date ? a : new Date(a)) : null;
+  const db = b ? (b instanceof Date ? b : new Date(b)) : null;
+  const aValid = da && !isNaN(da.getTime());
+  const bValid = db && !isNaN(db.getTime());
+  if (aValid && bValid) return da.getTime() >= db.getTime() ? da : db;
+  if (aValid) return da;
+  if (bValid) return db;
+  return null;
+};
+
 /**
  * Painel de Sincronização — núcleo do módulo offline.
  * Dá ao professor a certeza de que nada se perdeu: status da conexão,
  * última vez que os dados foram enviados, o que está pendente por categoria,
  * um botão manual e os detalhes de eventuais falhas.
+ *
+ * Também acompanha gravações ONLINE de notas em lote. Essas requisições não
+ * passam pela fila offline; sem esse acompanhamento, uma falha HTTP podia
+ * coexistir com o falso resumo "Tudo salvo e enviado".
  */
 export const PainelSincronizacao = ({ className = '' }) => {
   const {
@@ -83,12 +110,38 @@ export const PainelSincronizacao = ({ className = '' }) => {
 
   const [verDetalhes, setVerDetalhes] = useState(false);
   const [falhas, setFalhas] = useState([]);
+  const [directGradeSaveError, setDirectGradeSaveError] = useState(null);
+  const [directGradeSaveTime, setDirectGradeSaveTime] = useState(null);
 
   const sincronizando = syncStatus === 'syncing';
   const totalPendentes = pendingSyncCount || 0;
   const totalFalhas = failedSyncCount || 0;
 
   useEffect(() => { updatePendingCount?.(); }, [updatePendingCount]);
+
+  // O salvamento online de notas não entra na fila IndexedDB. Observamos a
+  // resposta HTTP para impedir que uma falha direta seja apresentada como OK.
+  useEffect(() => {
+    const interceptorId = axios.interceptors.response.use(
+      (response) => {
+        if (isGradesBatchWrite(response?.config)) {
+          setDirectGradeSaveError(null);
+          setDirectGradeSaveTime(new Date());
+        }
+        return response;
+      },
+      (error) => {
+        if (isGradesBatchWrite(error?.config)) {
+          setDirectGradeSaveError(
+            extractErrorMessage(error, 'Não foi possível salvar as notas no servidor.')
+          );
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => axios.interceptors.response.eject(interceptorId);
+  }, []);
 
   const carregarFalhas = useCallback(async () => {
     const items = await getFailedItems();
@@ -114,11 +167,14 @@ export const PainelSincronizacao = ({ className = '' }) => {
     new Set([...CATEGORIAS_FIXAS, ...Object.keys(pendingByCategory || {})])
   );
 
-  // Estado geral (prioriza offline → falha → pendente → ok)
+  // Estado geral. Falha de gravação direta tem prioridade: ela representa a
+  // última tentativa explícita de salvar do professor e não pode ser mascarada
+  // por uma fila offline vazia.
   let estado = 'ok';
-  if (totalFalhas > 0) estado = 'falha';
+  if (directGradeSaveError) estado = 'falha_direta_notas';
+  else if (totalFalhas > 0) estado = 'falha';
   else if (totalPendentes > 0) estado = 'pendente';
-  if (!isOnline) estado = 'offline';
+  if (!directGradeSaveError && !isOnline) estado = 'offline';
 
   const RESUMO = {
     offline: {
@@ -126,6 +182,12 @@ export const PainelSincronizacao = ({ className = '' }) => {
       titulo: 'Você está sem internet',
       detalhe: 'Pode continuar lançando normalmente. Tudo fica salvo no aparelho e será enviado sozinho quando a conexão voltar.',
       cor: 'bg-amber-50 border-amber-200',
+    },
+    falha_direta_notas: {
+      icon: <AlertTriangle className="h-6 w-6 text-red-500" />,
+      titulo: 'A última tentativa de salvar notas falhou',
+      detalhe: directGradeSaveError,
+      cor: 'bg-red-50 border-red-200',
     },
     falha: {
       icon: <AlertTriangle className="h-6 w-6 text-red-500" />,
@@ -146,6 +208,8 @@ export const PainelSincronizacao = ({ className = '' }) => {
       cor: 'bg-green-50 border-green-200',
     },
   }[estado];
+
+  const ultimoEnvio = newestDate(lastSyncTime, directGradeSaveTime);
 
   return (
     <div
@@ -178,13 +242,18 @@ export const PainelSincronizacao = ({ className = '' }) => {
       {/* Última vez enviado */}
       <div className="px-4 py-2 text-xs text-gray-500 border-b flex items-center gap-1.5" data-testid="sinc-ultimo-envio">
         <Clock className="h-3.5 w-3.5" />
-        Última vez enviado: <span className="font-medium text-gray-700">{tempoRelativo(lastSyncTime)}</span>
+        Última vez enviado: <span className="font-medium text-gray-700">{tempoRelativo(ultimoEnvio)}</span>
       </div>
 
       {/* Detalhe por categoria */}
       <div className="px-4 py-2 divide-y divide-gray-100">
         {categorias.map((c) => (
-          <CategoriaItem key={c} chave={c} dados={(pendingByCategory || {})[c]} />
+          <CategoriaItem
+            key={c}
+            chave={c}
+            dados={(pendingByCategory || {})[c]}
+            directError={c === 'grades' && Boolean(directGradeSaveError)}
+          />
         ))}
       </div>
 
