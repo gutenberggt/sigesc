@@ -18,8 +18,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
-from pymongo import ReturnDocument
-
 from services.verifiable_docs_service import revoke_document
 
 DOCUMENT_LEDGER_COLLECTION = "document_rectifications"
@@ -298,20 +296,27 @@ async def _revoke_verification_collection(db, *, collection: str, snapshot: Mapp
         raise DocumentRectificationError("DOCUMENT_VERIFICATION_NOT_FOUND", f"Registro {collection} não foi encontrado no tenant operacional.")
     if current.get("revoked_at"):
         return current
-    result = await db[collection].find_one_and_update(
+
+    revoked_at = _now()
+    result = await db[collection].update_one(
         {**query, "revoked_at": current.get("revoked_at")},
         {"$set": {
-            "revoked_at": _now(),
+            "revoked_at": revoked_at,
             "revoked_by": actor.get("id"),
             "revoked_reason": f"Retificação de matrícula/turma — protocolo {protocol}",
             "rectification_protocol": protocol,
         }},
-        return_document=ReturnDocument.AFTER,
-        projection={"_id": 0},
     )
-    if not result:
+    if result.modified_count != 1:
+        latest = await db[collection].find_one(query, {"_id": 0})
+        if latest and latest.get("revoked_at") and latest.get("rectification_protocol") == protocol:
+            return latest
         raise DocumentRectificationError("DOCUMENT_VERIFICATION_CAS_CONFLICT", f"{collection} mudou durante a revogação.")
-    return result
+
+    after = await db[collection].find_one(query, {"_id": 0})
+    if not after:
+        raise DocumentRectificationError("DOCUMENT_VERIFICATION_NOT_FOUND", f"Registro {collection} desapareceu após a revogação.")
+    return after
 
 
 async def resolve_rectification_documents(
