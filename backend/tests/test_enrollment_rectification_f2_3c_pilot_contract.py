@@ -82,7 +82,7 @@ def test_workflow_requires_dedicated_reauthentication_secrets():
 
 def test_workflow_reads_identity_from_closed_prior_gate_instead_of_republishing_pii():
     flow = _workflow()
-    assert "'IDENTITY_SOURCE_ISSUE': '601'" in flow
+    assert "'IDENTITY_SOURCE_ISSUE':'601'" in flow or "'IDENTITY_SOURCE_ISSUE': '601'" in flow
     assert "get('/issues/601')" in flow
     assert "COMPONENT_SALT" in flow
     assert "NAME_HASH" in flow
@@ -93,5 +93,5 @@ def test_workflow_reads_identity_from_closed_prior_gate_instead_of_republishing_
 def test_final_gate_requires_applied_validated_and_closed_flag():
     flow = _workflow()
     assert "test \"$status\" = 'APPLIED_VALIDATED'" in flow
-    assert "test \"${{ steps.flag_verify.outcome }}\" = 'success'" in flow
+    assert "test \"${{ steps.flag_verify.outcome }}\" = success" in flow or "test \"${{ steps.flag_verify.outcome }}\" = 'success'" in flow
     assert "F2_3C_FLAG_CLOSED=PASS" in flow
