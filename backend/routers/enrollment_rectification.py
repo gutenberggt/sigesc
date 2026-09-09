@@ -1,7 +1,8 @@
 """Router F1.0 da Retificação de Matrícula/Turma.
 
-Somente `POST /dry-run` existe nesta fase. Não há endpoint de execução, rollback
-ou qualquer writer. A origem é sempre inferida da matrícula regular canônica.
+Este router é estritamente READ-ONLY: expõe somente `POST /dry-run`. A F2.0
+(preparação segura de execução) vive em `routers/enrollment_rectification_execution.py`,
+como router irmão, para preservar o contrato read-only deste módulo intacto.
 """
 from __future__ import annotations
 
