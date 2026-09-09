@@ -1,0 +1,95 @@
+name: Enrollment Rectification F2.3 - Preflight Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/enrollment_rectification_saga.py'
+      - 'backend/routers/enrollment_rectification_saga.py'
+      - 'backend/routers/enrollment_rectification_execution.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_enrollment_rectification_f1_route_composition.py'
+      - 'backend/tests/test_enrollment_rectification_f2_3_preflight.py'
+      - '.github/workflows/enrollment-rectification-f2-3-preflight-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight-fail-closed:
+    name: F2.3 - composição + fail-closed
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio mongomock mongomock-motor
+
+      - name: Compile F2.2/F2.3 contracts
+        working-directory: backend
+        run: |
+          python -m py_compile \
+            services/enrollment_rectification_saga.py \
+            routers/enrollment_rectification_saga.py \
+            routers/enrollment_rectification_execution.py
+
+      - name: Run route composition and fail-closed preflight
+        working-directory: backend
+        env:
+          MONGO_URL: 'mongodb://127.0.0.1:27017'
+          DB_NAME: 'sigesc_rectification_f23_preflight_unused'
+          JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED: 'false'
+        run: |
+          python -m pytest \
+            tests/test_enrollment_rectification_f1_route_composition.py \
+            tests/test_enrollment_rectification_f2_3_preflight.py \
+            -q --asyncio-mode=auto
+
+      - name: Static F2.3 composition contract
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          f2_router = Path('routers/enrollment_rectification_execution.py').read_text(encoding='utf-8')
+          f22_router = Path('routers/enrollment_rectification_saga.py').read_text(encoding='utf-8')
+          saga = Path('services/enrollment_rectification_saga.py').read_text(encoding='utf-8')
+
+          required_f2 = (
+              'prepare_rectification_saga_execution',
+              'setup_enrollment_rectification_saga_router',
+              'router.include_router(setup_enrollment_rectification_saga_router(db))',
+          )
+          missing = [item for item in required_f2 if item not in f2_router]
+          if missing:
+              raise SystemExit(f'F2.3 não compôs a saga no router operacional: {missing}')
+
+          for route in ('/execute', '/rollback'):
+              if f'@router.post("{route}")' not in f22_router:
+                  raise SystemExit(f'F2.2 perdeu endpoint obrigatório: {route}')
+
+          flag_guard = 'if not saga_execution_enabled():'
+          disabled_code = 'RECTIFICATION_EXECUTION_DISABLED'
+          if flag_guard not in saga or disabled_code not in saga:
+              raise SystemExit('F2.3 perdeu o fail-closed explícito da execução')
+
+          if saga.index(flag_guard) > saga.index(disabled_code):
+              raise SystemExit('F2.3 fail-closed está estruturalmente inconsistente')
+
+          print('F2.3 composition/fail-closed guard: PASS')
+          PY
