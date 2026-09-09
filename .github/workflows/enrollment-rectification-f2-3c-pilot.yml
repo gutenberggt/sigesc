@@ -1,0 +1,345 @@
+name: "Enrollment Rectification F2.3C - One-shot Pilot"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/enrollment_rectification_f2_3c_pilot.py'
+      - 'backend/tests/test_enrollment_rectification_f2_3c_pilot_contract.py'
+      - '.github/workflows/enrollment-rectification-f2-3c-pilot.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: enrollment-rectification-f2-3c-pilot
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.3C one-shot pilot
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile and focused contract tests
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          python -m py_compile backend/scripts/enrollment_rectification_f2_3c_pilot.py
+          pytest -q --noconftest backend/tests/test_enrollment_rectification_f2_3c_pilot_contract.py
+      - name: Enforce canonical-only mutation boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          s=Path('backend/scripts/enrollment_rectification_f2_3c_pilot.py').read_text(encoding='utf-8')
+          w=Path('.github/workflows/enrollment-rectification-f2-3c-pilot.yml').read_text(encoding='utf-8')
+          t=ast.parse(s)
+          forbidden={'insert_one','insert_many','update_one','update_many','replace_one','delete_one','delete_many','bulk_write','find_one_and_update','find_one_and_delete','find_one_and_replace','drop','drop_database','create_index','create_indexes','rename'}
+          hits={n.func.attr for n in ast.walk(t) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr in forbidden}
+          if hits: raise SystemExit(f'F2_3C_DIRECT_MONGO_MUTATOR:{sorted(hits)}')
+          for m in ('build_rectification_dry_run','prepare_rectification_saga_execution','execute_rectification_saga','rollback_rectification_saga','resolve_operational_tenant_context','DOCUMENT_ACKNOWLEDGEMENT','os.environ[EXECUTION_FLAG] = "true"','os.environ[EXECUTION_FLAG] = "false"'):
+              if m not in s: raise SystemExit(f'F2_3C_REQUIRED:{m}')
+          for m in ('secrets.SIGESC_F2_3C_OPERATOR_EMAIL','secrets.SIGESC_F2_3C_REAUTH_PASSWORD','environment: production'):
+              if m not in w: raise SystemExit(f'F2_3C_REQUIRED_WORKFLOW:{m}')
+          remote=[x.strip() for x in w.splitlines() if x.strip().startswith('remote_command=')]
+          if len(remote)!=1: raise SystemExit('F2_3C_REMOTE_COMMAND_CARDINALITY')
+          if 'REAUTH_PASSWORD' in remote[0] or 'OPERATOR_EMAIL' in remote[0]: raise SystemExit('F2_3C_SECRET_ON_COMMAND_LINE')
+          if '-e ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED=false' not in remote[0]: raise SystemExit('F2_3C_CHILD_FLAG_NOT_FALSE')
+          print('F2_3C_GUARD=PASS')
+          print('DIRECT_ACADEMIC_MUTATION=NO')
+          print('FLAG_WINDOW=PROCESS_LOCAL_ONLY')
+          PY
+
+  production-pilot:
+    name: Execute F2.3C one-shot pilot
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ENROLLMENT-RECTIFICATION-F2.3C-PILOT] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 35
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+      OPERATOR_EMAIL: ${{ secrets.SIGESC_F2_3C_OPERATOR_EMAIL }}
+      REAUTH_PASSWORD: ${{ secrets.SIGESC_F2_3C_REAUTH_PASSWORD }}
+
+    steps:
+      - name: Resolve owner gate and prior pseudonymous identity
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,re,urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '')!=os.environ['REPOSITORY_OWNER']: raise SystemExit('F2_3C_OWNER_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.split('=',1); k=k.strip(); v=v.strip()
+              if k in values: raise SystemExit(f'F2_3C_DUPLICATE:{k}')
+              values[k]=v
+          expected={
+            'ENROLLMENT_RECTIFICATION_F2_3C_PILOT':'AUTHORIZED',
+            'CONFIRMATION':'EXECUTE_ONE_F2_3C_PILOT',
+            'TRACKING_ISSUE':'602','IDENTITY_SOURCE_ISSUE':'601',
+            'ACADEMIC_YEAR':'2026',
+            'SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+            'SOURCE_CLASS':'6º ANO A','DESTINATION_CLASS':'7º ANO B',
+          }
+          for k,v in expected.items():
+              if values.get(k)!=v: raise SystemExit(f'F2_3C_FIELD_INVALID:{k}')
+          tooling=values.get('TOOLING_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',tooling) or not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('F2_3C_SHA_INVALID')
+          if issue.get('title')!=f'[ENROLLMENT-RECTIFICATION-F2.3C-PILOT] {tooling}': raise SystemExit('F2_3C_TITLE_MISMATCH')
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3c-pilot'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r:return json.load(r)
+          if get('/branches/main')['commit']['sha']!=tooling: raise SystemExit('F2_3C_MAIN_MOVED')
+          if get('/branches/production')['commit']['sha']!=prod: raise SystemExit('F2_3C_PRODUCTION_MOVED')
+          if get('/issues/602').get('state')!='open': raise SystemExit('F2_3C_TRACKING_NOT_OPEN')
+          src=get('/issues/601')
+          if src.get('state')!='closed': raise SystemExit('F2_3C_IDENTITY_SOURCE_NOT_CLOSED')
+          sv={}
+          for raw in (src.get('body') or '').splitlines():
+              if '=' in raw:
+                  k,v=raw.split('=',1);sv[k.strip()]=v.strip()
+          for k,v in {'TARGET_SHA':prod,'ACADEMIC_YEAR':'2026','SCHOOL':expected['SCHOOL'],'SOURCE_CLASS':expected['SOURCE_CLASS'],'DESTINATION_CLASS':expected['DESTINATION_CLASS']}.items():
+              if sv.get(k)!=v: raise SystemExit(f'F2_3C_IDENTITY_SOURCE_INVALID:{k}')
+          salt=sv.get('COMPONENT_SALT',''); hashes=[sv.get(k,'') for k in ('NAME_HASH','DOB_HASH','CPF_HASH')]
+          if not re.fullmatch(r'[0-9a-f]{32}',salt) or any(not re.fullmatch(r'[0-9a-f]{64}',x) for x in hashes): raise SystemExit('F2_3C_IDENTITY_HASH_INVALID')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'tooling_sha={tooling}\nproduction_sha={prod}\ngate_issue={issue.get("number")}\ncomponent_salt={salt}\nname_hash={hashes[0]}\ndob_hash={hashes[1]}\ncpf_hash={hashes[2]}\n')
+          print('F2_3C_CONTEXT=PASS');print('RAW_PII=NO')
+          PY
+
+      - name: Check dedicated secure reauthentication secrets
+        id: reauth
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${OPERATOR_EMAIL:-}" ] || missing+=('SIGESC_F2_3C_OPERATOR_EMAIL')
+          [ -n "${REAUTH_PASSWORD:-}" ] || missing+=('SIGESC_F2_3C_REAUTH_PASSWORD')
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+            echo 'missing=none' >> "$GITHUB_OUTPUT"
+            echo 'F2_3C_SECURE_REAUTH_SECRETS=READY'
+          else
+            printf -v joined '%s,' "${missing[@]}"; joined="${joined%,}"
+            echo 'ready=false' >> "$GITHUB_OUTPUT"; echo "missing=$joined" >> "$GITHUB_OUTPUT"
+            echo "F2_3C_SECURE_REAUTH_SECRETS_MISSING=$joined"
+          fi
+
+      - name: Report missing reauthentication and fail closed
+        if: steps.reauth.outputs.ready != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          MISSING: ${{ steps.reauth.outputs.missing }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          body='## F2.3C — bloqueio pré-produção\n\nFaltam secrets privados de reautenticação no environment `production`: `'+os.environ['MISSING']+'`.\n\nNenhum SSH, PREPARED, flag ou write acadêmico foi executado.'
+          h={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3c-pilot'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          for n in (os.environ['GATE_ISSUE'],'602'):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/issues/{n}/comments',headers=h,data=json.dumps({'body':body}).encode(),method='POST')
+              with urllib.request.urlopen(req,timeout=30):pass
+          PY
+          exit 78
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        if: steps.reauth.outputs.ready == 'true'
+        with:
+          ref: ${{ steps.context.outputs.tooling_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure pinned SSH trust
+        if: steps.reauth.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || exit 1; done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]]; [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]]
+          mkdir -p ~/.ssh; chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f2_3c_key; chmod 600 ~/.ssh/f2_3c_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve published backend and parent flag
+        id: topology
+        if: steps.reauth.outputs.ready == 'true'
+        env:
+          EXPECTED: ${{ steps.context.outputs.production_sha }}
+        run: |
+          set -euo pipefail
+          raw="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" "$EXPECTED" <<'REMOTE'
+          set -euo pipefail
+          mongo="$1"; expected="$2"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo")"
+          backend="$(docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n1)"
+          test -n "$backend"
+          state="$(docker inspect -f '{{.State.Status}}' "$backend")"
+          health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$backend")"
+          image="$(docker inspect -f '{{.Image}}' "$backend")"
+          rev="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"
+          line="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$backend" | grep '^ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED=' | tail -n1 || true)"
+          flag="${line#*=}"; flag="$(printf '%s' "${flag:-false}" | tr '[:upper:]' '[:lower:]')"
+          [ "$state" = running ]; [ "$health" = healthy ]; [ "$rev" = "$expected" ]; [ "$flag" != true ]
+          printf 'BACKEND=%s\nPARENT_FLAG=%s\n' "$backend" "$flag"
+          REMOTE
+          )"
+          printf '%s\n' "$raw"
+          backend="$(printf '%s\n' "$raw"|sed -n 's/^BACKEND=//p'|tail -n1)"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]]
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Stage reauthentication secret through encrypted stdin
+        id: stage
+        if: steps.reauth.outputs.ready == 'true'
+        env:
+          BACKEND: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          suffix="${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          host="/tmp/f2_3c_reauth_${suffix}.json"; inside="/tmp/f2_3c_reauth_${suffix}.json"
+          python - <<'PY' | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" "umask 077; cat > '$host'"
+          import json,os,sys
+          sys.stdout.write(json.dumps({'email':os.environ['OPERATOR_EMAIL'],'password':os.environ['REAUTH_PASSWORD']}))
+          PY
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" bash -s -- "$BACKEND" "$host" "$inside" <<'REMOTE'
+          set -euo pipefail
+          backend="$1"; host="$2"; inside="$3"
+          test -s "$host"; docker cp "$host" "$backend:$inside"; docker exec "$backend" chmod 600 "$inside"; rm -f "$host"
+          REMOTE
+          echo "container_secret=$inside" >> "$GITHUB_OUTPUT"
+          echo 'F2_3C_REAUTH_SECRET_STAGED=YES'
+
+      - name: Execute exactly one canonical pilot
+        id: pilot
+        if: steps.reauth.outputs.ready == 'true'
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+          CONTAINER_SECRET: ${{ steps.stage.outputs.container_secret }}
+          F2_3_COMPONENT_SALT: ${{ steps.context.outputs.component_salt }}
+          F2_3_NAME_HASH: ${{ steps.context.outputs.name_hash }}
+          F2_3_DOB_HASH: ${{ steps.context.outputs.dob_hash }}
+          F2_3_CPF_HASH: ${{ steps.context.outputs.cpf_hash }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.context.outputs.production_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence; raw=evidence/f2-3c-pilot-raw.log
+          cleanup(){ ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" "docker exec '${BACKEND_CONTAINER}' rm -f '${CONTAINER_SECRET}' >/dev/null 2>&1 || true" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          remote_command="timeout 1200 docker exec -i -w /app -e PYTHONPATH=/app -e F2_3_COMPONENT_SALT=${F2_3_COMPONENT_SALT} -e F2_3_NAME_HASH=${F2_3_NAME_HASH} -e F2_3_DOB_HASH=${F2_3_DOB_HASH} -e F2_3_CPF_HASH=${F2_3_CPF_HASH} -e F2_3C_SECRET_FILE=${CONTAINER_SECRET} -e F2_3C_EXPECTED_PRODUCTION_SHA=${EXPECTED_PRODUCTION_SHA} -e ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED=false ${BACKEND_CONTAINER} python -"
+          set +e
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" "$remote_command" < backend/scripts/enrollment_rectification_f2_3c_pilot.py > "$raw" 2>&1
+          rc=$?; set -e; cleanup; trap - EXIT
+          if [ "$rc" -ne 0 ]; then rm -f "$raw"; exit "$rc"; fi
+          prefix='ENROLLMENT_RECTIFICATION_F2_3C_JSON='
+          line="$(grep -F "$prefix" "$raw"|tail -n1||true)"
+          test -n "$line"; printf '%s' "${line#${prefix}}" > evidence/f2-3c-pilot.json
+          python -m json.tool evidence/f2-3c-pilot.json >/dev/null; rm -f "$raw"
+
+      - name: Verify parent flag remains disabled
+        id: flag_verify
+        if: always() && steps.reauth.outputs.ready == 'true'
+        env:
+          BACKEND: ${{ steps.topology.outputs.backend_container }}
+          EXPECTED: ${{ steps.context.outputs.production_sha }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" bash -s -- "$BACKEND" "$EXPECTED" <<'REMOTE'
+          set -euo pipefail
+          backend="$1"; expected="$2"
+          image="$(docker inspect -f '{{.Image}}' "$backend")"
+          rev="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"
+          line="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$backend"|grep '^ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED='|tail -n1||true)"
+          flag="${line#*=}"; flag="$(printf '%s' "${flag:-false}"|tr '[:upper:]' '[:lower:]')"
+          [ "$rev" = "$expected" ]; [ "$flag" != true ]
+          REMOTE
+          echo 'F2_3C_FLAG_CLOSED=PASS'
+
+      - name: Validate and upload sanitized evidence
+        id: evidence
+        if: always() && steps.reauth.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          test -f evidence/f2-3c-pilot.json
+          python - <<'PY'
+          import json
+          p=json.load(open('evidence/f2-3c-pilot.json',encoding='utf-8'))
+          if p.get('schema')!='ENROLLMENT_RECTIFICATION_F2_3C_PILOT_V1': raise SystemExit('F2_3C_SCHEMA_INVALID')
+          if p.get('pii_emitted') is not False or p.get('technical_ids_emitted') is not False: raise SystemExit('F2_3C_PRIVACY_FAILED')
+          if p.get('parent_feature_flag_modified') is not False or p.get('feature_flag_mode')!='process_local_ephemeral': raise SystemExit('F2_3C_FLAG_BOUNDARY_FAILED')
+          if p.get('feature_flag_after') is not False: raise SystemExit('F2_3C_PROCESS_FLAG_LEFT_ENABLED')
+          allowed={'APPLIED_VALIDATED','PREPARE_FAILED','BLOCKED_FRESH_DRY_RUN','BLOCKED_UNEXPECTED_WARNING','EXECUTION_RESULT_INVALID','FAILED_COMPENSATED','FAILED_MANUAL_RECOVERY','PREPARED','EXECUTION_FAILED','ROLLED_BACK_AFTER_POSTVALIDATION_FAILURE','POSTVALIDATION_FAILED_ROLLBACK_FAILED','PILOT_ABORTED_PREMUTATION_OR_UNCLASSIFIED'}
+          if p.get('status') not in allowed: raise SystemExit(f'F2_3C_STATUS_UNCLASSIFIED:{p.get("status")}')
+          if p.get('status')=='APPLIED_VALIDATED':
+              post=p.get('postconditions') or {}; checks=post.get('checks') or {}
+              if post.get('ok') is not True or not checks or not all(checks.values()) or p.get('run_state')!='APPLIED' or p.get('academic_mutation_recorded') is not True: raise SystemExit('F2_3C_POSTVALIDATION_INVALID')
+          print('F2_3C_EVIDENCE=PASS');print('STATUS='+str(p.get('status')))
+          PY
+      - name: Upload evidence
+        if: always() && steps.reauth.outputs.ready == 'true' && hashFiles('evidence/f2-3c-pilot.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: enrollment-rectification-f2-3c-pilot-${{ github.run_id }}
+          path: evidence/f2-3c-pilot.json
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Record sanitized result
+        if: always() && steps.reauth.outputs.ready == 'true' && hashFiles('evidence/f2-3c-pilot.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TOOLING_SHA: ${{ steps.context.outputs.tooling_sha }}
+          PRODUCTION_SHA: ${{ steps.context.outputs.production_sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          p=json.load(open('evidence/f2-3c-pilot.json',encoding='utf-8'))
+          keys=('status','academic_year','school','source_class','destination_class','fresh_dry_run_can_execute','warning_codes','prepare_state','run_state','attendance_items_applied','grade_items_applied','documents_revoked','postconditions','origin_after_compensation','origin_after_rollback','rollback_state','feature_flag_after','academic_mutation_recorded','feature_flag_mode','error','rollback_error')
+          summary={k:p.get(k) for k in keys if k in p}
+          body='## F2.3C — resultado one-shot\n\nTooling SHA: `'+os.environ['TOOLING_SHA']+'`\n\nProduction SHA: `'+os.environ['PRODUCTION_SHA']+'`\n\n```json\n'+json.dumps(summary,ensure_ascii=False,sort_keys=True,indent=2)+'\n```\n\nPII/IDs técnicos omitidos; flag restrita ao processo efêmero.'
+          h={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3c-pilot'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(method,path,payload):
+              r=urllib.request.Request(f'https://api.github.com/repos/{repo}{path}',headers=h,data=json.dumps(payload).encode(),method=method)
+              with urllib.request.urlopen(r,timeout=30) as x:return json.load(x)
+          for n in (os.environ['GATE_ISSUE'],'602'): req('POST',f'/issues/{n}/comments',{'body':body})
+          status=p.get('status')
+          req('PATCH',f"/issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed' if status=='APPLIED_VALIDATED' else 'not_planned'})
+          if status=='APPLIED_VALIDATED': req('PATCH','/issues/602',{'state':'closed','state_reason':'completed'})
+          PY
+
+      - name: Final F2.3C production gate
+        if: always() && steps.reauth.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          test "${{ steps.flag_verify.outcome }}" = success
+          test "${{ steps.evidence.outcome }}" = success
+          status="$(python -c "import json;print(json.load(open('evidence/f2-3c-pilot.json')).get('status',''))")"
+          test "$status" = 'APPLIED_VALIDATED'
+          echo 'F2_3C_PILOT=APPLIED_VALIDATED'
+          echo 'FEATURE_FLAG_FINAL=false'
+          echo 'PRODUCTION_PARENT_FLAG_MODIFIED=NO'
