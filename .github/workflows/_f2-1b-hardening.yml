@@ -1,0 +1,48 @@
+name: F2.1B Hardening
+
+on:
+  push:
+    branches:
+      - 'feat/enrollment-rectification-f2-1b-grades'
+
+permissions:
+  contents: write
+
+jobs:
+  hardening:
+    if: github.actor == 'gutenberggt'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+      - name: Apply hardening patch
+        run: python scripts/_f2_1b_hardening.py
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio mongomock mongomock-motor
+      - name: Run focused F2.1B tests
+        working-directory: backend
+        env:
+          MONGO_URL: 'mongodb://127.0.0.1:27017'
+          DB_NAME: 'sigesc_rectification_f21b_hardening_unused'
+          JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED: 'false'
+        run: |
+          python -m pytest tests/test_enrollment_rectification_f2_1b_grades.py -q --asyncio-mode=auto
+      - name: Commit hardening
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/services/enrollment_rectification_grades.py backend/tests/test_enrollment_rectification_f2_1b_grades.py
+          git commit -m 'F2.1B: endurecer CAS para documentos legacy sem metadados'
+          git push origin HEAD:feat/enrollment-rectification-f2-1b-grades
