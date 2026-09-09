@@ -1,0 +1,26 @@
+# F2.1B — Checklist de revisão do PR
+
+- [x] Baseline isolado a partir de `c462022d2906804a5b1e137c14f92cde1f9864f1`.
+- [x] Nenhum `/execute`.
+- [x] Nenhum `/rollback`.
+- [x] `ACADEMIC_MUTATION_IMPLEMENTED = False` preservado.
+- [x] F1.0 continua read-only.
+- [x] Fingerprints origem/destino incorporados ao manifesto e, portanto, ao `precondition_hash`.
+- [x] `dependency_id` bloqueia V1.
+- [x] Mapa curricular 1:1 obrigatório.
+- [x] Overlap não-nulo bloqueia antes do writer.
+- [x] `grade_ownership` preservado por campo.
+- [x] Ausência de ownership não gera autoria artificial.
+- [x] `rectified_fields` explícito e granular.
+- [x] Compatibilidade `migrated_from_class_id` legado preservada.
+- [x] Estado anterior da origem/destino preservado no ledger para compensação futura.
+- [x] Origem retirada somente depois da pós-condição do destino.
+- [x] CAS/fingerprint não depende de `updated_at`.
+- [x] Documentos legados sem `grade_ownership`/`rectified_fields` tratados.
+- [x] Recalculo usa `calculate_and_update_grade` canônico.
+- [x] Testes focados e regressões pré-PR executados com sucesso.
+- [ ] Guard específico no PR verde.
+- [ ] Gates gerais do PR verdes.
+- [ ] Revisão final do diff.
+- [ ] Merge autorizado explicitamente.
+- [ ] Deploy autorizado explicitamente.
