@@ -26,6 +26,18 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Apply F2.1A patch
         run: python scripts/_f2_1a_bootstrap.py
+      - name: Stabilize test seed snapshot
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/tests/test_enrollment_rectification_f2_1a_attendance.py')
+          text = p.read_text(encoding='utf-8')
+          old = '    await db.attendance.insert_one(doc)\n    return doc\n'
+          new = '    snapshot = deepcopy(doc)\n    await db.attendance.insert_one(doc)\n    return snapshot\n'
+          if old not in text:
+              raise SystemExit('F2.1A test seed anchor not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
