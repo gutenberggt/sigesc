@@ -1,0 +1,86 @@
+name: "Enrollment Rectification F2.3 - Runtime Contract Guard"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/enrollment_rectification_saga.py'
+      - 'backend/services/enrollment_rectification_saga_runtime.py'
+      - 'backend/services/enrollment_rectification_execution.py'
+      - 'backend/routers/enrollment_rectification_execution.py'
+      - 'backend/routers/enrollment_rectification_saga.py'
+      - 'backend/tests/test_enrollment_rectification_f2_3_saga_runtime_contract.py'
+      - '.github/workflows/enrollment-rectification-f2-3-runtime-contract-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-contract:
+    name: F2.3 - prepare/execute runtime compatibility
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: backend
+      ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Install focused dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest pytest-asyncio motor pymongo passlib bcrypt python-dotenv
+
+      - name: Compile runtime binding and routers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            backend/services/enrollment_rectification_saga_runtime.py \
+            backend/routers/enrollment_rectification_execution.py \
+            backend/routers/enrollment_rectification_saga.py
+
+      - name: Run focused runtime-contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          pytest -q --noconftest backend/tests/test_enrollment_rectification_f2_3_saga_runtime_contract.py
+
+      - name: Enforce binding and fail-closed contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          runtime = Path('backend/services/enrollment_rectification_saga_runtime.py').read_text(encoding='utf-8')
+          prep_router = Path('backend/routers/enrollment_rectification_execution.py').read_text(encoding='utf-8')
+          saga_router = Path('backend/routers/enrollment_rectification_saga.py').read_text(encoding='utf-8')
+
+          required_runtime = (
+              '_core_prepare_id(tenant, student_id, key)',
+              'await _core_reauthenticate(db, actor, password)',
+              '_core_validate_human_gates(',
+              'adapted["snapshot_digest"] = _core_snapshot_digest(snapshot)',
+              '_saga.build_compensating_snapshot = build_compensating_snapshot',
+          )
+          for marker in required_runtime:
+              if marker not in runtime:
+                  raise SystemExit(f'F2_3_RUNTIME_REQUIRED_MISSING:{marker}')
+
+          if 'os.environ' in runtime or 'ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED' in runtime:
+              raise SystemExit('F2_3_RUNTIME_MUST_NOT_MODIFY_FLAG')
+
+          for router in (prep_router, saga_router):
+              if 'services.enrollment_rectification_saga_runtime' not in router:
+                  raise SystemExit('F2_3_RUNTIME_ROUTER_BINDING_MISSING')
+
+          print('F2_3_RUNTIME_CONTRACT=PASS')
+          print('FEATURE_FLAG_MODIFIED=NO')
+          print('ACADEMIC_MUTATION_DURING_GUARD=NO')
+          PY
