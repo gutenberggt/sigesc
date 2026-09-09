@@ -1,14 +1,24 @@
 """F2.2 — saga executável da Retificação de Matrícula/Turma.
 
-A F2.2 orquestra o núcleo de preparação F2.0 e os três primitivos já
-endurecidos: Frequência F2.1A, Notas F2.1B e Documentos F2.1C.
+A F2.2 orquestra o núcleo de preparação F2.0 (reautenticação, gates humanos,
+lock, idempotência, snapshot compensável) e os três primitivos já endurecidos:
+Frequência F2.1A, Notas F2.1B e Documentos F2.1C. Esta preparação é própria da
+F2.2 (não a de ``services.enrollment_rectification_execution``) porque integra
+corretamente o eixo documental: artefatos rastreados revogáveis/resolvíveis não
+bloqueiam para sempre a preparação, enquanto blockers reais do inventário
+F2.1C continuam fail-closed.
 
 O código é publicável sem habilitar mutação real: a execução acadêmica exige
 explicitamente ``ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED=true``. O default é
 ``false`` e rollback permanece disponível para uma execução já aplicada.
+
+A saga NUNCA escreve em ``students`` diretamente: a projeção de matrícula
+regular é sempre reconstruída pela SSoT canônica
+``services.enrollment_service.rebuild_student_home_projection``.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import uuid
 from copy import deepcopy
@@ -45,6 +55,7 @@ from services.enrollment_rectification_execution import (
     _reauthenticate,
     _validate_human_gates,
     build_compensating_snapshot,
+    snapshot_digest,
     validate_state_transition,
     verify_rectification_dry_run_token,
 )
@@ -55,11 +66,13 @@ from services.enrollment_rectification_grades import (
     _cas_filter as grade_cas_filter,
     apply_grade_rectification_item,
 )
+from services.enrollment_service import rebuild_student_home_projection
 
 SAGA_CONTRACT_VERSION = "F2.2"
 EXECUTION_FLAG = "ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED"
 DOCUMENT_DRY_RUN_BLOCKER = "DOCUMENT_RESOLUTION_REQUIRED_F1_3"
 ALLOWED_ACTOR_ROLES = frozenset({"admin", "super_admin", "gerente"})
+MIN_IDEMPOTENCY_KEY_LENGTH = 8
 
 
 class RectificationSagaError(Exception):
@@ -114,6 +127,15 @@ def _assert_same_operator(run: Mapping[str, Any], actor: Mapping[str, Any]) -> N
             "RECTIFICATION_SAGA_OPERATOR_MISMATCH",
             "A execução deve ser realizada pelo mesmo operador que fez a reautenticação da preparação.",
             status_code=403,
+        )
+
+
+def _assert_saga_contract(run: Mapping[str, Any]) -> None:
+    if run.get("contract_version") != SAGA_CONTRACT_VERSION:
+        raise RectificationSagaError(
+            "RECTIFICATION_RUN_CONTRACT_MISMATCH",
+            "A preparação não foi criada pelo contrato executável F2.2.",
+            detail={"contract_version": run.get("contract_version")},
         )
 
 
@@ -177,6 +199,13 @@ async def _current_saga_plan(
         )
 
     non_document = _non_document_blockers(list(current.get("blockers") or []))
+    if non_document:
+        raise RectificationSagaError(
+            "RECTIFICATION_BLOCKERS_PRESENT",
+            "O dry-run possui bloqueios acadêmicos não resolvíveis pela saga.",
+            detail={"blockers": non_document},
+        )
+
     inventory = await build_rectification_document_inventory(
         db,
         student_id=str(claims.get("student_id")),
@@ -184,12 +213,6 @@ async def _current_saga_plan(
         academic_year=int(claims.get("academic_year")),
         tenant_id=tenant_id,
     )
-    if non_document:
-        raise RectificationSagaError(
-            "RECTIFICATION_BLOCKERS_PRESENT",
-            "O dry-run possui bloqueios acadêmicos não resolvíveis pela saga.",
-            detail={"blockers": non_document},
-        )
     if inventory.get("blockers"):
         raise RectificationSagaError(
             "RECTIFICATION_DOCUMENT_BLOCKERS_PRESENT",
@@ -229,31 +252,44 @@ async def prepare_rectification_saga_execution(
 ) -> dict[str, Any]:
     """Prepara a F2.2 sem write acadêmico, inclusive quando F2.1C é resolvível."""
     _assert_actor(actor)
-    _validate_human_gates(
-        confirmation=confirmation,
-        justification=justification,
-        idempotency_key=idempotency_key,
-    )
     claims = verify_rectification_dry_run_token(
         dry_run_token,
         tenant_id=tenant_id,
         now=now,
         secret=secret,
     )
-    await _reauthenticate(db, tenant_id=tenant_id, actor=dict(actor), password=password)
+    normalized_justification = _validate_human_gates(
+        confirmation=confirmation,
+        justification=justification,
+    )
+    await _reauthenticate(db, actor, password)
 
-    prepare_id = _prepare_id(tenant_id=tenant_id, actor_id=str(actor.get("id") or ""), idempotency_key=idempotency_key)
-    existing = await db[RUNS_COLLECTION].find_one({"_id": prepare_id, "tenant_id": tenant_id}, {"_id": 0})
+    key = (idempotency_key or "").strip()
+    if len(key) < MIN_IDEMPOTENCY_KEY_LENGTH:
+        raise RectificationSagaError(
+            "RECTIFICATION_IDEMPOTENCY_KEY_REQUIRED",
+            "Idempotency-Key é obrigatório e deve identificar unicamente a tentativa.",
+            status_code=422,
+        )
+
+    tenant = str(tenant_id)
+    student_id = str(claims["student_id"])
+    prepare_id = _prepare_id(tenant_id=tenant, student_id=student_id, idempotency_key=key)
+
+    existing = await db[RUNS_COLLECTION].find_one({"_id": prepare_id, "tenant_id": tenant}, {"_id": 0})
     if existing:
-        if existing.get("precondition_hash") != claims.get("precondition_hash"):
+        if (
+            existing.get("actor", {}).get("id") != actor.get("id")
+            or existing.get("precondition_hash") != claims.get("precondition_hash")
+        ):
             raise RectificationSagaError(
-                "RECTIFICATION_IDEMPOTENCY_CONFLICT",
-                "A mesma Idempotency-Key já foi usada para outro snapshot.",
+                "RECTIFICATION_IDEMPOTENCY_KEY_REUSED",
+                "A Idempotency-Key já foi usada para outra preparação.",
             )
         return _prepared_response(existing, replay=True)
 
     holder = f"rectification-f22-prepare:{prepare_id}"
-    target = _lock_target(tenant_id, str(claims.get("student_id")))
+    target = _lock_target(tenant, student_id)
     acquired, lock_info = await acquire_lock(db, target, holder, LOCKS_COLLECTION)
     if not acquired:
         raise RectificationSagaError(
@@ -262,19 +298,28 @@ async def prepare_rectification_saga_execution(
             detail={"lock": lock_info},
         )
     try:
+        # Recheck sob lock para fechar race entre idempotency lookup e preparação.
+        existing = await db[RUNS_COLLECTION].find_one({"_id": prepare_id, "tenant_id": tenant}, {"_id": 0})
+        if existing:
+            if (
+                existing.get("actor", {}).get("id") != actor.get("id")
+                or existing.get("precondition_hash") != claims.get("precondition_hash")
+            ):
+                raise RectificationSagaError(
+                    "RECTIFICATION_IDEMPOTENCY_KEY_REUSED",
+                    "A Idempotency-Key já foi usada para outra preparação.",
+                )
+            return _prepared_response(existing, replay=True)
+
         current, inventory = await _current_saga_plan(
             db,
             claims=claims,
-            tenant_id=tenant_id,
+            tenant_id=tenant,
             actor=actor,
             secret=secret,
         )
-        snapshot = await build_compensating_snapshot(
-            db,
-            claims=claims,
-            tenant_id=tenant_id,
-            current_dry_run=current,
-        )
+        snapshot = await build_compensating_snapshot(db, claims=claims, tenant_id=tenant)
+        digest = snapshot_digest(snapshot)
         protocol = str(uuid.uuid4())
         created = _now()
         run_doc = {
@@ -283,20 +328,21 @@ async def prepare_rectification_saga_execution(
             "protocol": protocol,
             "contract_version": SAGA_CONTRACT_VERSION,
             "base_execution_contract": EXECUTION_CONTRACT_VERSION,
-            "tenant_id": tenant_id,
-            "student_id": claims.get("student_id"),
+            "dry_run_version": claims.get("v"),
+            "tenant_id": tenant,
+            "student_id": student_id,
             "source_enrollment_id": claims.get("source_enrollment_id"),
             "source_class_id": claims.get("source_class_id"),
             "destination_class_id": claims.get("destination_class_id"),
-            "academic_year": claims.get("academic_year"),
+            "academic_year": int(claims["academic_year"]),
             "precondition_hash": claims.get("precondition_hash"),
-            "snapshot_digest": snapshot.get("snapshot_digest"),
+            "snapshot_digest": digest,
             "pre_execution_snapshot": snapshot,
             "snapshot_is_final_for_mutation": False,
             "document_inventory_digest": inventory.get("inventory_digest"),
             "actor": {"id": actor.get("id"), "email": actor.get("email"), "role": actor.get("role")},
-            "justification": justification.strip(),
-            "idempotency_key": idempotency_key.strip(),
+            "justification": normalized_justification,
+            "idempotency_key_hash": hashlib.sha256(key.encode("utf-8")).hexdigest(),
             "state": "PREPARED",
             "academic_mutation_enabled": False,
             "academic_mutation_performed": False,
@@ -304,8 +350,9 @@ async def prepare_rectification_saga_execution(
             "updated_at": created,
             "checkpoints": [
                 {"name": "DRY_RUN_TOKEN_VERIFIED", "at": created},
-                {"name": "PRECONDITION_HASH_REVALIDATED", "at": created},
-                {"name": "HUMAN_REAUTHENTICATED", "at": created},
+                {"name": "HUMAN_GATES_VALIDATED", "at": created},
+                {"name": "REAUTHENTICATED", "at": created},
+                {"name": "TOCTOU_REVALIDATED", "at": created},
                 {"name": "DOCUMENT_GATE_RESOLVABLE", "at": created},
                 {"name": "COMPENSATING_SNAPSHOT_CAPTURED", "at": created},
             ],
@@ -346,9 +393,15 @@ async def _apply_enrollment_projection(
     db,
     *,
     run: Mapping[str, Any],
-    plan: Mapping[str, Any],
     actor: Mapping[str, Any],
 ) -> None:
+    """Retifica a matrícula canônica in-place e reconstrói a projeção pela SSoT.
+
+    Preserva ``id``, ``enrollment_number``, ``enrollment_date``, ``academic_year``
+    e ``created_at`` da matrícula original. A projeção ``students.*`` nunca é
+    escrita diretamente: é sempre derivada por
+    ``services.enrollment_service.rebuild_student_home_projection``.
+    """
     tenant_id = str(run.get("tenant_id"))
     enrollment_id = str(run.get("source_enrollment_id"))
     student_id = str(run.get("student_id"))
@@ -385,6 +438,8 @@ async def _apply_enrollment_projection(
         "updated_by": actor.get("id"),
         "rectification_protocol": run.get("protocol"),
     }
+    if destination.get("school_id"):
+        enrollment_set["school_id"] = destination.get("school_id")
     if destination.get("grade_level"):
         enrollment_set["student_series"] = destination.get("grade_level")
     result = await db.enrollments.update_one(
@@ -404,27 +459,11 @@ async def _apply_enrollment_projection(
             "A matrícula mudou durante a aplicação da saga.",
         )
 
-    student = await db.students.find_one(
-        {"id": student_id, "mantenedora_id": tenant_id, "class_id": source_class_id}, {"_id": 0}
-    )
-    if not student:
+    projected = await rebuild_student_home_projection(db, student_id)
+    if not projected or str(projected.get("id")) != enrollment_id:
         raise RectificationSagaError(
-            "RECTIFICATION_STUDENT_PROJECTION_CAS_PRECONDITION_FAILED",
-            "A projeção atual do estudante divergiu do snapshot preparado.",
-        )
-    result = await db.students.update_one(
-        {"id": student_id, "mantenedora_id": tenant_id, "class_id": source_class_id},
-        {"$set": {
-            "class_id": destination_class_id,
-            "updated_at": now,
-            "updated_by": actor.get("id"),
-            "rectification_protocol": run.get("protocol"),
-        }},
-    )
-    if result.modified_count != 1:
-        raise RectificationSagaError(
-            "RECTIFICATION_STUDENT_PROJECTION_CAS_CONFLICT",
-            "A projeção do estudante mudou durante a aplicação da saga.",
+            "RECTIFICATION_STUDENT_PROJECTION_POSTCONDITION_FAILED",
+            "A projeção reconstruída não aponta para a matrícula retificada.",
         )
 
 
@@ -498,11 +537,16 @@ async def _compensate_grades(db, *, run: Mapping[str, Any]) -> None:
 
 
 async def _compensate_attendance(db, *, run: Mapping[str, Any]) -> bool:
-    """Restaura o student-record; validação antiga nunca é recriada automaticamente."""
+    """Restaura somente o student-record pulado, a partir do próprio ledger.
+
+    Nunca reconstrói o documento inteiro a partir de um snapshot antigo: isso
+    apagaria entradas de ``validation_history`` produzidas pela desvalidação
+    institucional feita durante a aplicação. Se havia validação antes da
+    retificação, ela nunca é recriada silenciosamente — fica pendente de
+    revalidação explícita.
+    """
     tenant_id = str(run.get("tenant_id"))
     protocol = str(run.get("protocol"))
-    snapshot = run.get("final_pre_execution_snapshot") or run.get("pre_execution_snapshot") or {}
-    originals = {str(item.get("id")): item for item in (snapshot.get("attendance_documents") or []) if item.get("id")}
     revalidation_pending = False
     ledgers = await db[ATTENDANCE_LEDGER_COLLECTION].find(
         {"mantenedora_id": tenant_id, "protocol": protocol}, {"_id": 0}
@@ -518,34 +562,41 @@ async def _compensate_attendance(db, *, run: Mapping[str, Any]) -> bool:
                 detail={"source_attendance_id": ledger.get("source_attendance_id"), "state": state},
             )
         attendance_id = str(ledger.get("source_attendance_id"))
+        student_id = str(ledger.get("student_id") or run.get("student_id"))
         current = await db.attendance.find_one(
             {"id": attendance_id, "mantenedora_id": tenant_id}, {"_id": 0}
         )
-        original = deepcopy(originals.get(attendance_id) or {})
-        if not current or not original:
+        source_record = deepcopy(ledger.get("source_record") or {})
+        if not current or not source_record:
             raise RectificationSagaError(
                 "RECTIFICATION_ATTENDANCE_COMPENSATION_SNAPSHOT_MISSING",
-                "Frequência ou snapshot original indisponível para compensação segura.",
+                "Frequência ou registro original indisponível para compensação segura.",
             )
         if ledger.get("source_document_hash_after") and attendance_digest(current) != ledger.get("source_document_hash_after"):
             raise RectificationSagaError(
                 "RECTIFICATION_ATTENDANCE_COMPENSATION_CAS_CONFLICT",
                 "A frequência mudou depois da saga; compensação automática foi recusada.",
             )
+        if any(str(r.get("student_id")) == student_id for r in (current.get("records") or [])):
+            raise RectificationSagaError(
+                "RECTIFICATION_ATTENDANCE_COMPENSATION_RECORD_ALREADY_PRESENT",
+                "O registro do estudante já está presente na frequência de origem.",
+            )
         current_version = current.get("version") or 0
-        restored = original
-        restored["version"] = current_version + 1
-        restored["updated_at"] = _now()
-        restored["updated_by"] = (run.get("actor") or {}).get("id")
-        if ledger.get("requires_revalidation"):
+        requires_revalidation = bool(ledger.get("requires_revalidation"))
+        set_fields: dict[str, Any] = {
+            "records": [*(current.get("records") or []), source_record],
+            "version": current_version + 1,
+            "updated_at": _now(),
+            "updated_by": (run.get("actor") or {}).get("id"),
+        }
+        if requires_revalidation:
             revalidation_pending = True
-            for field in ("validated_by", "validated_by_name", "validated_by_role", "validated_at"):
-                restored.pop(field, None)
-            restored["rectification_revalidation_pending"] = True
-            restored["rectification_revalidation_protocol"] = protocol
-        replaced = await db.attendance.replace_one(
-            {"id": attendance_id, "mantenedora_id": tenant_id, "version": current.get("version")},
-            restored,
+            set_fields["rectification_revalidation_pending"] = True
+            set_fields["rectification_revalidation_protocol"] = protocol
+        replaced = await db.attendance.update_one(
+            {"id": attendance_id, "mantenedora_id": tenant_id, "version": current_version},
+            {"$set": set_fields},
         )
         if replaced.modified_count != 1:
             raise RectificationSagaError(
@@ -557,18 +608,19 @@ async def _compensate_attendance(db, *, run: Mapping[str, Any]) -> bool:
                 "mantenedora_id": tenant_id,
                 "protocol": protocol,
                 "source_attendance_id": attendance_id,
-                "student_id": run.get("student_id"),
+                "student_id": ledger.get("student_id"),
             },
             {"$set": {
                 "state": "COMPENSATED",
                 "compensated_at": _now(),
-                "revalidation_pending": bool(ledger.get("requires_revalidation")),
+                "revalidation_pending": requires_revalidation,
             }},
         )
     return revalidation_pending
 
 
 async def _restore_enrollment_projection(db, *, run: Mapping[str, Any]) -> None:
+    """Restaura o snapshot da matrícula e reconstrói a projeção pela SSoT."""
     tenant_id = str(run.get("tenant_id"))
     source_class_id = str(run.get("source_class_id"))
     destination_class_id = str(run.get("destination_class_id"))
@@ -580,11 +632,10 @@ async def _restore_enrollment_projection(db, *, run: Mapping[str, Any]) -> None:
         (deepcopy(item) for item in (snapshot.get("enrollments") or []) if str(item.get("id")) == enrollment_id),
         None,
     )
-    original_student = deepcopy(snapshot.get("student") or {})
-    if not original_enrollment or not original_student:
+    if not original_enrollment:
         raise RectificationSagaError(
             "RECTIFICATION_ENROLLMENT_COMPENSATION_SNAPSHOT_MISSING",
-            "Snapshot de matrícula/estudante não está disponível para compensação.",
+            "Snapshot de matrícula não está disponível para compensação.",
         )
 
     current_enrollment = await db.enrollments.find_one(
@@ -592,39 +643,26 @@ async def _restore_enrollment_projection(db, *, run: Mapping[str, Any]) -> None:
     )
     if not current_enrollment:
         raise RectificationSagaError("RECTIFICATION_ENROLLMENT_COMPENSATION_MISSING", "Matrícula desapareceu durante a saga.")
-    if str(current_enrollment.get("class_id")) == source_class_id:
-        pass
-    elif str(current_enrollment.get("class_id")) == destination_class_id:
+    if str(current_enrollment.get("class_id")) == destination_class_id:
         replaced = await db.enrollments.replace_one(
             {"id": enrollment_id, "mantenedora_id": tenant_id, "class_id": destination_class_id},
             original_enrollment,
         )
         if replaced.modified_count != 1:
             raise RectificationSagaError("RECTIFICATION_ENROLLMENT_COMPENSATION_CAS_CONFLICT", "CAS de restauração da matrícula falhou.")
-    else:
+    elif str(current_enrollment.get("class_id")) != source_class_id:
         raise RectificationSagaError(
             "RECTIFICATION_ENROLLMENT_COMPENSATION_CLASS_CONFLICT",
             "A matrícula foi movida para uma terceira turma; compensação automática foi recusada.",
         )
 
-    current_student = await db.students.find_one(
-        {"id": student_id, "mantenedora_id": tenant_id}, {"_id": 0}
-    )
-    if not current_student:
-        raise RectificationSagaError("RECTIFICATION_STUDENT_COMPENSATION_MISSING", "Estudante desapareceu durante a saga.")
-    if str(current_student.get("class_id")) == source_class_id:
-        return
-    if str(current_student.get("class_id")) != destination_class_id:
+    projected = await rebuild_student_home_projection(db, student_id)
+    projected_class_id = str(projected.get("class_id")) if projected else None
+    if projected_class_id != source_class_id:
         raise RectificationSagaError(
-            "RECTIFICATION_STUDENT_COMPENSATION_CLASS_CONFLICT",
-            "A projeção do estudante aponta para uma terceira turma.",
+            "RECTIFICATION_STUDENT_PROJECTION_COMPENSATION_FAILED",
+            "A projeção reconstruída não retornou à turma de origem.",
         )
-    replaced = await db.students.replace_one(
-        {"id": student_id, "mantenedora_id": tenant_id, "class_id": destination_class_id},
-        original_student,
-    )
-    if replaced.modified_count != 1:
-        raise RectificationSagaError("RECTIFICATION_STUDENT_COMPENSATION_CAS_CONFLICT", "CAS de restauração do estudante falhou.")
 
 
 async def _compensate_academic(db, *, run: Mapping[str, Any]) -> dict[str, Any]:
@@ -671,7 +709,12 @@ async def execute_rectification_saga(
     audit_service=None,
     secret: str | None = None,
 ) -> dict[str, Any]:
-    """Executa PREPARED → APPLYING → APPLIED sob lock tenant+estudante."""
+    """Executa PREPARED → APPLYING → APPLIED sob lock tenant+estudante.
+
+    Ordem: revalidação TOCTOU, snapshot final, Frequência (F2.1A), Notas
+    (F2.1B), retificação da matrícula + projeção via SSoT, pós-condição de
+    resíduo zero na origem e só então a revogação documental (F2.1C).
+    """
     _assert_actor(actor)
     if not saga_execution_enabled():
         raise RectificationSagaError(
@@ -688,6 +731,7 @@ async def execute_rectification_saga(
     run = await db[RUNS_COLLECTION].find_one({"_id": prepare_id, "tenant_id": tenant_id}, {"_id": 0})
     if not run:
         raise RectificationSagaError("RECTIFICATION_RUN_NOT_FOUND", "Preparação não encontrada no tenant operacional.", status_code=404)
+    _assert_saga_contract(run)
     _assert_same_operator(run, actor)
     if run.get("state") == "APPLIED":
         return {"prepare_id": prepare_id, "protocol": run.get("protocol"), "state": "APPLIED", "idempotent_replay": True}
@@ -726,18 +770,15 @@ async def execute_rectification_saga(
                 "O inventário documental mudou depois da preparação.",
                 detail={"expected": run.get("document_inventory_digest"), "current": inventory.get("inventory_digest")},
             )
+        await _checkpoint(db, run_id=prepare_id, tenant_id=tenant_id, name="TOCTOU_REVALIDATED")
 
-        final_snapshot = await build_compensating_snapshot(
-            db,
-            claims=claims,
-            tenant_id=tenant_id,
-            current_dry_run=plan,
-        )
+        final_snapshot = await build_compensating_snapshot(db, claims=claims, tenant_id=tenant_id)
+        final_digest = snapshot_digest(final_snapshot)
         await db[RUNS_COLLECTION].update_one(
             {"_id": prepare_id, "tenant_id": tenant_id, "state": "PREPARED"},
             {"$set": {
                 "final_pre_execution_snapshot": final_snapshot,
-                "final_snapshot_digest": final_snapshot.get("snapshot_digest"),
+                "final_snapshot_digest": final_digest,
                 "snapshot_is_final_for_mutation": True,
                 "execution_plan": {
                     "grades_manifest": plan.get("grades_manifest") or [],
@@ -747,6 +788,7 @@ async def execute_rectification_saga(
                 "updated_at": _now(),
             }},
         )
+        await _checkpoint(db, run_id=prepare_id, tenant_id=tenant_id, name="FINAL_SNAPSHOT_CAPTURED")
         run = await _transition_run(
             db,
             run_id=prepare_id,
@@ -756,9 +798,6 @@ async def execute_rectification_saga(
             extra={"execution_started_at": _now(), "execution_actor": {"id": actor.get("id"), "role": actor.get("role")}},
         )
         applying = True
-
-        await _apply_enrollment_projection(db, run=run, plan=plan, actor=actor)
-        await _checkpoint(db, run_id=prepare_id, tenant_id=tenant_id, name="ENROLLMENT_PROJECTION_APPLIED")
 
         attendance_results = []
         for item in plan.get("attendance_manifest") or []:
@@ -813,6 +852,9 @@ async def execute_rectification_saga(
             name="GRADES_APPLIED",
             detail={"items": len(grade_results)},
         )
+
+        await _apply_enrollment_projection(db, run=run, actor=actor)
+        await _checkpoint(db, run_id=prepare_id, tenant_id=tenant_id, name="ENROLLMENT_PROJECTION_APPLIED")
 
         residues = await detect_rectification_origin_residues(
             db,
@@ -948,6 +990,7 @@ async def rollback_rectification_saga(
     prepare_id: str,
     tenant_id: str,
     actor: Mapping[str, Any],
+    password: str,
     justification: str,
     request=None,
     audit_service=None,
@@ -963,6 +1006,7 @@ async def rollback_rectification_saga(
     run = await db[RUNS_COLLECTION].find_one({"_id": prepare_id, "tenant_id": tenant_id}, {"_id": 0})
     if not run:
         raise RectificationSagaError("RECTIFICATION_RUN_NOT_FOUND", "Saga não encontrada no tenant operacional.", status_code=404)
+    _assert_saga_contract(run)
     if run.get("state") == "ROLLED_BACK":
         return {"prepare_id": prepare_id, "protocol": run.get("protocol"), "state": "ROLLED_BACK", "idempotent_replay": True}
     if run.get("state") != "APPLIED":
@@ -979,6 +1023,8 @@ async def rollback_rectification_saga(
         raise RectificationSagaError("RECTIFICATION_STUDENT_LOCKED", "Estudante está sob outra mutação crítica.", detail={"lock": lock_info})
     rolling = False
     try:
+        await _reauthenticate(db, actor, password)
+
         run = await db[RUNS_COLLECTION].find_one({"_id": prepare_id, "tenant_id": tenant_id}, {"_id": 0})
         if run.get("state") == "ROLLED_BACK":
             return {"prepare_id": prepare_id, "protocol": run.get("protocol"), "state": "ROLLED_BACK", "idempotent_replay": True}

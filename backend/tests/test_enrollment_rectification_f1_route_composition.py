@@ -1,8 +1,11 @@
 """Regressão da composição efetiva da rota administrativa de Retificação.
 
 O server do SIGESC inclui ``setup_enrollments_router`` dentro de um APIRouter
-com prefixo ``/api``. O teste protege a composição real e garante que F2.0
-acrescente apenas a preparação segura, sem expor `/execute` ou `/rollback`.
+com prefixo ``/api``. O teste protege a composição real: F1.0 permanece
+estritamente read-only (``/dry-run``) e o router irmão F2.2 expõe
+``/prepare-execution``, ``/execute`` e ``/rollback`` (a F2.2 substitui a
+exposição HTTP isolada da preparação F2.0, que permanece no repositório e é
+testada diretamente em ``test_enrollment_rectification_f2_safety_kernel.py``).
 """
 
 from fastapi import APIRouter
@@ -29,9 +32,11 @@ def test_effective_rectification_routes_are_admin_siblings_of_enrollments():
     assert "/api/enrollments" in paths
     assert rectification_paths == [
         "/api/admin/enrollment-rectification/dry-run",
+        "/api/admin/enrollment-rectification/execute",
         "/api/admin/enrollment-rectification/prepare-execution",
+        "/api/admin/enrollment-rectification/rollback",
     ]
     assert "/api/enrollments/admin/enrollment-rectification/dry-run" not in paths
     assert "/api/enrollments/admin/enrollment-rectification/prepare-execution" not in paths
-    assert "/api/admin/enrollment-rectification/execute" not in paths
-    assert "/api/admin/enrollment-rectification/rollback" not in paths
+    assert "/api/enrollments/admin/enrollment-rectification/execute" not in paths
+    assert "/api/enrollments/admin/enrollment-rectification/rollback" not in paths

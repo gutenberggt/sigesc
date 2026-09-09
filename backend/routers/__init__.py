@@ -16,8 +16,8 @@ from .classes import router as classes_router, setup_router as setup_classes_rou
 from .guardians import router as guardians_router, setup_router as setup_guardians_router
 from .enrollments import router as enrollments_router, setup_router as _setup_enrollments_router
 from .enrollment_rectification import setup_router as setup_enrollment_rectification_router
-from .enrollment_rectification_execution import (
-    setup_router as setup_enrollment_rectification_execution_router,
+from .enrollment_rectification_saga import (
+    setup_router as setup_enrollment_rectification_saga_router,
 )
 from .students import router as students_router, setup_students_router as _setup_students_router
 from .student_enrollment_identity_guard import install_student_enrollment_identity_guard
@@ -195,12 +195,19 @@ def setup_auth_router(db, audit_service):
 
 
 def setup_enrollments_router(db, audit_service):
-    """Configura Matrículas + Retificação F1.0/F2.0 como routers irmãos."""
+    """Configura Matrículas + Retificação F1.0/F2.2 como routers irmãos.
+
+    O router de preparação isolado da F2.0 (``enrollment_rectification_execution``)
+    permanece no repositório e é coberto por testes próprios, mas deixa de ser
+    montado aqui: a F2.2 substitui a exposição HTTP de ``/prepare-execution``
+    por uma preparação que integra corretamente o eixo documental F2.1C, e
+    acrescenta ``/execute``/``/rollback`` como o mesmo router irmão.
+    """
     configured = _setup_enrollments_router(db, audit_service)
     aggregate = type(configured)()
     aggregate.include_router(configured)
     aggregate.include_router(setup_enrollment_rectification_router(db))
-    aggregate.include_router(setup_enrollment_rectification_execution_router(db))
+    aggregate.include_router(setup_enrollment_rectification_saga_router(db))
     return aggregate
 
 
