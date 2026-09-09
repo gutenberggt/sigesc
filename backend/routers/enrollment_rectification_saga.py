@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from audit_service import audit_service
 from routers.enrollment_rectification import require_rectification_context
-from services.enrollment_rectification_saga import (
+from services.enrollment_rectification_saga_runtime import (
     RectificationSagaError,
     execute_rectification_saga,
     rollback_rectification_saga,

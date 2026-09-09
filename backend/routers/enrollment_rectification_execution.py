@@ -16,7 +16,7 @@ from routers.enrollment_rectification_saga import (
 )
 from services.enrollment_rectification import RectificationDryRunError
 from services.enrollment_rectification_execution import RectificationExecutionError
-from services.enrollment_rectification_saga import (
+from services.enrollment_rectification_saga_runtime import (
     RectificationSagaError,
     prepare_rectification_saga_execution,
 )
