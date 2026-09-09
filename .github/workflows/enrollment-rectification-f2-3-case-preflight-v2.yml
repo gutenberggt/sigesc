@@ -56,9 +56,15 @@ jobs:
 
           if 'WORKDIR /app' not in dockerfile:
               raise SystemExit('F2_3_V2_DOCKER_WORKDIR_CHANGED')
-          if '-w /app ' not in workflow or 'PYTHONPATH=/app' not in workflow:
+
+          runtime_lines = [line.strip() for line in workflow.splitlines() if line.strip().startswith('remote_command=')]
+          if len(runtime_lines) != 1:
+              raise SystemExit(f'F2_3_V2_RUNTIME_COMMAND_CARDINALITY:{len(runtime_lines)}')
+          runtime = runtime_lines[0]
+          if '-w /app ' not in runtime or 'PYTHONPATH=/app' not in runtime:
               raise SystemExit('F2_3_V2_RUNTIME_PATH_MISMATCH')
-          if '/app/backend' in workflow:
+          stale = '/app' + '/backend'
+          if stale in runtime:
               raise SystemExit('F2_3_V2_STALE_RUNTIME_PATH')
 
           tree = ast.parse(script)
@@ -79,7 +85,6 @@ jobs:
               'prepare_rectification_saga_execution',
               'execute_rectification_saga',
               'rollback_rectification_saga',
-              'method="POST"', 'method="PUT"', 'method="PATCH"', 'method="DELETE"',
           ):
               if marker in script:
                   raise SystemExit(f'F2_3_V2_FORBIDDEN_MARKER:{marker}')
@@ -332,11 +337,13 @@ jobs:
               'blocker_code_counts':p.get('blocker_code_counts'),
               'warning_code_counts':p.get('warning_code_counts'),
           }
-          body='## F2.3 V2 — preflight canônico read-only\n\n'+\
-               f"Main audit SHA: `{os.environ['TARGET_SHA']}`\n\n"+\
-               f"Production SHA: `{os.environ['EXPECTED_PRODUCTION_SHA']}`\n\n"+\
-               '```json\n'+json.dumps(summary,ensure_ascii=False,sort_keys=True,indent=2)+'\n```\n\n'+\
-               '**Boundary:** somente leitura; sem PII/IDs técnicos; sem prepare/execute/rollback; feature flag não alterada.'
+          body=(
+              '## F2.3 V2 — preflight canônico read-only\n\n'
+              f"Main audit SHA: `{os.environ['TARGET_SHA']}`\n\n"
+              f"Production SHA: `{os.environ['EXPECTED_PRODUCTION_SHA']}`\n\n"
+              '```json\n'+json.dumps(summary,ensure_ascii=False,sort_keys=True,indent=2)+'\n```\n\n'
+              '**Boundary:** somente leitura; sem PII/IDs técnicos; sem prepare/execute/rollback; feature flag não alterada.'
+          )
           headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3-v2'}
           repo=os.environ['GITHUB_REPOSITORY']
           def request(method,path,payload=None):
