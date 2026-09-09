@@ -63,7 +63,12 @@ def _identity_query(*, tenant_id: str, student_id: str, class_id: str, course_id
 
 
 def _cas_filter(doc: Mapping[str, Any]) -> dict[str, Any]:
-    """CAS pelo subconjunto acadêmico que compõe o fingerprint F2.1B."""
+    """CAS pelo subconjunto acadêmico que compõe o fingerprint F2.1B.
+
+    Documentos legados podem não possuir fisicamente `grade_ownership` ou
+    `rectified_fields`. O fingerprint normaliza ausência para mapa vazio; o CAS
+    preserva essa semântica sem exigir que o campo legado exista.
+    """
     query: dict[str, Any] = {
         "id": doc.get("id"),
         "mantenedora_id": doc.get("mantenedora_id"),
@@ -72,9 +77,15 @@ def _cas_filter(doc: Mapping[str, Any]) -> dict[str, Any]:
         "course_id": doc.get("course_id"),
         "academic_year": doc.get("academic_year"),
         "dependency_id": doc.get("dependency_id"),
-        "grade_ownership": doc.get("grade_ownership") or {},
-        "rectified_fields": doc.get("rectified_fields") or {},
     }
+    if "grade_ownership" in doc:
+        query["grade_ownership"] = doc.get("grade_ownership") or {}
+    else:
+        query["grade_ownership"] = {"$exists": False}
+    if "rectified_fields" in doc:
+        query["rectified_fields"] = doc.get("rectified_fields") or {}
+    else:
+        query["rectified_fields"] = {"$exists": False}
     for field in GRADE_VALUE_FIELDS:
         query[field] = doc.get(field)
     return query

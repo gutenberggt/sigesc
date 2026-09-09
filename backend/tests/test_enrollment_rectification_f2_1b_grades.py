@@ -240,6 +240,22 @@ async def test_destination_appears_after_dry_run_is_blocked(db):
 
 
 @pytest.mark.asyncio
+async def test_legacy_documents_without_metadata_maps_are_supported_by_cas(db):
+    src = source_grade()
+    src.pop("grade_ownership", None)
+    src.pop("rectified_fields", None)
+    dst = destination_grade()
+    dst.pop("rectified_fields", None)
+    await db.grades.insert_many([deepcopy(src), deepcopy(dst)])
+    out = await apply(db, manifest(src, dst))
+    assert out["state"] == "APPLIED"
+    updated = await db.grades.find_one({"id": dst["id"]}, {"_id": 0})
+    assert updated["b1"] == 8.0 and updated["b2"] == 6.0
+    assert "b1" not in (updated.get("grade_ownership") or {})
+    assert await db.grades.find_one({"id": src["id"]}) is None
+
+
+@pytest.mark.asyncio
 async def test_replay_after_applied_is_idempotent(db):
     src = source_grade()
     await db.grades.insert_one(deepcopy(src))
