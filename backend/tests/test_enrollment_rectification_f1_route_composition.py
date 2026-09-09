@@ -1,8 +1,8 @@
-"""Regressão F1.0 da composição efetiva da rota administrativa.
+"""Regressão da composição efetiva da rota administrativa de Retificação.
 
 O server do SIGESC inclui ``setup_enrollments_router`` dentro de um APIRouter
-com prefixo ``/api``. Este teste protege a composição real para impedir que o
-prefixo legado ``/enrollments`` seja acidentalmente herdado pela Retificação.
+com prefixo ``/api``. O teste protege a composição real e garante que F2.0
+acrescente apenas a preparação segura, sem expor `/execute` ou `/rollback`.
 """
 
 from fastapi import APIRouter
@@ -16,8 +16,8 @@ class _AuditStub:
         return None
 
 
-def test_effective_rectification_route_is_admin_sibling_of_enrollments():
-    db = AsyncMongoMockClient()["sigesc_rectification_f1_route_test"]
+def test_effective_rectification_routes_are_admin_siblings_of_enrollments():
+    db = AsyncMongoMockClient()["sigesc_rectification_route_test"]
 
     domain_router = setup_enrollments_router(db, _AuditStub())
     api_router = APIRouter(prefix="/api")
@@ -27,6 +27,11 @@ def test_effective_rectification_route_is_admin_sibling_of_enrollments():
     rectification_paths = sorted(path for path in paths if "enrollment-rectification" in path)
 
     assert "/api/enrollments" in paths
-    assert rectification_paths == ["/api/admin/enrollment-rectification/dry-run"]
+    assert rectification_paths == [
+        "/api/admin/enrollment-rectification/dry-run",
+        "/api/admin/enrollment-rectification/prepare-execution",
+    ]
     assert "/api/enrollments/admin/enrollment-rectification/dry-run" not in paths
-    assert not any("execute" in path or "rollback" in path for path in rectification_paths)
+    assert "/api/enrollments/admin/enrollment-rectification/prepare-execution" not in paths
+    assert "/api/admin/enrollment-rectification/execute" not in paths
+    assert "/api/admin/enrollment-rectification/rollback" not in paths
