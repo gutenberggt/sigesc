@@ -61,10 +61,10 @@ jobs:
           ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED: 'false'
         run: |
           python -m pytest tests/test_enrollment_rectification_f2_1a_attendance.py -q --asyncio-mode=auto
-      - name: Remove bootstrap-only files
+      - name: Prepare implementation commit
         run: |
           rm scripts/_f2_1a_bootstrap.py
-          rm .github/workflows/_f2-1a-bootstrap.yml
+          rm .github/workflows/enrollment-rectification-f2-1a-attendance-guard.yml
       - name: Commit implementation
         run: |
           git config user.name 'github-actions[bot]'
