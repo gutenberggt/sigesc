@@ -1,0 +1,304 @@
+name: "Enrollment Rectification F2.3 - Case Preflight Read-only V3"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/enrollment_rectification_f2_3_case_preflight.py'
+      - '.github/workflows/enrollment-rectification-f2-3-case-preflight-v3.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: enrollment-rectification-f2-3-case-preflight-v3
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.3 V3 blocked-evidence contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Enforce canonical read-only and blocked-result semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          script = Path('backend/scripts/enrollment_rectification_f2_3_case_preflight.py').read_text(encoding='utf-8')
+          workflow = Path('.github/workflows/enrollment-rectification-f2-3-case-preflight-v3.yml').read_text(encoding='utf-8')
+          tree = ast.parse(script)
+
+          forbidden = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+              'create_index','create_indexes','rename',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in forbidden:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit(f'F2_3_V3_MONGO_MUTATOR:{sorted(set(hits))}')
+
+          required_script = (
+              'build_rectification_dry_run',
+              '"status": "BLOCKED"',
+              'STUDENT_IDENTITY_CARDINALITY_INVALID',
+              '"database_mutation": False',
+              '"production_writes": False',
+              '"student_pii_emitted": False',
+              '"technical_ids_emitted": False',
+          )
+          for marker in required_script:
+              if marker not in script:
+                  raise SystemExit(f'F2_3_V3_SCRIPT_MARKER_MISSING:{marker}')
+
+          for marker in (
+              'prepare_rectification_saga_execution',
+              'execute_rectification_saga',
+              'rollback_rectification_saga',
+          ):
+              if marker in script:
+                  raise SystemExit(f'F2_3_V3_FORBIDDEN_SCRIPT_MARKER:{marker}')
+
+          required_workflow = (
+              "status == 'READY_FOR_REVIEW'",
+              "status == 'BLOCKED'",
+              'F2_3_V3_READY_REQUIRES_ONE_IDENTITY',
+              'F2_3_V3_BLOCKED_REASON_REQUIRED',
+              'candidate_count',
+              'identity_match_count',
+              'Upload sanitized evidence',
+          )
+          for marker in required_workflow:
+              if marker not in workflow:
+                  raise SystemExit(f'F2_3_V3_WORKFLOW_MARKER_MISSING:{marker}')
+
+          runtime = [line.strip() for line in workflow.splitlines() if line.strip().startswith('remote_command=')]
+          if len(runtime) != 1 or '-w /app ' not in runtime[0] or 'PYTHONPATH=/app' not in runtime[0]:
+              raise SystemExit('F2_3_V3_RUNTIME_PATH_INVALID')
+
+          print('F2_3_V3_GUARD=PASS')
+          print('BLOCKED_IS_EVIDENCE=YES')
+          print('READY_REQUIRES_IDENTITY_ONE=YES')
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+  production-preflight:
+    name: Run F2.3 V3 canonical case preflight in production read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ENROLLMENT-RECTIFICATION-F2.3-PREFLIGHT-V3] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          issue=(json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('F2_3_V3_OWNER_REQUIRED')
+
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              key,value=raw.split('=',1); key=key.strip(); value=value.strip()
+              if key in values: raise SystemExit(f'F2_3_V3_DUPLICATE_FIELD:{key}')
+              values[key]=value
+
+          expected={
+              'ENROLLMENT_RECTIFICATION_F2_3_PREFLIGHT_V3':'AUTHORIZED',
+              'CONFIRMATION':'AUDIT_ENROLLMENT_RECTIFICATION_CASE_READ_ONLY_V3',
+              'TRACKING_ISSUE':'580',
+              'ACADEMIC_YEAR':'2026',
+              'SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+              'SOURCE_CLASS':'6º ANO B',
+              'DESTINATION_CLASS':'7º ANO B',
+          }
+          for key,wanted in expected.items():
+              if values.get(key) != wanted: raise SystemExit(f'F2_3_V3_FIELD_INVALID:{key}')
+
+          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          salt=values.get('IDENTITY_SALT',''); identity_hash=values.get('IDENTITY_HASH','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target): raise SystemExit('F2_3_V3_TARGET_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{40}',prod): raise SystemExit('F2_3_V3_PROD_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{32}',salt): raise SystemExit('F2_3_V3_SALT_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{64}',identity_hash): raise SystemExit('F2_3_V3_HASH_INVALID')
+          if issue.get('title') != f'[ENROLLMENT-RECTIFICATION-F2.3-PREFLIGHT-V3] {target}':
+              raise SystemExit('F2_3_V3_TITLE_MISMATCH')
+
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3-v3'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as response: return json.load(response)
+          if get('/branches/main')['commit']['sha'] != target: raise SystemExit('F2_3_V3_MAIN_MOVED')
+          if get('/branches/production')['commit']['sha'] != prod: raise SystemExit('F2_3_V3_PRODUCTION_MOVED')
+          if get('/issues/580').get('state') != 'open': raise SystemExit('F2_3_V3_TRACKING_NOT_OPEN')
+
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nexpected_production_sha={prod}\nidentity_salt={salt}\nidentity_hash={identity_hash}\ngate_issue={issue.get("number")}\n')
+          print('F2_3_V3_CONTEXT=PASS')
+          print('PRODUCTION_WRITES=NO')
+          PY
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || exit 1; done
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f2_3_v3_key && chmod 600 ~/.ssh/f2_3_v3_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve backend container read-only
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3_v3_key" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend" && [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]]
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute canonical preflight read-only
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+          F2_3_IDENTITY_SALT: ${{ steps.context.outputs.identity_salt }}
+          F2_3_IDENTITY_HASH: ${{ steps.context.outputs.identity_hash }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/raw.log'
+          remote_command="timeout 900 docker exec -i -w /app -e PYTHONPATH=/app -e F2_3_IDENTITY_SALT=${F2_3_IDENTITY_SALT} -e F2_3_IDENTITY_HASH=${F2_3_IDENTITY_HASH} ${BACKEND_CONTAINER} python -"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3_v3_key" "${PROD_USER}@${PROD_HOST}" "$remote_command" < backend/scripts/enrollment_rectification_f2_3_case_preflight.py > "$raw" 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "F2_3_V3_REMOTE_EXIT=$rc"; rm -f "$raw"; exit "$rc"
+          fi
+          prefix='ENROLLMENT_RECTIFICATION_F2_3_PREFLIGHT_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          test -n "$line"
+          printf '%s' "${line#${prefix}}" > evidence/preflight.json
+          python -m json.tool evidence/preflight.json >/dev/null
+          rm -f "$raw"
+
+      - name: Validate fail-closed result without discarding BLOCKED evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/preflight.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'ENROLLMENT_RECTIFICATION_F2_3_CASE_PREFLIGHT_V1': raise SystemExit('F2_3_V3_SCHEMA_INVALID')
+          status=p.get('status')
+          if status not in {'READY_FOR_REVIEW','BLOCKED'}: raise SystemExit('F2_3_V3_STATUS_INVALID')
+          for key in ('database_mutation','production_writes','student_pii_emitted','technical_ids_emitted'):
+              if p.get(key) is not False: raise SystemExit(f'F2_3_V3_BOUNDARY_FAILED:{key}')
+          for key in ('prepare_execution_called','execute_called','rollback_called','feature_flag_modified'):
+              if key in p and p.get(key) is not False: raise SystemExit(f'F2_3_V3_FORBIDDEN_ACTION:{key}')
+          if p.get('execution_flag_enabled') is True: raise SystemExit('F2_3_V3_EXECUTION_FLAG_ENABLED')
+          if p.get('dry_run_token_emitted') is True or p.get('precondition_hash_emitted') is True: raise SystemExit('F2_3_V3_SECRET_MATERIAL_EMITTED')
+
+          identity_count=p.get('identity_match_count')
+          if status == 'READY_FOR_REVIEW':
+              if identity_count != 1: raise SystemExit('F2_3_V3_READY_REQUIRES_ONE_IDENTITY')
+          if status == 'BLOCKED':
+              if not p.get('reason'): raise SystemExit('F2_3_V3_BLOCKED_REASON_REQUIRED')
+              if identity_count is not None and (not isinstance(identity_count,int) or identity_count < 0):
+                  raise SystemExit('F2_3_V3_BLOCKED_IDENTITY_COUNT_INVALID')
+              if p.get('reason') == 'STUDENT_IDENTITY_CARDINALITY_INVALID' and identity_count == 1:
+                  raise SystemExit('F2_3_V3_BLOCKED_IDENTITY_CONTRADICTION')
+
+          print('F2_3_V3_BOUNDARY=PASS')
+          print('STATUS='+status)
+          print('DATABASE_MUTATION=NO')
+          print('PRODUCTION_WRITES=NO')
+          print('PII_EMITTED=NO')
+          PY
+
+      - name: Upload sanitized evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: enrollment-rectification-f2-3-case-preflight-v3-${{ github.run_id }}
+          path: evidence/preflight.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Comment sanitized result and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          PROD_SHA: ${{ steps.context.outputs.expected_production_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          p=json.loads(Path('evidence/preflight.json').read_text(encoding='utf-8'))
+          keys=('status','reason','school_match_count','source_class_match_count','destination_class_match_count','candidate_count','identity_match_count','dry_run_error_code','dry_run_error_status','student_projection_matches_source','contract_version','can_execute_later','execution_flag_enabled','counts','grades_summary','attendance_summary','documents','blocker_code_counts','warning_code_counts')
+          summary={k:p.get(k) for k in keys if k in p}
+          body=(
+              '## F2.3 V3 — preflight canônico read-only\n\n'
+              f"Main audit SHA: `{os.environ['TARGET_SHA']}`\n\n"
+              f"Production SHA: `{os.environ['PROD_SHA']}`\n\n"
+              '```json\n'+json.dumps(summary,ensure_ascii=False,sort_keys=True,indent=2)+'\n```\n\n'
+              '**Boundary:** somente leitura; sem PII/IDs técnicos; sem prepare/execute/rollback; feature flag não alterada. `BLOCKED` é resultado fail-closed e não autoriza avanço.'
+          )
+          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3-v3'}
+          repo=os.environ['GITHUB_REPOSITORY']
+          def req(method,path,payload=None):
+              data=json.dumps(payload).encode() if payload is not None else None
+              request=urllib.request.Request(f'https://api.github.com/repos/{repo}{path}',headers=headers,data=data,method=method)
+              with urllib.request.urlopen(request,timeout=30) as response: return response.read()
+          req('POST',f"/issues/{os.environ['GATE_ISSUE']}/comments",{'body':body})
+          req('PATCH',f"/issues/{os.environ['GATE_ISSUE']}",{'state':'closed','state_reason':'completed'})
+          print('F2_3_V3_RESULT_RECORDED=YES')
+          PY
