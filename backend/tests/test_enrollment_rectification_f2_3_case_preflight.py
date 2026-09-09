@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import json
 import sys
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+# O serviço canônico alcança scripts.normalize_content pela cadeia de imports.
+# O teste focado não usa carregamento de .env; isola apenas essa dependência
+# incidental para manter o guard pequeno e determinístico.
+dotenv_stub = types.ModuleType("dotenv")
+dotenv_stub.load_dotenv = lambda *args, **kwargs: None
+sys.modules.setdefault("dotenv", dotenv_stub)
 
 from scripts.enrollment_rectification_f2_3_case_preflight import (
     SCHEMA,
