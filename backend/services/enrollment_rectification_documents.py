@@ -18,6 +18,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from pymongo import ReturnDocument
+
 from services.verifiable_docs_service import revoke_document
 
 DOCUMENT_LEDGER_COLLECTION = "document_rectifications"
@@ -304,7 +306,7 @@ async def _revoke_verification_collection(db, *, collection: str, snapshot: Mapp
             "revoked_reason": f"Retificação de matrícula/turma — protocolo {protocol}",
             "rectification_protocol": protocol,
         }},
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
         projection={"_id": 0},
     )
     if not result:
