@@ -36,17 +36,22 @@ _MIGRATABLE_GRADE_FIELDS = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recover
 
 
 def _frozen_fields_of_migrated_grade(grade: dict) -> set:
-    """Campos congelados de uma nota MIGRADA (turma de DESTINO).
+    """Campos históricos congelados para professor comum.
 
-    Jun/2026 — Granularidade por bimestre: na turma de destino, apenas os
-    bimestres que de fato foram MIGRADOS da origem (valor não-nulo) ficam
-    congelados (somente leitura para professor). Os demais bimestres — lançados
-    APÓS a data da ação (remanejo/transferência/progressão/reclassificação) —
-    permanecem editáveis pela professora da turma de destino.
+    F2.1B: `rectified_fields` é a fonte explícita/granular para novas
+    retificações. `migrated_from_class_id` permanece como compatibilidade dos
+    registros legados, nos quais os campos não-nulos migrados eram inferidos.
     """
-    if not (grade and grade.get('migrated_from_class_id')):
+    if not grade:
         return set()
-    return {k for k in _MIGRATABLE_GRADE_FIELDS if grade.get(k) is not None}
+    explicit = {
+        field for field in (grade.get("rectified_fields") or {})
+        if field in _MIGRATABLE_GRADE_FIELDS
+    }
+    legacy = set()
+    if grade.get('migrated_from_class_id'):
+        legacy = {field for field in _MIGRATABLE_GRADE_FIELDS if grade.get(field) is not None}
+    return explicit | legacy
 
 
 def _migrated_bimesters(grade: dict) -> list:

@@ -23,6 +23,10 @@ from typing import Any, Iterable
 
 from services.enrollment_service import is_special_class
 from utils.curriculum_resolver import resolve_curriculum
+from services.enrollment_rectification_grade_contract import (
+    grade_academic_fingerprint,
+    migratable_grade_fields,
+)
 
 
 CONTRACT_VERSION = "F1.0"
@@ -312,6 +316,12 @@ async def _grade_manifest(
     tenant_id: str,
     course_map: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Materializa contrato F2.1B de Notas com fingerprints TOCTOU.
+
+    Continua estritamente read-only. O fingerprint cobre identidade, valores,
+    ownership, dependency_id e rectified_fields, mas deliberadamente ignora
+    updated_at/final_average/status derivados.
+    """
     blockers: list[dict[str, Any]] = []
     source_grades = await db.grades.find(
         _tenant_query(
@@ -324,14 +334,18 @@ async def _grade_manifest(
         ),
         {"_id": 0},
     ).to_list(500)
-    manifest = []
+    manifest: list[dict[str, Any]] = []
     for grade in source_grades:
         source_course_id = grade.get("course_id")
         target_course_id = _target_for(course_map, source_course_id)
         target_grade = None
+        target_duplicates = 0
         overlaps: list[str] = []
+        metadata_conflicts: list[str] = []
+        fields_to_move = migratable_grade_fields(grade)
+
         if target_course_id:
-            target_grade = await db.grades.find_one(
+            target_docs = await db.grades.find(
                 _tenant_query(
                     {
                         "student_id": student_id,
@@ -342,11 +356,27 @@ async def _grade_manifest(
                     tenant_id,
                 ),
                 {"_id": 0},
-            )
-            if target_grade:
-                for field in GRADE_VALUE_FIELDS:
-                    if _nonempty(grade.get(field)) and _nonempty(target_grade.get(field)):
+            ).to_list(3)
+            target_duplicates = len(target_docs)
+            if target_duplicates > 1:
+                _issue(
+                    blockers,
+                    "GRADE_DESTINATION_CARDINALITY_INVALID",
+                    "Há mais de um documento de nota para a mesma identidade acadêmica no destino.",
+                    source_grade_id=grade.get("id"),
+                    target_course_id=target_course_id,
+                    destination_count=target_duplicates,
+                )
+            elif target_docs:
+                target_grade = target_docs[0]
+                target_ownership = target_grade.get("grade_ownership") or {}
+                target_rectified = target_grade.get("rectified_fields") or {}
+                for field in fields_to_move:
+                    if _nonempty(target_grade.get(field)):
                         overlaps.append(field)
+                    if target_ownership.get(field) or target_rectified.get(field):
+                        metadata_conflicts.append(field)
+
         if overlaps:
             _issue(
                 blockers,
@@ -357,6 +387,15 @@ async def _grade_manifest(
                 target_course_id=target_course_id,
                 fields=overlaps,
             )
+        if metadata_conflicts:
+            _issue(
+                blockers,
+                "GRADE_DESTINATION_FIELD_METADATA_PRESENT",
+                "O destino possui ownership/retificação em campo que receberia valor da origem.",
+                source_grade_id=grade.get("id"),
+                target_grade_id=(target_grade or {}).get("id"),
+                fields=metadata_conflicts,
+            )
         if grade.get("dependency_id"):
             _issue(
                 blockers,
@@ -365,15 +404,24 @@ async def _grade_manifest(
                 grade_id=grade.get("id"),
                 dependency_id=grade.get("dependency_id"),
             )
+
         manifest.append(
             {
+                # grade_id preservado por compatibilidade com consumidores F1.0.
                 "grade_id": grade.get("id"),
+                "source_grade_id": grade.get("id"),
                 "source_course_id": source_course_id,
                 "target_course_id": target_course_id,
                 "source_values": {field: grade.get(field) for field in GRADE_VALUE_FIELDS},
+                "migratable_fields": fields_to_move,
                 "grade_ownership_present": bool(grade.get("grade_ownership")),
+                "source_grade_fingerprint": grade_academic_fingerprint(grade),
                 "destination_grade_id": (target_grade or {}).get("id"),
+                "destination_grade_fingerprint": grade_academic_fingerprint(target_grade),
+                "destination_expected_absent": target_grade is None and target_duplicates == 0,
+                "destination_cardinality": target_duplicates,
                 "overlapping_fields": overlaps,
+                "destination_metadata_conflicts": metadata_conflicts,
             }
         )
     return manifest, blockers
