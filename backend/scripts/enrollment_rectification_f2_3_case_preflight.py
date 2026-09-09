@@ -29,7 +29,6 @@ from services.enrollment_rectification import (
     RectificationDryRunError,
     build_rectification_dry_run,
 )
-from services.enrollment_rectification_saga import saga_execution_enabled
 
 
 SCHEMA = "ENROLLMENT_RECTIFICATION_F2_3_CASE_PREFLIGHT_V1"
@@ -37,6 +36,12 @@ TARGET_SCHOOL = "E M E I E F Monsenhor Augusto Dias de Brito"
 SOURCE_CLASS = "6º ANO B"
 DESTINATION_CLASS = "7º ANO B"
 ACADEMIC_YEAR = 2026
+
+
+def _execution_flag_enabled() -> bool:
+    return os.environ.get(
+        "ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED", "false"
+    ).strip().lower() == "true"
 
 
 def _norm(value: Any) -> str:
@@ -117,7 +122,7 @@ def _safe_summary(
         "contract_version": dry_run.get("contract_version"),
         "operation": dry_run.get("operation"),
         "execution_enabled_from_dry_run": bool(dry_run.get("execution_enabled")),
-        "execution_flag_enabled": bool(saga_execution_enabled()),
+        "execution_flag_enabled": _execution_flag_enabled(),
         "can_execute_later": bool(dry_run.get("can_execute_later")),
         "counts": dry_run.get("counts") or {},
         "course_map": _safe_course_map(list(dry_run.get("course_map") or [])),
@@ -288,7 +293,7 @@ async def run_live_preflight() -> dict[str, Any]:
                 "identity_match_count": 1,
                 "identity_fingerprint": expected_hash,
                 "student_projection_matches_source": projection_matches_source,
-                "execution_flag_enabled": bool(saga_execution_enabled()),
+                "execution_flag_enabled": _execution_flag_enabled(),
                 "dry_run_invoked": True,
                 "database_mutation": False,
                 "production_writes": False,
