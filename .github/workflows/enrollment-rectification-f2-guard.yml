@@ -1,0 +1,96 @@
+name: Enrollment Rectification F2 - Safety Kernel Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/enrollment_rectification.py'
+      - 'backend/services/enrollment_rectification_execution.py'
+      - 'backend/routers/enrollment_rectification.py'
+      - 'backend/routers/__init__.py'
+      - 'backend/tests/test_enrollment_rectification_f1_dry_run.py'
+      - 'backend/tests/test_enrollment_rectification_f1_route_composition.py'
+      - 'backend/tests/test_enrollment_rectification_f2_safety_kernel.py'
+      - '.github/workflows/enrollment-rectification-f1-guard.yml'
+      - '.github/workflows/enrollment-rectification-f2-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f2-safety-kernel:
+    name: F2 - Núcleo seguro sem write acadêmico
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio mongomock mongomock-motor
+
+      - name: Compile F1/F2 contracts
+        working-directory: backend
+        run: |
+          python -m py_compile \
+            services/enrollment_rectification.py \
+            services/enrollment_rectification_execution.py \
+            routers/enrollment_rectification.py
+
+      - name: Run F1 + F2 regression
+        working-directory: backend
+        env:
+          MONGO_URL: 'mongodb://127.0.0.1:27017'
+          DB_NAME: 'sigesc_rectification_f2_conftest_unused'
+          JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED: 'false'
+        run: |
+          python -m pytest \
+            tests/test_enrollment_rectification_f1_dry_run.py \
+            tests/test_enrollment_rectification_f1_route_composition.py \
+            tests/test_enrollment_rectification_f2_safety_kernel.py \
+            -q --asyncio-mode=auto
+
+      - name: Academic writer fail-closed guard
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          src = Path('services/enrollment_rectification_execution.py').read_text(encoding='utf-8')
+          router = Path('routers/enrollment_rectification.py').read_text(encoding='utf-8')
+          academic = (
+              'students', 'enrollments', 'attendance', 'grades',
+              'student_history', 'attendance_rectifications',
+          )
+          methods = (
+              'insert_one', 'insert_many', 'update_one', 'update_many',
+              'replace_one', 'delete_one', 'delete_many',
+              'find_one_and_update', 'bulk_write',
+          )
+          found = [
+              f'db.{collection}.{method}('
+              for collection in academic
+              for method in methods
+              if f'db.{collection}.{method}(' in src
+          ]
+          if found:
+              raise SystemExit(f'F2.0 contém write acadêmico proibido: {found}')
+          if '@router.post("/execute")' in router:
+              raise SystemExit('F2.0 não pode expor /execute')
+          if '@router.post("/prepare-execution")' not in router:
+              raise SystemExit('F2.0 perdeu /prepare-execution')
+          print('F2.0 academic writer guard: PASS')
+          PY
