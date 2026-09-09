@@ -21,6 +21,8 @@ jobs:
     env:
       PYTHONPATH: backend
       ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED: 'false'
+      JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
+      ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -34,7 +36,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check pytest pytest-asyncio motor pymongo passlib bcrypt python-dotenv
+          python -m pip install --disable-pip-version-check \
+            pytest pytest-asyncio \
+            fastapi \
+            motor pymongo \
+            passlib bcrypt python-dotenv python-jose
 
       - name: Compile runtime binding and routers
         shell: bash
