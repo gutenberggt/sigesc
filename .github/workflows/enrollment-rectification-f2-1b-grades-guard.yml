@@ -1,0 +1,106 @@
+name: Enrollment Rectification F2.1B - Grades Guard
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/enrollment_rectification.py'
+      - 'backend/services/enrollment_rectification_grade_contract.py'
+      - 'backend/services/enrollment_rectification_grades.py'
+      - 'backend/services/enrollment_rectification_execution.py'
+      - 'backend/routers/grades.py'
+      - 'backend/routers/grades_dvd.py'
+      - 'backend/routers/grades_historical_backfill_dvd.py'
+      - 'backend/routers/enrollment_rectification_execution.py'
+      - 'backend/tests/test_enrollment_rectification_f2_1b_grades.py'
+      - 'backend/tests/test_enrollment_rectification_f1_dry_run.py'
+      - 'backend/tests/test_enrollment_rectification_f2_safety_kernel.py'
+      - 'backend/tests/test_grade_assignment_adapter_phase5.py'
+      - 'backend/tests/test_grade_historical_backfill_p0.py'
+      - 'docs/governance/RETIFICACAO_MATRICULA_TURMA_F2_1B.md'
+      - '.github/workflows/enrollment-rectification-f2-1b-grades-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f2-1b-grades:
+    name: F2.1B - Notas por campo sem execução pública
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio mongomock mongomock-motor
+
+      - name: Compile F1 F2 and F2.1B contracts
+        working-directory: backend
+        run: |
+          python -m py_compile \
+            services/enrollment_rectification.py \
+            services/enrollment_rectification_grade_contract.py \
+            services/enrollment_rectification_grades.py \
+            services/enrollment_rectification_execution.py \
+            routers/grades.py \
+            routers/grades_dvd.py \
+            routers/grades_historical_backfill_dvd.py \
+            routers/enrollment_rectification_execution.py \
+            tests/test_enrollment_rectification_f2_1b_grades.py
+
+      - name: Run F1 F2 F2.1B and DVD regression
+        working-directory: backend
+        env:
+          MONGO_URL: 'mongodb://127.0.0.1:27017'
+          DB_NAME: 'sigesc_rectification_f21b_guard_unused'
+          JWT_SECRET_KEY: 'ci-only-jwt-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_DRY_RUN_SECRET: 'ci-only-rectification-secret-0123456789abcdef0123456789abcdef'
+          ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED: 'false'
+        run: |
+          python -m pytest \
+            tests/test_enrollment_rectification_f2_1b_grades.py \
+            tests/test_enrollment_rectification_f1_dry_run.py \
+            tests/test_enrollment_rectification_f2_safety_kernel.py \
+            tests/test_grade_assignment_adapter_phase5.py \
+            tests/test_grade_historical_backfill_p0.py \
+            -q --asyncio-mode=auto
+
+      - name: Fail-closed structural guard
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          f1 = Path('services/enrollment_rectification.py').read_text(encoding='utf-8')
+          f2 = Path('services/enrollment_rectification_execution.py').read_text(encoding='utf-8')
+          f2_router = Path('routers/enrollment_rectification_execution.py').read_text(encoding='utf-8')
+          grade_service = Path('services/enrollment_rectification_grades.py').read_text(encoding='utf-8')
+          grade_router = Path('routers/grades.py').read_text(encoding='utf-8')
+
+          if '@router.post("/execute")' in f2_router:
+              raise SystemExit('F2.1B não pode expor /execute')
+          if '@router.post("/rollback")' in f2_router:
+              raise SystemExit('F2.1B não pode expor /rollback')
+          if 'ACADEMIC_MUTATION_IMPLEMENTED = False' not in f2:
+              raise SystemExit('Gate acadêmico global deixou de estar fail-closed')
+          if 'APIRouter' in grade_service:
+              raise SystemExit('Primitivo F2.1B não pode expor router próprio')
+          if 'source_grade_fingerprint' not in f1 or 'destination_grade_fingerprint' not in f1:
+              raise SystemExit('Manifesto F1 não contém fingerprints F2.1B')
+          if 'rectified_fields' not in grade_router:
+              raise SystemExit('Write normal de grades não reconhece rectified_fields')
+
+          print('F2.1B fail-closed structural guard: PASS')
+          PY
