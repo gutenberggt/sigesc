@@ -429,15 +429,27 @@ async def revalidate_rectification_preconditions(
     now: datetime | None = None,
     secret: str | None = None,
 ) -> dict[str, Any]:
-    current = await build_rectification_dry_run(
-        db,
-        student_id=str(claims["student_id"]),
-        destination_class_id=str(claims["destination_class_id"]),
-        tenant_id=tenant_id,
-        actor=dict(actor),
-        now=_now(now),
-        secret=secret,
-    )
+    try:
+        current = await build_rectification_dry_run(
+            db,
+            student_id=str(claims["student_id"]),
+            destination_class_id=str(claims["destination_class_id"]),
+            tenant_id=tenant_id,
+            actor=dict(actor),
+            now=_now(now),
+            secret=secret,
+        )
+    except RectificationDryRunError as exc:
+        raise RectificationExecutionError(
+            "RECTIFICATION_PRECONDITION_CHANGED",
+            "A matrícula/turma de origem mudou desde o dry-run. Gere uma nova análise.",
+            status_code=exc.status_code,
+            detail={
+                "source_error_code": exc.code,
+                "source_error_message": exc.message,
+                "source_error_detail": exc.detail,
+            },
+        ) from exc
 
     explicit_contract = {
         "source_enrollment_id": current.get("enrollment", {}).get("id"),

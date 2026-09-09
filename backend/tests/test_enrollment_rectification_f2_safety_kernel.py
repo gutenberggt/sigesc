@@ -257,6 +257,34 @@ async def test_toctou_detects_grade_or_attendance_change(db, mutation):
 
 
 @pytest.mark.asyncio
+async def test_toctou_detects_enrollment_change_after_dry_run(db):
+    """A matrícula de origem pode mudar (ex.: ficar inativa) entre o dry-run e a
+    preparação. `build_rectification_dry_run` recusa com um `RectificationDryRunError`
+    de domínio (`PRIMARY_ENROLLMENT_CARDINALITY_INVALID`); a revalidação F2.0 deve
+    converter isso em `RECTIFICATION_PRECONDITION_CHANGED` sem vazar o contrato F1
+    cru, preservando o detalhe original para diagnóstico.
+    """
+    await seed_base(db)
+    dry = await make_dry_run(db)
+    claims = verify_rectification_dry_run_token(
+        dry["dry_run_token"], tenant_id=TENANT, now=BASE_NOW, secret=SECRET
+    )
+    await db.enrollments.update_one({"id": "ENR-F2"}, {"$set": {"status": "transferred"}})
+
+    with pytest.raises(RectificationExecutionError) as exc:
+        await revalidate_rectification_preconditions(
+            db,
+            claims=claims,
+            tenant_id=TENANT,
+            actor=ACTOR,
+            now=BASE_NOW,
+            secret=SECRET,
+        )
+    assert exc.value.code == "RECTIFICATION_PRECONDITION_CHANGED"
+    assert exc.value.detail["source_error_code"] == "PRIMARY_ENROLLMENT_CARDINALITY_INVALID"
+
+
+@pytest.mark.asyncio
 async def test_prepare_creates_only_control_plane_journal_and_is_idempotent(db):
     await seed_base(db)
     dry = await make_dry_run(db)
@@ -393,7 +421,8 @@ def test_lock_scope_and_state_machine_are_explicit():
 
 def test_structural_guard_has_no_academic_writer_and_no_execute_route():
     service = Path("services/enrollment_rectification_execution.py").read_text(encoding="utf-8")
-    router = Path("routers/enrollment_rectification.py").read_text(encoding="utf-8")
+    f1_router = Path("routers/enrollment_rectification.py").read_text(encoding="utf-8")
+    f2_router = Path("routers/enrollment_rectification_execution.py").read_text(encoding="utf-8")
 
     academic_collections = (
         "students",
@@ -421,5 +450,15 @@ def test_structural_guard_has_no_academic_writer_and_no_execute_route():
     ]
     found = [token for token in forbidden if token in service]
     assert not found, f"F2.0 contém writer acadêmico proibido: {found}"
-    assert '@router.post("/prepare-execution")' in router
-    assert '@router.post("/execute")' not in router
+
+    # F1 permanece estritamente read-only: só expõe /dry-run.
+    assert '@router.post("/dry-run")' in f1_router
+    assert '@router.post("/prepare-execution")' not in f1_router
+    assert '@router.post("/execute")' not in f1_router
+    assert '@router.post("/rollback")' not in f1_router
+
+    # F2 é um router irmão dedicado: só expõe /prepare-execution.
+    assert '@router.post("/prepare-execution")' in f2_router
+    assert '@router.post("/dry-run")' not in f2_router
+    assert '@router.post("/execute")' not in f2_router
+    assert '@router.post("/rollback")' not in f2_router

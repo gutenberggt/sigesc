@@ -1,9 +1,8 @@
-"""Router da Retificação de Matrícula/Turma.
+"""Router F1.0 da Retificação de Matrícula/Turma.
 
-F1.0 mantém `POST /dry-run` estritamente read-only.
-F2.0 acrescenta `POST /prepare-execution`, que valida token/TOCTOU,
-reautentica o ator e grava somente o journal PREPARED. Não existe `/execute`
-e nenhuma mutação acadêmica é habilitada nesta fase.
+Este router é estritamente READ-ONLY: expõe somente `POST /dry-run`. A F2.0
+(preparação segura de execução) vive em `routers/enrollment_rectification_execution.py`,
+como router irmão, para preservar o contrato read-only deste módulo intacto.
 """
 from __future__ import annotations
 
@@ -15,10 +14,6 @@ from services.enrollment_rectification import (
     RectificationDryRunError,
     build_rectification_dry_run,
 )
-from services.enrollment_rectification_execution import (
-    RectificationExecutionError,
-    prepare_rectification_execution,
-)
 from tenant_scope import resolve_operational_tenant_context
 
 
@@ -28,13 +23,6 @@ AUTHORIZED_ROLES = frozenset({"super_admin", "admin", "gerente"})
 class RectificationDryRunRequest(BaseModel):
     student_id: str = Field(..., min_length=1)
     destination_class_id: str = Field(..., min_length=1)
-
-
-class RectificationPrepareExecutionRequest(BaseModel):
-    dry_run_token: str = Field(..., min_length=20)
-    password: str = Field(..., min_length=1)
-    justification: str = Field(..., min_length=1)
-    confirmation: str = Field(..., min_length=1)
 
 
 def _user_roles(user: dict) -> set[str]:
@@ -78,30 +66,5 @@ def setup_router(db):
             )
         except RectificationDryRunError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
-
-    @router.post("/prepare-execution")
-    async def prepare_execution(payload: RectificationPrepareExecutionRequest, request: Request):
-        """Fecha gates F2.0 e persiste somente journal PREPARED.
-
-        `Idempotency-Key` é obrigatório. A senha é usada apenas para
-        reautenticação e nunca é persistida no journal.
-        """
-        user, tenant = await require_rectification_context(db, request)
-        idempotency_key = request.headers.get("Idempotency-Key", "")
-        try:
-            return await prepare_rectification_execution(
-                db,
-                dry_run_token=payload.dry_run_token,
-                tenant_id=tenant.id,
-                actor=user,
-                password=payload.password,
-                confirmation=payload.confirmation,
-                justification=payload.justification,
-                idempotency_key=idempotency_key,
-            )
-        except (RectificationExecutionError, RectificationDryRunError) as exc:
-            status_code = getattr(exc, "status_code", 409)
-            detail = exc.as_detail() if hasattr(exc, "as_detail") else {"message": str(exc)}
-            raise HTTPException(status_code=status_code, detail=detail) from exc
 
     return router

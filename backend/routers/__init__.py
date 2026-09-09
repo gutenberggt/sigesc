@@ -16,6 +16,9 @@ from .classes import router as classes_router, setup_router as setup_classes_rou
 from .guardians import router as guardians_router, setup_router as setup_guardians_router
 from .enrollments import router as enrollments_router, setup_router as _setup_enrollments_router
 from .enrollment_rectification import setup_router as setup_enrollment_rectification_router
+from .enrollment_rectification_execution import (
+    setup_router as setup_enrollment_rectification_execution_router,
+)
 from .students import router as students_router, setup_students_router as _setup_students_router
 from .student_enrollment_identity_guard import install_student_enrollment_identity_guard
 from .student_enrollment_identity_continuity import install_student_enrollment_identity_continuity
@@ -192,11 +195,12 @@ def setup_auth_router(db, audit_service):
 
 
 def setup_enrollments_router(db, audit_service):
-    """Configura Matrículas + Retificação F1.0 como routers irmãos."""
+    """Configura Matrículas + Retificação F1.0/F2.0 como routers irmãos."""
     configured = _setup_enrollments_router(db, audit_service)
     aggregate = type(configured)()
     aggregate.include_router(configured)
     aggregate.include_router(setup_enrollment_rectification_router(db))
+    aggregate.include_router(setup_enrollment_rectification_execution_router(db))
     return aggregate
 
 
