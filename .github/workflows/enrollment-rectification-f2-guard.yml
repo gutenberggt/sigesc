@@ -6,6 +6,7 @@ on:
       - 'backend/services/enrollment_rectification.py'
       - 'backend/services/enrollment_rectification_execution.py'
       - 'backend/routers/enrollment_rectification.py'
+      - 'backend/routers/enrollment_rectification_execution.py'
       - 'backend/routers/__init__.py'
       - 'backend/tests/test_enrollment_rectification_f1_dry_run.py'
       - 'backend/tests/test_enrollment_rectification_f1_route_composition.py'
@@ -46,7 +47,8 @@ jobs:
           python -m py_compile \
             services/enrollment_rectification.py \
             services/enrollment_rectification_execution.py \
-            routers/enrollment_rectification.py
+            routers/enrollment_rectification.py \
+            routers/enrollment_rectification_execution.py
 
       - name: Run F1 + F2 regression
         working-directory: backend
@@ -70,7 +72,8 @@ jobs:
           from pathlib import Path
 
           src = Path('services/enrollment_rectification_execution.py').read_text(encoding='utf-8')
-          router = Path('routers/enrollment_rectification.py').read_text(encoding='utf-8')
+          f1_router = Path('routers/enrollment_rectification.py').read_text(encoding='utf-8')
+          f2_router = Path('routers/enrollment_rectification_execution.py').read_text(encoding='utf-8')
           academic = (
               'students', 'enrollments', 'attendance', 'grades',
               'student_history', 'attendance_rectifications',
@@ -88,9 +91,21 @@ jobs:
           ]
           if found:
               raise SystemExit(f'F2.0 contém write acadêmico proibido: {found}')
-          if '@router.post("/execute")' in router:
-              raise SystemExit('F2.0 não pode expor /execute')
-          if '@router.post("/prepare-execution")' not in router:
+
+          for route_src in (f1_router, f2_router):
+              if '@router.post("/execute")' in route_src:
+                  raise SystemExit('F2.0 não pode expor /execute')
+              if '@router.post("/rollback")' in route_src:
+                  raise SystemExit('F2.0 não pode expor /rollback')
+
+          if '@router.post("/prepare-execution")' in f1_router:
+              raise SystemExit('F1.0 não pode expor /prepare-execution')
+          if '@router.post("/dry-run")' not in f1_router:
+              raise SystemExit('F1.0 perdeu /dry-run')
+          if '@router.post("/prepare-execution")' not in f2_router:
               raise SystemExit('F2.0 perdeu /prepare-execution')
+          if '@router.post("/dry-run")' in f2_router:
+              raise SystemExit('F2.0 não pode duplicar /dry-run')
+
           print('F2.0 academic writer guard: PASS')
           PY
