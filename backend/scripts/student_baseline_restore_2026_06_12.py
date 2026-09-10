@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Restauração cirúrgica de matrícula 2026 para um estudante identificado por fingerprint.
+"""Restauração cirúrgica de matrícula 2026 para um estudante por fingerprint.
 
 Contrato do caso:
 - baseline válido: 12/06/2026, Monsenhor Augusto Dias de Brito, 7º ANO D;
 - movimentos posteriores ao baseline deixam a trilha operacional;
 - vínculos posteriores em Paulette Camille Margaret Planchon, 7º ANO A, deixam
   a coleção canônica de matrículas;
-- a matrícula original do 7º ANO D volta a active e students é reconstruído como
-  projeção dessa matrícula;
-- grades, attendance e student_dependencies são somente leitura e bloqueiam apply
-  se houver qualquer registro no vínculo a ignorar.
+- a matrícula original do 7º ANO D volta a ``active``;
+- ``students`` é reconstruído exclusivamente pelo serviço canônico de matrícula;
+- grades, attendance e student_dependencies são somente leitura e bloqueiam
+  ``apply`` se houver qualquer registro no vínculo a ignorar.
 
 Nenhuma PII do estudante é codificada ou emitida. A identidade é resolvida apenas
 no host de produção por SHA-256 salted do nome normalizado, mais a forma exata do
@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient
+from services.enrollment_service import rebuild_student_home_projection
 
 YEAR = 2026
 TARGET_SCHOOL = "E M E I E F Monsenhor Augusto Dias de Brito"
@@ -38,15 +39,6 @@ BASELINE_DATE = "2026-06-12"
 EXPECTED_POST_HISTORY = 8
 OPERATION_ID = "student-baseline-restore-2026-06-12-v1"
 SPECIAL_PROGRAMS = {"aee", "recomposicao_aprendizagem", "reforco_escolar"}
-PROJECTION_FIELDS = (
-    "school_id",
-    "class_id",
-    "status",
-    "enrollment_number",
-    "enrollment_date",
-    "student_series",
-    "mantenedora_id",
-)
 
 
 class RestoreError(RuntimeError):
@@ -63,9 +55,9 @@ def _norm(value: Any) -> str:
     if value is None:
         return ""
     text = "".join(
-        c
-        for c in unicodedata.normalize("NFKD", str(value))
-        if not unicodedata.combining(c)
+        char
+        for char in unicodedata.normalize("NFKD", str(value))
+        if not unicodedata.combining(char)
     )
     return " ".join(text.casefold().strip().split())
 
@@ -74,50 +66,43 @@ def _name_hash(salt: str, value: Any) -> str:
     return hashlib.sha256(f"{salt}|name|{_norm(value)}".encode()).hexdigest()
 
 
-def _year_match(value: Any) -> bool:
-    return str(value or "") == str(YEAR)
-
-
 def _date_key(value: Any) -> str:
     if isinstance(value, datetime):
         return value.date().isoformat()
     return str(value or "")[:10]
 
 
-def _dt(value: Any) -> datetime | None:
+def _as_utc(value: Any) -> datetime | None:
     if isinstance(value, datetime):
-        result = value
+        parsed = value
     else:
         raw = str(value or "").strip()
         if not raw:
             return None
         try:
-            result = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
         except ValueError:
             return None
-    if result.tzinfo is None:
-        result = result.replace(tzinfo=timezone.utc)
-    return result.astimezone(timezone.utc)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _active(value: Any) -> bool:
     return _norm(value) in {"active", "ativo"}
 
 
-def _program(value: Any) -> str:
-    return _norm(value)
-
-
-async def _named_docs(collection, name: str, *, query: dict | None = None) -> list[dict]:
+async def _named_docs(collection, name: str, query: dict | None = None) -> list[dict]:
     docs = await collection.find(query or {}, {"_id": 0}).to_list(None)
     return [doc for doc in docs if _norm(doc.get("name")) == _norm(name)]
 
 
-async def _resolve_case(db, salt: str, wanted_hash: str) -> dict[str, Any]:
+async def _resolve_case(db, salt: str, wanted_hash: str) -> dict[str, str]:
     target_schools = await _named_docs(db.schools, TARGET_SCHOOL)
     ignored_schools = await _named_docs(db.schools, IGNORED_SCHOOL)
     if len(target_schools) != 1 or len(ignored_schools) != 1:
         raise RestoreError("SCHOOL_CARDINALITY")
+
     target_school = target_schools[0]
     ignored_school = ignored_schools[0]
     tenant = str(target_school.get("mantenedora_id") or "")
@@ -128,25 +113,25 @@ async def _resolve_case(db, salt: str, wanted_hash: str) -> dict[str, Any]:
     target_classes = await _named_docs(
         db.classes,
         TARGET_CLASS,
-        query={"school_id": target_school.get("id"), "academic_year": year_query},
+        {"school_id": target_school.get("id"), "academic_year": year_query},
     )
     ignored_classes = await _named_docs(
         db.classes,
         IGNORED_CLASS,
-        query={"school_id": ignored_school.get("id"), "academic_year": year_query},
+        {"school_id": ignored_school.get("id"), "academic_year": year_query},
     )
     if len(target_classes) != 1 or len(ignored_classes) != 1:
         raise RestoreError("CLASS_CARDINALITY")
+
     target_class = target_classes[0]
     ignored_class = ignored_classes[0]
     for class_doc in (target_class, ignored_class):
-        class_tenant = str(class_doc.get("mantenedora_id") or tenant)
-        if class_tenant != tenant:
+        if str(class_doc.get("mantenedora_id") or tenant) != tenant:
             raise RestoreError("CLASS_TENANT_MISMATCH")
-        if _program(class_doc.get("atendimento_programa")) in SPECIAL_PROGRAMS:
+        if _norm(class_doc.get("atendimento_programa")) in SPECIAL_PROGRAMS:
             raise RestoreError("REGULAR_CLASS_REQUIRED")
 
-    candidates = []
+    candidates: list[str] = []
     cursor = db.students.find(
         {"mantenedora_id": tenant}, {"_id": 0, "id": 1, "full_name": 1}
     )
@@ -176,8 +161,8 @@ async def _attendance_count(db, student_id: str, class_id: str) -> int:
                     "$size": {
                         "$filter": {
                             "input": {"$ifNull": ["$records", []]},
-                            "as": "r",
-                            "cond": {"$eq": ["$$r.student_id", student_id]},
+                            "as": "record",
+                            "cond": {"$eq": ["$$record.student_id", student_id]},
                         }
                     }
                 }
@@ -189,9 +174,9 @@ async def _attendance_count(db, student_id: str, class_id: str) -> int:
     return int(rows[0].get("total", 0)) if rows else 0
 
 
-async def _inspect(db, case: dict[str, Any]) -> dict[str, Any]:
-    tenant = case["tenant"]
+async def _inspect(db, case: dict[str, str]) -> dict[str, Any]:
     sid = case["student_id"]
+    tenant = case["tenant"]
     target_school_id = case["target_school_id"]
     target_class_id = case["target_class_id"]
     ignored_school_id = case["ignored_school_id"]
@@ -207,72 +192,71 @@ async def _inspect(db, case: dict[str, Any]) -> dict[str, Any]:
         {"student_id": sid, "action_type": {"$exists": True}}
     ).to_list(None)
     baseline = [
-        h
-        for h in histories
-        if _date_key(h.get("action_date")) == BASELINE_DATE
-        and str(h.get("school_id") or "") == target_school_id
-        and str(h.get("class_id") or "") == target_class_id
-        and _active(h.get("new_status"))
+        item
+        for item in histories
+        if _date_key(item.get("action_date")) == BASELINE_DATE
+        and str(item.get("school_id") or "") == target_school_id
+        and str(item.get("class_id") or "") == target_class_id
+        and _active(item.get("new_status"))
     ]
     if len(baseline) != 1:
         conflicts.append("BASELINE_EVENT_CARDINALITY")
-        baseline_dt = None
+        baseline_at = None
     else:
-        baseline_dt = _dt(baseline[0].get("action_date"))
-        if baseline_dt is None:
+        baseline_at = _as_utc(baseline[0].get("action_date"))
+        if baseline_at is None:
             conflicts.append("BASELINE_DATE_INVALID")
 
-    invalid_dates = [h for h in histories if h.get("action_date") and _dt(h.get("action_date")) is None]
-    if invalid_dates:
+    if any(item.get("action_date") and _as_utc(item.get("action_date")) is None for item in histories):
         conflicts.append("HISTORY_INVALID_DATE")
+
     post = [
-        h
-        for h in histories
-        if baseline_dt is not None
-        and _dt(h.get("action_date")) is not None
-        and _dt(h.get("action_date")) > baseline_dt
+        item
+        for item in histories
+        if baseline_at is not None
+        and _as_utc(item.get("action_date")) is not None
+        and _as_utc(item.get("action_date")) > baseline_at
     ]
     post_target = [
-        h
-        for h in post
-        if str(h.get("school_id") or "") == target_school_id
-        and str(h.get("class_id") or "") == target_class_id
+        item
+        for item in post
+        if str(item.get("school_id") or "") == target_school_id
+        and str(item.get("class_id") or "") == target_class_id
     ]
     post_ignored = [
-        h
-        for h in post
-        if str(h.get("school_id") or "") == ignored_school_id
-        and str(h.get("class_id") or "") == ignored_class_id
+        item
+        for item in post
+        if str(item.get("school_id") or "") == ignored_school_id
+        and str(item.get("class_id") or "") == ignored_class_id
     ]
-    post_na = [h for h in post if not h.get("school_id") and not h.get("class_id")]
+    post_na = [item for item in post if not item.get("school_id") and not item.get("class_id")]
 
     enrollments = await db.enrollments.find(
         {"student_id": sid, "academic_year": {"$in": [YEAR, str(YEAR)]}}
     ).to_list(None)
     target_enrollments = [
-        e
-        for e in enrollments
-        if str(e.get("school_id") or "") == target_school_id
-        and str(e.get("class_id") or "") == target_class_id
+        item
+        for item in enrollments
+        if str(item.get("school_id") or "") == target_school_id
+        and str(item.get("class_id") or "") == target_class_id
     ]
     ignored_enrollments = [
-        e
-        for e in enrollments
-        if str(e.get("school_id") or "") == ignored_school_id
-        and str(e.get("class_id") or "") == ignored_class_id
+        item
+        for item in enrollments
+        if str(item.get("school_id") or "") == ignored_school_id
+        and str(item.get("class_id") or "") == ignored_class_id
     ]
     if len(target_enrollments) != 1:
         conflicts.append("TARGET_ENROLLMENT_CARDINALITY")
-        target_enrollment = {}
+        target_enrollment: dict[str, Any] = {}
     else:
         target_enrollment = target_enrollments[0]
         if not str(target_enrollment.get("enrollment_number") or "").strip():
             conflicts.append("TARGET_ENROLLMENT_NUMBER_MISSING")
-        target_tenant = str(target_enrollment.get("mantenedora_id") or tenant)
-        if target_tenant != tenant:
+        if str(target_enrollment.get("mantenedora_id") or tenant) != tenant:
             conflicts.append("TARGET_ENROLLMENT_TENANT_MISMATCH")
 
-    class_ids = list({str(e.get("class_id")) for e in enrollments if e.get("class_id")})
+    class_ids = list({str(item.get("class_id")) for item in enrollments if item.get("class_id")})
     classes = (
         await db.classes.find(
             {"id": {"$in": class_ids}}, {"_id": 0, "id": 1, "atendimento_programa": 1}
@@ -280,21 +264,28 @@ async def _inspect(db, case: dict[str, Any]) -> dict[str, Any]:
         if class_ids
         else []
     )
-    class_map = {str(c.get("id")): c for c in classes}
+    class_map = {str(item.get("id")): item for item in classes}
     regular = [
-        e
-        for e in enrollments
-        if _program((class_map.get(str(e.get("class_id"))) or {}).get("atendimento_programa"))
+        item
+        for item in enrollments
+        if _norm((class_map.get(str(item.get("class_id"))) or {}).get("atendimento_programa"))
         not in SPECIAL_PROGRAMS
     ]
     other_regular = [
-        e
-        for e in regular
-        if str(e.get("class_id") or "") not in {target_class_id, ignored_class_id}
+        item
+        for item in regular
+        if str(item.get("class_id") or "") not in {target_class_id, ignored_class_id}
     ]
-    active_regular = [e for e in regular if _norm(e.get("status")) == "active"]
+    active_regular = [item for item in regular if _norm(item.get("status")) == "active"]
+    active_ignored = [
+        item
+        for item in ignored_enrollments
+        if _norm(item.get("status")) == "active"
+    ]
     if other_regular:
         conflicts.append("OTHER_REGULAR_ENROLLMENT")
+    if active_ignored:
+        conflicts.append("IGNORED_ENROLLMENT_STILL_ACTIVE")
 
     ignored_grades = await db.grades.count_documents(
         {"student_id": sid, "class_id": ignored_class_id}
@@ -317,8 +308,10 @@ async def _inspect(db, case: dict[str, Any]) -> dict[str, Any]:
         and _active(student.get("status"))
         and str(student.get("school_id") or "") == target_school_id
         and str(student.get("class_id") or "") == target_class_id
-        and len(ignored_enrollments) == 0
-        and len(post) == 0
+        and str(student.get("enrollment_number") or "")
+        == str(target_enrollment.get("enrollment_number") or "")
+        and not ignored_enrollments
+        and not post
     )
 
     if not currently_restored and len(baseline) == 1:
@@ -337,15 +330,15 @@ async def _inspect(db, case: dict[str, Any]) -> dict[str, Any]:
             "2026-09-09": 1,
             "2026-09-10": 2,
         }
-        for date_key, count in expected_dates.items():
-            if sum(1 for h in post if _date_key(h.get("action_date")) == date_key) != count:
-                conflicts.append("POST_DATE_SHAPE_" + date_key)
-        if any(_date_key(h.get("action_date")) not in expected_dates for h in post):
+        for date_value, count in expected_dates.items():
+            actual = sum(1 for item in post if _date_key(item.get("action_date")) == date_value)
+            if actual != count:
+                conflicts.append("POST_DATE_SHAPE_" + date_value)
+        if any(_date_key(item.get("action_date")) not in expected_dates for item in post):
             conflicts.append("POST_UNEXPECTED_DATE")
 
     return {
         "student": student,
-        "histories": histories,
         "baseline": baseline,
         "post": post,
         "post_target": post_target,
@@ -384,43 +377,43 @@ def _emit_plan(state: dict[str, Any]) -> None:
         emit("CONFLICT_TYPES", ",".join(state["conflicts"]))
 
 
-async def _restore_projection(db, sid: str, snapshot: dict[str, Any]) -> None:
-    present = set(snapshot.get("present") or [])
-    values = dict(snapshot.get("values") or {})
-    set_doc = {key: values.get(key) for key in PROJECTION_FIELDS if key in present}
-    unset_doc = {key: "" for key in PROJECTION_FIELDS if key not in present}
-    update: dict[str, Any] = {}
-    if set_doc:
-        update["$set"] = set_doc
-    if unset_doc:
-        update["$unset"] = unset_doc
-    if update:
-        await db.students.update_one({"id": sid}, update)
-
-
 async def _compensate(db, archive: dict[str, Any], audit_id: str | None) -> bool:
+    """Repõe snapshots sem criar/alterar identidade de matrícula.
+
+    Os documentos de enrollment são replay byte-semântico do snapshot arquivado;
+    depois a projeção é novamente derivada pelo serviço canônico.
+    """
     try:
         target = archive["target_enrollment_before"]
         await db.enrollments.replace_one({"_id": target["_id"]}, target, upsert=True)
-        for doc in archive.get("ignored_enrollments_before") or []:
-            await db.enrollments.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-        for doc in archive.get("removed_history_before") or []:
-            await db.student_history.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-        await _restore_projection(
-            db, archive["student_id"], archive["student_projection_before"]
+        for item in archive.get("ignored_enrollments_before") or []:
+            await db.enrollments.replace_one({"_id": item["_id"]}, item, upsert=True)
+        for item in archive.get("removed_history_before") or []:
+            await db.student_history.replace_one({"_id": item["_id"]}, item, upsert=True)
+        previous_status = str(archive.get("student_status_before") or "inactive")
+        await rebuild_student_home_projection(
+            db,
+            archive["student_id"],
+            academic_year=YEAR,
+            no_primary_status=previous_status,
         )
         if audit_id:
             await db.audit_logs.delete_one({"id": audit_id})
         await db.student_recovery_archives.update_one(
             {"_id": archive["_id"]},
-            {"$set": {"state": "COMPENSATED", "compensated_at": datetime.now(timezone.utc).isoformat()}},
+            {
+                "$set": {
+                    "state": "COMPENSATED",
+                    "compensated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
         )
         return True
     except Exception:
         return False
 
 
-async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -> None:
+async def _apply(db, case: dict[str, str], state: dict[str, Any], run_id: str) -> None:
     if state["currently_restored"] and not state["conflicts"]:
         emit("MODE", "APPLY")
         emit("APPLY_NOOP", "ALREADY_RESTORED")
@@ -435,7 +428,6 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
     tenant = case["tenant"]
     student = state["student"]
     target = state["target_enrollment"]
-    present = [key for key in PROJECTION_FIELDS if key in student]
     archive = {
         "_id": OPERATION_ID,
         "operation": "restore_student_to_baseline",
@@ -446,9 +438,13 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
         "state": "PREPARED",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "baseline_history_id": state["baseline"][0].get("_id"),
+        "student_status_before": student.get("status"),
         "student_projection_before": {
-            "present": present,
-            "values": {key: student.get(key) for key in PROJECTION_FIELDS},
+            "school_id": student.get("school_id"),
+            "class_id": student.get("class_id"),
+            "status": student.get("status"),
+            "enrollment_number": student.get("enrollment_number"),
+            "mantenedora_id": student.get("mantenedora_id"),
         },
         "target_enrollment_before": target,
         "ignored_enrollments_before": state["ignored_enrollments"],
@@ -463,36 +459,19 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
 
     audit_id: str | None = None
     try:
-        history_ids = [doc["_id"] for doc in state["post"]]
-        enrollment_ids = [doc["_id"] for doc in state["ignored_enrollments"]]
-        removed_history = 0
-        removed_enrollments = 0
+        history_ids = [item["_id"] for item in state["post"]]
+        enrollment_ids = [item["_id"] for item in state["ignored_enrollments"]]
+
         if history_ids:
             result = await db.student_history.delete_many({"_id": {"$in": history_ids}})
-            removed_history = int(result.deleted_count)
+            if result.deleted_count != len(history_ids):
+                raise RestoreError("HISTORY_DELETE_MISMATCH")
         if enrollment_ids:
             result = await db.enrollments.delete_many({"_id": {"$in": enrollment_ids}})
-            removed_enrollments = int(result.deleted_count)
-        if removed_history != len(history_ids):
-            raise RestoreError("HISTORY_DELETE_MISMATCH")
-        if removed_enrollments != len(enrollment_ids):
-            raise RestoreError("IGNORED_ENROLLMENT_DELETE_MISMATCH")
+            if result.deleted_count != len(enrollment_ids):
+                raise RestoreError("IGNORED_ENROLLMENT_DELETE_MISMATCH")
 
         now = datetime.now(timezone.utc).isoformat()
-        unset_exit = {
-            key: ""
-            for key in (
-                "transfer_date",
-                "transferred_at",
-                "cancelled_at",
-                "cancellation_date",
-                "cancel_reason",
-                "end_date",
-                "exit_date",
-                "destination_school_id",
-                "destination_class_id",
-            )
-        }
         result = await db.enrollments.update_one(
             {
                 "_id": target["_id"],
@@ -501,29 +480,37 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
                 "class_id": case["target_class_id"],
             },
             {
-                "$set": {"status": "active", "mantenedora_id": tenant, "updated_at": now},
-                "$unset": unset_exit,
+                "$set": {
+                    "status": "active",
+                    "mantenedora_id": tenant,
+                    "updated_at": now,
+                },
+                "$unset": {
+                    "transfer_date": "",
+                    "transferred_at": "",
+                    "cancelled_at": "",
+                    "cancellation_date": "",
+                    "cancel_reason": "",
+                    "end_date": "",
+                    "exit_date": "",
+                    "destination_school_id": "",
+                    "destination_class_id": "",
+                },
             },
         )
         if result.matched_count != 1:
             raise RestoreError("TARGET_ENROLLMENT_CONCURRENT_CHANGE")
 
-        projection = {
-            "school_id": case["target_school_id"],
-            "class_id": case["target_class_id"],
-            "status": "active",
-            "enrollment_number": target.get("enrollment_number"),
-            "mantenedora_id": tenant,
-        }
-        if target.get("enrollment_date"):
-            projection["enrollment_date"] = target.get("enrollment_date")
-        if target.get("student_series"):
-            projection["student_series"] = target.get("student_series")
-        result = await db.students.update_one(
-            {"id": sid, "mantenedora_id": tenant}, {"$set": projection}
-        )
-        if result.matched_count != 1:
-            raise RestoreError("STUDENT_CONCURRENT_CHANGE")
+        primary = await rebuild_student_home_projection(db, sid, academic_year=YEAR)
+        if not primary:
+            raise RestoreError("CANONICAL_PROJECTION_NO_PRIMARY")
+        if (
+            str(primary.get("school_id") or "") != case["target_school_id"]
+            or str(primary.get("class_id") or "") != case["target_class_id"]
+            or str(primary.get("enrollment_number") or "")
+            != str(target.get("enrollment_number") or "")
+        ):
+            raise RestoreError("CANONICAL_PROJECTION_WRONG_PRIMARY")
 
         audit_id = str(uuid.uuid4())
         await db.audit_logs.insert_one(
@@ -536,12 +523,7 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
                 "user_id": "system:student-baseline-restore-2026",
                 "school_id": case["target_school_id"],
                 "academic_year": YEAR,
-                "old_value": {
-                    "school_id": student.get("school_id"),
-                    "class_id": student.get("class_id"),
-                    "status": student.get("status"),
-                    "enrollment_number": student.get("enrollment_number"),
-                },
+                "old_value": archive["student_projection_before"],
                 "new_value": {
                     "school_id": case["target_school_id"],
                     "class_id": case["target_class_id"],
@@ -555,8 +537,9 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
                 "extra_data": {
                     "operation_id": OPERATION_ID,
                     "run_id": run_id,
-                    "history_removed": removed_history,
-                    "ignored_enrollments_removed": removed_enrollments,
+                    "history_removed": len(history_ids),
+                    "ignored_enrollments_removed": len(enrollment_ids),
+                    "projection_writer": "rebuild_student_home_projection",
                     "academic_records_changed": False,
                 },
                 "timestamp_utc": now,
@@ -567,12 +550,10 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
         verify = await _inspect(db, case)
         if not verify["currently_restored"] or verify["conflicts"]:
             raise RestoreError("POST_VERIFY_FAILED")
-        if any(
-            (
-                verify["ignored_grades"] != state["ignored_grades"],
-                verify["ignored_attendance"] != state["ignored_attendance"],
-                verify["ignored_dependencies"] != state["ignored_dependencies"],
-            )
+        if (
+            verify["ignored_grades"] != state["ignored_grades"]
+            or verify["ignored_attendance"] != state["ignored_attendance"]
+            or verify["ignored_dependencies"] != state["ignored_dependencies"]
         ):
             raise RestoreError("ACADEMIC_DATA_CHANGED")
 
@@ -586,8 +567,8 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
                 }
             },
         )
-        emit("HISTORY_REMOVED", removed_history)
-        emit("IGNORED_ENROLLMENTS_REMOVED", removed_enrollments)
+        emit("HISTORY_REMOVED", len(history_ids))
+        emit("IGNORED_ENROLLMENTS_REMOVED", len(enrollment_ids))
         emit("TARGET_ENROLLMENT_REACTIVATED", 1)
         emit("STUDENT_PROJECTION_RESTORED", 1)
         emit("POST_HISTORY_AFTER_BASELINE", len(verify["post"]))
@@ -604,10 +585,12 @@ async def _apply(db, case: dict[str, Any], state: dict[str, Any], run_id: str) -
         emit("ERROR", code)
         emit("COMPENSATION", "SUCCESS" if compensated else "FAILED")
         print(
-            "PRODUCTION_DATABASE_TOUCHED=COMPENSATED" if compensated else "PRODUCTION_DATABASE_TOUCHED=POSSIBLE_PARTIAL_APPLY",
+            "PRODUCTION_DATABASE_TOUCHED=COMPENSATED"
+            if compensated
+            else "PRODUCTION_DATABASE_TOUCHED=POSSIBLE_PARTIAL_APPLY",
             flush=True,
         )
-        raise RestoreError(code)
+        raise RestoreError(code) from exc
 
 
 async def _run(mode: str, run_id: str, salt: str, wanted_hash: str) -> int:
@@ -617,23 +600,33 @@ async def _run(mode: str, run_id: str, salt: str, wanted_hash: str) -> int:
         emit("ERROR", "DATABASE_ENV_MISSING")
         print("PRODUCTION_DATABASE_TOUCHED=NO", flush=True)
         return 3
+
     client = AsyncIOMotorClient(mongo_url)
     try:
-        case = await _resolve_case(client[db_name], salt, wanted_hash)
-        state = await _inspect(client[db_name], case)
+        db = client[db_name]
+        case = await _resolve_case(db, salt, wanted_hash)
+        state = await _inspect(db, case)
         _emit_plan(state)
         if mode == "preview":
             emit("MODE", "PREVIEW")
             emit("READY_FOR_APPLY", "YES" if not state["conflicts"] else "NO")
             print("PRODUCTION_DATABASE_TOUCHED=NO", flush=True)
             return 0
-        await _apply(client[db_name], case, state, run_id)
+        await _apply(db, case, state, run_id)
         return 0
     except RestoreError as exc:
         emit("ERROR", exc.code)
-        if mode == "preview" or exc.code not in {"UNEXPECTED_APPLY_FAILURE"}:
-            if exc.code not in {"POST_VERIFY_FAILED", "ACADEMIC_DATA_CHANGED", "HISTORY_DELETE_MISMATCH", "IGNORED_ENROLLMENT_DELETE_MISMATCH", "TARGET_ENROLLMENT_CONCURRENT_CHANGE", "STUDENT_CONCURRENT_CHANGE"}:
-                print("PRODUCTION_DATABASE_TOUCHED=NO", flush=True)
+        if mode == "preview" or exc.code in {
+            "SCHOOL_CARDINALITY",
+            "SCHOOL_TENANT_MISMATCH",
+            "CLASS_CARDINALITY",
+            "CLASS_TENANT_MISMATCH",
+            "REGULAR_CLASS_REQUIRED",
+            "STUDENT_IDENTITY_CARDINALITY",
+            "PRECONDITION_CONFLICT",
+            "ARCHIVE_ALREADY_EXISTS",
+        }:
+            print("PRODUCTION_DATABASE_TOUCHED=NO", flush=True)
         return 4
     finally:
         client.close()
