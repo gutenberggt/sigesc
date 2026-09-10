@@ -1,0 +1,226 @@
+name: "Audit — identidade da matrícula baseline 2026"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/audit-student-baseline-identity-2026.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Read-only identity audit
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 15
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+      IDENTITY_SALT: 88d3b6bbcb005a9a549ae06bef16a733
+      IDENTITY_HASH: c6799ee6ef6c8966456247bd44e77b9c267865e4da67e48821a8fd5829cf493e
+
+    steps:
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "IDENTITY_AUDIT_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]]
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]]
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/identity_audit_key
+          chmod 600 ~/.ssh/identity_audit_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve backend container
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+              -i "$HOME/.ssh/identity_audit_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          docker ps \
+            --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' \
+            --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend" && [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]]
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Inspect identity sources without mutation
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_command="timeout 600 docker exec -i -w /app -e PYTHONPATH=/app -e IDENTITY_SALT=${IDENTITY_SALT} -e IDENTITY_HASH=${IDENTITY_HASH} ${BACKEND_CONTAINER} python -"
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/identity_audit_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" <<'PY'
+          import asyncio
+          import hashlib
+          import os
+          import unicodedata
+
+          from db import db
+          from routers.student_enrollment_identity_continuity import (
+              EnrollmentIdentityContinuityConflict,
+              _first_logged_enrollment_number,
+              _regular_enrollments,
+              choose_identity_number,
+          )
+
+          TARGET_SCHOOL = "E M E I E F Monsenhor Augusto Dias de Brito"
+          TARGET_CLASS = "7º ANO D"
+          YEAR = 2026
+
+          def norm(value):
+              if value is None:
+                  return ""
+              text = "".join(
+                  c for c in unicodedata.normalize("NFKD", str(value))
+                  if not unicodedata.combining(c)
+              )
+              return " ".join(text.casefold().strip().split())
+
+          def name_hash(salt, value):
+              return hashlib.sha256(f"{salt}|name|{norm(value)}".encode()).hexdigest()
+
+          async def main():
+              salt = os.environ["IDENTITY_SALT"]
+              wanted = os.environ["IDENTITY_HASH"]
+
+              schools = await db.schools.find({}, {"_id": 0, "id": 1, "name": 1, "mantenedora_id": 1}).to_list(None)
+              target_schools = [s for s in schools if norm(s.get("name")) == norm(TARGET_SCHOOL)]
+              if len(target_schools) != 1:
+                  raise SystemExit("IDENTITY_AUDIT_SCHOOL_CARDINALITY")
+              school = target_schools[0]
+              tenant = str(school.get("mantenedora_id") or "")
+              if not tenant:
+                  raise SystemExit("IDENTITY_AUDIT_TENANT_MISSING")
+
+              classes = await db.classes.find(
+                  {"school_id": school.get("id"), "academic_year": {"$in": [YEAR, str(YEAR)]}},
+                  {"_id": 0, "id": 1, "name": 1},
+              ).to_list(None)
+              target_classes = [c for c in classes if norm(c.get("name")) == norm(TARGET_CLASS)]
+              if len(target_classes) != 1:
+                  raise SystemExit("IDENTITY_AUDIT_CLASS_CARDINALITY")
+              target_class_id = str(target_classes[0].get("id") or "")
+
+              matches = []
+              async for student in db.students.find(
+                  {"mantenedora_id": tenant},
+                  {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1},
+              ):
+                  if name_hash(salt, student.get("full_name")) == wanted:
+                      matches.append(student)
+              print(f"IDENTITY_AUDIT_STUDENT_MATCHES={len(matches)}")
+              if len(matches) != 1:
+                  raise SystemExit("IDENTITY_AUDIT_STUDENT_CARDINALITY")
+
+              student = matches[0]
+              sid = str(student.get("id") or "")
+              regular = await _regular_enrollments(db, sid)
+              target = [
+                  e for e in regular
+                  if str(e.get("school_id") or "") == str(school.get("id") or "")
+                  and str(e.get("class_id") or "") == target_class_id
+                  and str(e.get("academic_year") or "") == str(YEAR)
+              ]
+              print(f"IDENTITY_AUDIT_TARGET_ENROLLMENTS={len(target)}")
+              if len(target) != 1:
+                  raise SystemExit("IDENTITY_AUDIT_TARGET_ENROLLMENT_CARDINALITY")
+              target = target[0]
+
+              current_numbers = {str(e.get("enrollment_number") or "").strip() for e in regular}
+              previous_numbers = {str(e.get("previous_enrollment_number") or "").strip() for e in regular}
+              current_numbers.discard("")
+              previous_numbers.discard("")
+              all_numbers = current_numbers | previous_numbers
+              student_number = str(student.get("enrollment_number") or "").strip()
+              logged_number = await _first_logged_enrollment_number(db, sid)
+
+              print(f"IDENTITY_AUDIT_REGULAR_CURRENT_VARIANTS={len(current_numbers)}")
+              print(f"IDENTITY_AUDIT_REGULAR_PREVIOUS_VARIANTS={len(previous_numbers)}")
+              print(f"IDENTITY_AUDIT_REGULAR_ALL_VARIANTS={len(all_numbers)}")
+              print("IDENTITY_AUDIT_TARGET_CURRENT_PRESENT=" + ("YES" if str(target.get("enrollment_number") or "").strip() else "NO"))
+              print("IDENTITY_AUDIT_TARGET_PREVIOUS_PRESENT=" + ("YES" if str(target.get("previous_enrollment_number") or "").strip() else "NO"))
+              print("IDENTITY_AUDIT_STUDENT_NUMBER_PRESENT=" + ("YES" if student_number else "NO"))
+              print("IDENTITY_AUDIT_LOGGED_NUMBER_PRESENT=" + ("YES" if logged_number else "NO"))
+
+              try:
+                  resolved, basis = choose_identity_number(
+                      student_number=student_number,
+                      enrollment_numbers=all_numbers,
+                      logged_number=logged_number,
+                  )
+              except EnrollmentIdentityContinuityConflict:
+                  print("IDENTITY_AUDIT_DECISION=CONFLICT")
+                  print("IDENTITY_AUDIT_DATABASE_MUTATION=NO")
+                  raise SystemExit(4)
+
+              if not resolved:
+                  print("IDENTITY_AUDIT_DECISION=NONE")
+                  print("IDENTITY_AUDIT_DATABASE_MUTATION=NO")
+                  raise SystemExit(5)
+
+              target_current = str(target.get("enrollment_number") or "").strip()
+              target_previous = str(target.get("previous_enrollment_number") or "").strip()
+              print("IDENTITY_AUDIT_DECISION=RESOLVED")
+              print(f"IDENTITY_AUDIT_BASIS={basis}")
+              print("IDENTITY_AUDIT_TARGET_CURRENT_MATCH=" + ("YES" if target_current == resolved and target_current else "NO"))
+              print("IDENTITY_AUDIT_TARGET_PREVIOUS_MATCH=" + ("YES" if target_previous == resolved and target_previous else "NO"))
+              print("IDENTITY_AUDIT_STUDENT_MATCH=" + ("YES" if student_number == resolved and student_number else "NO"))
+              print("IDENTITY_AUDIT_LOGGED_MATCH=" + ("YES" if logged_number == resolved and logged_number else "NO"))
+
+              other_students = await db.students.count_documents(
+                  {"id": {"$ne": sid}, "enrollment_number": resolved}
+              )
+              other_enrollments = await db.enrollments.count_documents(
+                  {
+                      "student_id": {"$ne": sid},
+                      "$or": [
+                          {"enrollment_number": resolved},
+                          {"previous_enrollment_number": resolved},
+                      ],
+                  }
+              )
+              same_student_active_holders = sum(
+                  1 for e in regular
+                  if str(e.get("enrollment_number") or "").strip() == resolved
+                  and norm(e.get("status")) in {"active", "ativo"}
+              )
+              print(f"IDENTITY_AUDIT_OTHER_STUDENT_OWNERS={other_students + other_enrollments}")
+              print(f"IDENTITY_AUDIT_SAME_STUDENT_ACTIVE_HOLDERS={same_student_active_holders}")
+              safe = (
+                  len(all_numbers) == 1
+                  and target_previous == resolved
+                  and other_students == 0
+                  and other_enrollments == 0
+                  and same_student_active_holders == 0
+              )
+              print("IDENTITY_AUDIT_SAFE_TO_RESTORE_TARGET_NUMBER=" + ("YES" if safe else "NO"))
+              print("IDENTITY_AUDIT_DATABASE_MUTATION=NO")
+              if not safe:
+                  raise SystemExit(6)
+
+          asyncio.run(main())
+          PY
