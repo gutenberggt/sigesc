@@ -1,0 +1,112 @@
+name: "Enrollment Rectification F2.3C - Prepare Gate"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/enrollment_rectification_f2_3c_pilot.py'
+      - 'frontend/public/admin-retificacao-prepare.html'
+      - '.github/workflows/enrollment-rectification-f2-3c-execute-prepared.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Guard F2.3C prepare UI and dormant executor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Compile executor and enforce fail-closed boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/enrollment_rectification_f2_3c_pilot.py
+          python - <<'PY'
+          import ast
+          import re
+          from pathlib import Path
+
+          script = Path('backend/scripts/enrollment_rectification_f2_3c_pilot.py').read_text(encoding='utf-8')
+          html = Path('frontend/public/admin-retificacao-prepare.html').read_text(encoding='utf-8')
+          tree = ast.parse(script)
+
+          direct_mutators = {
+              'insert_one', 'insert_many', 'update_one', 'update_many', 'replace_one',
+              'delete_one', 'delete_many', 'bulk_write', 'find_one_and_update',
+              'find_one_and_delete', 'find_one_and_replace', 'drop', 'drop_database',
+          }
+          hits = []
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                  if node.func.attr in direct_mutators:
+                      hits.append(node.func.attr)
+          if hits:
+              raise SystemExit(f'F2_3C_DIRECT_DB_MUTATOR_FORBIDDEN:{sorted(set(hits))}')
+
+          required_script = (
+              'execute_rectification_saga',
+              'rollback_rectification_saga',
+              'DOCUMENT_ACKNOWLEDGEMENT',
+              'AuditService',
+              'ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED',
+              'PILOT_FLAG_MUST_START_DISABLED',
+              'PILOT_PREPARED_CARDINALITY_INVALID',
+              'destination_attendance_not_fabricated',
+              'audit_event_present',
+              'flag_enabled_at_exit',
+              'status="APPLIED"',
+          )
+          for marker in required_script:
+              if marker not in script:
+                  raise SystemExit(f'F2_3C_EXECUTOR_REQUIRED:{marker}')
+
+          forbidden_script = (
+              'prepare_rectification_saga_execution',
+              'operator_password',
+          )
+          for marker in forbidden_script:
+              if marker in script:
+                  raise SystemExit(f'F2_3C_EXECUTOR_FORBIDDEN:{marker}')
+
+          required_html = (
+              '/admin/enrollment-rectification/dry-run',
+              '/admin/enrollment-rectification/prepare-execution',
+              'type="password"',
+              'Idempotency-Key',
+              "$('password').value = ''",
+              'PREPARAÇÃO — NÃO EXECUTA',
+          )
+          for marker in required_html:
+              if marker not in html:
+                  raise SystemExit(f'F2_3C_PREPARE_UI_REQUIRED:{marker}')
+
+          forbidden_html = (
+              '/admin/enrollment-rectification/execute',
+              '/admin/enrollment-rectification/rollback',
+          )
+          for marker in forbidden_html:
+              if marker in html:
+                  raise SystemExit(f'F2_3C_PREPARE_UI_FORBIDDEN:{marker}')
+
+          # Verificação estrutural: nenhum identificador pessoal literal deve ser
+          # versionado no executor ou na página. Não contém valores reais do caso.
+          combined = script + '\n' + html
+          patterns = {
+              'CPF_LITERAL': r'(?<!\d)\d{11}(?!\d)',
+              'DATE_BR_LITERAL': r'(?<!\d)\d{2}/\d{2}/\d{4}(?!\d)',
+              'DATE_ISO_LITERAL': r'(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)',
+              'EMAIL_LITERAL': r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b',
+          }
+          for code, pattern in patterns.items():
+              if re.search(pattern, combined, flags=re.IGNORECASE):
+                  raise SystemExit(f'F2_3C_VERSIONED_PII_SHAPE_FORBIDDEN:{code}')
+
+          print('F2_3C_GUARD=PASS')
+          print('PREPARE_UI_EXECUTION=NO')
+          print('EXECUTOR_REAUTH_CREDENTIALS=NO')
+          print('DIRECT_DB_MUTATION=NO')
+          print('ACADEMIC_EXECUTION_TRIGGER=NO')
+          PY
