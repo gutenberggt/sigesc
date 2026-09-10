@@ -99,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           cd backend
-          python -m pytest -q tests/test_student_dependencies.py
+          MONGO_URL=mongodb://127.0.0.1:27017 DB_NAME=sigesc_dependency_mock_tests python -m pytest -q tests/test_student_dependencies.py
 
   production-sentinel:
     name: Sentinel — integridade referencial de Dependência
