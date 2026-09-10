@@ -1,0 +1,331 @@
+name: "SIGESC Dependência - Imutabilidade e sentinela"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/student-dependency-integrity-guard.yml'
+  schedule:
+    - cron: '15 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: student-dependency-integrity-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  immutability-guard:
+    name: Guard — nenhuma exclusão física de student_dependencies
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Enforce immutable dependency entity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          violations=[]
+          scanned=0
+          for path in Path('backend').rglob('*.py'):
+              parts=set(path.parts)
+              if 'tests' in parts or 'test' in parts or 'sandbox' in parts:
+                  continue
+              try:
+                  tree=ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+              except (SyntaxError, UnicodeDecodeError):
+                  continue
+              scanned += 1
+              aliases=set()
+              for node in ast.walk(tree):
+                  if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                      value=node.value
+                      if value is None:
+                          continue
+                      try: source=ast.unparse(value)
+                      except Exception: source=''
+                      if 'student_dependencies' in source:
+                          targets=node.targets if isinstance(node, ast.Assign) else [node.target]
+                          for target in targets:
+                              if isinstance(target, ast.Name): aliases.add(target.id)
+              for node in ast.walk(tree):
+                  if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                      continue
+                  if node.func.attr not in {'delete_one','delete_many','find_one_and_delete'}:
+                      continue
+                  try: receiver=ast.unparse(node.func.value)
+                  except Exception: receiver=''
+                  root=receiver.split('.',1)[0].split('[',1)[0]
+                  if 'student_dependencies' in receiver or root in aliases:
+                      violations.append(f'{path}:{getattr(node,"lineno",0)}:{node.func.attr}:{receiver}')
+
+          router=Path('backend/routers/student_dependencies.py').read_text(encoding='utf-8')
+          required=[
+              'physically_deleted": False',
+              'status": "cancelled"',
+              '[logical-delete]',
+              'DEPENDENCY_REQUIRES_ACTIVE_STUDENT',
+              'DEPENDENCY_PRESERVED_SNAPSHOT_PENDING',
+          ]
+          missing=[x for x in required if x not in router]
+          if violations:
+              print('DEPENDENCY_PHYSICAL_DELETE_GUARD=FAIL')
+              for v in violations: print(v)
+              raise SystemExit(21)
+          if missing:
+              print('DEPENDENCY_IMMUTABILITY_CONTRACT=FAIL')
+              for m in missing: print('MISSING_CONTRACT_MARKER='+m)
+              raise SystemExit(22)
+          print(f'DEPENDENCY_BACKEND_FILES_SCANNED={scanned}')
+          print('DEPENDENCY_PHYSICAL_DELETE_GUARD=PASS')
+          print('DEPENDENCY_IMMUTABILITY_CONTRACT=PASS')
+          PY
+
+      - name: Install backend test environment
+        run: python -m pip install -r backend/requirements.txt 'pyOpenSSL>=24.0.0'
+
+      - name: Run focused dependency regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd backend
+          MONGO_URL=mongodb://127.0.0.1:27017 DB_NAME=sigesc_dependency_mock_tests python -m pytest -q tests/test_student_dependencies.py
+
+  production-sentinel:
+    name: Sentinel — integridade referencial de Dependência
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+      EXPECTED_LEGACY_MISSING_COUNT: '0'
+      HARDENING_CUTOFF_UTC: '2026-09-10T12:00:00Z'
+
+    steps:
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "DEPENDENCY_SENTINEL_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh; chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/dependency_integrity_key
+          chmod 600 ~/.ssh/dependency_integrity_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Query production read-only and emit sanitized counters
+        id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/dependency-integrity-probe.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          mongo_container="${1:?mongo container}"
+          cutoff="${2:?cutoff}"
+          expected_legacy="${3:?expected legacy count}"
+
+          raw="$(docker exec -e HARDENING_CUTOFF_UTC="$cutoff" -i "$mongo_container" mongosh --quiet --eval '
+            const d=db.getSiblingDB("sigesc");
+            const cutoff=new Date(process.env.HARDENING_CUTOFF_UTC);
+            const asDate=v=>{ if(!v) return null; const x=new Date(v); return isNaN(x.getTime())?null:x; };
+            const isPost=v=>{ const x=asDate(v); return !!x && x>=cutoff; };
+            const ts=x=>x.timestamp_utc||x.timestamp||x.timestamp_local||x.created_at||x.updated_at||null;
+
+            const deps=d.student_dependencies.find({}, {_id:0,id:1,student_id:1,status:1,created_at:1,updated_at:1}).toArray();
+            const depIds=new Set(deps.map(x=>x.id).filter(Boolean));
+            const creates=d.audit_logs.find({collection:"student_dependencies",action:"create"},{_id:0,document_id:1,timestamp:1,timestamp_utc:1,timestamp_local:1}).toArray();
+            const missingMap={};
+            for(const x of creates){ if(x.document_id&&!depIds.has(x.document_id)&&!missingMap[x.document_id]) missingMap[x.document_id]=x; }
+            const missingIds=Object.keys(missingMap).sort();
+            const postMissing=missingIds.filter(id=>isPost(ts(missingMap[id])));
+
+            const orphanGrades=[];
+            d.grades.find({dependency_id:{$exists:true,$nin:[null,""]}},{_id:0,dependency_id:1,created_at:1,updated_at:1}).forEach(x=>{ if(!depIds.has(x.dependency_id)) orphanGrades.push(x); });
+            const postOrphanGrades=orphanGrades.filter(x=>isPost(x.created_at||x.updated_at));
+
+            let orphanAttendance=0, postOrphanAttendance=0;
+            d.attendance.find({"records.dependency_id":{$exists:true}},{_id:0,date:1,created_at:1,updated_at:1,records:1}).forEach(a=>{
+              for(const r of (a.records||[])){
+                const id=r.dependency_id;
+                if(id&&!depIds.has(id)){
+                  orphanAttendance++;
+                  if(isPost(r.created_at||r.updated_at||a.created_at||a.updated_at||a.date)) postOrphanAttendance++;
+                }
+              }
+            });
+
+            const orphanCompletions=[];
+            d.dependency_completions.find({dependency_id:{$exists:true,$nin:[null,""]}},{_id:0,dependency_id:1,issued_at:1}).forEach(x=>{ if(!depIds.has(x.dependency_id)) orphanCompletions.push(x); });
+            const postOrphanCompletions=orphanCompletions.filter(x=>isPost(x.issued_at));
+            const completionIds=new Set(d.dependency_completions.find({revoked_at:null},{_id:0,dependency_id:1}).toArray().map(x=>x.dependency_id).filter(Boolean));
+            const terminalNoSnapshot=deps.filter(x=>["completed","failed","cancelled"].includes(x.status)&&isPost(x.updated_at||x.created_at)&&!completionIds.has(x.id));
+
+            const active=deps.filter(x=>x.status==="active");
+            const studentIds=[...new Set(active.map(x=>x.student_id).filter(Boolean))];
+            const students=studentIds.length?d.students.find({id:{$in:studentIds}},{_id:0,id:1,status:1,dependency_mode:1}).toArray():[];
+            const studentMap=Object.fromEntries(students.map(x=>[x.id,x]));
+            const postActive=active.filter(x=>isPost(x.created_at));
+            const activeMissingStudent=postActive.filter(x=>!studentMap[x.student_id]).length;
+            const activeModeNone=postActive.filter(x=>(studentMap[x.student_id]||{}).dependency_mode==="none").length;
+            const activeStudentNotActive=postActive.filter(x=>{const s=studentMap[x.student_id]; return !!s && !["active","Ativo"].includes(s.status||"active");}).length;
+
+            print("DEPENDENCY_SENTINEL_PRIVATE="+EJSON.stringify({
+              missingIds,
+              counts:{
+                total_dependency_docs:deps.length,
+                legacy_missing_create_links:missingIds.length-postMissing.length,
+                post_cutoff_missing_links:postMissing.length,
+                orphan_grade_refs_total:orphanGrades.length,
+                post_cutoff_orphan_grade_refs:postOrphanGrades.length,
+                orphan_attendance_refs_total:orphanAttendance,
+                post_cutoff_orphan_attendance_refs:postOrphanAttendance,
+                orphan_completion_refs_total:orphanCompletions.length,
+                post_cutoff_orphan_completion_refs:postOrphanCompletions.length,
+                post_cutoff_terminal_without_snapshot:terminalNoSnapshot.length,
+                post_cutoff_active_missing_student:activeMissingStudent,
+                post_cutoff_active_mode_none:activeModeNone,
+                post_cutoff_active_student_not_active:activeStudentNotActive
+              }
+            }));
+          ' | tail -n 1)"
+          [[ "$raw" == DEPENDENCY_SENTINEL_PRIVATE=* ]] || { echo 'DEPENDENCY_SENTINEL_PROBE_INVALID'; exit 31; }
+          private_json="${raw#DEPENDENCY_SENTINEL_PRIVATE=}"
+          missing_hash="$(printf '%s' "$private_json" | python3 -c 'import json,sys,hashlib; p=json.load(sys.stdin); s="\n".join(p.get("missingIds") or []); print(hashlib.sha256(s.encode()).hexdigest())')"
+          counts="$(printf '%s' "$private_json" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["counts"],separators=(",",":")))')"
+          legacy_count="$(printf '%s' "$counts" | python3 -c 'import json,sys; print(json.load(sys.stdin)["legacy_missing_create_links"])')"
+          if [[ "$legacy_count" != "$expected_legacy" ]]; then baseline_count_state='CHANGED'; else baseline_count_state='EXPECTED'; fi
+          critical="$(printf '%s' "$counts" | python3 -c 'import json,sys; p=json.load(sys.stdin); keys=[k for k in p if k.startswith("post_cutoff_")]; print(sum(int(p[k] or 0) for k in keys))')"
+          printf 'DEPENDENCY_SENTINEL_COUNTS=%s\n' "$counts"
+          printf 'DEPENDENCY_MISSING_SET_SHA256=%s\n' "$missing_hash"
+          printf 'DEPENDENCY_LEGACY_COUNT_STATE=%s\n' "$baseline_count_state"
+          printf 'DEPENDENCY_SENTINEL_CRITICAL_TOTAL=%s\n' "$critical"
+          printf 'DATABASE_MUTATION=NO\nPII_IN_PUBLIC_LOGS=NO\n'
+          SH
+          chmod 700 /tmp/dependency-integrity-probe.sh
+
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/dependency_integrity_key" "${PROD_USER}@${PROD_HOST}" \
+            "bash -s -- ${MONGO_CONTAINER} ${HARDENING_CUTOFF_UTC} ${EXPECTED_LEGACY_MISSING_COUNT}" \
+            < /tmp/dependency-integrity-probe.sh > /tmp/dependency-integrity-public.log 2>&1
+          rc=$?; set -e
+          if [[ "$rc" -ne 0 ]]; then
+            grep -E '^DEPENDENCY_SENTINEL_[A-Z0-9_]+$|^DATABASE_MUTATION=' /tmp/dependency-integrity-public.log || true
+            exit "$rc"
+          fi
+          cat /tmp/dependency-integrity-public.log
+          counts="$(sed -n 's/^DEPENDENCY_SENTINEL_COUNTS=//p' /tmp/dependency-integrity-public.log | tail -n1)"
+          set_hash="$(sed -n 's/^DEPENDENCY_MISSING_SET_SHA256=//p' /tmp/dependency-integrity-public.log | tail -n1)"
+          critical="$(sed -n 's/^DEPENDENCY_SENTINEL_CRITICAL_TOTAL=//p' /tmp/dependency-integrity-public.log | tail -n1)"
+          legacy_state="$(sed -n 's/^DEPENDENCY_LEGACY_COUNT_STATE=//p' /tmp/dependency-integrity-public.log | tail -n1)"
+          {
+            echo "counts=$counts"
+            echo "missing_set_sha256=$set_hash"
+            echo "critical_total=$critical"
+            echo "legacy_count_state=$legacy_state"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Compare immutable baseline and manage alert
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COUNTS_JSON: ${{ steps.probe.outputs.counts }}
+          MISSING_SET_SHA256: ${{ steps.probe.outputs.missing_set_sha256 }}
+          CRITICAL_TOTAL: ${{ steps.probe.outputs.critical_total }}
+          LEGACY_COUNT_STATE: ${{ steps.probe.outputs.legacy_count_state }}
+          EXPECTED_LEGACY_MISSING_COUNT: ${{ env.EXPECTED_LEGACY_MISSING_COUNT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.parse,urllib.request
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          counts=json.loads(os.environ['COUNTS_JSON'])
+          set_hash=os.environ['MISSING_SET_SHA256']; critical=int(os.environ['CRITICAL_TOTAL'] or 0)
+          expected=int(os.environ['EXPECTED_LEGACY_MISSING_COUNT'])
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-integrity-sentinel'}
+          def api(path,method='GET',data=None):
+              payload=None if data is None else json.dumps(data).encode()
+              req=urllib.request.Request('https://api.github.com/'+path,data=payload,method=method,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          def search(title):
+              q=urllib.parse.quote(f'repo:{repo} is:issue in:title "{title}"')
+              return api(f'search/issues?q={q}&per_page=20').get('items') or []
+
+          baseline_title='[DEPENDENCY-INTEGRITY-BASELINE] missing-set-v1'
+          baseline_items=search(baseline_title)
+          baseline=next((x for x in baseline_items if x.get('title')==baseline_title),None)
+          baseline_changed=False
+          if baseline is None:
+              if counts.get('legacy_missing_create_links') != expected or critical != 0:
+                  baseline_changed=True
+              else:
+                  body=(f'BASELINE_MISSING_COUNT={expected}\n'
+                        f'BASELINE_MISSING_SET_SHA256={set_hash}\n'
+                        'BASELINE_SCOPE=no_missing_student_dependencies_expected_after_recovery\n'
+                        'PII=NO\n'
+                        'Purpose: immutable zero-loss sentinel baseline; IDs are never published.')
+                  created=api(f'repos/{repo}/issues',method='POST',data={'title':baseline_title,'body':body})
+                  api(f'repos/{repo}/issues/{created["number"]}',method='PATCH',data={'state':'closed','state_reason':'completed'})
+                  print('DEPENDENCY_SENTINEL_BASELINE=CREATED')
+          else:
+              issue=api(f'repos/{repo}/issues/{baseline["number"]}')
+              vals={}
+              for line in (issue.get('body') or '').splitlines():
+                  if '=' in line:
+                      k,v=line.split('=',1); vals[k.strip()]=v.strip()
+              baseline_changed=(vals.get('BASELINE_MISSING_SET_SHA256') != set_hash or int(vals.get('BASELINE_MISSING_COUNT','-1')) != counts.get('legacy_missing_create_links'))
+              print('DEPENDENCY_SENTINEL_BASELINE=VERIFIED' if not baseline_changed else 'DEPENDENCY_SENTINEL_BASELINE=CHANGED')
+
+          anomaly=baseline_changed or critical>0
+          alert_title='[DEPENDENCY-INTEGRITY-ALERT] student_dependencies'
+          open_alerts=[x for x in search(alert_title) if x.get('title')==alert_title and x.get('state')=='open']
+          summary=(
+              'Sentinela de integridade de Dependência detectou divergência.\n\n'
+              f'- baseline_missing_set_changed: `{str(baseline_changed).lower()}`\n'
+              f'- critical_total_post_cutoff: `{critical}`\n'
+              f'- legacy_missing_create_links: `{counts.get("legacy_missing_create_links",0)}`\n'
+              f'- post_cutoff_missing_links: `{counts.get("post_cutoff_missing_links",0)}`\n'
+              f'- post_cutoff_orphan_grade_refs: `{counts.get("post_cutoff_orphan_grade_refs",0)}`\n'
+              f'- post_cutoff_orphan_attendance_refs: `{counts.get("post_cutoff_orphan_attendance_refs",0)}`\n'
+              f'- post_cutoff_orphan_completion_refs: `{counts.get("post_cutoff_orphan_completion_refs",0)}`\n'
+              f'- post_cutoff_terminal_without_snapshot: `{counts.get("post_cutoff_terminal_without_snapshot",0)}`\n'
+              f'- post_cutoff_active_missing_student: `{counts.get("post_cutoff_active_missing_student",0)}`\n'
+              f'- post_cutoff_active_mode_none: `{counts.get("post_cutoff_active_mode_none",0)}`\n'
+              f'- post_cutoff_active_student_not_active: `{counts.get("post_cutoff_active_student_not_active",0)}`\n'
+              '- Database mutation: **NO**\n- PII/IDs publicados: **NO**'
+          )
+          if anomaly:
+              if open_alerts:
+                  api(f'repos/{repo}/issues/{open_alerts[0]["number"]}/comments',method='POST',data={'body':summary})
+              else:
+                  api(f'repos/{repo}/issues',method='POST',data={'title':alert_title,'body':summary})
+              print('DEPENDENCY_INTEGRITY_SENTINEL=ALERT')
+              raise SystemExit(51)
+          for item in open_alerts:
+              api(f'repos/{repo}/issues/{item["number"]}/comments',method='POST',data={'body':'Sentinela voltou ao estado íntegro; alerta encerrado automaticamente.'})
+              api(f'repos/{repo}/issues/{item["number"]}',method='PATCH',data={'state':'closed','state_reason':'completed'})
+          print('DEPENDENCY_INTEGRITY_SENTINEL=PASS')
+          print('DATABASE_MUTATION=NO')
+          print('PII_IN_PUBLIC_LOGS=NO')
+          PY

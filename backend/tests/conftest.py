@@ -17,13 +17,30 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 import pytest
-from pymongo import MongoClient
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 _ENABLED = os.environ.get("CI_SEED_TRANSFER") == "1"
-_db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+
+# Algumas suítes unitárias importam módulos de autenticação por efeito do pacote
+# `routers`, embora não exercitem autenticação real. `auth_utils` exige a presença
+# da chave já no import; no GitHub Actions fornecemos um valor fictício e exclusivo
+# do processo de teste, sem copiar ou enfraquecer qualquer segredo de produção.
+if os.environ.get("CI", "").lower() == "true" and not _ENABLED:
+    os.environ.setdefault(
+        "JWT_SECRET_KEY",
+        "sigesc-ci-unit-tests-only-not-a-production-secret-2026",
+    )
+
+_db = None
+if _ENABLED:
+    # O fixture de transferência é o único consumidor deste Mongo real/efêmero.
+    # Suítes unitárias totalmente mockadas não devem importar/inicializar pymongo
+    # nem depender de MONGO_URL/DB_NAME quando CI_SEED_TRANSFER está desabilitado.
+    from pymongo import MongoClient
+
+    _db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 MANT = "CITX-MANT"
 SCHOOLS = ["CITX-SCH-0", "CITX-SCH-1", "CITX-SCH-2"]

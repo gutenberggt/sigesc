@@ -1,12 +1,13 @@
 """
-Tests para router de Student Dependencies (Fase 1).
+Tests para router de Student Dependencies (Fase 1 + hardening Set/2026).
 
 Cobre:
 - Permissões (papéis permitidos vs bloqueados).
-- Validação de dependency_mode no aluno.
+- Validação de dependency_mode e estado ativo do aluno.
 - Validação de limite de componentes (lendo da mantenedora).
 - Validação de duplicidade.
-- CRUD básico (create / list / update / delete).
+- CRUD compatível: create / list / update / DELETE lógico.
+- Imutabilidade: nenhuma exclusão física pelo endpoint DELETE.
 - Summary.
 """
 import os
@@ -17,6 +18,10 @@ from unittest.mock import AsyncMock, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from fastapi import HTTPException
+
+
+class _UpdateResult:
+    modified_count = 1
 
 
 def _make_db(student=None, mantenedora=None, deps=None, count=0):
@@ -36,8 +41,10 @@ def _make_db(student=None, mantenedora=None, deps=None, count=0):
     db.student_dependencies.find_one = AsyncMock(return_value=None)
     db.student_dependencies.count_documents = AsyncMock(return_value=count)
     db.student_dependencies.insert_one = AsyncMock(return_value=None)
-    db.student_dependencies.update_one = AsyncMock(return_value=None)
+    db.student_dependencies.update_one = AsyncMock(return_value=_UpdateResult())
+    # Mantido somente para provar, nos testes, que o router NÃO o chama.
     db.student_dependencies.delete_one = AsyncMock(return_value=None)
+    db.student_dependencies.delete_many = AsyncMock(return_value=None)
     # classes & courses
     classes_cursor = MagicMock()
     classes_cursor.to_list = AsyncMock(return_value=[])
@@ -70,7 +77,7 @@ def _get_handler(router, method: str, path_suffix: str):
 async def test_create_bloqueia_aluno_sem_dependency_mode():
     from routers.student_dependencies import setup_student_dependencies_router
 
-    db = _make_db(student={"id": "s1", "dependency_mode": "none"})
+    db = _make_db(student={"id": "s1", "status": "active", "dependency_mode": "none"})
     auth = _make_auth("super_admin")
     router = setup_student_dependencies_router(db, auth)
     handler = _get_handler(router, "POST", "/student-dependencies")
@@ -87,13 +94,37 @@ async def test_create_bloqueia_aluno_sem_dependency_mode():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("student_status", ["transferred", "inactive", "dropout", "cancelled"])
+async def test_create_bloqueia_aluno_nao_ativo(student_status):
+    """Hardening: vínculo acadêmico não pode nascer para estudante fora do estado ativo."""
+    from routers.student_dependencies import setup_student_dependencies_router
+
+    db = _make_db(student={
+        "id": "s1", "status": student_status, "dependency_mode": "with_dependency"
+    })
+    auth = _make_auth("admin")
+    router = setup_student_dependencies_router(db, auth)
+    handler = _get_handler(router, "POST", "/student-dependencies")
+
+    from models import StudentDependencyCreate
+    payload = StudentDependencyCreate(
+        student_id="s1", school_id="sch-1", class_id="cl-1",
+        course_id="co-1", academic_year=2026, origin_academic_year=2025,
+    )
+    with pytest.raises(HTTPException) as exc:
+        await handler(request=MagicMock(), payload=payload)
+    assert exc.value.status_code == 409
+    assert exc.value.detail["code"] == "DEPENDENCY_REQUIRES_ACTIVE_STUDENT"
+
+
+@pytest.mark.asyncio
 async def test_create_valida_limite_da_mantenedora():
     from routers.student_dependencies import setup_student_dependencies_router
 
     db = _make_db(
-        student={"id": "s1", "dependency_mode": "with_dependency"},
+        student={"id": "s1", "status": "active", "dependency_mode": "with_dependency"},
         mantenedora={"aprovacao_com_dependencia": True, "max_componentes_dependencia": 2},
-        count=2,  # Já tem 2 ativas, limite é 2 → próxima deve falhar
+        count=2,
     )
     auth = _make_auth("admin")
     router = setup_student_dependencies_router(db, auth)
@@ -115,11 +146,10 @@ async def test_create_bloqueia_duplicidade_componente_ano_origem():
     from routers.student_dependencies import setup_student_dependencies_router
 
     db = _make_db(
-        student={"id": "s1", "dependency_mode": "with_dependency"},
+        student={"id": "s1", "status": "active", "dependency_mode": "with_dependency"},
         mantenedora={"aprovacao_com_dependencia": True, "max_componentes_dependencia": 5},
         count=0,
     )
-    # Simula dep duplicada
     db.student_dependencies.find_one = AsyncMock(return_value={"id": "existing"})
     auth = _make_auth("secretario")
     router = setup_student_dependencies_router(db, auth)
@@ -141,7 +171,7 @@ async def test_create_sucesso_com_role_permitido():
     from routers.student_dependencies import setup_student_dependencies_router
 
     db = _make_db(
-        student={"id": "s1", "dependency_mode": "with_dependency"},
+        student={"id": "s1", "status": "active", "dependency_mode": "with_dependency"},
         mantenedora={"aprovacao_com_dependencia": True, "max_componentes_dependencia": 5},
         count=1,
     )
@@ -180,7 +210,7 @@ async def test_create_bloqueia_role_nao_permitido():
 async def test_summary_retorna_contadores():
     from routers.student_dependencies import setup_student_dependencies_router
     db = _make_db(
-        student={"id": "s1", "dependency_mode": "with_dependency"},
+        student={"id": "s1", "status": "active", "dependency_mode": "with_dependency"},
         mantenedora={"aprovacao_com_dependencia": True, "max_componentes_dependencia": 3},
         deps=[
             {"status": "active"}, {"status": "active"},
@@ -201,10 +231,9 @@ async def test_summary_retorna_contadores():
 
 @pytest.mark.asyncio
 async def test_create_valida_modo_not_enabled_na_mantenedora():
-    """Mesmo com dependency_mode='dependency_only', se a mantenedora não habilitou cursar_apenas_dependencia, falha."""
     from routers.student_dependencies import setup_student_dependencies_router
     db = _make_db(
-        student={"id": "s1", "dependency_mode": "dependency_only"},
+        student={"id": "s1", "status": "active", "dependency_mode": "dependency_only"},
         mantenedora={"aprovacao_com_dependencia": True, "cursar_apenas_dependencia": False,
                      "max_componentes_dependencia": 3},
         count=0,
@@ -223,11 +252,17 @@ async def test_create_valida_modo_not_enabled_na_mantenedora():
 
 
 @pytest.mark.asyncio
-async def test_update_aceita_status_reason():
-    """[Fev/2026] status_reason deve ser persistido no update (motivo do cancelamento/conclusão)."""
+async def test_update_aceita_status_reason(monkeypatch):
     from routers.student_dependencies import setup_student_dependencies_router
+    import routers.dependency_completions as completions
+
+    snapshot = AsyncMock(return_value={"id": "snap-1"})
+    monkeypatch.setattr(completions, "create_completion_snapshot_on_transition", snapshot)
+
     db = _make_db()
-    db.student_dependencies.find_one = AsyncMock(return_value={"id": "d1", "status": "active"})
+    db.student_dependencies.find_one = AsyncMock(return_value={
+        "id": "d1", "status": "active", "student_id": "s1", "course_id": "co-1"
+    })
     auth = _make_auth("admin")
     router = setup_student_dependencies_router(db, auth)
     handler = _get_handler(router, "PUT", "/{dep_id}")
@@ -237,18 +272,95 @@ async def test_update_aceita_status_reason():
     result = await handler(request=MagicMock(), dep_id="d1", payload=payload)
     assert "sucesso" in result.get("message", "").lower()
 
-    # Confere que o update_one foi chamado com status_reason
     call_args = db.student_dependencies.update_one.call_args
     update_doc = call_args[0][1]["$set"]
     assert update_doc["status"] == "cancelled"
     assert "transferencia" in update_doc["status_reason"]
+    snapshot.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_update_cancelled_exige_motivo_antes_da_mutacao():
+    from routers.student_dependencies import setup_student_dependencies_router
+    db = _make_db()
+    db.student_dependencies.find_one = AsyncMock(return_value={"id": "d1", "status": "active"})
+    auth = _make_auth("admin")
+    router = setup_student_dependencies_router(db, auth)
+    handler = _get_handler(router, "PUT", "/{dep_id}")
+
+    from models import StudentDependencyUpdate
+    payload = StudentDependencyUpdate(status="cancelled")
+    with pytest.raises(HTTPException) as exc:
+        await handler(request=MagicMock(), dep_id="d1", payload=payload)
+    assert exc.value.status_code == 422
+    assert exc.value.detail["code"] == "CANCELLATION_REASON_REQUIRED"
+    db.student_dependencies.update_one.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_delete_http_faz_cancelamento_logico_e_nunca_apaga(monkeypatch):
+    """Regressão principal: DELETE HTTP preserva o documento físico."""
+    from routers.student_dependencies import setup_student_dependencies_router
+    import routers.dependency_completions as completions
+
+    snapshot = AsyncMock(return_value={"id": "snap-1"})
+    monkeypatch.setattr(completions, "create_completion_snapshot_on_transition", snapshot)
+
+    existing = {
+        "id": "d1", "status": "active", "student_id": "s1", "course_id": "co-1",
+        "school_id": "sch-1", "academic_year": 2026, "origin_academic_year": 2025,
+    }
+    db = _make_db()
+    db.student_dependencies.find_one = AsyncMock(return_value=existing)
+    auth = _make_auth("secretario")
+    router = setup_student_dependencies_router(db, auth)
+    handler = _get_handler(router, "DELETE", "/{dep_id}")
+
+    result = await handler(request=MagicMock(), dep_id="d1")
+
+    assert result["status"] == "cancelled"
+    assert result["physically_deleted"] is False
+    db.student_dependencies.delete_one.assert_not_awaited()
+    db.student_dependencies.delete_many.assert_not_awaited()
+    update_doc = db.student_dependencies.update_one.call_args[0][1]["$set"]
+    assert update_doc["status"] == "cancelled"
+    assert update_doc["status_reason"].startswith("[logical-delete]")
+    snapshot.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_terminal_e_idempotente_e_nunca_apaga(monkeypatch):
+    from routers.student_dependencies import setup_student_dependencies_router
+    import routers.dependency_completions as completions
+
+    snapshot = AsyncMock(return_value={"id": "snap-existing"})
+    monkeypatch.setattr(completions, "create_completion_snapshot_on_transition", snapshot)
+
+    existing = {
+        "id": "d1", "status": "cancelled", "status_reason": "motivo preservado",
+        "student_id": "s1", "course_id": "co-1",
+    }
+    db = _make_db()
+    db.student_dependencies.find_one = AsyncMock(return_value=existing)
+    auth = _make_auth("admin")
+    router = setup_student_dependencies_router(db, auth)
+    handler = _get_handler(router, "DELETE", "/{dep_id}")
+
+    result = await handler(request=MagicMock(), dep_id="d1")
+
+    assert result["status"] == "cancelled"
+    assert result["physically_deleted"] is False
+    db.student_dependencies.update_one.assert_not_awaited()
+    db.student_dependencies.delete_one.assert_not_awaited()
+    db.student_dependencies.delete_many.assert_not_awaited()
+    snapshot.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_summary_zero_quando_nenhuma_dep():
     from routers.student_dependencies import setup_student_dependencies_router
     db = _make_db(
-        student={"id": "s1", "dependency_mode": "with_dependency"},
+        student={"id": "s1", "status": "active", "dependency_mode": "with_dependency"},
         mantenedora={"aprovacao_com_dependencia": True, "max_componentes_dependencia": 3},
         deps=[],
     )
