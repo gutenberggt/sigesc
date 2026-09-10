@@ -1,0 +1,384 @@
+name: "Enrollment Rectification F2.3C - Pilot One-shot"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/enrollment-rectification-f2-3c-pilot-one-shot.yml'
+      - 'backend/scripts/enrollment_rectification_f2_3c_pilot.py'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: enrollment-rectification-f2-3c-pilot-one-shot
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.3C one-shot execution boundary
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile and enforce canonical saga-only executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/enrollment_rectification_f2_3c_pilot.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          p = Path('backend/scripts/enrollment_rectification_f2_3c_pilot.py')
+          source = p.read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          direct_mutators = {
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in direct_mutators:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit(f'F2_3C_DIRECT_DB_MUTATOR_FORBIDDEN:{sorted(set(hits))}')
+          required=(
+              'execute_rectification_saga', 'rollback_rectification_saga',
+              'ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED',
+              'PILOT_FLAG_MUST_START_DISABLED', 'PILOT_PREPARED_CARDINALITY_INVALID',
+              'destination_attendance_not_fabricated', 'audit_event_present',
+              'flag_enabled_at_exit', 'status="APPLIED"',
+          )
+          for marker in required:
+              if marker not in source:
+                  raise SystemExit(f'F2_3C_EXECUTOR_REQUIRED:{marker}')
+          for marker in ('prepare_rectification_saga_execution', 'operator_password'):
+              if marker in source:
+                  raise SystemExit(f'F2_3C_EXECUTOR_FORBIDDEN:{marker}')
+          print('F2_3C_ONE_SHOT_GUARD=PASS')
+          print('DIRECT_DB_MUTATION=NO')
+          print('CANONICAL_SAGA_ONLY=YES')
+          PY
+
+  execute-pilot:
+    name: Execute exactly one PREPARED F2.3C saga in production
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ENROLLMENT-RECTIFICATION-F2.3C-EXECUTE] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped exact-SHA pilot authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          owner=os.environ['REPOSITORY_OWNER']
+          if ((issue.get('user') or {}).get('login') or '') != owner:
+              raise SystemExit('F2_3C_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('F2_3C_GATE_MUST_BE_OPEN')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              line=raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key,value=line.split('=',1)
+              key=key.strip(); value=value.strip()
+              if key in values:
+                  raise SystemExit(f'F2_3C_DUPLICATE_FIELD:{key}')
+              values[key]=value
+
+          expected={
+              'ENROLLMENT_RECTIFICATION_F2_3C_EXECUTE':'AUTHORIZED',
+              'CONFIRMATION':'EXECUTE_PREPARED_ONE_SHOT',
+              'TRACKING_ISSUE':'602',
+              'ACADEMIC_YEAR':'2026',
+              'SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+              'SOURCE_CLASS':'6º ANO A',
+              'DESTINATION_CLASS':'7º ANO B',
+          }
+          for key,wanted in expected.items():
+              if values.get(key) != wanted:
+                  raise SystemExit(f'F2_3C_FIELD_INVALID:{key}')
+
+          target=values.get('TARGET_SHA','')
+          prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or prod != target:
+              raise SystemExit('F2_3C_SHA_INVALID')
+          if issue.get('title') != f'[ENROLLMENT-RECTIFICATION-F2.3C-EXECUTE] {target}':
+              raise SystemExit('F2_3C_TITLE_MISMATCH')
+          salt=values.get('COMPONENT_SALT','')
+          hashes={k:values.get(k,'') for k in ('NAME_HASH','DOB_HASH','CPF_HASH')}
+          if not re.fullmatch(r'[0-9a-f]{32}',salt) or any(not re.fullmatch(r'[0-9a-f]{64}',v) for v in hashes.values()):
+              raise SystemExit('F2_3C_FINGERPRINT_INVALID')
+
+          def api(path):
+              req=urllib.request.Request(
+                  f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",
+                  headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3c-pilot'},
+              )
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
+
+          main_sha=api('branches/main')['commit']['sha']
+          production_sha=api('branches/production')['commit']['sha']
+          tracking=api('issues/602')
+          if main_sha != target or production_sha != target:
+              raise SystemExit(f'F2_3C_RUNTIME_SHA_MISMATCH:main={main_sha}:production={production_sha}')
+          if tracking.get('state') != 'open':
+              raise SystemExit('F2_3C_TRACKING_ISSUE_NOT_OPEN')
+          tracking_body=tracking.get('body') or ''
+          for marker in (
+              'habilitar `ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED=true` apenas durante a janela da execução',
+              'executar **uma única** saga',
+              'feature flag efetivamente desligada ao final',
+          ):
+              if marker not in tracking_body:
+                  raise SystemExit('F2_3C_TRACKING_AUTHORIZATION_INCOMPLETE')
+
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+              out.write(f'component_salt={salt}\n')
+              out.write(f'name_hash={hashes["NAME_HASH"]}\n')
+              out.write(f'dob_hash={hashes["DOB_HASH"]}\n')
+              out.write(f'cpf_hash={hashes["CPF_HASH"]}\n')
+          print('F2_3C_CONTEXT=PASS')
+          print('ONE_SHOT_EXECUTION=AUTHORIZED')
+          print('MAIN_PRODUCTION_SHA_MATCH=YES')
+          PY
+
+      - name: Checkout exact authorized main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Re-seal dormant executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/enrollment_rectification_f2_3c_pilot.py
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('backend/scripts/enrollment_rectification_f2_3c_pilot.py').read_text(encoding='utf-8')
+          for marker in ('execute_rectification_saga','rollback_rectification_saga','PILOT_FLAG_MUST_START_DISABLED','flag_enabled_at_exit'):
+              if marker not in s:
+                  raise SystemExit(f'F2_3C_EXECUTOR_SEAL_FAILED:{marker}')
+          print('F2_3C_EXECUTOR_SEAL=PASS')
+          PY
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "F2_3C_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f2_3c_prod_key
+          chmod 600 ~/.ssh/f2_3c_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve exact running backend container and revision
+        id: topology
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          readarray -t rows < <({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo_container="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo_container")"
+          test -n "$project"
+          backend="$(docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1)"
+          test -n "$backend"
+          revision="$(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$backend")"
+          printf '%s\n%s\n' "$backend" "$revision"
+          REMOTE
+          } | tail -n 2)
+          backend="${rows[0]:-}"
+          revision="${rows[1]:-}"
+          test -n "$backend"
+          [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          if [ "$revision" != "$TARGET_SHA" ]; then
+            echo "F2_3C_BACKEND_REVISION_MISMATCH" >&2
+            exit 1
+          fi
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+          echo 'F2_3C_RUNTIME_PROVENANCE=PASS'
+
+      - name: Build pseudonymous execution payload
+        shell: bash
+        env:
+          COMPONENT_SALT: ${{ steps.context.outputs.component_salt }}
+          NAME_HASH: ${{ steps.context.outputs.name_hash }}
+          DOB_HASH: ${{ steps.context.outputs.dob_hash }}
+          CPF_HASH: ${{ steps.context.outputs.cpf_hash }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json, os
+          payload={
+              'component_salt': os.environ['COMPONENT_SALT'],
+              'name_hash': os.environ['NAME_HASH'],
+              'dob_hash': os.environ['DOB_HASH'],
+              'cpf_hash': os.environ['CPF_HASH'],
+          }
+          with open('evidence/input.json','w',encoding='utf-8') as f:
+              json.dump(payload,f,separators=(',',':'))
+          print('F2_3C_PSEUDONYMOUS_PAYLOAD=READY')
+          PY
+
+      - name: Execute exactly one canonical PREPARED saga
+        id: execute
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+        run: |
+          set -euo pipefail
+          raw='evidence/runtime.raw'
+          remote_command="timeout 900 docker exec -i -e PYTHONPATH=/app ${BACKEND_CONTAINER} sh -lc 'cd /app && python scripts/enrollment_rectification_f2_3c_pilot.py'"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" \
+            < evidence/input.json > "$raw" 2>&1
+          rc=$?
+          set -e
+          prefix='ENROLLMENT_RECTIFICATION_F2_3C_EXECUTE_JSON='
+          line="$(grep -F "$prefix" "$raw" | tail -n 1 || true)"
+          rm -f evidence/input.json
+          if [ -z "$line" ]; then
+            rm -f "$raw"
+            echo "F2_3C_EXECUTOR_RECEIPT_MISSING" >&2
+            exit "${rc:-2}"
+          fi
+          printf '%s' "${line#${prefix}}" > evidence/runtime.json
+          rm -f "$raw"
+          python -m json.tool evidence/runtime.json >/dev/null
+          echo "executor_rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Validate receipt and write sanitized diagnosis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'ENROLLMENT_RECTIFICATION_F2_3C_EXECUTE_PREPARED_V1':
+              raise SystemExit('F2_3C_RECEIPT_SCHEMA_INVALID')
+          status=p.get('status')
+          validation=p.get('validation') or {}
+          checks=validation.get('checks') or {}
+          lines=[
+              '## F2.3C — piloto one-shot', '',
+              f"**Status:** `{status}`",
+              f"**Estado da saga:** `{p.get('execution_state') or p.get('run_state')}`",
+              f"**Flag foi habilitada durante a janela:** `{bool(p.get('flag_ever_enabled'))}`",
+              f"**Flag habilitada ao final:** `{bool(p.get('flag_enabled_at_exit'))}`",
+              f"**Rollback chamado:** `{p.get('rollback_called')}`",
+              '', '### Pós-condições',
+          ]
+          for key in (
+              'one_active_enrollment','active_enrollment_in_destination',
+              'student_projection_in_destination','origin_residues_zero',
+              'destination_attendance_not_fabricated','run_applied','audit_event_present',
+          ):
+              lines.append(f"- {key}: `{checks.get(key)}`")
+          lines += [
+              f"- destination_attendance_documents: `{validation.get('destination_attendance_documents')}`",
+              f"- audit_event_count: `{validation.get('audit_event_count')}`",
+              f"- run_state: `{validation.get('run_state')}`",
+          ]
+          Path('evidence/diagnosis.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+
+          if status != 'APPLIED':
+              raise SystemExit(f'F2_3C_EXECUTION_NOT_APPLIED:{status}:{p.get("reason")}')
+          if not validation.get('all_pass'):
+              raise SystemExit('F2_3C_POSTVALIDATION_NOT_ALL_PASS')
+          if not p.get('flag_ever_enabled') or p.get('flag_enabled_at_exit') is not False:
+              raise SystemExit('F2_3C_FLAG_WINDOW_INVALID')
+          if p.get('rollback_called') is not False:
+              raise SystemExit('F2_3C_UNEXPECTED_ROLLBACK')
+          if p.get('student_pii_emitted') is not False or p.get('technical_ids_emitted') is not False:
+              raise SystemExit('F2_3C_RECEIPT_PRIVACY_INVALID')
+          print('\n'.join(lines))
+          PY
+
+      - name: Upload sanitized pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enrollment-rectification-f2-3c-pilot-${{ github.run_id }}
+          path: |
+            evidence/runtime.json
+            evidence/diagnosis.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Annotate tracking and gate issues
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          diagnosis='F2.3C one-shot: evidence unavailable.'
+          try:
+              diagnosis=open('evidence/diagnosis.md',encoding='utf-8').read()
+          except Exception:
+              pass
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          def req(path, method='POST', body=None):
+              data=None if body is None else json.dumps(body).encode()
+              r=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/{path}', data=data, method=method,
+                  headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3c-pilot'},
+              )
+              with urllib.request.urlopen(r,timeout=30) as response:
+                  return json.load(response)
+          gate=os.environ.get('GATE_ISSUE','')
+          for n in ('602', gate):
+              if n:
+                  req(f'issues/{n}/comments', body={'body': diagnosis})
+          if gate:
+              req(f'issues/{gate}', method='PATCH', body={'state':'closed','state_reason':'completed'})
+          PY
