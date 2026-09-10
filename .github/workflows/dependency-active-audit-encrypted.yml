@@ -172,8 +172,9 @@ jobs:
           if prod_sha != production:
               raise SystemExit(f'DEP_AUDIT_PRODUCTION_MOVED:{prod_sha}')
 
-          os.makedirs('private',exist_ok=True)
-          open('private/audit_cert.pem','wb').write(cert)
+          cert_path=os.path.join(os.environ['RUNNER_TEMP'],'dependency_audit_cert.pem')
+          open(cert_path,'wb').write(cert)
+          os.chmod(cert_path,0o600)
           with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
               out.write(f'target_sha={target}\n')
               out.write(f'production_sha={production}\n')
@@ -212,8 +213,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          trap 'rm -rf private' EXIT
+          trap 'rm -rf private; rm -f "$RUNNER_TEMP/dependency_audit_cert.pem"' EXIT
           mkdir -p private evidence
+          test -s "$RUNNER_TEMP/dependency_audit_cert.pem"
 
           cat > private/audit.js <<'JS'
           const d = db.getSiblingDB("sigesc");
@@ -427,10 +429,11 @@ jobs:
             -in private/dependencies.json \
             -outform DER \
             -out evidence/dependencies.cms \
-            private/audit_cert.pem
+            "$RUNNER_TEMP/dependency_audit_cert.pem"
 
           test -s evidence/dependencies.cms
           rm -rf private
+          rm -f "$RUNNER_TEMP/dependency_audit_cert.pem"
           trap - EXIT
           echo 'DEPENDENCY_AUDIT_ENCRYPTION=PASS'
 
