@@ -71,8 +71,8 @@ jobs:
 
           router=Path('backend/routers/student_dependencies.py').read_text(encoding='utf-8')
           required=[
-              'physically_deleted": False',
-              'status": "cancelled"',
+              'physically_deleted\": False',
+              'status\": \"cancelled\"',
               '[logical-delete]',
               'DEPENDENCY_REQUIRES_ACTIVE_STUDENT',
               'DEPENDENCY_PRESERVED_SNAPSHOT_PENDING',
@@ -92,7 +92,7 @@ jobs:
           PY
 
       - name: Install focused test runner
-        run: pip install pytest pytest-asyncio python-dotenv motor fastapi
+        run: pip install pytest pytest-asyncio python-dotenv motor fastapi email-validator
 
       - name: Run focused dependency regression tests
         shell: bash
