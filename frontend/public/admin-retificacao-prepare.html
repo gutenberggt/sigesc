@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SIGESC — Preparar Retificação</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f5f7fb}
+    *{box-sizing:border-box} body{margin:0;padding:24px}.wrap{max-width:900px;margin:auto}.card{background:white;border:1px solid #dde3ee;border-radius:14px;padding:22px;margin:16px 0;box-shadow:0 2px 8px #14213d0d}.head{display:flex;gap:12px;align-items:center}.badge{background:#fff3cd;color:#765b00;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700}.muted{color:#64748b;font-size:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:700px){.grid{grid-template-columns:1fr}}label{display:block;font-weight:650;font-size:14px;margin:10px 0 6px}input,select,textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font:inherit}textarea{min-height:96px;resize:vertical}button{border:0;border-radius:9px;padding:11px 15px;font-weight:700;cursor:pointer;background:#175cd3;color:white}button.secondary{background:#e8eef8;color:#26385c}button:disabled{opacity:.48;cursor:not-allowed}.results{border:1px solid #dce3ed;border-radius:9px;overflow:hidden;margin-top:7px}.result{padding:10px 12px;border-bottom:1px solid #edf1f6;cursor:pointer}.result:last-child{border:0}.result:hover{background:#f6f9ff}.ok{border-left:5px solid #15803d}.warn{border-left:5px solid #d97706}.bad{border-left:5px solid #b91c1c}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.spacer{height:4px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;word-break:break-word}.pill{background:#eef2f7;border-radius:999px;padding:4px 8px;font-size:12px}.hidden{display:none}.status{white-space:pre-wrap;padding:12px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0}.danger-note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:9px;padding:12px;font-size:14px}.success-note{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:9px;padding:14px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><h1>Preparar Retificação de Matrícula/Turma</h1><span class="badge">PREPARAÇÃO — NÃO EXECUTA</span></div>
+  <p class="muted">Ferramenta administrativa SIGESC. O backend restringe o acesso a <b>super_admin</b>, <b>admin</b> e <b>gerente</b>. A senha é enviada somente ao endpoint canônico de reautenticação e nunca é armazenada nesta página.</p>
+
+  <div class="card" id="sessionCard">
+    <h2>1. Sessão e estudante</h2>
+    <div id="sessionState" class="status">Verificando sessão local…</div>
+    <label for="studentQuery">Buscar estudante</label>
+    <input id="studentQuery" autocomplete="off" placeholder="Digite ao menos 3 caracteres do nome" />
+    <div id="studentResults" class="results hidden"></div>
+    <div id="selectedStudent" class="status hidden"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Turma de destino e Dry Run</h2>
+    <div class="grid">
+      <div><label>Turma atual</label><input id="sourceClass" disabled /></div>
+      <div><label for="destinationClass">Turma de destino</label><select id="destinationClass" disabled><option value="">Selecione o estudante primeiro</option></select></div>
+    </div>
+    <div class="spacer"></div>
+    <button id="dryRunBtn" disabled>Executar Dry Run</button>
+    <div id="dryRunState" class="status hidden"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Reautenticação e PREPARED</h2>
+    <div class="danger-note"><b>Importante:</b> esta etapa persiste somente o journal/snapshot <b>PREPARED</b>. Não altera matrícula, frequência, notas ou documentos. A execução acadêmica continuará bloqueada pela feature flag.</div>
+    <label for="justification">Justificativa institucional</label>
+    <textarea id="justification">Retificação de matrícula/turma por erro documental confirmado, preservando histórico acadêmico, rastreabilidade e auditoria institucional.</textarea>
+    <label for="confirmation">Frase de confirmação</label>
+    <input id="confirmation" autocomplete="off" placeholder="A frase aparecerá após o Dry Run" />
+    <label for="password">Sua senha do SIGESC</label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <div class="spacer"></div>
+    <button id="prepareBtn" disabled>Reautenticar e preparar</button>
+    <div id="prepareState" class="status hidden"></div>
+  </div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const API = location.hostname === 'sigesc.aprenderdigital.top'
+    ? 'https://api.sigesc.aprenderdigital.top/api'
+    : `${location.protocol}//${location.hostname.replace(/^sigesc\./, 'api.sigesc.')}/api`;
+  const $ = (id) => document.getElementById(id);
+  const token = () => localStorage.getItem('accessToken') || '';
+  const tenant = () => localStorage.getItem('activeMantenedoraId') || '';
+  const csrf = () => localStorage.getItem('sigesc_csrf_token') || sessionStorage.getItem('sigesc_csrf_token') || '';
+  const headers = (method='GET', extra={}) => {
+    const h = {...extra};
+    if (token()) h.Authorization = `Bearer ${token()}`;
+    if (tenant()) h['X-Mantenedora-Id'] = tenant();
+    if (['POST','PUT','PATCH','DELETE'].includes(method.toUpperCase()) && csrf()) h['X-CSRF-Token'] = csrf();
+    return h;
+  };
+  const call = async (path, options={}) => {
+    const method = (options.method || 'GET').toUpperCase();
+    const response = await fetch(`${API}${path}`, {...options, method, headers: headers(method, options.headers || {}), credentials:'include'});
+    let body = null; try { body = await response.json(); } catch { body = null; }
+    if (!response.ok) {
+      const detail = body?.detail;
+      const message = typeof detail === 'string' ? detail : (detail?.message || detail?.code || `HTTP ${response.status}`);
+      const err = new Error(message); err.status = response.status; err.detail = detail; throw err;
+    }
+    return body;
+  };
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  let selected = null, classes = [], dryRun = null, searchTimer = null, idempotencyKey = '';
+  $('sessionState').textContent = token() ? `Sessão local detectada.${tenant() ? ' Tenant ativo selecionado.' : ' Tenant será resolvido pelo backend conforme o perfil.'}` : 'Token local não encontrado; o cookie HttpOnly ainda poderá autenticar. Se receber 401, faça login novamente no SIGESC.';
+
+  $('studentQuery').addEventListener('input', () => {
+    clearTimeout(searchTimer); selected = null; dryRun = null; resetAfterStudent();
+    const q = $('studentQuery').value.trim();
+    if (q.length < 3) { $('studentResults').classList.add('hidden'); return; }
+    searchTimer = setTimeout(() => searchStudents(q), 300);
+  });
+
+  async function searchStudents(q) {
+    try {
+      const data = await call(`/students/autocomplete?q=${encodeURIComponent(q)}&limit=12&status=active`);
+      const items = data?.items || [];
+      $('studentResults').innerHTML = items.map((s,i) => `<div class="result" data-i="${i}"><b>${esc(s.full_name)}</b><br><span class="muted">${esc(s.school_name || 'Escola não informada')} · ${esc(s.class_name || 'Sem turma')} · ${esc(s.cpf_masked || '')}</span></div>`).join('') || '<div class="result muted">Nenhum estudante encontrado.</div>';
+      $('studentResults').classList.remove('hidden');
+      [...$('studentResults').querySelectorAll('[data-i]')].forEach(el => el.addEventListener('click', () => chooseStudent(items[Number(el.dataset.i)])));
+    } catch (e) { setState('sessionState', `Falha na busca: ${e.message}`, 'bad'); }
+  }
+
+  async function chooseStudent(s) {
+    selected = s; $('studentResults').classList.add('hidden'); $('studentQuery').value = s.full_name;
+    $('sourceClass').value = s.class_name || '';
+    $('selectedStudent').innerHTML = `<b>${esc(s.full_name)}</b><br><span class="muted">${esc(s.school_name || '')} · origem atual: ${esc(s.class_name || '')}</span>`;
+    $('selectedStudent').classList.remove('hidden');
+    try {
+      const all = await call(`/classes?school_id=${encodeURIComponent(s.school_id)}&_t=${Date.now()}`);
+      classes = (Array.isArray(all) ? all : []).filter(c => String(c.id) !== String(s.class_id));
+      const preferred = classes.filter(c => String(c.academic_year ?? '') === '2026' && c.status !== 'inactive');
+      const list = preferred.length ? preferred : classes;
+      $('destinationClass').innerHTML = '<option value="">Selecione</option>' + list.map(c => `<option value="${esc(c.id)}">${esc(c.name)}${c.academic_year ? ` · ${esc(c.academic_year)}` : ''}</option>`).join('');
+      $('destinationClass').disabled = false;
+    } catch(e) { setState('selectedStudent', `Estudante selecionado, mas falhou ao carregar turmas: ${e.message}`, 'bad'); }
+  }
+
+  $('destinationClass').addEventListener('change', () => { dryRun = null; $('dryRunBtn').disabled = !selected || !$('destinationClass').value; resetPrepare(); });
+
+  $('dryRunBtn').addEventListener('click', async () => {
+    $('dryRunBtn').disabled = true; setState('dryRunState','Executando simulação canônica…'); resetPrepare();
+    try {
+      dryRun = await call('/admin/enrollment-rectification/dry-run', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({student_id:selected.id,destination_class_id:$('destinationClass').value})});
+      const blockers = dryRun.blockers || [], warnings = dryRun.warnings || [];
+      const can = dryRun.can_execute_later === true && blockers.length === 0;
+      const origin = dryRun.origin_class?.name || selected.class_name || '';
+      const dest = dryRun.destination_class?.name || $('destinationClass').selectedOptions[0]?.textContent || '';
+      setState('dryRunState', `Dry Run: ${can ? 'APTO PARA PREPARAÇÃO' : 'BLOQUEADO'}\nOrigem: ${origin}\nDestino: ${dest}\nBlockers: ${blockers.length}\nAvisos: ${warnings.length}\nExecução habilitada agora: ${dryRun.execution_enabled ? 'SIM' : 'NÃO'}`, can ? 'ok' : 'bad');
+      $('confirmation').placeholder = dryRun.confirmation_phrase || 'CONFIRMO A RETIFICAÇÃO DA MATRÍCULA';
+      idempotencyKey = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      validatePrepare();
+    } catch(e) { dryRun = null; setState('dryRunState', `Dry Run recusado: ${e.message}`, 'bad'); }
+    finally { $('dryRunBtn').disabled = !selected || !$('destinationClass').value; }
+  });
+
+  ['confirmation','password','justification'].forEach(id => $(id).addEventListener('input', validatePrepare));
+  function validatePrepare() {
+    const can = dryRun?.can_execute_later === true && (dryRun?.blockers || []).length === 0;
+    const phrase = dryRun?.confirmation_phrase || 'CONFIRMO A RETIFICAÇÃO DA MATRÍCULA';
+    $('prepareBtn').disabled = !(can && $('password').value && $('justification').value.trim().length >= 30 && $('confirmation').value === phrase);
+  }
+
+  $('prepareBtn').addEventListener('click', async () => {
+    $('prepareBtn').disabled = true; setState('prepareState','Reautenticando e capturando snapshot PREPARED…');
+    const password = $('password').value;
+    try {
+      const r = await call('/admin/enrollment-rectification/prepare-execution', {
+        method:'POST', headers:{'Content-Type':'application/json','Idempotency-Key':idempotencyKey},
+        body:JSON.stringify({dry_run_token:dryRun.dry_run_token,password,justification:$('justification').value.trim(),confirmation:$('confirmation').value})
+      });
+      $('password').value = '';
+      if (r.state !== 'PREPARED') throw new Error(`Estado inesperado: ${r.state || 'sem estado'}`);
+      setState('prepareState', `PREPARAÇÃO CONCLUÍDA\nEstado: PREPARED\nExecução habilitada: ${r.execution_enabled ? 'SIM (inesperado — não prossiga)' : 'NÃO'}\nMutação acadêmica realizada: ${r.academic_mutation_performed ? 'SIM (inesperado)' : 'NÃO'}\n\nRetorne ao ChatGPT e informe apenas: PREPARED concluído.`, r.execution_enabled || r.academic_mutation_performed ? 'bad' : 'ok');
+      $('prepareBtn').disabled = true;
+    } catch(e) {
+      $('password').value = '';
+      setState('prepareState', `Preparação recusada: ${e.message}`, 'bad'); validatePrepare();
+    }
+  });
+
+  function setState(id, text, cls='') { const el=$(id); el.textContent=text; el.classList.remove('hidden','ok','warn','bad'); if(cls) el.classList.add(cls); }
+  function resetPrepare(){ dryRun=null; idempotencyKey=''; $('confirmation').value=''; $('password').value=''; $('prepareBtn').disabled=true; $('prepareState').classList.add('hidden'); $('dryRunState').classList.add('hidden'); }
+  function resetAfterStudent(){ $('sourceClass').value=''; $('destinationClass').innerHTML='<option value="">Selecione o estudante primeiro</option>'; $('destinationClass').disabled=true; $('dryRunBtn').disabled=true; $('selectedStudent').classList.add('hidden'); resetPrepare(); }
+})();
+</script>
+</body>
+</html>
