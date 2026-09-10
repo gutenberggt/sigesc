@@ -71,8 +71,8 @@ jobs:
 
           router=Path('backend/routers/student_dependencies.py').read_text(encoding='utf-8')
           required=[
-              'physically_deleted\": False',
-              'status\": \"cancelled\"',
+              'physically_deleted": False',
+              'status": "cancelled"',
               '[logical-delete]',
               'DEPENDENCY_REQUIRES_ACTIVE_STUDENT',
               'DEPENDENCY_PRESERVED_SNAPSHOT_PENDING',
