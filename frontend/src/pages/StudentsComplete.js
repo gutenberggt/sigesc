@@ -570,7 +570,7 @@ export function StudentsComplete() {
   // Busca alunos paginados do servidor
   useEffect(() => {
     const fetchStudents = async () => {
-      if (!filterSchoolId && !debouncedSearch) {
+      if (!filterSchoolId && !debouncedSearch && !filterStatus) {
         setStudents([]);
         setServerTotal(0);
         setServerTotalPages(0);
