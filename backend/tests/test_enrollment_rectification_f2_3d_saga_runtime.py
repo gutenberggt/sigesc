@@ -57,15 +57,46 @@ def _run(state="APPLIED"):
 
 
 @pytest.mark.asyncio
-async def test_historical_applied_replay_materializes_ordinal_without_reapplying_enrollment(monkeypatch):
+async def test_attendance_checkpoint_materializes_ordinal_before_base_checkpoint(monkeypatch):
+    db = _DB(_run("APPLYING"))
+    ordinal_apply = AsyncMock(return_value={
+        "state": "APPLIED",
+        "summary": {"source_records": 52, "applied": 47, "ignored_excess": 5},
+    })
+    base_checkpoint = AsyncMock()
+    monkeypatch.setattr(runtime, "apply_ordinal_attendance_from_ledger", ordinal_apply)
+    monkeypatch.setattr(runtime, "_BASE_CHECKPOINT", base_checkpoint)
+
+    await runtime._checkpoint_with_ordinal(
+        db,
+        run_id=db.runs.doc["prepare_id"],
+        tenant_id="tenant-1",
+        name="ATTENDANCE_APPLIED",
+        detail={"items": 52},
+    )
+
+    ordinal_apply.assert_awaited_once()
+    base_checkpoint.assert_awaited_once()
+    assert db.runs.doc["ordinal_attendance_state"] == "APPLIED"
+    assert db.runs.doc["ordinal_attendance_summary"]["ignored_excess"] == 5
+    assert any(cp.get("name") == "ATTENDANCE_ORDINAL_APPLIED" for cp in db.runs.doc["checkpoints"])
+    assert base_checkpoint.await_args.kwargs["detail"]["ordinal_summary"]["applied"] == 47
+
+
+@pytest.mark.asyncio
+async def test_historical_applied_replay_materializes_ordinal_under_dedicated_lock(monkeypatch):
     db = _DB(_run("APPLIED"))
     base_execute = AsyncMock(return_value={"state": "APPLIED", "idempotent_replay": True})
     ordinal_apply = AsyncMock(return_value={
         "state": "APPLIED",
         "summary": {"source_records": 52, "applied": 47, "ignored_excess": 5},
     })
+    acquire = AsyncMock(return_value=(True, {}))
+    release = AsyncMock()
     monkeypatch.setattr(runtime._runtime, "execute_rectification_saga", base_execute)
     monkeypatch.setattr(runtime, "apply_ordinal_attendance_from_ledger", ordinal_apply)
+    monkeypatch.setattr(runtime._saga, "acquire_lock", acquire)
+    monkeypatch.setattr(runtime._saga, "release_lock", release)
 
     out = await runtime.execute_rectification_saga(
         db,
@@ -80,7 +111,8 @@ async def test_historical_applied_replay_materializes_ordinal_without_reapplying
     assert out["attendance_ordinal_state"] == "APPLIED"
     assert out["attendance_ordinal_summary"]["ignored_excess"] == 5
     assert db.runs.doc["ordinal_attendance_state"] == "APPLIED"
-    base_execute.assert_awaited_once()
+    acquire.assert_awaited_once()
+    release.assert_awaited_once()
     ordinal_apply.assert_awaited_once()
 
 
@@ -98,6 +130,8 @@ async def test_historical_recovery_failure_never_rolls_back_existing_enrollment(
         AsyncMock(side_effect=OrdinalAttendanceError("ORDINAL_PLAN_BLOCKED", "blocked")),
     )
     monkeypatch.setattr(runtime, "compensate_ordinal_attendance", AsyncMock(return_value={}))
+    monkeypatch.setattr(runtime._saga, "acquire_lock", AsyncMock(return_value=(True, {})))
+    monkeypatch.setattr(runtime._saga, "release_lock", AsyncMock())
     rollback = AsyncMock(return_value={"state": "ROLLED_BACK"})
     monkeypatch.setattr(runtime._runtime, "rollback_rectification_saga", rollback)
 
@@ -117,34 +151,24 @@ async def test_historical_recovery_failure_never_rolls_back_existing_enrollment(
 
 
 @pytest.mark.asyncio
-async def test_fresh_execution_ordinal_failure_invokes_canonical_rollback(monkeypatch):
-    db = _DB(_run("PREPARED"))
+async def test_compensation_runs_ordinal_before_base_academic_compensation(monkeypatch):
+    order = []
 
-    async def base_execute(*args, **kwargs):
-        db.runs.doc["state"] = "APPLIED"
-        return {"state": "APPLIED", "idempotent_replay": False}
+    async def ordinal(db, *, run):
+        order.append("ordinal")
+        return {"ordinal_attendance_compensated": 3}
 
-    monkeypatch.setattr(runtime._runtime, "execute_rectification_saga", base_execute)
-    monkeypatch.setattr(
-        runtime,
-        "apply_ordinal_attendance_from_ledger",
-        AsyncMock(side_effect=OrdinalAttendanceError("ORDINAL_TARGET_CAS_CONFLICT", "conflict")),
-    )
-    rollback = AsyncMock(return_value={"state": "ROLLED_BACK"})
-    monkeypatch.setattr(runtime._runtime, "rollback_rectification_saga", rollback)
+    async def base(db, *, run):
+        order.append("base")
+        return {"attendance_revalidation_pending": False}
 
-    with pytest.raises(runtime.RectificationSagaError) as exc:
-        await runtime.execute_rectification_saga(
-            db,
-            prepare_id=db.runs.doc["prepare_id"],
-            tenant_id="tenant-1",
-            actor={"id": "admin-1", "role": "super_admin"},
-            document_acknowledgement="ack",
-        )
+    monkeypatch.setattr(runtime, "compensate_ordinal_attendance", ordinal)
+    monkeypatch.setattr(runtime, "_BASE_COMPENSATE_ACADEMIC", base)
+    out = await runtime._compensate_academic_with_ordinal(object(), run=_run("APPLIED"))
 
-    assert exc.value.code == "RECTIFICATION_ORDINAL_APPLY_FAILED"
-    assert exc.value.detail["rollback_state"] == "ROLLED_BACK"
-    rollback.assert_awaited_once()
+    assert order == ["ordinal", "base"]
+    assert out["ordinal_attendance_compensated"] == 3
+    assert out["attendance_revalidation_pending"] is False
 
 
 def test_router_uses_ordinal_runtime():
