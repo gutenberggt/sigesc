@@ -1,0 +1,65 @@
+name: MT-1 AEE/Inativos self-patch
+
+on:
+  push:
+    branches:
+      - automation/mt1-aee-inactive-patch
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: automation/mt1-aee-inactive-patch
+          fetch-depth: 0
+
+      - name: Apply minimal authorized fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          aee = Path('frontend/src/pages/DiarioAEE.js')
+          src = aee.read_text(encoding='utf-8')
+
+          import_anchor = "import { browserLocalTodayISO } from '@/utils/browserLocalDate';\n"
+          import_line = "import { apiFetch } from '@/services/api';\n"
+          if import_line not in src:
+              if src.count(import_anchor) != 1:
+                  raise SystemExit('AEE_IMPORT_ANCHOR_MISMATCH')
+              src = src.replace(import_anchor, import_anchor + import_line, 1)
+
+          raw_fetch_count = src.count('fetch(')
+          if raw_fetch_count < 1:
+              raise SystemExit('AEE_RAW_FETCH_NOT_FOUND')
+          src = src.replace('fetch(', 'apiFetch(')
+          if 'fetch(' in src:
+              raise SystemExit('AEE_RAW_FETCH_REMAINS')
+          aee.write_text(src, encoding='utf-8')
+
+          students = Path('frontend/src/pages/StudentsComplete.js')
+          src = students.read_text(encoding='utf-8')
+          old = "      if (!filterSchoolId && !debouncedSearch) {\n"
+          new = "      if (!filterSchoolId && !debouncedSearch && !filterStatus) {\n"
+          if src.count(old) != 1:
+              raise SystemExit('STUDENTS_GUARD_ANCHOR_MISMATCH')
+          src = src.replace(old, new, 1)
+          students.write_text(src, encoding='utf-8')
+
+          test = Path('backend/tests/test_mt1_aee_inactive_students_frontend_p0.py')
+          test.write_text('''from pathlib import Path\n\n\nROOT = Path(__file__).resolve().parents[2]\nAEE = ROOT / "frontend/src/pages/DiarioAEE.js"\nSTUDENTS = ROOT / "frontend/src/pages/StudentsComplete.js"\n\n\ndef test_diario_aee_uses_canonical_tenant_aware_fetch():\n    source = AEE.read_text(encoding="utf-8")\n    assert "import { apiFetch } from '@/services/api';" in source\n    assert "apiFetch(`${API_URL}/api/schools`" in source\n    assert "const res = await apiFetch(url, options);" in source\n    assert "fetch(" not in source\n\n\ndef test_inactive_status_can_query_without_school_or_search():\n    source = STUDENTS.read_text(encoding="utf-8")\n    assert "if (!filterSchoolId && !debouncedSearch && !filterStatus)" in source\n    assert "if (filterStatus) params.status = filterStatus;" in source\n''', encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/mt1-aee-inactive-selfpatch.yml
+
+          git config user.name "SIGESC Maintenance Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add frontend/src/pages/DiarioAEE.js frontend/src/pages/StudentsComplete.js backend/tests/test_mt1_aee_inactive_students_frontend_p0.py .github/workflows/mt1-aee-inactive-selfpatch.yml
+          git diff --cached --check
+          git commit -m "fix: restaurar contexto MT-1 no AEE e filtro de inativos"
+          git push origin HEAD:automation/mt1-aee-inactive-patch
