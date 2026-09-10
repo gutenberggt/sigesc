@@ -1,0 +1,259 @@
+name: "SIGESC Matrícula - Reparo de identidade baseline 2026-06-12"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/student_baseline_identity_restore_2026_06_12.py'
+      - '.github/workflows/student-baseline-identity-restore-2026-06-12.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: student-baseline-identity-restore-2026-06-12
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard — reparo de identidade baseline 2026
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Enforce canonical-writer identity-only contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          p=backend/scripts/student_baseline_identity_restore_2026_06_12.py
+          w=.github/workflows/student-baseline-identity-restore-2026-06-12.yml
+          test -s "$p" && test -s "$w"
+          python3 -m py_compile "$p"
+          grep -Fq 'BASELINE_DATE = "2026-06-12"' "$p"
+          grep -Fq 'TARGET_CLASS = "7º ANO D"' "$p"
+          grep -Fq 'EXPECTED_POST_HISTORY = 8' "$p"
+          grep -Fq '_rollback_release_if_safe' "$p"
+          grep -Fq 'resolve_and_prepare_identity_handoff' "$p"
+          grep -Fq '_assert_number_owned_only_by_student' "$p"
+          grep -Fq 'student_recovery_archives.insert_one' "$p"
+          grep -Fq 'audit_logs.insert_one' "$p"
+          grep -Fq 'READY_FOR_APPLY' "$p"
+          grep -Fq 'YES_AUTHORIZED_BASELINE_IDENTITY_RESTORE_ONLY' "$p"
+          ! grep -Eq 'db\.enrollments\.(insert_one|insert_many|update_one|update_many|find_one_and_update|bulk_write)' "$p"
+          ! grep -Eq 'db\.students\.(insert_one|insert_many|update_one|update_many|replace_one|delete_one|delete_many|bulk_write)' "$p"
+          ! grep -Eq 'db\.(student_history|grades|attendance|student_dependencies)\.(insert_one|insert_many|update_one|update_many|replace_one|delete_one|delete_many|bulk_write)' "$p"
+          ! grep -Eiq 'Brenda[[:space:]]+Vitoria|Ferreira[[:space:]]+da[[:space:]]+Silva' "$p" "$w"
+          grep -Fq 'environment: production' "$w"
+          grep -Fq 'APPLY_CONFIRMATION' "$w"
+          grep -Fq 'EXPECTED_PRODUCTION_SHA' "$w"
+          echo 'STUDENT_BASELINE_IDENTITY_RESTORE_GUARD=PASS'
+          echo 'ENROLLMENT_NUMBER_WRITER=CANONICAL_CONTINUITY_SERVICE_ONLY'
+          echo 'STUDENT_PROJECTION_MUTATION=NO'
+          echo 'ACADEMIC_COLLECTION_MUTATION=NO'
+
+  execute:
+    name: Preview/apply reparo de identidade baseline 2026
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[STUDENT-BASELINE-IDENTITY-RESTORE-2026-06-12] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact owner-scoped context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['OWNER'] or issue.get('state') != 'open':
+              raise SystemExit('IDENTITY_RESTORE_OWNER_OPEN_ISSUE_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.strip().split('=',1)
+              if k in values: raise SystemExit('IDENTITY_RESTORE_DUPLICATE_FIELD:'+k)
+              values[k]=v.strip()
+          required={
+              'STUDENT_BASELINE_IDENTITY_RESTORE_2026_06_12':'AUTHORIZED',
+              'CONFIRMATION':'RESTORE_RELEASED_NUMBER_TO_BASELINE_ENROLLMENT',
+              'ACADEMIC_YEAR':'2026',
+              'EXPECTED_POST_HISTORY_COUNT':'8',
+          }
+          for k,want in required.items():
+              if values.get(k) != want: raise SystemExit('IDENTITY_RESTORE_FIELD_INVALID:'+k)
+          mode=values.get('MODE','').lower()
+          if mode not in {'preview','apply'}: raise SystemExit('IDENTITY_RESTORE_MODE_INVALID')
+          if mode == 'apply' and values.get('APPLY_CONFIRMATION') != 'I_ACCEPT_AUTHORIZED_BASELINE_IDENTITY_RESTORE':
+              raise SystemExit('IDENTITY_RESTORE_APPLY_CONFIRMATION_REQUIRED')
+          target=values.get('TARGET_SHA',''); prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          salt=values.get('IDENTITY_SALT','').lower(); identity_hash=values.get('IDENTITY_HASH','').lower()
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',prod):
+              raise SystemExit('IDENTITY_RESTORE_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{32}',salt) or not re.fullmatch(r'[0-9a-f]{64}',identity_hash):
+              raise SystemExit('IDENTITY_RESTORE_FINGERPRINT_INVALID')
+          if issue.get('title') != f'[STUDENT-BASELINE-IDENTITY-RESTORE-2026-06-12] {target}':
+              raise SystemExit('IDENTITY_RESTORE_TITLE_MISMATCH')
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-identity-restore'}
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as response: return json.load(response)
+          if get('branches/main')['commit']['sha'] != target: raise SystemExit('IDENTITY_RESTORE_MAIN_MOVED')
+          if get('branches/production')['commit']['sha'] != prod: raise SystemExit('IDENTITY_RESTORE_PRODUCTION_MOVED')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target={target}\nprod={prod}\nmode={mode}\nsalt={salt}\nidentity_hash={identity_hash}\nissue={issue.get("number")}\n')
+          print('STUDENT_BASELINE_IDENTITY_RESTORE_CONTEXT=PASS')
+          PY
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "IDENTITY_RESTORE_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]]
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]]
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/identity_restore_key
+          chmod 600 ~/.ssh/identity_restore_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve backend container
+        id: topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="$({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/identity_restore_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo")"
+          test -n "$project"
+          docker ps --filter "label=com.docker.compose.project=$project" \
+            --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1
+          REMOTE
+          } | tail -n 1)"
+          test -n "$backend" && [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]]
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+
+      - name: Execute fail-closed identity repair
+        id: exec
+        env:
+          BACKEND: ${{ steps.topology.outputs.backend }}
+          MODE: ${{ steps.context.outputs.mode }}
+          SALT: ${{ steps.context.outputs.salt }}
+          IDHASH: ${{ steps.context.outputs.identity_hash }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$(mktemp)"; sanitized="$(mktemp)"
+          trap 'rm -f "$raw" "$sanitized"' EXIT
+          remote="timeout 900 docker exec -i -w /app -e PYTHONPATH=/app ${BACKEND} python - ${MODE} ${GITHUB_RUN_ID} ${SALT} ${IDHASH}"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/identity_restore_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote" \
+            < backend/scripts/student_baseline_identity_restore_2026_06_12.py > "$raw" 2>&1
+          rc=$?
+          set -e
+          grep -E '^STUDENT_BASELINE_IDENTITY_RESTORE_|^PRODUCTION_DATABASE_TOUCHED=' "$raw" > "$sanitized" || true
+          cat "$sanitized"
+          touched="$(sed -n 's/^PRODUCTION_DATABASE_TOUCHED=//p' "$sanitized" | tail -1)"
+          test -n "$touched" || { echo 'IDENTITY_RESTORE_TOUCH_MARKER_MISSING'; exit 90; }
+          ready="$(sed -n 's/^STUDENT_BASELINE_IDENTITY_RESTORE_READY_FOR_APPLY=//p' "$sanitized" | tail -1)"
+          noop="$(sed -n 's/^STUDENT_BASELINE_IDENTITY_RESTORE_APPLY_NOOP=//p' "$sanitized" | tail -1)"
+          if [ "$rc" -ne 0 ]; then
+            case "$touched" in NO) outcome=BLOCKED;; COMPENSATED) outcome=FAILED_COMPENSATED;; *) echo "IDENTITY_RESTORE_UNSAFE_FAILURE:$touched"; exit "$rc";; esac
+          elif [ "$MODE" = preview ]; then
+            [ "$ready" = YES ] && outcome=READY || outcome=BLOCKED
+          elif [ "$noop" = ALREADY_RESTORED ]; then outcome=NOOP
+          else outcome=APPLIED
+          fi
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+          echo "touched=$touched" >> "$GITHUB_OUTPUT"
+          for key in TARGET_STUDENTS BASELINE_EVENTS POST_HISTORY TARGET_ENROLLMENTS IDENTITY_BASIS TARGET_CURRENT_PRESENT TARGET_PREVIOUS_PRESENT STUDENT_NUMBER_MATCH LOGGED_NUMBER_MATCH TARGET_PREVIOUS_MATCH OTHER_HOLDERS ACTIVE_HOLDERS ALREADY_RESTORED CONFLICTS CONFLICT_TYPES TARGET_ENROLLMENT_NUMBER_RESTORED CANONICAL_WRITER STUDENT_PROJECTION_CHANGED ACADEMIC_RECORDS_CHANGED AUDIT_EVENTS; do
+            val="$(sed -n "s/^STUDENT_BASELINE_IDENTITY_RESTORE_${key}=//p" "$sanitized" | tail -1)"
+            echo "${key,,}=${val:-N/A}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Publish sanitized result and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ steps.context.outputs.issue }}
+          MODE: ${{ steps.context.outputs.mode }}
+          OUTCOME: ${{ steps.exec.outputs.outcome }}
+          TOUCHED: ${{ steps.exec.outputs.touched }}
+          TARGETS: ${{ steps.exec.outputs.target_students }}
+          BASELINE: ${{ steps.exec.outputs.baseline_events }}
+          POST: ${{ steps.exec.outputs.post_history }}
+          ENROLLMENTS: ${{ steps.exec.outputs.target_enrollments }}
+          BASIS: ${{ steps.exec.outputs.identity_basis }}
+          CURRENT: ${{ steps.exec.outputs.target_current_present }}
+          PREVIOUS: ${{ steps.exec.outputs.target_previous_present }}
+          STUDENT_MATCH: ${{ steps.exec.outputs.student_number_match }}
+          LOG_MATCH: ${{ steps.exec.outputs.logged_number_match }}
+          PREVIOUS_MATCH: ${{ steps.exec.outputs.target_previous_match }}
+          OTHER: ${{ steps.exec.outputs.other_holders }}
+          ACTIVE: ${{ steps.exec.outputs.active_holders }}
+          CONFLICTS: ${{ steps.exec.outputs.conflicts }}
+          TYPES: ${{ steps.exec.outputs.conflict_types }}
+          RESTORED: ${{ steps.exec.outputs.target_enrollment_number_restored }}
+          WRITER: ${{ steps.exec.outputs.canonical_writer }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          body=(
+            '## Reparo da identidade da matrícula-base 2026 — resultado sanitizado\n\n'
+            f"- Modo: `{os.environ['MODE']}`\n- Resultado: **{os.environ['OUTCOME']}**\n"
+            f"- Estudantes resolvidos: `{os.environ['TARGETS']}`\n- Eventos-base: `{os.environ['BASELINE']}`\n"
+            f"- Eventos posteriores: `{os.environ['POST']}`\n- Matrículas-base: `{os.environ['ENROLLMENTS']}`\n"
+            f"- Base da identidade: `{os.environ['BASIS']}`\n- Número ativo presente: `{os.environ['CURRENT']}`\n"
+            f"- previous_enrollment_number presente: `{os.environ['PREVIOUS']}`\n"
+            f"- Students confirma: `{os.environ['STUDENT_MATCH']}`\n- Log original confirma: `{os.environ['LOG_MATCH']}`\n"
+            f"- Previous confirma: `{os.environ['PREVIOUS_MATCH']}`\n- Outros vínculos detendo identidade: `{os.environ['OTHER']}`\n"
+            f"- Outros vínculos ativos detendo identidade: `{os.environ['ACTIVE']}`\n"
+            f"- Conflitos: `{os.environ['CONFLICTS']}` (`{os.environ['TYPES']}`)\n"
+            f"- Número restaurado no apply: `{os.environ['RESTORED']}`\n- Escritor canônico: `{os.environ['WRITER']}`\n"
+            f"- Estado da produção: **{os.environ['TOUCHED']}**\n\n"
+            'Nenhum nome, ID técnico ou número de matrícula foi publicado por este gate.'
+          )
+          repo=os.environ['GITHUB_REPOSITORY']; issue=os.environ['ISSUE']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-identity-restore'}
+          def req(method,path,payload):
+              request=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',data=json.dumps(payload).encode(),headers=headers,method=method)
+              with urllib.request.urlopen(request,timeout=30) as response: return json.load(response)
+          req('POST',f'issues/{issue}/comments',{'body':body})
+          reason='completed' if os.environ['OUTCOME'] in {'READY','APPLIED','NOOP'} else 'not_planned'
+          req('PATCH',f'issues/{issue}',{'state':'closed','state_reason':reason})
+          PY
