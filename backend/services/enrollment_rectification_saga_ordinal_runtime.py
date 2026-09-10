@@ -13,10 +13,13 @@ Composição:
   depois restaura a evidência da origem;
 - replay de uma saga histórica já ``APPLIED`` usa lock próprio e recupera
   apenas a frequência ordinal, sem repetir matrícula/notas nem desfazer a
-  matrícula caso a recuperação seja recusada.
+  matrícula caso a recuperação seja recusada;
+- request/audit_service do chamador são transportados por ContextVar até o
+  checkpoint interno, preservando desvalidação institucional auditada.
 """
 from __future__ import annotations
 
+from contextvars import ContextVar
 from copy import deepcopy
 from typing import Any, Mapping
 
@@ -26,6 +29,7 @@ from services.enrollment_rectification_attendance import _digest as attendance_d
 from services.enrollment_rectification_attendance_ordinal import (
     ORDINAL_LEDGER_COLLECTION,
     apply_ordinal_attendance_from_ledger,
+    build_ordinal_attendance_plan,
 )
 
 RectificationExecutionError = _runtime.RectificationExecutionError
@@ -35,6 +39,9 @@ saga_execution_enabled = _runtime.saga_execution_enabled
 
 _BASE_COMPENSATE_ACADEMIC = _saga._compensate_academic
 _BASE_CHECKPOINT = _saga._checkpoint
+_CTX_ACTOR: ContextVar[Mapping[str, Any] | None] = ContextVar("f23d_actor", default=None)
+_CTX_REQUEST: ContextVar[Any] = ContextVar("f23d_request", default=None)
+_CTX_AUDIT: ContextVar[Any] = ContextVar("f23d_audit", default=None)
 
 
 def _version_filter(doc: Mapping[str, Any]) -> dict[str, Any]:
@@ -175,14 +182,50 @@ async def _apply_ordinal_for_run(
     request=None,
     audit_service=None,
 ) -> dict[str, Any]:
+    protocol = str(run.get("protocol") or "")
+    tenant_id = str(run.get("tenant_id") or "")
+    student_id = str(run.get("student_id") or "")
+    target_class_id = str(run.get("destination_class_id") or "")
+    academic_year = int(run.get("academic_year"))
+
+    # Preflight imediatamente antes da escrita. Além dos blockers ordinários,
+    # garante que nenhuma desvalidação institucional comece sem audit_service.
+    preview = await build_ordinal_attendance_plan(
+        db,
+        protocol=protocol,
+        tenant_id=tenant_id,
+        student_id=student_id,
+        target_class_id=target_class_id,
+        academic_year=academic_year,
+    )
+    if preview.get("blockers"):
+        raise RectificationSagaError(
+            "RECTIFICATION_ORDINAL_PLAN_BLOCKED",
+            "A migração ordinal possui bloqueios no destino.",
+            detail={"blockers": preview.get("blockers")},
+        )
+    validated_slots = [
+        pair.get("destination") or {}
+        for component in (preview.get("components") or [])
+        for pair in (component.get("pairs") or [])
+        if (pair.get("destination") or {}).get("validated_by")
+        or (pair.get("destination") or {}).get("validated_at")
+    ]
+    if validated_slots and audit_service is None:
+        raise RectificationSagaError(
+            "RECTIFICATION_ORDINAL_AUDIT_CONTEXT_REQUIRED",
+            "Há frequência validada no destino e o contexto de auditoria não está disponível.",
+            detail={"validated_slots": len(validated_slots)},
+        )
+
     ordinal = await apply_ordinal_attendance_from_ledger(
         db,
-        protocol=str(run.get("protocol") or ""),
-        tenant_id=str(run.get("tenant_id") or ""),
-        student_id=str(run.get("student_id") or ""),
+        protocol=protocol,
+        tenant_id=tenant_id,
+        student_id=student_id,
         source_class_id=str(run.get("source_class_id") or ""),
-        target_class_id=str(run.get("destination_class_id") or ""),
-        academic_year=int(run.get("academic_year")),
+        target_class_id=target_class_id,
+        academic_year=academic_year,
         actor=actor,
         request=request,
         audit_service=audit_service,
@@ -191,7 +234,7 @@ async def _apply_ordinal_for_run(
     await _mark_ordinal_state(
         db,
         run_id=str(run.get("prepare_id") or run.get("_id") or ""),
-        tenant_id=str(run.get("tenant_id") or ""),
+        tenant_id=tenant_id,
         state="APPLIED",
         summary=summary,
     )
@@ -218,10 +261,16 @@ async def _checkpoint_with_ordinal(
                 status_code=404,
             )
         if run.get("ordinal_attendance_state") != "APPLIED":
-            actor = dict(run.get("actor") or {})
+            actor = dict(_CTX_ACTOR.get() or run.get("actor") or {})
             actor["active_mantenedora_id"] = tenant_id
             actor["mantenedora_id"] = tenant_id
-            summary = await _apply_ordinal_for_run(db, run=run, actor=actor)
+            summary = await _apply_ordinal_for_run(
+                db,
+                run=run,
+                actor=actor,
+                request=_CTX_REQUEST.get(),
+                audit_service=_CTX_AUDIT.get(),
+            )
             detail = {**(detail or {}), "ordinal_summary": summary}
     await _BASE_CHECKPOINT(
         db,
@@ -245,7 +294,7 @@ if not getattr(_saga, "_f23d_ordinal_checkpoint_installed", False):
 rollback_rectification_saga = _runtime.rollback_rectification_saga
 
 
-async def execute_rectification_saga(
+async def _execute_composed(
     db,
     *,
     prepare_id: str,
@@ -256,7 +305,6 @@ async def execute_rectification_saga(
     audit_service=None,
     secret: str | None = None,
 ) -> dict[str, Any]:
-    """Executa a saga composta ou recupera ordinalmente um APPLIED histórico."""
     before = await db[_saga.RUNS_COLLECTION].find_one(
         {"_id": prepare_id, "tenant_id": tenant_id}, {"_id": 0}
     )
@@ -371,6 +419,38 @@ async def execute_rectification_saga(
             ) from exc
     finally:
         await _saga.release_lock(db, target, holder, _saga.LOCKS_COLLECTION)
+
+
+async def execute_rectification_saga(
+    db,
+    *,
+    prepare_id: str,
+    tenant_id: str,
+    actor: Mapping[str, Any],
+    document_acknowledgement: str,
+    request=None,
+    audit_service=None,
+    secret: str | None = None,
+) -> dict[str, Any]:
+    """Executa com contexto auditável disponível ao checkpoint F2.3D."""
+    actor_token = _CTX_ACTOR.set(dict(actor))
+    request_token = _CTX_REQUEST.set(request)
+    audit_token = _CTX_AUDIT.set(audit_service)
+    try:
+        return await _execute_composed(
+            db,
+            prepare_id=prepare_id,
+            tenant_id=tenant_id,
+            actor=actor,
+            document_acknowledgement=document_acknowledgement,
+            request=request,
+            audit_service=audit_service,
+            secret=secret,
+        )
+    finally:
+        _CTX_AUDIT.reset(audit_token)
+        _CTX_REQUEST.reset(request_token)
+        _CTX_ACTOR.reset(actor_token)
 
 
 __all__ = [
