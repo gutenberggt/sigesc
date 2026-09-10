@@ -12,7 +12,8 @@ Esta camada é deliberadamente NÃO persistente:
 - nunca escreve no MongoDB;
 - reconstrói/normaliza apenas a resposta em memória;
 - preserva todos os componentes legados conhecidos;
-- normaliza somente Literals semanticamente inequívocos encontrados no legado;
+- converte ``status`` histórico somente ao materializar um ``Student`` tipado;
+- preserva o ``status`` bruto na projeção genérica usada por outros fluxos;
 - não converte comunidade tradicional vazia em ``nao_pertence``;
 - não mascara erros Pydantic fora do conjunto legado auditado.
 """
@@ -43,9 +44,9 @@ _COMPAT_ERROR_ROOTS = frozenset({
 _CERTIFICATE_TYPES = frozenset({"nascimento", "casamento"})
 
 # Valores históricos já reconhecidos por outras camadas do SIGESC (por exemplo,
-# o fluxo de matrícula/rematrícula). A projeção abaixo apenas traduz equivalentes
-# inequívocos para o contrato atual; valores desconhecidos continuam falhando
-# em Pydantic, em vez de serem reinterpretados silenciosamente.
+# o fluxo de matrícula/rematrícula). A tradução só ocorre ao construir o model
+# Student. A projeção genérica normalize_legacy_student_doc preserva o status
+# bruto porque outros contratos internos ainda o usam dessa forma.
 _LEGACY_STATUS_ALIASES = {
     "ativo": "active",
     "inativo": "inactive",
@@ -65,9 +66,10 @@ def normalize_legacy_student_doc(doc: dict | None) -> dict | None:
     pois coexistia no mesmo documento com número, complemento, bairro, cidade e
     UF. Esses componentes são apenas reagrupados em ``StudentAddress``.
 
-    ``status`` em português é traduzido somente quando possui equivalência
-    institucional explícita com um valor canônico. A fonte recebida nunca é
-    modificada e nenhum valor desconhecido é aceito por aproximação.
+    O ``status`` é deliberadamente preservado aqui. Alguns fluxos internos de
+    rematrícula ainda distinguem os valores históricos em português; somente a
+    materialização tipada em :func:`build_compatible_student` traduz equivalentes
+    inequívocos para os Literals atuais.
     """
     if doc is None:
         return None
@@ -106,13 +108,23 @@ def normalize_legacy_student_doc(doc: dict | None) -> dict | None:
         # Vazio significa "não informado". Não reinterpretar como nao_pertence.
         normalized["comunidade_tradicional"] = None
 
+    return normalized
+
+
+def _normalize_legacy_status_for_student(doc: dict) -> dict:
+    """Traduz apenas aliases históricos inequívocos para o model ``Student``.
+
+    A função trabalha sobre cópia. Valores desconhecidos permanecem intactos e,
+    portanto, continuam sendo rejeitados pelo Pydantic em vez de receberem uma
+    interpretação aproximada.
+    """
+    normalized = dict(doc)
     legacy_status = normalized.get("status")
     if isinstance(legacy_status, str):
         status_key = legacy_status.strip().lower()
         canonical_status = _LEGACY_STATUS_ALIASES.get(status_key)
         if canonical_status:
             normalized["status"] = canonical_status
-
     return normalized
 
 
@@ -132,7 +144,8 @@ def is_legacy_compat_validation_error(exc: ValidationError) -> bool:
 
 def build_compatible_student(doc: dict) -> Student:
     """Constrói o Student atual a partir da projeção compatível em memória."""
-    return Student.model_validate(normalize_legacy_student_doc(doc))
+    normalized = normalize_legacy_student_doc(doc)
+    return Student.model_validate(_normalize_legacy_status_for_student(normalized))
 
 
 def _remove_route(base_router: Any, path: str, method: str):
