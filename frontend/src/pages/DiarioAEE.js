@@ -40,6 +40,7 @@ import DossieAEEV2Modal from '@/components/DossieAEEV2Modal';
 import PlanoAEEEffectiveViewer from '@/components/PlanoAEEEffectiveViewer';
 import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 import { browserLocalTodayISO } from '@/utils/browserLocalDate';
+import { apiFetch } from '@/services/api';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -239,7 +240,7 @@ const DiarioAEE = () => {
   useEffect(() => {
     const fetchSchools = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/schools`, { headers: { 'Authorization': `Bearer ${tokenRef.current}` } });
+        const response = await apiFetch(`${API_URL}/api/schools`, { headers: { 'Authorization': `Bearer ${tokenRef.current}` } });
         const data = await response.json();
         // Filtra escolas com AEE (se nenhuma tiver AEE, mostra todas para seleção)
         const allSchools = data.items || data || [];
@@ -269,7 +270,7 @@ const DiarioAEE = () => {
     // Helper seguro: garante que o body só é lido uma vez e nunca quebra em status HTTP não-ok
     const safeFetchJson = async (url, options = {}) => {
       try {
-        const res = await fetch(url, options);
+        const res = await apiFetch(url, options);
         let body = null;
         try {
           body = await res.json();
@@ -410,7 +411,7 @@ const DiarioAEE = () => {
         ? `${API_URL}/api/aee/planos/${editingPlano.id}`
         : `${API_URL}/api/aee/planos`;
       
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: editingPlano ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify(payload)
@@ -451,7 +452,7 @@ const DiarioAEE = () => {
     // 6.6C: o objeto da listagem deixa de ser autoridade da visualização.
     // Usa apenas o id e resolve o GET individual 6.4B já homologado.
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/aee/planos/${plano.id}`,
         { headers: { 'Authorization': `Bearer ${tokenRef.current}` } }
       );
@@ -481,7 +482,7 @@ const DiarioAEE = () => {
   const confirmDeletePlano = async () => {
     if (!deletingPlano) return;
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/aee/planos/${deletingPlano.id}`,
         { method: 'DELETE', headers }
       );
@@ -498,7 +499,7 @@ const DiarioAEE = () => {
 
   const handleGerarPDFPlano = async (plano) => {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/aee/planos/${plano.id}/pdf`,
         { headers }
       );
@@ -556,7 +557,7 @@ const DiarioAEE = () => {
       const body = duplicateMode === 'cross'
         ? { target_student_id: duplicateTargetStudentId }
         : {};
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/aee/planos/${duplicatingPlano.id}/duplicate`,
         { method: 'POST', headers, body: JSON.stringify(body) }
       );
@@ -611,7 +612,7 @@ const DiarioAEE = () => {
         ? `${API_URL}/api/aee/atendimentos/${editingAtendimento.id}`
         : `${API_URL}/api/aee/atendimentos`;
       
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: editingAtendimento ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify(payload)
@@ -694,7 +695,7 @@ const DiarioAEE = () => {
   const fetchTemplates = async () => {
     setLoadingTemplates(true);
     try {
-      const res = await fetch(`${API_URL}/api/aee/templates`, { headers });
+      const res = await apiFetch(`${API_URL}/api/aee/templates`, { headers });
       const d = res.ok ? await res.json() : { items: [] };
       setTemplates(d.items || []);
     } catch (e) {
@@ -721,7 +722,7 @@ const DiarioAEE = () => {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/aee/planos/from-template`, {
+      const res = await apiFetch(`${API_URL}/api/aee/planos/from-template`, {
         method: 'POST', headers,
         body: JSON.stringify({
           template_id: applyTemplateId,
@@ -820,7 +821,7 @@ const DiarioAEE = () => {
       const url = editingTemplate
         ? `${API_URL}/api/aee/templates/${editingTemplate.id}`
         : `${API_URL}/api/aee/templates`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: editingTemplate ? 'PUT' : 'POST',
         headers, body: JSON.stringify(payload),
       });
@@ -841,7 +842,7 @@ const DiarioAEE = () => {
     }
     if (!window.confirm(`Excluir o modelo "${tpl.nome}"? Planos já criados a partir dele serão preservados.`)) return;
     try {
-      const res = await fetch(`${API_URL}/api/aee/templates/${tpl.id}`, {
+      const res = await apiFetch(`${API_URL}/api/aee/templates/${tpl.id}`, {
         method: 'DELETE', headers,
       });
       if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao excluir modelo'));
@@ -854,7 +855,7 @@ const DiarioAEE = () => {
 
   const handleDuplicateTemplate = async (tpl) => {
     try {
-      const res = await fetch(`${API_URL}/api/aee/templates/${tpl.id}/duplicate`, {
+      const res = await apiFetch(`${API_URL}/api/aee/templates/${tpl.id}/duplicate`, {
         method: 'POST', headers,
       });
       if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao duplicar modelo'));
@@ -889,7 +890,7 @@ const DiarioAEE = () => {
       if (range.fim) url += `&data_fim=${range.fim}`;
       if (range.label) url += `&periodo_label=${encodeURIComponent(range.label)}`;
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
