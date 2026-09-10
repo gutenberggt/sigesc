@@ -1,0 +1,394 @@
+name: "SIGESC Dependência - F2 linha do tempo por backups"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/dependency-f2-backup-timeline-encrypted.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-f2-backup-timeline-encrypted
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2 backup timeline isolation/privacy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Enforce forensic boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          text=Path('.github/workflows/dependency-f2-backup-timeline-encrypted.yml').read_text(encoding='utf-8')
+          required=[
+              'TRACE_DEPENDENCY_BACKUP_TIMELINE_READ_ONLY','EXPECTED_MISSING_COUNT',
+              'student_dependencies','dependency_completions','audit_logs','grades','attendance',
+              'mongorestore','--network none','BACKUP_MOUNT=READ_ONLY',
+              'PRODUCTION_DATABASE_TOUCHED=NO','openssl cms -encrypt',
+              'dependency-f2-backup-timeline.cms','PII_IN_PUBLIC_LOGS=NO',
+          ]
+          for marker in required:
+              if marker not in text:
+                  raise SystemExit(f'DEP_F2_REQUIRED_MARKER_MISSING:{marker}')
+          # A política Mongo read-only se aplica ao script remoto executável, não
+          # à própria lista de tokens proibidos deste guard.
+          start="cat > private/timeline.sh <<'SH'"
+          end="\n          SH\n"
+          if start not in text or end not in text:
+              raise SystemExit('DEP_F2_TIMELINE_COLLECTOR_BLOCK_MISSING')
+          collector=text.rsplit(start,1)[1].split(end,1)[0]
+          for token in [
+              '.insertOne(','.insertMany(','.updateOne(','.updateMany(','.replaceOne(',
+              '.deleteOne(','.deleteMany(','.bulkWrite(','.findOneAndUpdate(',
+              '.findOneAndDelete(','.findOneAndReplace(','.drop(','.dropDatabase(',
+          ]:
+              if token in collector:
+                  raise SystemExit(f'DEP_F2_MONGO_MUTATION_PRIMITIVE_FOUND:{token}')
+          # Restore deve ocorrer somente no container temporário $drill.
+          for line in collector.splitlines():
+              if 'mongorestore' in line and not line.lstrip().startswith('#'):
+                  if 'docker exec "$drill"' not in line:
+                      raise SystemExit(f'DEP_F2_UNSCOPED_MONGORESTORE:{line.strip()}')
+          if re.search(r'^\s+path:\s*(?:private/|evidence/dependency-f2-backup-timeline\.json)\s*$',text,re.MULTILINE):
+              raise SystemExit('DEP_F2_PLAINTEXT_UPLOAD_FORBIDDEN')
+          print('DEPENDENCY_F2_BACKUP_TIMELINE_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-forensic:
+    name: Reconstruct 2026 dependency timeline from retained backups
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[DEPENDENCY-F2-BACKUP-TIMELINE] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact owner-scoped context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,json,os,re,urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER'] or issue.get('state') != 'open':
+              raise SystemExit('DEP_F2_OWNER_OPEN_ISSUE_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.strip().split('=',1)
+              if k in values: raise SystemExit(f'DEP_F2_DUPLICATE_FIELD:{k}')
+              values[k]=v.strip()
+          expected={
+              'DEPENDENCY_F2_BACKUP_TIMELINE':'AUTHORIZED',
+              'CONFIRMATION':'TRACE_DEPENDENCY_BACKUP_TIMELINE_READ_ONLY',
+              'ACADEMIC_YEAR':'2026',
+              'ANCHOR_SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+              'EXPECTED_MISSING_COUNT':'4',
+          }
+          for k,wanted in expected.items():
+              if values.get(k) != wanted: raise SystemExit(f'DEP_F2_FIELD_INVALID:{k}')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          cert_b64=values.get('AUDIT_CERT_B64',''); cert_sha=values.get('CERT_SHA256','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('DEP_F2_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{64}',cert_sha): raise SystemExit('DEP_F2_CERT_SHA_INVALID')
+          if issue.get('title') != f'[DEPENDENCY-F2-BACKUP-TIMELINE] {target}':
+              raise SystemExit('DEP_F2_TITLE_MISMATCH')
+          try: cert=base64.b64decode(cert_b64,validate=True)
+          except Exception: raise SystemExit('DEP_F2_CERT_B64_INVALID')
+          if hashlib.sha256(cert).hexdigest()!=cert_sha or b'BEGIN CERTIFICATE' not in cert:
+              raise SystemExit('DEP_F2_CERT_INVALID')
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-f2-backup-timeline'}
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          if get('branches/main')['commit']['sha'] != target: raise SystemExit('DEP_F2_MAIN_MOVED')
+          if get('branches/production')['commit']['sha'] != production: raise SystemExit('DEP_F2_PRODUCTION_MOVED')
+          cert_path=os.path.join(os.environ['RUNNER_TEMP'],'dependency_f2_backup_timeline_cert.pem')
+          open(cert_path,'wb').write(cert); os.chmod(cert_path,0o600)
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\nissue_number={issue.get("number")}\n')
+          print('DEPENDENCY_F2_CONTEXT=PASS')
+          print('PII_IN_PUBLIC_LOGS=NO')
+          print('PRODUCTION_DATABASE_TOUCHED=NO')
+          PY
+
+      - name: Checkout exact reviewed SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "DEP_F2_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh; chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/dependency_f2_backup_timeline_key
+          chmod 600 ~/.ssh/dependency_f2_backup_timeline_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'DEPENDENCY_F2_SSH_TRUST=PASS'
+
+      - name: Build remote isolated timeline probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p private evidence
+          cat > private/timeline.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          mongo_container="${1:?mongo container required}"
+          run_id="${2:?run id required}"
+          backup_root='/root/sigesc-backups'
+          anchor='E M E I E F Monsenhor Augusto Dias de Brito'
+          expected_missing=4
+          drill=''
+          cleanup(){ if [[ -n "${drill:-}" ]]; then docker rm -f "$drill" >/dev/null 2>&1 || true; fi; }
+          trap cleanup EXIT
+          test -d "$backup_root" || { echo 'DEP_F2_BACKUP_ROOT_MISSING'; exit 31; }
+          for tier in daily weekly monthly; do test -d "$backup_root/$tier" || { echo "DEP_F2_TIER_MISSING:$tier"; exit 32; }; done
+          systemctl is-active --quiet sigesc-mongo-backup.timer || { echo 'DEP_F2_BACKUP_TIMER_NOT_ACTIVE'; exit 33; }
+          mongo_image="$(docker inspect -f '{{.Config.Image}}' "$mongo_container")"
+          mongo_name="$(docker inspect -f '{{.Name}}' "$mongo_container" | sed 's#^/##')"
+          test -n "$mongo_image" && test -n "$mongo_name" || { echo 'DEP_F2_PROD_MONGO_UNRESOLVED'; exit 34; }
+
+          # Reidentifica os quatro vínculos usando somente leituras no Mongo de produção.
+          dep_ids="$(docker exec -i "$mongo_container" mongosh --quiet --eval '
+            const d=db.getSiblingDB("sigesc");
+            const year=2026; const anchor="E M E I E F Monsenhor Augusto Dias de Brito";
+            const norm=v=>(v===undefined||v===null)?"":String(v);
+            const yearEq=v=>norm(v)===String(year);
+            const a=d.schools.find({name:anchor},{_id:0,id:1,mantenedora_id:1}).toArray();
+            if(a.length!==1||!a[0].mantenedora_id) quit(41);
+            const tenant=a[0].mantenedora_id;
+            const schools=new Set(d.schools.find({mantenedora_id:tenant},{_id:0,id:1}).toArray().map(x=>x.id));
+            const users=new Set(d.users.find({mantenedora_id:tenant},{_id:0,id:1}).toArray().map(x=>x.id));
+            const tenantLog=x=>norm(x.mantenedora_id)===norm(tenant)||((x.mantenedora_id===undefined||x.mantenedora_id===null||norm(x.mantenedora_id)==="")&&((x.school_id&&schools.has(x.school_id))||(x.user_id&&users.has(x.user_id))));
+            const current=new Set(d.student_dependencies.find({mantenedora_id:tenant,academic_year:{$in:[year,String(year)]}},{_id:0,id:1}).toArray().map(x=>x.id));
+            const logs=d.audit_logs.find({collection:"student_dependencies",action:"create"},{_id:0,document_id:1,mantenedora_id:1,user_id:1,school_id:1,new_value:1}).toArray().filter(tenantLog).filter(x=>yearEq((x.new_value||{}).academic_year));
+            const ids=[...new Set(logs.map(x=>x.document_id).filter(id=>id&&!current.has(id)))];
+            print(ids.join(","));
+          ' | tail -n 1)"
+          IFS=',' read -r -a ids <<< "$dep_ids"
+          [[ "${#ids[@]}" -eq "$expected_missing" ]] || { echo "DEP_F2_MISSING_COUNT_CHANGED:${#ids[@]}"; exit 35; }
+
+          declare -A path_by_inode epoch_by_inode tier_by_inode sha_by_inode date_by_inode
+          for tier in daily weekly monthly; do
+            while IFS= read -r -d '' archive; do
+              sha_sidecar="${archive}.sha256"; meta_sidecar="${archive}.metadata.txt"
+              test -s "$sha_sidecar" || { echo "DEP_F2_SHA_SIDECAR_MISSING:$tier"; exit 36; }
+              test -s "$meta_sidecar" || { echo "DEP_F2_METADATA_MISSING:$tier"; exit 37; }
+              gzip -t "$archive" || { echo "DEP_F2_GZIP_FAIL:$tier"; exit 38; }
+              expected="$(awk 'NR==1 {print tolower($1)}' "$sha_sidecar")"
+              actual="$(sha256sum "$archive" | awk '{print tolower($1)}')"
+              [[ -n "$expected" && "$expected" == "$actual" ]] || { echo "DEP_F2_SHA_FAIL:$tier"; exit 39; }
+              grep -Fq "$mongo_name" "$meta_sidecar" || { echo "DEP_F2_PROVENANCE_CONTAINER_FAIL:$tier"; exit 40; }
+              grep -Fq "$mongo_image" "$meta_sidecar" || { echo "DEP_F2_PROVENANCE_IMAGE_FAIL:$tier"; exit 42; }
+              inode="$(stat -Lc '%d:%i' "$archive")"
+              if [[ -z "${path_by_inode[$inode]:-}" ]]; then
+                path_by_inode[$inode]="$archive"
+                epoch_by_inode[$inode]="$(stat -Lc '%Y' "$archive")"
+                tier_by_inode[$inode]="$tier"
+                sha_by_inode[$inode]="$actual"
+                token="$(basename "$archive" | grep -oE '20[0-9]{6}(T[0-9]{6}Z)?' | head -n1 || true)"
+                digits="${token:0:8}"
+                if [[ "$digits" =~ ^20[0-9]{6}$ ]]; then date_by_inode[$inode]="${digits:0:4}-${digits:4:2}-${digits:6:2}"; else date_by_inode[$inode]="$(date -u -d "@${epoch_by_inode[$inode]}" '+%Y-%m-%d')"; fi
+              else
+                tier_by_inode[$inode]="${tier_by_inode[$inode]}+$tier"
+              fi
+            done < <(find "$backup_root/$tier" -maxdepth 1 -type f -name '*.archive.gz' -print0)
+          done
+          count="${#path_by_inode[@]}"
+          (( count > 0 && count <= 40 )) || { echo "DEP_F2_BACKUP_COUNT_INVALID:$count"; exit 43; }
+          echo "DEP_F2_VALIDATED_BACKUP_POINTS=$count"
+          mapfile -t ordered < <(for inode in "${!path_by_inode[@]}"; do printf '%s|%s\n' "${epoch_by_inode[$inode]}" "$inode"; done | sort -n -t'|' -k1,1 | cut -d'|' -f2-)
+
+          idx=0
+          for inode in "${ordered[@]}"; do
+            idx=$((idx+1)); archive="${path_by_inode[$inode]}"; rel="${archive#${backup_root}/}"; drill="sigesc-dep-f2-${run_id}-${idx}"
+            cleanup; drill="sigesc-dep-f2-${run_id}-${idx}"
+            docker run -d --name "$drill" --network none \
+              --mount "type=bind,src=$backup_root,dst=/backup,readonly" \
+              "$mongo_image" mongod --bind_ip 127.0.0.1 >/dev/null
+            for attempt in $(seq 1 30); do
+              if docker exec "$drill" mongosh --quiet --eval 'quit(db.adminCommand({ping:1}).ok?0:1)' >/dev/null 2>&1; then break; fi
+              sleep 1; [[ "$attempt" != 30 ]] || { echo 'DEP_F2_TEMP_MONGO_START_FAIL'; exit 44; }
+            done
+            [[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$drill")" == 'none' ]] || { echo 'DEP_F2_NETWORK_ISOLATION_FAIL'; exit 45; }
+            test -z "$(docker port "$drill" 2>/dev/null || true)" || { echo 'DEP_F2_PORT_ISOLATION_FAIL'; exit 46; }
+            docker exec "$drill" mongorestore --quiet --gzip --archive="/backup/$rel" --stopOnError --nsInclude=sigesc.student_dependencies --nsInclude=sigesc.dependency_completions --nsInclude=sigesc.grades --nsInclude=sigesc.attendance >/dev/null 2>&1
+            point="$(docker exec -e DEP_IDS="$dep_ids" "$drill" mongosh --quiet --eval '
+              const d=db.getSiblingDB("sigesc"); const ids=(process.env.DEP_IDS||"").split(",").filter(Boolean);
+              const deps=d.student_dependencies.find({id:{$in:ids}},{_id:0,id:1,status:1,student_id:1,school_id:1,class_id:1,course_id:1,academic_year:1,origin_academic_year:1,created_at:1,updated_at:1,updated_by:1,status_reason:1}).toArray();
+              const depMap=Object.fromEntries(deps.map(x=>[x.id,x]));
+              const details=ids.map((id,n)=>{ const x=depMap[id]||{}; return {ordinal:n+1,id,present:!!depMap[id],status:x.status||null,student_id:x.student_id||null,school_id:x.school_id||null,class_id:x.class_id||null,course_id:x.course_id||null,academic_year:x.academic_year||null,origin_academic_year:x.origin_academic_year||null,created_at:x.created_at||null,updated_at:x.updated_at||null,updated_by:x.updated_by||null,status_reason:x.status_reason||null,grade_refs:d.grades.countDocuments({dependency_id:id}),attendance_refs:d.attendance.countDocuments({dependency_id:id}),completion_refs:d.dependency_completions.countDocuments({dependency_id:id})}; });
+              print(EJSON.stringify({present_count:details.filter(x=>x.present).length,active_count:details.filter(x=>x.status==="active").length,inactive_count:details.filter(x=>x.present&&x.status!=="active").length,details}));
+            ' | tail -n 1)"
+            printf 'DEP_F2_POINT_JSON={"ordinal":%d,"backup_date":"%s","tier":"%s","sha_fingerprint":"%s","probe":%s}\n' "$idx" "${date_by_inode[$inode]}" "${tier_by_inode[$inode]}" "${sha_by_inode[$inode]:0:12}" "$point"
+            cleanup; drill=''
+          done
+          echo 'PRODUCTION_DATABASE_TOUCHED=NO'
+          echo 'TEMP_RESTORE_NETWORK=none'
+          echo 'TEMP_RESTORE_PORTS=none'
+          echo 'BACKUP_MOUNT=READ_ONLY'
+          echo 'TEMP_CONTAINERS_CLEANED=YES'
+          SH
+          chmod 700 private/timeline.sh
+
+      - name: Execute timeline on production host with isolated restores
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/dependency_f2_backup_timeline_key" "${PROD_USER}@${PROD_HOST}" "bash -s -- ${MONGO_CONTAINER} ${GITHUB_RUN_ID}" < private/timeline.sh > private/raw.log 2>&1
+          rc=$?; set -e
+          if [[ "$rc" -ne 0 ]]; then
+            grep -E '^DEP_F2_[A-Z0-9_]+(:[^[:space:]]+)?$|^PRODUCTION_DATABASE_TOUCHED=' private/raw.log | tail -n 20 || true
+            echo "DEPENDENCY_F2_REMOTE_FAILED:$rc"; exit "$rc"
+          fi
+          grep -E '^DEP_F2_VALIDATED_BACKUP_POINTS=|^PRODUCTION_DATABASE_TOUCHED=|^TEMP_RESTORE_NETWORK=|^TEMP_RESTORE_PORTS=|^BACKUP_MOUNT=|^TEMP_CONTAINERS_CLEANED=' private/raw.log
+
+      - name: Build encrypted evidence and sanitized classification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          lines=Path('private/raw.log').read_text(encoding='utf-8',errors='replace').splitlines()
+          points=[]
+          for line in lines:
+              if line.startswith('DEP_F2_POINT_JSON='):
+                  points.append(json.loads(line.split('=',1)[1]))
+          if not points: raise SystemExit('DEP_F2_NO_TIMELINE_POINTS')
+          points.sort(key=lambda x:(x.get('backup_date') or '',x.get('ordinal') or 0))
+          all_ids=[]
+          for p in points:
+              for d in (p.get('probe') or {}).get('details') or []:
+                  if d.get('id') and d['id'] not in all_ids: all_ids.append(d['id'])
+          if len(all_ids)!=4: raise SystemExit(f'DEP_F2_EXPECTED_FOUR_IDS_GOT:{len(all_ids)}')
+          per=[]
+          for dep_id in all_ids:
+              hist=[]
+              for p in points:
+                  d=next((x for x in ((p.get('probe') or {}).get('details') or []) if x.get('id')==dep_id),None)
+                  if d: hist.append({'backup_date':p.get('backup_date'),'ordinal':p.get('ordinal'),'present':bool(d.get('present')),'status':d.get('status'),'updated_at':d.get('updated_at'),'updated_by':d.get('updated_by'),'grade_refs':d.get('grade_refs',0),'attendance_refs':d.get('attendance_refs',0),'completion_refs':d.get('completion_refs',0)})
+              present=[x for x in hist if x['present']]
+              absent=[x for x in hist if not x['present']]
+              last_present=max(present,key=lambda x:(x['backup_date'],x['ordinal'])) if present else None
+              first_absent_after=None
+              if last_present:
+                  later=[x for x in absent if (x['backup_date'],x['ordinal'])>(last_present['backup_date'],last_present['ordinal'])]
+                  first_absent_after=min(later,key=lambda x:(x['backup_date'],x['ordinal'])) if later else None
+              if last_present and first_absent_after: cls='BRACKETED_BETWEEN_BACKUPS'
+              elif present and not absent: cls='PRESENT_IN_ALL_RETAINED_BACKUPS'
+              elif not present: cls='ABSENT_AT_ALL_RETAINED_BACKUPS'
+              else: cls='NON_MONOTONIC_OR_MIXED_TIMELINE'
+              per.append({'dependency_id':dep_id,'classification':cls,'last_present':last_present,'first_absent_after':first_absent_after,'history':hist})
+          oldest=points[0]['backup_date']; newest=points[-1]['backup_date']
+          counts={}
+          for x in per: counts[x['classification']]=counts.get(x['classification'],0)+1
+          if counts.get('BRACKETED_BETWEEN_BACKUPS'):
+              overall='AT_LEAST_ONE_DISAPPEARANCE_BRACKETED'
+          elif counts.get('ABSENT_AT_ALL_RETAINED_BACKUPS')==4:
+              overall='ALL_MISSING_BEFORE_OLDEST_RETAINED_BACKUP'
+          elif counts.get('PRESENT_IN_ALL_RETAINED_BACKUPS')==4:
+              overall='ALL_PRESENT_IN_RETAINED_BACKUPS_CURRENT_STATE_DIVERGES'
+          else:
+              overall='MIXED_OR_INCONCLUSIVE'
+          evidence={'schema':'SIGESC_DEPENDENCY_F2_BACKUP_TIMELINE_V1','academic_year':2026,'production_database_touched':False,'backup_points':points,'per_dependency':per,'overall_classification':overall,'oldest_backup_date':oldest,'newest_backup_date':newest,'limitations':['Only currently retained validated local daily/weekly/monthly backups are examined.','A disappearance earlier than the oldest retained backup cannot be dated more precisely by this phase.','Temporary restores write only inside isolated disposable Mongo containers; production Mongo is read-only.']}
+          Path('private/dependency-f2-backup-timeline.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2),encoding='utf-8')
+          summary={'schema':'SIGESC_DEPENDENCY_F2_BACKUP_TIMELINE_SUMMARY_V1','academic_year':2026,'production_database_touched':False,'backup_points':len(points),'oldest_backup_date':oldest,'newest_backup_date':newest,'overall_classification':overall,'dependency_classification_counts':counts}
+          Path('evidence/summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
+          print('DEPENDENCY_F2_TIMELINE=PASS')
+          print(f'BACKUP_POINTS={len(points)}')
+          print(f'OLDEST_BACKUP_DATE={oldest}')
+          print(f'NEWEST_BACKUP_DATE={newest}')
+          print(f'OVERALL_CLASSIFICATION={overall}')
+          print('PII_IN_PUBLIC_LOGS=NO')
+          print('PRODUCTION_DATABASE_TOUCHED=NO')
+          PY
+
+      - name: Encrypt nominal timeline evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/dependency_f2_backup_timeline_cert.pem"
+          openssl cms -encrypt -binary -aes256 \
+            -in private/dependency-f2-backup-timeline.json \
+            -outform DER \
+            -out evidence/dependency-f2-backup-timeline.cms \
+            "$RUNNER_TEMP/dependency_f2_backup_timeline_cert.pem"
+          test -s evidence/dependency-f2-backup-timeline.cms
+          rm -rf private
+          rm -f "$RUNNER_TEMP/dependency_f2_backup_timeline_cert.pem"
+          echo 'DEPENDENCY_F2_ENCRYPTION=PASS'
+
+      - name: Upload encrypted evidence only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-f2-backup-timeline-encrypted-${{ github.run_id }}
+          path: |
+            evidence/dependency-f2-backup-timeline.cms
+            evidence/summary.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish sanitized result and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          p=json.load(open('evidence/summary.json',encoding='utf-8'))
+          body=('Fase Forense 2 — linha do tempo por backups concluída.\n\n'
+              f'- Ano letivo: `{p.get("academic_year")}`\n'
+              f'- Pontos de backup validados: `{p.get("backup_points")}`\n'
+              f'- Backup retido mais antigo: `{p.get("oldest_backup_date")}`\n'
+              f'- Backup retido mais recente: `{p.get("newest_backup_date")}`\n'
+              f'- Classificação global: `{p.get("overall_classification")}`\n'
+              f'- Classificações por vínculo: `{json.dumps(p.get("dependency_classification_counts") or {},ensure_ascii=False)}`\n'
+              '- Produção alterada: **NO**\n- Restore contra Mongo de produção: **NO**\n- Restore temporário: **isolado, network none, sem portas, backup read-only**\n- Nomes/IDs em logs ou issue: **NO**\n- Evidência nominal: **criptografada**.')
+          repo=os.environ['GITHUB_REPOSITORY']; issue=os.environ['ISSUE_NUMBER']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-f2-backup-timeline'}
+          def req(path,method='POST',data=None):
+              payload=None if data is None else json.dumps(data).encode(); r=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',data=payload,method=method,headers=headers)
+              with urllib.request.urlopen(r,timeout=30) as response: return json.load(response)
+          req(f'issues/{issue}/comments',data={'body':body}); req(f'issues/{issue}',method='PATCH',data={'state':'closed','state_reason':'completed'})
+          PY
