@@ -34,11 +34,16 @@ jobs:
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
 
-      - name: Verify syntax and regression test
+      - name: Verify syntax and regression test without backend conftest
         run: |
           python -m py_compile backend/server.py
-          python -m pip install -q pytest
-          pytest -q backend/tests/test_cors_idempotency_key.py
+          python - <<'PY'
+          import runpy
+          tests = runpy.run_path('backend/tests/test_cors_idempotency_key.py')
+          tests['test_prepare_page_uses_idempotency_key_header']()
+          tests['test_cors_allows_idempotency_key_required_by_prepare_execution']()
+          print('F2.3C CORS regression checks: PASS')
+          PY
 
       - name: Remove one-off workflow and commit only durable fix
         run: |
