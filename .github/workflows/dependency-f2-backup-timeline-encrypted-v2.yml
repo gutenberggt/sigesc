@@ -1,0 +1,291 @@
+name: "SIGESC Dependência - F2 timeline backups v2"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/dependency-f2-backup-timeline-encrypted-v2.yml'
+      - 'backend/scripts/dependency_f2_backup_timeline_v2.sh'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-f2-backup-timeline-encrypted-v2
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2 v2 recursive backup isolation/privacy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Enforce corrected forensic boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          wf=Path('.github/workflows/dependency-f2-backup-timeline-encrypted-v2.yml').read_text(encoding='utf-8')
+          runner=Path('backend/scripts/dependency_f2_backup_timeline_v2.sh').read_text(encoding='utf-8')
+          required_wf=[
+              'TRACE_DEPENDENCY_BACKUP_TIMELINE_V2_READ_ONLY','EXPECTED_MISSING_COUNT',
+              'EXPECTED_PRODUCTION_SHA','openssl cms -encrypt','dependency-f2-backup-timeline-v2.cms',
+              'PII_IN_PUBLIC_LOGS=NO','PRODUCTION_DATABASE_TOUCHED=NO',
+          ]
+          required_runner=[
+              "backup_root='/root/sigesc-backups'",'find "$backup_root" -xdev -maxdepth 6',
+              'student_dependencies','dependency_completions','audit_logs','grades','attendance',
+              'records.dependency_id','mongorestore','--network none','BACKUP_MOUNT=READ_ONLY',
+              "baseline_sha='f4db1877202e4933335523e197f3ef63706f37bf60b4c3cfd0ef08674568b61a'",
+          ]
+          for marker in required_wf:
+              if marker not in wf: raise SystemExit(f'DEP_F2V2_WF_MARKER_MISSING:{marker}')
+          for marker in required_runner:
+              if marker not in runner: raise SystemExit(f'DEP_F2V2_RUNNER_MARKER_MISSING:{marker}')
+          for token in [
+              '.insertOne(','.insertMany(','.updateOne(','.updateMany(','.replaceOne(',
+              '.deleteOne(','.deleteMany(','.bulkWrite(','.findOneAndUpdate(',
+              '.findOneAndDelete(','.findOneAndReplace(','.drop(','.dropDatabase(',
+          ]:
+              if token in runner: raise SystemExit(f'DEP_F2V2_MONGO_MUTATION_PRIMITIVE:{token}')
+          lines=runner.splitlines()
+          for i,line in enumerate(lines):
+              if 'mongorestore' in line and not line.lstrip().startswith('#'):
+                  if 'docker exec "$drill"' not in line:
+                      raise SystemExit(f'DEP_F2V2_UNSCOPED_MONGORESTORE_LINE:{i+1}')
+          if re.search(r'^\s+path:\s*(?:private/|evidence/dependency-f2-backup-timeline-v2\.json)\s*$',wf,re.MULTILINE):
+              raise SystemExit('DEP_F2V2_PLAINTEXT_UPLOAD_FORBIDDEN')
+          print('DEPENDENCY_F2V2_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-forensic:
+    name: Reconstruct dependency timeline from canonical recursive backups v2
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[DEPENDENCY-F2-BACKUP-TIMELINE-V2] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact owner-scoped context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,json,os,re,urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER'] or issue.get('state') != 'open':
+              raise SystemExit('DEP_F2V2_OWNER_OPEN_ISSUE_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.strip().split('=',1)
+              if k in values: raise SystemExit(f'DEP_F2V2_DUPLICATE_FIELD:{k}')
+              values[k]=v.strip()
+          expected={
+              'DEPENDENCY_F2_BACKUP_TIMELINE_V2':'AUTHORIZED',
+              'CONFIRMATION':'TRACE_DEPENDENCY_BACKUP_TIMELINE_V2_READ_ONLY',
+              'ACADEMIC_YEAR':'2026',
+              'ANCHOR_SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+              'EXPECTED_MISSING_COUNT':'4',
+          }
+          for k,wanted in expected.items():
+              if values.get(k) != wanted: raise SystemExit(f'DEP_F2V2_FIELD_INVALID:{k}')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          cert_b64=values.get('AUDIT_CERT_B64',''); cert_sha=values.get('CERT_SHA256','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('DEP_F2V2_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{64}',cert_sha): raise SystemExit('DEP_F2V2_CERT_SHA_INVALID')
+          if issue.get('title') != f'[DEPENDENCY-F2-BACKUP-TIMELINE-V2] {target}':
+              raise SystemExit('DEP_F2V2_TITLE_MISMATCH')
+          try: cert=base64.b64decode(cert_b64,validate=True)
+          except Exception: raise SystemExit('DEP_F2V2_CERT_B64_INVALID')
+          if hashlib.sha256(cert).hexdigest()!=cert_sha or b'BEGIN CERTIFICATE' not in cert:
+              raise SystemExit('DEP_F2V2_CERT_INVALID')
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-f2v2'}
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          if get('branches/main')['commit']['sha'] != target: raise SystemExit('DEP_F2V2_MAIN_MOVED')
+          if get('branches/production')['commit']['sha'] != production: raise SystemExit('DEP_F2V2_PRODUCTION_MOVED')
+          cert_path=os.path.join(os.environ['RUNNER_TEMP'],'dependency_f2v2_cert.pem')
+          open(cert_path,'wb').write(cert); os.chmod(cert_path,0o600)
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\nissue_number={issue.get("number")}\n')
+          print('DEPENDENCY_F2V2_CONTEXT=PASS')
+          print('PII_IN_PUBLIC_LOGS=NO')
+          print('PRODUCTION_DATABASE_TOUCHED=NO')
+          PY
+
+      - name: Checkout exact reviewed SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "DEP_F2V2_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh; chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/dependency_f2v2_key
+          chmod 600 ~/.ssh/dependency_f2v2_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          mkdir -p private evidence
+          echo 'DEPENDENCY_F2V2_SSH_TRUST=PASS'
+
+      - name: Execute corrected timeline with isolated restores
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/dependency_f2v2_key" \
+            "${PROD_USER}@${PROD_HOST}" "bash -s -- ${MONGO_CONTAINER} ${GITHUB_RUN_ID}" \
+            < backend/scripts/dependency_f2_backup_timeline_v2.sh > private/raw.log 2>&1
+          rc=$?; set -e
+          if [[ "$rc" -ne 0 ]]; then
+            grep -E '^DEP_F2[A-Z0-9_]*(:[^[:space:]]+)?$|^PRODUCTION_DATABASE_TOUCHED=' private/raw.log | tail -n 30 || true
+            echo "DEPENDENCY_F2V2_REMOTE_FAILED:$rc"; exit "$rc"
+          fi
+          grep -E '^DEP_F2_PHYSICAL_ARCHIVES=|^DEP_F2_VALIDATED_BACKUP_POINTS=|^PRODUCTION_DATABASE_TOUCHED=|^PRODUCTION_LIVE_READS=|^TEMP_RESTORE_NETWORK=|^TEMP_RESTORE_PORTS=|^BACKUP_MOUNT=|^TEMP_CONTAINERS_CLEANED=' private/raw.log
+
+      - name: Build encrypted evidence and sanitized classification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          lines=Path('private/raw.log').read_text(encoding='utf-8',errors='replace').splitlines()
+          points=[]
+          for line in lines:
+              if line.startswith('DEP_F2_POINT_JSON='):
+                  points.append(json.loads(line.split('=',1)[1]))
+          if not points: raise SystemExit('DEP_F2V2_NO_TIMELINE_POINTS')
+          points.sort(key=lambda x:(x.get('backup_date') or '',x.get('ordinal') or 0))
+          all_ids=[]
+          for p in points:
+              for d in (p.get('probe') or {}).get('details') or []:
+                  if d.get('id') and d['id'] not in all_ids: all_ids.append(d['id'])
+          if len(all_ids)!=4: raise SystemExit(f'DEP_F2V2_EXPECTED_FOUR_IDS_GOT:{len(all_ids)}')
+          per=[]
+          for dep_id in all_ids:
+              hist=[]
+              for p in points:
+                  d=next((x for x in ((p.get('probe') or {}).get('details') or []) if x.get('id')==dep_id),None)
+                  if d:
+                      hist.append({'backup_date':p.get('backup_date'),'ordinal':p.get('ordinal'),'source_class':p.get('source_class'),'provenance':p.get('provenance'),'present':bool(d.get('present')),'status':d.get('status'),'student_id':d.get('student_id'),'school_id':d.get('school_id'),'class_id':d.get('class_id'),'course_id':d.get('course_id'),'academic_year':d.get('academic_year'),'origin_academic_year':d.get('origin_academic_year'),'created_at':d.get('created_at'),'updated_at':d.get('updated_at'),'updated_by':d.get('updated_by'),'status_reason':d.get('status_reason'),'grade_refs':d.get('grade_refs',0),'attendance_refs':d.get('attendance_refs',0),'completion_refs':d.get('completion_refs',0)})
+              present=[x for x in hist if x['present']]
+              absent=[x for x in hist if not x['present']]
+              last_present=max(present,key=lambda x:(x['backup_date'],x['ordinal'])) if present else None
+              first_absent_after=None
+              if last_present:
+                  later=[x for x in absent if (x['backup_date'],x['ordinal'])>(last_present['backup_date'],last_present['ordinal'])]
+                  first_absent_after=min(later,key=lambda x:(x['backup_date'],x['ordinal'])) if later else None
+              if last_present and first_absent_after: cls='BRACKETED_BETWEEN_BACKUPS'
+              elif present and not absent: cls='PRESENT_IN_ALL_RETAINED_BACKUPS'
+              elif not present: cls='ABSENT_AT_ALL_RETAINED_BACKUPS'
+              else: cls='NON_MONOTONIC_OR_MIXED_TIMELINE'
+              per.append({'dependency_id':dep_id,'classification':cls,'last_present':last_present,'first_absent_after':first_absent_after,'history':hist})
+          oldest=points[0]['backup_date']; newest=points[-1]['backup_date']
+          counts={}
+          for x in per: counts[x['classification']]=counts.get(x['classification'],0)+1
+          if counts.get('BRACKETED_BETWEEN_BACKUPS'): overall='AT_LEAST_ONE_DISAPPEARANCE_BRACKETED'
+          elif counts.get('ABSENT_AT_ALL_RETAINED_BACKUPS')==4: overall='ALL_MISSING_BEFORE_OLDEST_RETAINED_BACKUP'
+          elif counts.get('PRESENT_IN_ALL_RETAINED_BACKUPS')==4: overall='ALL_PRESENT_IN_RETAINED_BACKUPS_CURRENT_STATE_DIVERGES'
+          else: overall='MIXED_OR_INCONCLUSIVE'
+          evidence={'schema':'SIGESC_DEPENDENCY_F2_BACKUP_TIMELINE_V2','academic_year':2026,'production_database_touched':False,'backup_points':points,'per_dependency':per,'overall_classification':overall,'oldest_backup_date':oldest,'newest_backup_date':newest,'limitations':['Only validated currently retained archives under the canonical /root/sigesc-backups tree are examined.','The documented 2026-08-19 pre-DVD baseline is accepted only by its pinned SHA-256 and expected Mongo image; other archives require SHA sidecar and metadata provenance.','A disappearance earlier than the oldest validated retained backup cannot be dated more precisely by this phase.','Temporary restores write only inside isolated disposable Mongo containers; production Mongo is read-only.']}
+          Path('private/dependency-f2-backup-timeline-v2.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2),encoding='utf-8')
+          summary={'schema':'SIGESC_DEPENDENCY_F2_BACKUP_TIMELINE_SUMMARY_V2','academic_year':2026,'production_database_touched':False,'backup_points':len(points),'oldest_backup_date':oldest,'newest_backup_date':newest,'overall_classification':overall,'dependency_classification_counts':counts}
+          Path('evidence/summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
+          print('DEPENDENCY_F2V2_TIMELINE=PASS')
+          print(f'BACKUP_POINTS={len(points)}')
+          print(f'OLDEST_BACKUP_DATE={oldest}')
+          print(f'NEWEST_BACKUP_DATE={newest}')
+          print(f'OVERALL_CLASSIFICATION={overall}')
+          print('PII_IN_PUBLIC_LOGS=NO')
+          print('PRODUCTION_DATABASE_TOUCHED=NO')
+          PY
+
+      - name: Encrypt nominal timeline evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/dependency_f2v2_cert.pem"
+          openssl cms -encrypt -binary -aes256 \
+            -in private/dependency-f2-backup-timeline-v2.json \
+            -outform DER \
+            -out evidence/dependency-f2-backup-timeline-v2.cms \
+            "$RUNNER_TEMP/dependency_f2v2_cert.pem"
+          test -s evidence/dependency-f2-backup-timeline-v2.cms
+          rm -rf private
+          rm -f "$RUNNER_TEMP/dependency_f2v2_cert.pem"
+          echo 'DEPENDENCY_F2V2_ENCRYPTION=PASS'
+
+      - name: Upload encrypted evidence only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-f2-backup-timeline-v2-encrypted-${{ github.run_id }}
+          path: |
+            evidence/dependency-f2-backup-timeline-v2.cms
+            evidence/summary.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish sanitized result and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          p=json.load(open('evidence/summary.json',encoding='utf-8'))
+          body=('Fase Forense 2 v2 — linha do tempo por backups concluída.\n\n'
+              f'- Ano letivo: `{p.get("academic_year")}`\n'
+              f'- Pontos de backup validados: `{p.get("backup_points")}`\n'
+              f'- Backup validado mais antigo: `{p.get("oldest_backup_date")}`\n'
+              f'- Backup validado mais recente: `{p.get("newest_backup_date")}`\n'
+              f'- Classificação global: `{p.get("overall_classification")}`\n'
+              f'- Classificações por vínculo: `{json.dumps(p.get("dependency_classification_counts") or {},ensure_ascii=False)}`\n'
+              '- Produção alterada: **NO**\n- Restore contra Mongo de produção: **NO**\n- Restore temporário: **isolado, network none, sem portas, backup read-only**\n- Nomes/IDs em logs ou issue: **NO**\n- Evidência nominal: **criptografada**.')
+          repo=os.environ['GITHUB_REPOSITORY']; issue=os.environ['ISSUE_NUMBER']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-f2v2'}
+          def req(path,method='POST',data=None):
+              payload=None if data is None else json.dumps(data).encode()
+              r=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',data=payload,method=method,headers=headers)
+              with urllib.request.urlopen(r,timeout=30) as response: return json.load(response)
+          req(f'issues/{issue}/comments',data={'body':body})
+          req(f'issues/{issue}',method='PATCH',data={'state':'closed','state_reason':'completed'})
+          PY
