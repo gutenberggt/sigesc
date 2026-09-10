@@ -5,10 +5,12 @@ on:
     paths:
       - 'backend/services/enrollment_rectification_saga.py'
       - 'backend/services/enrollment_rectification_saga_runtime.py'
+      - 'backend/services/enrollment_rectification_saga_ordinal_runtime.py'
       - 'backend/services/enrollment_rectification_execution.py'
       - 'backend/routers/enrollment_rectification_execution.py'
       - 'backend/routers/enrollment_rectification_saga.py'
       - 'backend/tests/test_enrollment_rectification_f2_3_saga_runtime_contract.py'
+      - 'backend/tests/test_enrollment_rectification_f2_3d_saga_runtime.py'
       - '.github/workflows/enrollment-rectification-f2-3-runtime-contract-guard.yml'
 
 permissions:
@@ -48,6 +50,7 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             backend/services/enrollment_rectification_saga_runtime.py \
+            backend/services/enrollment_rectification_saga_ordinal_runtime.py \
             backend/routers/enrollment_rectification_execution.py \
             backend/routers/enrollment_rectification_saga.py
 
@@ -55,7 +58,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pytest -q --noconftest backend/tests/test_enrollment_rectification_f2_3_saga_runtime_contract.py
+          pytest -q --noconftest \
+            backend/tests/test_enrollment_rectification_f2_3_saga_runtime_contract.py \
+            backend/tests/test_enrollment_rectification_f2_3d_saga_runtime.py
 
       - name: Enforce binding and fail-closed contract
         shell: bash
@@ -65,6 +70,7 @@ jobs:
           from pathlib import Path
 
           runtime = Path('backend/services/enrollment_rectification_saga_runtime.py').read_text(encoding='utf-8')
+          ordinal_runtime = Path('backend/services/enrollment_rectification_saga_ordinal_runtime.py').read_text(encoding='utf-8')
           prep_router = Path('backend/routers/enrollment_rectification_execution.py').read_text(encoding='utf-8')
           saga_router = Path('backend/routers/enrollment_rectification_saga.py').read_text(encoding='utf-8')
 
@@ -79,12 +85,40 @@ jobs:
               if marker not in runtime:
                   raise SystemExit(f'F2_3_RUNTIME_REQUIRED_MISSING:{marker}')
 
+          # O binding F2.3 nunca manipula a feature flag; ela continua no SSoT F2.2.
           if 'os.environ' in runtime or 'ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED' in runtime:
               raise SystemExit('F2_3_RUNTIME_MUST_NOT_MODIFY_FLAG')
 
-          for router in (prep_router, saga_router):
-              if 'services.enrollment_rectification_saga_runtime' not in router:
-                  raise SystemExit('F2_3_RUNTIME_ROUTER_BINDING_MISSING')
+          # PREPARED permanece ligado diretamente ao adaptador F2.3 existente.
+          if 'services.enrollment_rectification_saga_runtime' not in prep_router:
+              raise SystemExit('F2_3_PREP_ROUTER_BINDING_MISSING')
+
+          # EXECUTE/ROLLBACK podem usar diretamente F2.3 ou a composição F2.3D,
+          # mas esta última precisa delegar explicitamente ao runtime F2.3 e à
+          # saga F2.2, sem duplicar a autoridade de execução ou a feature flag.
+          direct_binding = 'services.enrollment_rectification_saga_runtime' in saga_router
+          ordinal_binding = 'services.enrollment_rectification_saga_ordinal_runtime' in saga_router
+          if not (direct_binding or ordinal_binding):
+              raise SystemExit('F2_3_EXECUTE_ROUTER_BINDING_MISSING')
+
+          if ordinal_binding:
+              required_ordinal = (
+                  'from services import enrollment_rectification_saga_runtime as _runtime',
+                  'from services import enrollment_rectification_saga as _saga',
+                  '_runtime.execute_rectification_saga(',
+                  'rollback_rectification_saga = _runtime.rollback_rectification_saga',
+                  '_saga._checkpoint = _checkpoint_with_ordinal',
+                  '_saga._compensate_academic = _compensate_academic_with_ordinal',
+                  'saga_execution_enabled = _runtime.saga_execution_enabled',
+              )
+              for marker in required_ordinal:
+                  if marker not in ordinal_runtime:
+                      raise SystemExit(f'F2_3D_COMPOSITION_REQUIRED_MISSING:{marker}')
+              if 'os.environ' in ordinal_runtime or 'ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED' in ordinal_runtime:
+                  raise SystemExit('F2_3D_RUNTIME_MUST_NOT_MODIFY_FLAG')
+              print('F2_3_EXECUTE_BINDING=ORDINAL_COMPOSITION')
+          else:
+              print('F2_3_EXECUTE_BINDING=DIRECT_RUNTIME')
 
           print('F2_3_RUNTIME_CONTRACT=PASS')
           print('FEATURE_FLAG_MODIFIED=NO')
