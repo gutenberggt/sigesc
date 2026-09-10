@@ -91,8 +91,8 @@ jobs:
           print('DEPENDENCY_IMMUTABILITY_CONTRACT=PASS')
           PY
 
-      - name: Install focused test runner
-        run: pip install pytest pytest-asyncio python-dotenv motor fastapi email-validator
+      - name: Install backend test environment
+        run: python -m pip install -r backend/requirements.txt
 
       - name: Run focused dependency regression tests
         shell: bash
@@ -155,7 +155,6 @@ jobs:
 
             const deps=d.student_dependencies.find({}, {_id:0,id:1,student_id:1,status:1,created_at:1,updated_at:1}).toArray();
             const depIds=new Set(deps.map(x=>x.id).filter(Boolean));
-            const depById=Object.fromEntries(deps.filter(x=>x.id).map(x=>[x.id,x]));
             const creates=d.audit_logs.find({collection:"student_dependencies",action:"create"},{_id:0,document_id:1,timestamp:1,timestamp_utc:1,timestamp_local:1}).toArray();
             const missingMap={};
             for(const x of creates){ if(x.document_id&&!depIds.has(x.document_id)&&!missingMap[x.document_id]) missingMap[x.document_id]=x; }
