@@ -1,0 +1,358 @@
+name: "SIGESC Dependência - Auditoria histórica criptografada"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/dependency-history-audit-encrypted.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-history-audit-encrypted
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard dependency history read-only/privacy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Enforce read-only and encrypted-output boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          p=Path('.github/workflows/dependency-history-audit-encrypted.yml')
+          text=p.read_text(encoding='utf-8')
+          for marker in [
+              'student_dependencies','dependency_completions','audit_logs',
+              'TRACE_DEPENDENCY_LIFECYCLE_READ_ONLY','AUDIT_CERT_B64',
+              'openssl cms -encrypt','dependency-history.cms',
+              'database_mutation:false','PII_IN_PUBLIC_LOGS=NO',
+          ]:
+              if marker not in text:
+                  raise SystemExit(f'DEP_HISTORY_REQUIRED_MARKER_MISSING:{marker}')
+          start="cat > private/audit.js <<'JS'"
+          end="\n          JS\n"
+          if start not in text or end not in text:
+              raise SystemExit('DEP_HISTORY_COLLECTOR_BLOCK_MISSING')
+          collector=text.rsplit(start,1)[1].split(end,1)[0]
+          for token in [
+              '.insertOne(','.insertMany(','.updateOne(','.updateMany(',
+              '.replaceOne(','.deleteOne(','.deleteMany(','.bulkWrite(',
+              '.findOneAndUpdate(','.findOneAndDelete(','.findOneAndReplace(',
+              '.drop(','.dropDatabase(',
+          ]:
+              if token in collector:
+                  raise SystemExit(f'DEP_HISTORY_MUTATION_PRIMITIVE_FOUND:{token}')
+          if re.search(r'^\s+path:\s*(?:private/|evidence/dependency-history\.json)\s*$',text,re.MULTILINE):
+              raise SystemExit('DEP_HISTORY_PLAINTEXT_UPLOAD_FORBIDDEN')
+          print('DEPENDENCY_HISTORY_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: Trace 2026 dependency lifecycle in production read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[DEPENDENCY-HISTORY-AUDIT] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact owner-scoped audit context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,json,os,re,urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER'] or issue.get('state') != 'open':
+              raise SystemExit('DEP_HISTORY_OWNER_OPEN_ISSUE_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.strip().split('=',1)
+              if k in values: raise SystemExit(f'DEP_HISTORY_DUPLICATE_FIELD:{k}')
+              values[k]=v.strip()
+          expected={
+              'DEPENDENCY_HISTORY_AUDIT':'AUTHORIZED',
+              'CONFIRMATION':'TRACE_DEPENDENCY_LIFECYCLE_READ_ONLY',
+              'ACADEMIC_YEAR':'2026',
+              'ANCHOR_SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+          }
+          for k,wanted in expected.items():
+              if values.get(k) != wanted: raise SystemExit(f'DEP_HISTORY_FIELD_INVALID:{k}')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          cert_b64=values.get('AUDIT_CERT_B64',''); cert_sha=values.get('CERT_SHA256','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('DEP_HISTORY_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{64}',cert_sha): raise SystemExit('DEP_HISTORY_CERT_SHA_INVALID')
+          if issue.get('title') != f'[DEPENDENCY-HISTORY-AUDIT] {target}': raise SystemExit('DEP_HISTORY_TITLE_MISMATCH')
+          try: cert=base64.b64decode(cert_b64,validate=True)
+          except Exception: raise SystemExit('DEP_HISTORY_CERT_B64_INVALID')
+          if hashlib.sha256(cert).hexdigest()!=cert_sha or b'BEGIN CERTIFICATE' not in cert:
+              raise SystemExit('DEP_HISTORY_CERT_INVALID')
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-history-audit'}
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          if get('branches/main')['commit']['sha'] != target: raise SystemExit('DEP_HISTORY_MAIN_MOVED')
+          if get('branches/production')['commit']['sha'] != production: raise SystemExit('DEP_HISTORY_PRODUCTION_MOVED')
+          cert_path=os.path.join(os.environ['RUNNER_TEMP'],'dependency_history_audit_cert.pem')
+          open(cert_path,'wb').write(cert); os.chmod(cert_path,0o600)
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\nissue_number={issue.get("number")}\n')
+          print('DEPENDENCY_HISTORY_CONTEXT=PASS'); print('PII_IN_PUBLIC_LOGS=NO'); print('DATABASE_MUTATION=NO')
+          PY
+
+      - name: Checkout exact reviewed audit SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "DEP_HISTORY_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh; chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/dependency_history_audit_key; chmod 600 ~/.ssh/dependency_history_audit_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; chmod 600 ~/.ssh/known_hosts
+          echo 'DEPENDENCY_HISTORY_SSH_TRUST=PASS'
+
+      - name: Collect historical dependency evidence read-only
+        id: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -rf private; rm -f "$RUNNER_TEMP/dependency_history_audit_cert.pem"' EXIT
+          mkdir -p private evidence
+          test -s "$RUNNER_TEMP/dependency_history_audit_cert.pem"
+
+          cat > private/audit.js <<'JS'
+          const d=db.getSiblingDB("sigesc");
+          const year=2026;
+          const anchorName="E M E I E F Monsenhor Augusto Dias de Brito";
+          const inactive=new Set(["completed","failed","cancelled"]);
+          const norm=v=>(v===undefined||v===null)?"":String(v);
+          const yearEq=v=>norm(v)===String(year);
+          const eventIn2026=v=>norm(v).slice(0,4)===String(year);
+
+          const anchors=d.schools.find({name:anchorName},{_id:0,id:1,mantenedora_id:1}).toArray();
+          if(anchors.length!==1||!anchors[0].mantenedora_id){print("DEPENDENCY_HISTORY_ERROR=ANCHOR_TENANT_NOT_UNIQUE");quit(31);}
+          const tenant=anchors[0].mantenedora_id;
+          const schools=d.schools.find({mantenedora_id:tenant},{_id:0,id:1,name:1}).toArray();
+          const schoolMap=Object.fromEntries(schools.map(x=>[x.id,x]));
+          const schoolIds=new Set(schools.map(x=>x.id).filter(Boolean));
+          const userIds=new Set(d.users.find({mantenedora_id:tenant},{_id:0,id:1}).toArray().map(x=>x.id).filter(Boolean));
+          const tenantLog=log=>{
+            if(norm(log.mantenedora_id)===norm(tenant)) return true;
+            if(log.mantenedora_id!==undefined&&log.mantenedora_id!==null&&norm(log.mantenedora_id)!=="") return false;
+            return !!((log.school_id&&schoolIds.has(log.school_id))||(log.user_id&&userIds.has(log.user_id)));
+          };
+
+          const current=d.student_dependencies.find(
+            {mantenedora_id:tenant,academic_year:{$in:[year,String(year)]}},
+            {_id:0,id:1,student_id:1,school_id:1,class_id:1,course_id:1,academic_year:1,origin_academic_year:1,status:1,status_reason:1,created_at:1,created_by:1,updated_at:1,updated_by:1,completed_at:1}
+          ).toArray();
+
+          const logs=d.audit_logs.find(
+            {collection:"student_dependencies"},
+            {_id:0,action:1,document_id:1,mantenedora_id:1,user_id:1,school_id:1,timestamp:1,timestamp_utc:1,timestamp_local:1,old_value:1,new_value:1,changes:1}
+          ).toArray().filter(tenantLog).filter(x=>yearEq((x.new_value||{}).academic_year)||yearEq((x.old_value||{}).academic_year));
+          const oldStatus=x=>norm((x.old_value||{}).status||(((x.changes||{}).status||{}).old));
+          const newStatus=x=>norm((x.new_value||{}).status||(((x.changes||{}).status||{}).new));
+          const creates=logs.filter(x=>x.action==="create");
+          const transitions=logs.filter(x=>x.action==="update"&&oldStatus(x)==="active"&&inactive.has(newStatus(x)));
+          const deletes=logs.filter(x=>x.action==="delete");
+
+          const depIds=new Set(current.map(x=>x.id).filter(Boolean));
+          for(const x of logs) if(x.document_id) depIds.add(x.document_id);
+          const snapshots=depIds.size?d.dependency_completions.find(
+            {mantenedora_id:tenant,dependency_id:{$in:[...depIds]}},
+            {_id:0,id:1,dependency_id:1,student_id:1,school_id:1,original_course_id:1,original_course_name_at_completion:1,original_academic_year:1,original_class_id:1,completion_academic_year:1,completion_result:1,status_reason:1,data_quality:1,issued_at:1,revoked_at:1}
+          ).toArray():[];
+          const snapshots2026=d.dependency_completions.find(
+            {mantenedora_id:tenant,completion_academic_year:{$in:[year,String(year)]}},
+            {_id:0,dependency_id:1,student_id:1,completion_result:1,issued_at:1}
+          ).toArray();
+          const unresolvedSnapshots=snapshots2026.filter(x=>x.dependency_id&&!depIds.has(x.dependency_id));
+
+          const ev={};
+          const ensure=id=>ev[id]||(ev[id]={dependency_id:id,current:null,creates:[],transitions:[],deletes:[],snapshots:[]});
+          for(const x of current) if(x.id) ensure(x.id).current=x;
+          for(const x of creates) if(x.document_id) ensure(x.document_id).creates.push(x);
+          for(const x of transitions) if(x.document_id) ensure(x.document_id).transitions.push(x);
+          for(const x of deletes) if(x.document_id) ensure(x.document_id).deletes.push(x);
+          for(const x of snapshots) if(x.dependency_id) ensure(x.dependency_id).snapshots.push(x);
+
+          const base=e=>e.current||(e.deletes.at(-1)||{}).old_value||(e.transitions[0]||{}).old_value||(e.creates[0]||{}).new_value||{};
+          const records=Object.values(ev).map(e=>{
+            const b=base(e)||{}; const cur=e.current||{};
+            const createActive=e.creates.some(x=>{const s=norm((x.new_value||{}).status);return s==="active"||s==="";});
+            const transitionActive=e.transitions.length>0;
+            const deleteActive=e.deletes.some(x=>oldStatus(x)==="active");
+            const curInactive=inactive.has(norm(cur.status));
+            const reasons=[cur.status_reason,...e.transitions.map(x=>(x.new_value||{}).status_reason),...e.deletes.map(x=>(x.old_value||{}).status_reason),...e.snapshots.map(x=>x.status_reason)].filter(Boolean);
+            return {
+              dependency_id:e.dependency_id,student_id:b.student_id||((e.snapshots[0]||{}).student_id)||"",school_id:b.school_id||((e.snapshots[0]||{}).school_id)||"",class_id:b.class_id||"",course_id:b.course_id||((e.snapshots[0]||{}).original_course_id)||"",academic_year:b.academic_year,origin_academic_year:b.origin_academic_year,
+              current_status:cur.status||null,status_reason:reasons[0]||null,
+              was_active_confirmed:norm(cur.status)==="active"||createActive||transitionActive||deleteActive,
+              deactivated_confirmed:transitionActive||deleteActive||(curInactive&&createActive)||(curInactive&&e.snapshots.length>0),
+              auto_cancelled_by_mode_none:reasons.some(x=>norm(x).startsWith("[auto] dependency_mode alterado para 'none'")),
+              evidence:{current_record:!!e.current,create_events:e.creates.length,active_to_inactive_transitions:e.transitions.length,delete_events:e.deletes.length,completion_snapshots:e.snapshots.length}
+            };
+          });
+
+          const studentIds=[...new Set(records.map(x=>x.student_id).filter(Boolean))];
+          const students=studentIds.length?d.students.find({mantenedora_id:tenant,id:{$in:studentIds}},{_id:0,id:1,full_name:1,dependency_mode:1,status:1}).toArray():[];
+          const studentMap=Object.fromEntries(students.map(x=>[x.id,x]));
+          const classIds=[...new Set(records.map(x=>x.class_id).filter(Boolean))];
+          const classes=classIds.length?d.classes.find({mantenedora_id:tenant,id:{$in:classIds}},{_id:0,id:1,name:1,series:1,school_id:1}).toArray():[];
+          const classMap=Object.fromEntries(classes.map(x=>[x.id,x]));
+          const courseIds=[...new Set(records.map(x=>x.course_id).filter(Boolean))];
+          const courses=courseIds.length?d.courses.find({mantenedora_id:tenant,id:{$in:courseIds}},{_id:0,id:1,name:1}).toArray():[];
+          const courseMap=Object.fromEntries(courses.map(x=>[x.id,x]));
+
+          const modeLogs=d.audit_logs.find(
+            {collection:"students",action:"update"},
+            {_id:0,document_id:1,mantenedora_id:1,user_id:1,school_id:1,timestamp:1,timestamp_utc:1,timestamp_local:1,old_value:1,new_value:1,changes:1}
+          ).toArray().filter(tenantLog).filter(x=>{
+            if(!studentIds.includes(x.document_id)) return false;
+            const c=(x.changes||{}).dependency_mode||{};
+            const old=norm(c.old||(x.old_value||{}).dependency_mode), neu=norm(c.new||(x.new_value||{}).dependency_mode);
+            return old!==""&&old!=="none"&&neu==="none"&&eventIn2026(x.timestamp_utc||x.timestamp||x.timestamp_local);
+          });
+
+          const enriched=records.map(r=>{
+            const s=studentMap[r.student_id]||{}, c=classMap[r.class_id]||{}, sch=schoolMap[r.school_id]||schoolMap[c.school_id]||{}, crs=courseMap[r.course_id]||{};
+            return {full_name:s.full_name||"",dependency_mode_now:s.dependency_mode||"unknown",student_status_now:s.status||"unknown",school:sch.name||"",dependency_class:c.name||"",dependency_series:c.series||"",component:crs.name||"",...r};
+          }).sort((a,b)=>(a.full_name+"|"+a.component).localeCompare(b.full_name+"|"+b.component,"pt-BR"));
+
+          const confirmedEver=enriched.filter(x=>x.was_active_confirmed), deactivated=enriched.filter(x=>x.deactivated_confirmed);
+          const totals={
+            historical_dependency_ids:enriched.length,
+            historical_unique_students:new Set(enriched.map(x=>x.student_id).filter(Boolean)).size,
+            confirmed_ever_active_dependency_ids:confirmedEver.length,
+            confirmed_ever_active_students:new Set(confirmedEver.map(x=>x.student_id).filter(Boolean)).size,
+            confirmed_deactivated_dependency_ids:deactivated.length,
+            confirmed_deactivated_students:new Set(deactivated.map(x=>x.student_id).filter(Boolean)).size,
+            current_active_records:current.filter(x=>norm(x.status)==="active").length,
+            current_inactive_records:current.filter(x=>inactive.has(norm(x.status))).length,
+            current_completed_records:current.filter(x=>norm(x.status)==="completed").length,
+            current_failed_records:current.filter(x=>norm(x.status)==="failed").length,
+            current_cancelled_records:current.filter(x=>norm(x.status)==="cancelled").length,
+            create_audit_events:creates.length,active_to_inactive_audit_events:transitions.length,delete_audit_events:deletes.length,
+            deleted_dependency_ids:new Set(deletes.map(x=>x.document_id).filter(Boolean)).size,
+            completion_snapshots:snapshots.length,unresolved_completion_snapshots_2026:unresolvedSnapshots.length,
+            auto_cancelled_by_mode_none_dependency_ids:enriched.filter(x=>x.auto_cancelled_by_mode_none).length,
+            related_student_mode_to_none_events:modeLogs.length
+          };
+          const result={schema:"SIGESC_DEPENDENCY_HISTORY_AUDIT_V1",academic_year:year,audit_scope:"student_dependencies lifecycle for academic_year=2026",database_mutation:false,tenant_anchor_school:anchorName,limitations:["audit_service is best-effort; a failed historical audit write may be absent","physical deletion is recoverable only when audit_logs retained the prior document","completion snapshots with completion_academic_year=2026 but no recoverable dependency academic_year are counted separately, not treated as confirmed 2026 links"],totals,dependencies:enriched,related_student_mode_to_none_events:modeLogs.map(x=>({student_id:x.document_id,timestamp:x.timestamp_local||x.timestamp_utc||x.timestamp||null})),unresolved_completion_snapshots_2026:unresolvedSnapshots};
+          print("DEPENDENCY_HISTORY_JSON="+EJSON.stringify(result));
+          JS
+
+          remote_command="timeout 90 docker exec -i ${MONGO_CONTAINER} mongosh --quiet --file /dev/stdin"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/dependency_history_audit_key" "${PROD_USER}@${PROD_HOST}" "$remote_command" < private/audit.js > private/raw.log 2>&1
+          rc=$?; set -e
+          if [ "$rc" -ne 0 ]; then echo "DEPENDENCY_HISTORY_REMOTE_FAILED:$rc"; exit "$rc"; fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          raw=Path('private/raw.log').read_text(encoding='utf-8',errors='replace').splitlines(); prefix='DEPENDENCY_HISTORY_JSON='
+          lines=[x[len(prefix):] for x in raw if x.startswith(prefix)]
+          if not lines: raise SystemExit('DEPENDENCY_HISTORY_RESULT_MARKER_MISSING')
+          p=json.loads(lines[-1])
+          if p.get('schema')!='SIGESC_DEPENDENCY_HISTORY_AUDIT_V1' or p.get('database_mutation') is not False: raise SystemExit('DEPENDENCY_HISTORY_RESULT_INVALID')
+          Path('private/dependency-history.json').write_text(json.dumps(p,ensure_ascii=False,indent=2),encoding='utf-8')
+          summary={'schema':'SIGESC_DEPENDENCY_HISTORY_AUDIT_SUMMARY_V1','academic_year':p.get('academic_year'),'database_mutation':False,'totals':p.get('totals') or {},'limitations':p.get('limitations') or []}
+          Path('evidence/summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
+          t=summary['totals']
+          print('DEPENDENCY_HISTORY_COLLECTION=PASS')
+          print(f"HISTORICAL_DEPENDENCY_IDS={t.get('historical_dependency_ids',0)}")
+          print(f"HISTORICAL_UNIQUE_STUDENTS={t.get('historical_unique_students',0)}")
+          print(f"CONFIRMED_EVER_ACTIVE_STUDENTS={t.get('confirmed_ever_active_students',0)}")
+          print(f"CONFIRMED_DEACTIVATED_STUDENTS={t.get('confirmed_deactivated_students',0)}")
+          print(f"CURRENT_ACTIVE_RECORDS={t.get('current_active_records',0)}")
+          print(f"CURRENT_INACTIVE_RECORDS={t.get('current_inactive_records',0)}")
+          print(f"DELETED_DEPENDENCY_IDS={t.get('deleted_dependency_ids',0)}")
+          print(f"AUTO_CANCELLED_BY_MODE_NONE={t.get('auto_cancelled_by_mode_none_dependency_ids',0)}")
+          print('PII_IN_PUBLIC_LOGS=NO'); print('DATABASE_MUTATION=NO')
+          PY
+
+          openssl cms -encrypt -binary -aes256 -in private/dependency-history.json -outform DER -out evidence/dependency-history.cms "$RUNNER_TEMP/dependency_history_audit_cert.pem"
+          test -s evidence/dependency-history.cms
+          rm -rf private; rm -f "$RUNNER_TEMP/dependency_history_audit_cert.pem"; trap - EXIT
+          echo 'DEPENDENCY_HISTORY_ENCRYPTION=PASS'
+
+      - name: Upload encrypted nominal evidence only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-history-audit-encrypted-${{ github.run_id }}
+          path: |
+            evidence/dependency-history.cms
+            evidence/summary.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish sanitized counts and close gate
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          p=json.load(open('evidence/summary.json',encoding='utf-8')); t=p.get('totals') or {}
+          body=('Auditoria histórica read-only de Dependência de Estudos concluída.\n\n'
+              f'- Ano letivo auditado: `{p.get("academic_year")}`\n'
+              f'- IDs históricos de vínculo encontrados: `{t.get("historical_dependency_ids",0)}`\n'
+              f'- Estudantes históricos encontrados: `{t.get("historical_unique_students",0)}`\n'
+              f'- Estudantes com evidência confirmada de vínculo ativo: `{t.get("confirmed_ever_active_students",0)}`\n'
+              f'- Estudantes com evidência confirmada de posterior desativação/remoção: `{t.get("confirmed_deactivated_students",0)}`\n'
+              f'- Vínculos ativos atualmente: `{t.get("current_active_records",0)}`\n'
+              f'- Vínculos inativos preservados atualmente: `{t.get("current_inactive_records",0)}`\n'
+              f'- Vínculos excluídos recuperados pela auditoria: `{t.get("deleted_dependency_ids",0)}`\n'
+              f'- Cancelamentos automáticos por dependency_mode→none: `{t.get("auto_cancelled_by_mode_none_dependency_ids",0)}`\n'
+              f'- Snapshots 2026 sem vínculo recuperável: `{t.get("unresolved_completion_snapshots_2026",0)}`\n'
+              '- Database mutation: **NO**\n- Nomes/PII em logs ou issue: **NO**\n- Evidência nominal: **criptografada**.')
+          repo=os.environ['GITHUB_REPOSITORY']; issue=os.environ['ISSUE_NUMBER']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-history-audit'}
+          def req(path,method='POST',data=None):
+              payload=None if data is None else json.dumps(data).encode(); r=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',data=payload,method=method,headers=headers)
+              with urllib.request.urlopen(r,timeout=30) as response: return json.load(response)
+          req(f'issues/{issue}/comments',data={'body':body}); req(f'issues/{issue}',method='PATCH',data={'state':'closed','state_reason':'completed'})
+          PY
