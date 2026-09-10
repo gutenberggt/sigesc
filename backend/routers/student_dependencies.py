@@ -8,7 +8,9 @@ Princípios arquiteturais:
 - Mutuamente exclusivo via Student.dependency_mode (enum).
 - Limite de componentes lendo da mantenedora.
 - Duplicidade impedida: (student_id, course_id, origin_academic_year, status=active).
-- Auditoria completa (create / update / delete / status change).
+- Auditoria completa (create / update / status change).
+- Imutabilidade de existência: vínculo criado NUNCA é apagado fisicamente pela aplicação.
+- DELETE HTTP preservado por compatibilidade e convertido em cancelamento lógico auditável.
 - Tenant scope obrigatório.
 """
 from __future__ import annotations
@@ -23,12 +25,13 @@ from models import StudentDependency, StudentDependencyCreate, StudentDependency
 
 logger = logging.getLogger(__name__)
 
-# Papéis com poder de gerenciar (criar/editar/excluir)
+# Papéis com poder de gerenciar (criar/editar/cancelar)
 DEPENDENCY_MANAGE_ROLES = {
     "super_admin", "admin", "admin_teste", "gerente", "secretario", "diretor",
 }
 # Papéis que podem visualizar
 DEPENDENCY_VIEW_ROLES = DEPENDENCY_MANAGE_ROLES | {"coordenador", "apoio_pedagogico", "professor", "semed", "semed1", "semed2", "semed3"}
+TERMINAL_DEPENDENCY_STATUSES = {"completed", "failed", "cancelled"}
 
 
 def setup_student_dependencies_router(db, auth_middleware, audit_service=None, apply_tenant_filter=None):
@@ -80,13 +83,28 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
         mantenedora_id: Optional[str],
         request: Optional[Request] = None,
     ) -> None:
-        """Valida que aluno não excede limite de componentes da mantenedora."""
+        """Valida estado acadêmico, modalidade e limite de componentes."""
         student = await db.students.find_one(
             {"id": student_id},
-            {"_id": 0, "id": 1, "dependency_mode": 1},
+            {"_id": 0, "id": 1, "dependency_mode": 1, "status": 1},
         )
         if not student:
             raise HTTPException(404, detail="Estudante não encontrado.")
+
+        # Hardening Set/2026: não cria vínculo acadêmico para estudante fora do
+        # estado ativo. Campo ausente é tratado como active apenas por
+        # compatibilidade com documentos legados anteriores à normalização.
+        student_status = student.get("status") or "active"
+        if str(student_status).lower() not in {"active", "ativo"}:
+            raise HTTPException(
+                409,
+                detail={
+                    "code": "DEPENDENCY_REQUIRES_ACTIVE_STUDENT",
+                    "message": "Dependência de Estudos só pode ser vinculada a estudante ativo.",
+                    "student_status": student_status,
+                },
+            )
+
         mode = student.get("dependency_mode") or "none"
         if mode == "none":
             raise HTTPException(
@@ -143,7 +161,51 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
                 description=f"Dependência {dep_id} {action}",
             )
         except Exception as e:
+            # AuditService permanece best-effort, mas a entidade acadêmica não é
+            # mais removida fisicamente. Uma falha aqui não pode causar perda do vínculo.
             logger.warning("[student_dependencies] audit log falhou: %s", e)
+
+    async def _ensure_completion_snapshot(
+        dependency_doc: dict,
+        *,
+        new_status: str,
+        status_reason: Optional[str],
+        user_id: Optional[str],
+        completion_academic_year: Optional[int] = None,
+    ) -> None:
+        """Garante snapshot idempotente para todo estado terminal.
+
+        A transição pode já ter sido persistida quando o snapshot falha. Nesse
+        caso o vínculo continua existindo, a API retorna erro visível e uma
+        repetição da operação tenta o snapshot novamente. Nunca há perda do SSoT.
+        """
+        if new_status not in TERMINAL_DEPENDENCY_STATUSES:
+            return
+        try:
+            from routers.dependency_completions import create_completion_snapshot_on_transition
+            await create_completion_snapshot_on_transition(
+                db,
+                dependency_doc=dependency_doc,
+                new_status=new_status,
+                status_reason=status_reason,
+                issued_by_user_id=user_id or "system",
+                completion_academic_year=completion_academic_year
+                    or datetime.now(timezone.utc).year,
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception(
+                "[student_dependencies] vínculo preservado, mas snapshot terminal falhou dep=%s",
+                dependency_doc.get("id"),
+            )
+            raise HTTPException(
+                500,
+                detail={
+                    "code": "DEPENDENCY_PRESERVED_SNAPSHOT_PENDING",
+                    "message": "O vínculo foi preservado, mas o snapshot documental não pôde ser concluído. Reexecute a operação; nenhuma exclusão física ocorreu.",
+                },
+            ) from exc
 
     # ==================================================================
     # CREATE
@@ -207,13 +269,11 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
         return deps
 
     # ==================================================================
-    # LIST por turma (para diário, Fase 2 — já deixamos pronto)
+    # LIST por turma (para diário)
     # ==================================================================
     @router.get("/class/{class_id}/course/{course_id}", response_model=List[dict])
     async def list_by_class_course(request: Request, class_id: str, course_id: str):
-        """Lista alunos em dependência ativa nesta turma+componente.
-        Usado pelo diário (Fase 2) para incluir esses alunos no componente.
-        """
+        """Lista alunos em dependência ativa nesta turma+componente."""
         user = await _require_role(request, DEPENDENCY_VIEW_ROLES)
         flt = await _scoped({
             "class_id": class_id, "course_id": course_id, "status": "active"
@@ -235,50 +295,142 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
         if not update_data:
             return {"message": "Nada para atualizar."}
 
+        new_status = update_data.get("status")
+        effective_reason = update_data.get("status_reason") or existing.get("status_reason")
+        if new_status == "cancelled" and (not effective_reason or not str(effective_reason).strip()):
+            raise HTTPException(
+                422,
+                detail={
+                    "code": "CANCELLATION_REASON_REQUIRED",
+                    "message": "Cancelamento exige status_reason não vazio.",
+                },
+            )
+
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
         update_data["updated_by"] = user.get("id")
-        await db.student_dependencies.update_one({"id": dep_id}, {"$set": update_data})
+        await db.student_dependencies.update_one(flt, {"$set": update_data})
 
-        # Fase 2.5 — snapshot imutável em transições documentais
-        new_status = update_data.get("status")
-        if new_status and new_status != existing.get("status") and new_status in {"completed", "failed", "cancelled"}:
+        # Todo estado terminal deve possuir snapshot. A chamada é idempotente e
+        # também roda em repetição do mesmo estado para reparar falha anterior.
+        snapshot_error = None
+        if new_status in TERMINAL_DEPENDENCY_STATUSES:
             try:
-                from routers.dependency_completions import create_completion_snapshot_on_transition
                 merged = {**existing, **update_data}
-                await create_completion_snapshot_on_transition(
-                    db,
-                    dependency_doc=merged,
+                await _ensure_completion_snapshot(
+                    merged,
                     new_status=new_status,
-                    status_reason=update_data.get("status_reason") or existing.get("status_reason"),
-                    issued_by_user_id=user.get("id"),
+                    status_reason=effective_reason,
+                    user_id=user.get("id"),
                     completion_academic_year=update_data.get("completed_in_academic_year")
-                        or datetime.now(timezone.utc).year,
+                        or existing.get("completed_in_academic_year"),
                 )
-            except HTTPException:
-                # Erros de validação (ex.: cancelled sem reason) propagam
-                raise
-            except Exception as e:
-                # Falha ao snapshot NÃO bloqueia a transição (auditoria registra)
-                logger.exception("[completion-hook] erro ao criar snapshot dep=%s: %s", dep_id, e)
+            except HTTPException as exc:
+                snapshot_error = exc
 
         await _audit("update", dep_id, user, request, before=existing, after=update_data)
+        if snapshot_error is not None:
+            raise snapshot_error
         return {"message": "Dependência atualizada com sucesso."}
 
     # ==================================================================
-    # DELETE
+    # DELETE HTTP = CANCELAMENTO LÓGICO (NUNCA physical delete)
     # ==================================================================
     @router.delete("/{dep_id}", response_model=dict)
     async def delete_dependency(request: Request, dep_id: str):
+        """Compatibilidade HTTP: preserva para sempre a entidade acadêmica.
+
+        O verbo DELETE deixa de significar remoção física. Para vínculo ativo,
+        realiza transição idempotente para `cancelled`, registra motivo/ator/data
+        e exige snapshot documental. Estados terminais são preservados e apenas
+        têm o snapshot idempotente confirmado.
+        """
         user = await _require_role(request, DEPENDENCY_MANAGE_ROLES)
         flt = await _scoped({"id": dep_id}, user, request)
         existing = await db.student_dependencies.find_one(flt, {"_id": 0})
         if not existing:
             raise HTTPException(404, detail="Dependência não encontrada.")
 
-        await db.student_dependencies.delete_one({"id": dep_id})
-        await _audit("delete", dep_id, user, request, before=existing)
-        logger.info("[student_dependencies] deletada %s por %s", dep_id, user.get("email"))
-        return {"message": "Dependência removida com sucesso."}
+        current_status = existing.get("status") or "active"
+        if current_status in TERMINAL_DEPENDENCY_STATUSES:
+            # Repetição segura: confirma/repara snapshot sem alterar o vínculo.
+            await _ensure_completion_snapshot(
+                existing,
+                new_status=current_status,
+                status_reason=existing.get("status_reason"),
+                user_id=user.get("id"),
+                completion_academic_year=existing.get("completed_in_academic_year"),
+            )
+            return {
+                "message": "Dependência preservada em estado terminal; nenhuma exclusão física foi realizada.",
+                "status": current_status,
+                "physically_deleted": False,
+            }
+
+        now = datetime.now(timezone.utc).isoformat()
+        actor = user.get("email") or user.get("id") or "usuário"
+        reason = f"[logical-delete] cancelada via DELETE por {actor}"
+        transition = {
+            "status": "cancelled",
+            "status_reason": reason,
+            "updated_at": now,
+            "updated_by": user.get("id"),
+        }
+        transition_filter = {**flt, "status": current_status}
+        result = await db.student_dependencies.update_one(
+            transition_filter,
+            {"$set": transition},
+        )
+        modified = getattr(result, "modified_count", 1)
+        if modified == 0:
+            # Concorrência: recarrega e nunca tenta remover fisicamente.
+            latest = await db.student_dependencies.find_one(flt, {"_id": 0})
+            if not latest:
+                raise HTTPException(
+                    409,
+                    detail={
+                        "code": "DEPENDENCY_INTEGRITY_CONCURRENT_DISAPPEARANCE",
+                        "message": "O vínculo deixou de estar disponível durante a operação. Nenhuma exclusão foi executada por esta rota.",
+                    },
+                )
+            existing = latest
+            current_status = latest.get("status") or current_status
+            if current_status not in TERMINAL_DEPENDENCY_STATUSES:
+                raise HTTPException(409, detail="Dependência foi alterada concorrentemente; recarregue e tente novamente.")
+            transition = {}
+
+        merged = {**existing, **transition}
+        snapshot_error = None
+        try:
+            await _ensure_completion_snapshot(
+                merged,
+                new_status=merged.get("status") or "cancelled",
+                status_reason=merged.get("status_reason"),
+                user_id=user.get("id"),
+                completion_academic_year=merged.get("completed_in_academic_year"),
+            )
+        except HTTPException as exc:
+            snapshot_error = exc
+
+        await _audit(
+            "update",
+            dep_id,
+            user,
+            request,
+            before=existing,
+            after=transition or {"status": current_status, "logical_delete_retry": True},
+        )
+        logger.info(
+            "[student_dependencies] cancelamento lógico %s por %s; physical_delete=false",
+            dep_id,
+            user.get("email"),
+        )
+        if snapshot_error is not None:
+            raise snapshot_error
+        return {
+            "message": "Dependência cancelada e preservada no histórico.",
+            "status": merged.get("status"),
+            "physically_deleted": False,
+        }
 
     # ==================================================================
     # SUMMARY (card resumido na tela do aluno)
