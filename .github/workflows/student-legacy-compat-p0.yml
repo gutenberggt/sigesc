@@ -9,6 +9,7 @@ on:
       - 'backend/routers/__init__.py'
       - 'backend/models.py'
       - 'backend/tests/test_student_legacy_compat.py'
+      - 'backend/tests/test_student_legacy_status_compat.py'
       - '.github/workflows/student-legacy-compat-p0.yml'
   push:
     branches:
@@ -18,6 +19,7 @@ on:
       - 'backend/routers/__init__.py'
       - 'backend/models.py'
       - 'backend/tests/test_student_legacy_compat.py'
+      - 'backend/tests/test_student_legacy_status_compat.py'
       - '.github/workflows/student-legacy-compat-p0.yml'
 
 jobs:
@@ -46,7 +48,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Compile compatibility runtime
-        run: python -m py_compile routers/student_legacy_compat.py routers/__init__.py tests/test_student_legacy_compat.py
+        run: python -m py_compile routers/student_legacy_compat.py routers/__init__.py tests/test_student_legacy_compat.py tests/test_student_legacy_status_compat.py
 
       - name: Guard - reconstrução do endereço legado
         run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_legacy_address_is_reassembled_without_mutating_source
@@ -63,8 +65,14 @@ jobs:
       - name: Guard - literal desconhecido fail-closed
         run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_unsupported_literal_is_not_silently_reinterpreted
 
+      - name: Guard - status legado só na materialização tipada
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_status_compat.py::test_known_legacy_statuses_are_mapped_only_when_building_student
+
+      - name: Guard - super_admin abre perfil inativo legado
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_status_compat.py::test_super_admin_get_fallback_opens_inactive_legacy_profile
+
       - name: Guard - instalação das rotas
         run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py::test_installer_wraps_expected_routes_and_is_idempotent
 
       - name: Guard - suíte completa P0
-        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_student_legacy_compat.py tests/test_student_legacy_status_compat.py
