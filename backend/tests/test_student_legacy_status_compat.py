@@ -34,18 +34,21 @@ def _route(router, path, method):
         ("Progredido", "progressed"),
     ],
 )
-def test_known_legacy_statuses_are_projected_without_mutating_source(legacy, canonical):
+def test_known_legacy_statuses_are_mapped_only_when_building_student(legacy, canonical):
     source = {
         "id": "student-legacy-status",
         "full_name": "Estudante Legado",
         "status": legacy,
     }
 
-    normalized = normalize_legacy_student_doc(source)
+    generic_projection = normalize_legacy_student_doc(source)
+    typed_student = build_compatible_student(source)
 
     assert source["status"] == legacy
-    assert normalized["status"] == canonical
-    assert Student.model_validate(normalized).status == canonical
+    # Contrato de rematrícula/transferência continua vendo o valor histórico bruto.
+    assert generic_projection["status"] == legacy
+    # Só a resposta tipada do cadastro completo usa o Literal canônico.
+    assert typed_student.status == canonical
 
 
 def test_status_only_validation_error_is_eligible_for_legacy_fallback():
@@ -70,9 +73,9 @@ def test_unknown_status_is_never_silently_reinterpreted():
         "status": "situacao_desconhecida",
     }
 
-    normalized = normalize_legacy_student_doc(source)
+    generic_projection = normalize_legacy_student_doc(source)
 
-    assert normalized["status"] == "situacao_desconhecida"
+    assert generic_projection["status"] == "situacao_desconhecida"
     with pytest.raises(ValidationError):
         build_compatible_student(source)
 
