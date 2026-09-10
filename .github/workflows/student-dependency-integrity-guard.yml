@@ -115,7 +115,7 @@ jobs:
       PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
       PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
       MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
-      EXPECTED_LEGACY_MISSING_COUNT: '4'
+      EXPECTED_LEGACY_MISSING_COUNT: '0'
       HARDENING_CUTOFF_UTC: '2026-09-10T12:00:00Z'
 
     steps:
@@ -283,9 +283,9 @@ jobs:
               else:
                   body=(f'BASELINE_MISSING_COUNT={expected}\n'
                         f'BASELINE_MISSING_SET_SHA256={set_hash}\n'
-                        'BASELINE_SCOPE=legacy_missing_student_dependencies_before_2026-09-10T12:00:00Z\n'
+                        'BASELINE_SCOPE=no_missing_student_dependencies_expected_after_recovery\n'
                         'PII=NO\n'
-                        'Purpose: immutable sentinel baseline for known forensic debt; IDs are never published.')
+                        'Purpose: immutable zero-loss sentinel baseline; IDs are never published.')
                   created=api(f'repos/{repo}/issues',method='POST',data={'title':baseline_title,'body':body})
                   api(f'repos/{repo}/issues/{created["number"]}',method='PATCH',data={'state':'closed','state_reason':'completed'})
                   print('DEPENDENCY_SENTINEL_BASELINE=CREATED')
