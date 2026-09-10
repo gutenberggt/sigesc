@@ -30,6 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import re
           from pathlib import Path
           p = Path('.github/workflows/dependency-active-audit-encrypted.yml')
           text = p.read_text(encoding='utf-8')
@@ -63,8 +64,13 @@ jobs:
               if token in collector:
                   raise SystemExit(f'DEP_AUDIT_MUTATION_PRIMITIVE_FOUND:{token}')
 
-          # Never upload plaintext evidence or raw remote logs.
-          if 'path: private/' in text or 'path: evidence/dependencies.json' in text:
+          # Never upload plaintext evidence or raw remote logs. Match only
+          # actual YAML path declarations, not the guard's own string literals.
+          plaintext_path = re.compile(
+              r'^\s+path:\s*(?:private/|evidence/dependencies\.json)\s*$',
+              re.MULTILINE,
+          )
+          if plaintext_path.search(text):
               raise SystemExit('DEP_AUDIT_PLAINTEXT_UPLOAD_FORBIDDEN')
 
           print('DEPENDENCY_AUDIT_STATIC_BOUNDARY=PASS')
