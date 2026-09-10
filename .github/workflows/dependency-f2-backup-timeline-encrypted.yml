@@ -42,18 +42,24 @@ jobs:
           for marker in required:
               if marker not in text:
                   raise SystemExit(f'DEP_F2_REQUIRED_MARKER_MISSING:{marker}')
-          # Produção só pode ser consultada. Escritas Mongo no workflow são proibidas.
+          # A política Mongo read-only se aplica ao script remoto executável, não
+          # à própria lista de tokens proibidos deste guard.
+          start="cat > private/timeline.sh <<'SH'"
+          end="\n          SH\n"
+          if start not in text or end not in text:
+              raise SystemExit('DEP_F2_TIMELINE_COLLECTOR_BLOCK_MISSING')
+          collector=text.rsplit(start,1)[1].split(end,1)[0]
           for token in [
               '.insertOne(','.insertMany(','.updateOne(','.updateMany(','.replaceOne(',
               '.deleteOne(','.deleteMany(','.bulkWrite(','.findOneAndUpdate(',
               '.findOneAndDelete(','.findOneAndReplace(','.drop(','.dropDatabase(',
           ]:
-              if token in text:
+              if token in collector:
                   raise SystemExit(f'DEP_F2_MONGO_MUTATION_PRIMITIVE_FOUND:{token}')
           # Restore deve ocorrer somente no container temporário $drill.
-          for line in text.splitlines():
+          for line in collector.splitlines():
               if 'mongorestore' in line and not line.lstrip().startswith('#'):
-                  if 'docker exec "$drill"' not in line and 'required=' not in line and "'mongorestore'" not in line:
+                  if 'docker exec "$drill"' not in line:
                       raise SystemExit(f'DEP_F2_UNSCOPED_MONGORESTORE:{line.strip()}')
           if re.search(r'^\s+path:\s*(?:private/|evidence/dependency-f2-backup-timeline\.json)\s*$',text,re.MULTILINE):
               raise SystemExit('DEP_F2_PLAINTEXT_UPLOAD_FORBIDDEN')
