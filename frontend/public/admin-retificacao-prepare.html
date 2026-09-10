@@ -90,7 +90,7 @@
 
   async function searchStudents(q) {
     try {
-      const data = await call(`/students/autocomplete?q=${encodeURIComponent(q)}&limit=12&status=active`);
+      const data = await call(`/students/autocomplete?q=${encodeURIComponent(q)}&limit=10&status=active`);
       const items = data?.items || [];
       $('studentResults').innerHTML = items.map((s,i) => `<div class="result" data-i="${i}"><b>${esc(s.full_name)}</b><br><span class="muted">${esc(s.school_name || 'Escola não informada')} · ${esc(s.class_name || 'Sem turma')} · ${esc(s.cpf_masked || '')}</span></div>`).join('') || '<div class="result muted">Nenhum estudante encontrado.</div>';
       $('studentResults').classList.remove('hidden');
