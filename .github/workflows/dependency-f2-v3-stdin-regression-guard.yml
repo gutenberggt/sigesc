@@ -1,0 +1,37 @@
+name: "SIGESC Dependência - F2 v3 stdin regression guard"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/dependency_f2_backup_timeline_v3.sh'
+      - '.github/workflows/dependency-f2-v3-stdin-regression-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Guard F2 v3 point-probe stdin transport
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate shell and interactive stdin forwarding
+        shell: bash
+        run: |
+          set -euo pipefail
+          script='backend/scripts/dependency_f2_backup_timeline_v3.sh'
+          bash -n "$script"
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('backend/scripts/dependency_f2_backup_timeline_v3.sh')
+          text=p.read_text(encoding='utf-8')
+          required='docker exec -i -e DEP_F2V3_SEED_JSON="$seed_json" "$drill" mongosh --quiet --file /dev/stdin'
+          forbidden='docker exec -e DEP_F2V3_SEED_JSON="$seed_json" "$drill" mongosh --quiet --file /dev/stdin'
+          if text.count(required) != 1:
+              raise SystemExit(f'DEP_F2V3_STDIN_FORWARDING_COUNT:{text.count(required)}')
+          if forbidden in text:
+              raise SystemExit('DEP_F2V3_STDIN_FORWARDING_REGRESSION')
+          print('DEP_F2V3_STDIN_FORWARDING=PASS')
+          PY
