@@ -1,0 +1,488 @@
+name: "SIGESC Dependência - Auditoria nominal criptografada"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/dependency-active-audit-encrypted.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-active-audit-encrypted
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard dependency audit read-only/privacy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Enforce read-only and encrypted-output boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          p = Path('.github/workflows/dependency-active-audit-encrypted.yml')
+          text = p.read_text(encoding='utf-8')
+
+          required = [
+              'student_dependencies',
+              'status: "active"',
+              'AUDIT_CERT_B64',
+              'openssl cms -encrypt',
+              'dependencies.cms',
+              'database_mutation:false',
+              'PII_IN_PUBLIC_LOGS=NO',
+          ]
+          for marker in required:
+              if marker not in text:
+                  raise SystemExit(f'DEP_AUDIT_REQUIRED_MARKER_MISSING:{marker}')
+
+          start = "cat > private/audit.js <<'JS'"
+          end = "\n          JS\n"
+          if start not in text or end not in text:
+              raise SystemExit('DEP_AUDIT_COLLECTOR_BLOCK_MISSING')
+          collector = text.rsplit(start, 1)[1].split(end, 1)[0]
+
+          banned = [
+              '.insertOne(', '.insertMany(', '.updateOne(', '.updateMany(',
+              '.replaceOne(', '.deleteOne(', '.deleteMany(', '.bulkWrite(',
+              '.findOneAndUpdate(', '.findOneAndDelete(', '.findOneAndReplace(',
+              '.drop(', '.dropDatabase(',
+          ]
+          for token in banned:
+              if token in collector:
+                  raise SystemExit(f'DEP_AUDIT_MUTATION_PRIMITIVE_FOUND:{token}')
+
+          # Never upload plaintext evidence or raw remote logs. Match only
+          # actual YAML path declarations, not the guard's own string literals.
+          plaintext_path = re.compile(
+              r'^\s+path:\s*(?:private/|evidence/dependencies\.json)\s*$',
+              re.MULTILINE,
+          )
+          if plaintext_path.search(text):
+              raise SystemExit('DEP_AUDIT_PLAINTEXT_UPLOAD_FORBIDDEN')
+
+          print('DEPENDENCY_AUDIT_STATIC_BOUNDARY=PASS')
+          PY
+
+  production-audit:
+    name: List active dependencies in production read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[DEPENDENCY-ACTIVE-AUDIT] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+      DB_NAME: sigesc
+
+    steps:
+      - name: Resolve exact owner-scoped audit context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, json, os, re, urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('DEP_AUDIT_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('DEP_AUDIT_ISSUE_MUST_BE_OPEN')
+
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              line=raw.strip()
+              if not line or '=' not in line:
+                  continue
+              k,v=line.split('=',1)
+              k,v=k.strip(),v.strip()
+              if k in values:
+                  raise SystemExit(f'DEP_AUDIT_DUPLICATE_FIELD:{k}')
+              values[k]=v
+
+          expected={
+              'DEPENDENCY_ACTIVE_AUDIT':'AUTHORIZED',
+              'CONFIRMATION':'LIST_ACTIVE_DEPENDENCIES_READ_ONLY',
+              'ACADEMIC_YEAR':'2026',
+              'ANCHOR_SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+          }
+          for k,wanted in expected.items():
+              if values.get(k) != wanted:
+                  raise SystemExit(f'DEP_AUDIT_FIELD_INVALID:{k}')
+
+          target=values.get('TARGET_SHA','')
+          production=values.get('EXPECTED_PRODUCTION_SHA','')
+          cert_b64=values.get('AUDIT_CERT_B64','')
+          cert_sha=values.get('CERT_SHA256','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target):
+              raise SystemExit('DEP_AUDIT_TARGET_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{40}',production):
+              raise SystemExit('DEP_AUDIT_PRODUCTION_SHA_INVALID')
+          if not re.fullmatch(r'[0-9a-f]{64}',cert_sha):
+              raise SystemExit('DEP_AUDIT_CERT_SHA_INVALID')
+          if issue.get('title') != f'[DEPENDENCY-ACTIVE-AUDIT] {target}':
+              raise SystemExit('DEP_AUDIT_TITLE_MISMATCH')
+
+          try:
+              cert=base64.b64decode(cert_b64,validate=True)
+          except Exception:
+              raise SystemExit('DEP_AUDIT_CERT_B64_INVALID')
+          if hashlib.sha256(cert).hexdigest() != cert_sha:
+              raise SystemExit('DEP_AUDIT_CERT_DIGEST_MISMATCH')
+          if b'BEGIN CERTIFICATE' not in cert:
+              raise SystemExit('DEP_AUDIT_CERT_FORMAT_INVALID')
+
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f'Bearer {token}',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-dependency-active-audit',
+          }
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  return json.load(r)
+          main_sha=get('branches/main')['commit']['sha']
+          prod_sha=get('branches/production')['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'DEP_AUDIT_MAIN_MOVED:{main_sha}')
+          if prod_sha != production:
+              raise SystemExit(f'DEP_AUDIT_PRODUCTION_MOVED:{prod_sha}')
+
+          os.makedirs('private',exist_ok=True)
+          open('private/audit_cert.pem','wb').write(cert)
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'production_sha={production}\n')
+              out.write(f'issue_number={issue.get("number")}\n')
+          print('DEPENDENCY_AUDIT_CONTEXT=PASS')
+          print('PII_IN_PUBLIC_LOGS=NO')
+          print('DATABASE_MUTATION=NO')
+          PY
+
+      - name: Checkout exact reviewed audit SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "DEP_AUDIT_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/dependency_audit_key
+          chmod 600 ~/.ssh/dependency_audit_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'DEPENDENCY_AUDIT_SSH_TRUST=PASS'
+
+      - name: Collect nominal dependency snapshot read-only
+        id: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -rf private' EXIT
+          mkdir -p private evidence
+
+          cat > private/audit.js <<'JS'
+          const d = db.getSiblingDB("sigesc");
+          const year = 2026;
+          const anchorName = "E M E I E F Monsenhor Augusto Dias de Brito";
+
+          const anchors = d.schools.find(
+            {name: anchorName},
+            {_id:0,id:1,name:1,mantenedora_id:1}
+          ).toArray();
+          if (anchors.length !== 1 || !anchors[0].mantenedora_id) {
+            print("DEPENDENCY_AUDIT_ERROR=ANCHOR_TENANT_NOT_UNIQUE");
+            quit(31);
+          }
+          const tenant = anchors[0].mantenedora_id;
+
+          const deps = d.student_dependencies.find(
+            {
+              mantenedora_id: tenant,
+              status: "active",
+              academic_year: {$in: [year, String(year)]}
+            },
+            {
+              _id:0,id:1,student_id:1,school_id:1,class_id:1,course_id:1,
+              teacher_id:1,academic_year:1,origin_academic_year:1,
+              origin_class_id:1,origin_series:1,status:1
+            }
+          ).toArray();
+
+          const otherYearActive = d.student_dependencies.countDocuments({
+            mantenedora_id: tenant,
+            status: "active",
+            academic_year: {$nin: [year, String(year)]}
+          });
+
+          const studentIds = [...new Set(deps.map(x => x.student_id).filter(Boolean))];
+          const schoolIds = [...new Set(deps.flatMap(x => [x.school_id]).filter(Boolean))];
+          const classIds = [...new Set(deps.flatMap(x => [x.class_id, x.origin_class_id]).filter(Boolean))];
+          const courseIds = [...new Set(deps.map(x => x.course_id).filter(Boolean))];
+
+          const students = d.students.find(
+            {mantenedora_id:tenant,id:{$in:studentIds}},
+            {_id:0,id:1,full_name:1,dependency_mode:1,status:1,class_id:1}
+          ).toArray();
+          const studentMap = Object.fromEntries(students.map(x => [x.id,x]));
+
+          const classes = d.classes.find(
+            {mantenedora_id:tenant,id:{$in:classIds}},
+            {_id:0,id:1,name:1,series:1,school_id:1,academic_year:1}
+          ).toArray();
+          const classMap = Object.fromEntries(classes.map(x => [x.id,x]));
+
+          for (const c of classes) if (c.school_id) schoolIds.push(c.school_id);
+          const uniqueSchoolIds = [...new Set(schoolIds)];
+          const schools = d.schools.find(
+            {mantenedora_id:tenant,id:{$in:uniqueSchoolIds}},
+            {_id:0,id:1,name:1}
+          ).toArray();
+          const schoolMap = Object.fromEntries(schools.map(x => [x.id,x]));
+
+          const courses = d.courses.find(
+            {mantenedora_id:tenant,id:{$in:courseIds}},
+            {_id:0,id:1,name:1}
+          ).toArray();
+          const courseMap = Object.fromEntries(courses.map(x => [x.id,x]));
+
+          const activeEnrollments = d.enrollments.find(
+            {mantenedora_id:tenant,student_id:{$in:studentIds},status:"active"},
+            {_id:0,student_id:1,class_id:1}
+          ).toArray();
+
+          const regularByStudent = {};
+          for (const e of activeEnrollments) {
+            const c=classMap[e.class_id] || d.classes.findOne(
+              {mantenedora_id:tenant,id:e.class_id},
+              {_id:0,id:1,name:1,series:1,school_id:1,academic_year:1}
+            );
+            if (!c) continue;
+            if (!(c.academic_year === year || String(c.academic_year) === String(year))) continue;
+            const s=schoolMap[c.school_id] || d.schools.findOne(
+              {mantenedora_id:tenant,id:c.school_id},
+              {_id:0,id:1,name:1}
+            );
+            if (!regularByStudent[e.student_id]) regularByStudent[e.student_id]=[];
+            regularByStudent[e.student_id].push({
+              school:(s||{}).name || "",
+              class_name:c.name || "",
+              series:c.series || ""
+            });
+          }
+
+          const grouped = {};
+          for (const dep of deps) {
+            if (!grouped[dep.student_id]) grouped[dep.student_id]=[];
+            const dc=classMap[dep.class_id] || {};
+            const oc=classMap[dep.origin_class_id] || {};
+            const school=schoolMap[dep.school_id] || schoolMap[dc.school_id] || {};
+            const course=courseMap[dep.course_id] || {};
+            grouped[dep.student_id].push({
+              school:school.name || "",
+              dependency_class:dc.name || "",
+              dependency_series:dc.series || "",
+              component:course.name || "",
+              academic_year:dep.academic_year,
+              origin_academic_year:dep.origin_academic_year,
+              origin_class:oc.name || "",
+              origin_series:dep.origin_series || oc.series || "",
+              status:dep.status
+            });
+          }
+
+          const resultStudents = Object.entries(grouped).map(([studentId,items]) => {
+            const s=studentMap[studentId] || {};
+            items.sort((a,b) =>
+              (a.school+"|"+a.dependency_class+"|"+a.component).localeCompare(
+                b.school+"|"+b.dependency_class+"|"+b.component,"pt-BR"
+              )
+            );
+            return {
+              full_name:s.full_name || "",
+              dependency_mode:s.dependency_mode || "unknown",
+              student_status:s.status || "unknown",
+              regular_enrollments:regularByStudent[studentId] || [],
+              active_dependencies:items
+            };
+          }).sort((a,b) => a.full_name.localeCompare(b.full_name,"pt-BR"));
+
+          const missingStudents = studentIds.filter(id => !studentMap[id]).length;
+          const missingClasses = deps.filter(x => x.class_id && !classMap[x.class_id]).length;
+          const missingCourses = deps.filter(x => x.course_id && !courseMap[x.course_id]).length;
+
+          const result = {
+            schema:"SIGESC_ACTIVE_DEPENDENCIES_AUDIT_V1",
+            academic_year:year,
+            source_of_truth:"student_dependencies.status=active",
+            database_mutation:false,
+            tenant_anchor_school:anchorName,
+            totals:{
+              active_dependency_records:deps.length,
+              unique_students:resultStudents.length,
+              schools_with_active_dependencies:[...new Set(deps.map(x => {
+                const dc=classMap[x.class_id] || {};
+                const s=schoolMap[x.school_id] || schoolMap[dc.school_id] || {};
+                return s.name || "";
+              }).filter(Boolean))].length,
+              active_records_other_academic_years:otherYearActive,
+              missing_students:missingStudents,
+              missing_dependency_classes:missingClasses,
+              missing_courses:missingCourses
+            },
+            students:resultStudents
+          };
+          print("DEPENDENCY_AUDIT_JSON="+EJSON.stringify(result));
+          JS
+
+          remote_command="timeout 90 docker exec -i ${MONGO_CONTAINER} mongosh --quiet --file /dev/stdin"
+          set +e
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/dependency_audit_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            "$remote_command" \
+            < private/audit.js > private/raw.log 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "DEPENDENCY_AUDIT_REMOTE_FAILED:$rc"
+            exit "$rc"
+          fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          raw=Path('private/raw.log').read_text(encoding='utf-8',errors='replace').splitlines()
+          prefix='DEPENDENCY_AUDIT_JSON='
+          lines=[x[len(prefix):] for x in raw if x.startswith(prefix)]
+          if not lines:
+              raise SystemExit('DEPENDENCY_AUDIT_RESULT_MARKER_MISSING')
+          p=json.loads(lines[-1])
+          if p.get('schema') != 'SIGESC_ACTIVE_DEPENDENCIES_AUDIT_V1':
+              raise SystemExit('DEPENDENCY_AUDIT_SCHEMA_INVALID')
+          if p.get('database_mutation') is not False:
+              raise SystemExit('DEPENDENCY_AUDIT_MUTATION_BOUNDARY_FAILED')
+          Path('private/dependencies.json').write_text(
+              json.dumps(p,ensure_ascii=False,indent=2),encoding='utf-8'
+          )
+          summary={
+              'schema':'SIGESC_ACTIVE_DEPENDENCIES_AUDIT_SUMMARY_V1',
+              'academic_year':p.get('academic_year'),
+              'database_mutation':False,
+              'source_of_truth':p.get('source_of_truth'),
+              'totals':p.get('totals') or {},
+          }
+          Path('evidence/summary.json').write_text(
+              json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8'
+          )
+          t=summary['totals']
+          print('DEPENDENCY_AUDIT_COLLECTION=PASS')
+          print(f"ACTIVE_DEPENDENCY_RECORDS={t.get('active_dependency_records',0)}")
+          print(f"UNIQUE_STUDENTS={t.get('unique_students',0)}")
+          print(f"SCHOOLS_WITH_ACTIVE_DEPENDENCIES={t.get('schools_with_active_dependencies',0)}")
+          print(f"ACTIVE_OTHER_YEARS={t.get('active_records_other_academic_years',0)}")
+          print('PII_IN_PUBLIC_LOGS=NO')
+          print('DATABASE_MUTATION=NO')
+          PY
+
+          openssl cms -encrypt -binary -aes256 \
+            -in private/dependencies.json \
+            -outform DER \
+            -out evidence/dependencies.cms \
+            private/audit_cert.pem
+
+          test -s evidence/dependencies.cms
+          rm -rf private
+          trap - EXIT
+          echo 'DEPENDENCY_AUDIT_ENCRYPTION=PASS'
+
+      - name: Upload encrypted nominal evidence only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-active-audit-encrypted-${{ github.run_id }}
+          path: |
+            evidence/dependencies.cms
+            evidence/summary.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish sanitized counts and close gate
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          p=json.load(open('evidence/summary.json',encoding='utf-8'))
+          t=p.get('totals') or {}
+          body=(
+              'Auditoria read-only de Dependência de Estudos concluída.\n\n'
+              f'- Ano letivo: `{p.get("academic_year")}`\n'
+              f'- Vínculos ativos: `{t.get("active_dependency_records",0)}`\n'
+              f'- Estudantes únicos: `{t.get("unique_students",0)}`\n'
+              f'- Escolas com dependências ativas: `{t.get("schools_with_active_dependencies",0)}`\n'
+              f'- Vínculos ativos de outros anos (não incluídos na lista nominal): `{t.get("active_records_other_academic_years",0)}`\n'
+              '- Database mutation: **NO**\n'
+              '- Nomes/PII em logs ou issue: **NO**\n'
+              '- Evidência nominal: **criptografada**.'
+          )
+          repo=os.environ['GITHUB_REPOSITORY']; issue=os.environ['ISSUE_NUMBER']; token=os.environ['GH_TOKEN']
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f'Bearer {token}',
+              'Content-Type':'application/json',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-dependency-active-audit',
+          }
+          def req(path,method='POST',data=None):
+              payload=None if data is None else json.dumps(data).encode()
+              r=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/{path}',
+                  data=payload,method=method,headers=headers
+              )
+              with urllib.request.urlopen(r,timeout=30) as response:
+                  return json.load(response)
+          req(f'issues/{issue}/comments',data={'body':body})
+          req(f'issues/{issue}',method='PATCH',data={'state':'closed','state_reason':'completed'})
+          PY
