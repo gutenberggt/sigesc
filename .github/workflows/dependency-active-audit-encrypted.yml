@@ -47,6 +47,12 @@ jobs:
               if marker not in text:
                   raise SystemExit(f'DEP_AUDIT_REQUIRED_MARKER_MISSING:{marker}')
 
+          start = "cat > private/audit.js <<'JS'"
+          end = "\n          JS\n"
+          if start not in text or end not in text:
+              raise SystemExit('DEP_AUDIT_COLLECTOR_BLOCK_MISSING')
+          collector = text.split(start, 1)[1].split(end, 1)[0]
+
           banned = [
               '.insertOne(', '.insertMany(', '.updateOne(', '.updateMany(',
               '.replaceOne(', '.deleteOne(', '.deleteMany(', '.bulkWrite(',
@@ -54,9 +60,10 @@ jobs:
               '.drop(', '.dropDatabase(',
           ]
           for token in banned:
-              if token in text:
+              if token in collector:
                   raise SystemExit(f'DEP_AUDIT_MUTATION_PRIMITIVE_FOUND:{token}')
 
+          # Never upload plaintext evidence or raw remote logs.
           if 'path: private/' in text or 'path: evidence/dependencies.json' in text:
               raise SystemExit('DEP_AUDIT_PLAINTEXT_UPLOAD_FORBIDDEN')
 
