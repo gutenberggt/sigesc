@@ -17,13 +17,19 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 import pytest
-from pymongo import MongoClient
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 _ENABLED = os.environ.get("CI_SEED_TRANSFER") == "1"
-_db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+_db = None
+if _ENABLED:
+    # O fixture de transferência é o único consumidor deste Mongo real/efêmero.
+    # Suítes unitárias totalmente mockadas não devem importar/inicializar pymongo
+    # nem depender de MONGO_URL/DB_NAME quando CI_SEED_TRANSFER está desabilitado.
+    from pymongo import MongoClient
+
+    _db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 MANT = "CITX-MANT"
 SCHOOLS = ["CITX-SCH-0", "CITX-SCH-1", "CITX-SCH-2"]
