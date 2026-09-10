@@ -40,6 +40,7 @@ jobs:
     name: Preview/apply tenant repair Dependência 2026
     if: github.event_name == 'issues' && startsWith(github.event.issue.title, '[DEPENDENCY-TENANT-REPAIR-2026] ')
     runs-on: ubuntu-24.04
+    environment: production
     env:
       SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
