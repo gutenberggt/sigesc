@@ -1,4 +1,4 @@
-name: "Enrollment Rectification F2.3C - Execute Prepared Pilot"
+name: "Enrollment Rectification F2.3C - Prepare Gate"
 
 on:
   pull_request:
@@ -6,323 +6,107 @@ on:
       - 'backend/scripts/enrollment_rectification_f2_3c_pilot.py'
       - 'frontend/public/admin-retificacao-prepare.html'
       - '.github/workflows/enrollment-rectification-f2-3c-execute-prepared.yml'
-  issues:
-    types: [opened]
 
 permissions:
   contents: read
-  issues: write
-
-concurrency:
-  group: enrollment-rectification-f2-3c-execute-prepared
-  cancel-in-progress: false
 
 jobs:
   guard:
-    name: Guard F2.3C prepare UI + execute gate
-    if: github.event_name == 'pull_request'
+    name: Guard F2.3C prepare UI and dormant executor
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Compile executor and enforce boundaries
+
+      - name: Compile executor and enforce fail-closed boundaries
         shell: bash
         run: |
           set -euo pipefail
           python -m py_compile backend/scripts/enrollment_rectification_f2_3c_pilot.py
           python - <<'PY'
           import ast
+          import re
           from pathlib import Path
 
           script = Path('backend/scripts/enrollment_rectification_f2_3c_pilot.py').read_text(encoding='utf-8')
           html = Path('frontend/public/admin-retificacao-prepare.html').read_text(encoding='utf-8')
           tree = ast.parse(script)
+
           direct_mutators = {
-              'insert_one','insert_many','update_one','update_many','replace_one',
-              'delete_one','delete_many','bulk_write','find_one_and_update',
-              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+              'insert_one', 'insert_many', 'update_one', 'update_many', 'replace_one',
+              'delete_one', 'delete_many', 'bulk_write', 'find_one_and_update',
+              'find_one_and_delete', 'find_one_and_replace', 'drop', 'drop_database',
           }
-          hits=[]
+          hits = []
           for node in ast.walk(tree):
-              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in direct_mutators:
-                  hits.append(node.func.attr)
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                  if node.func.attr in direct_mutators:
+                      hits.append(node.func.attr)
           if hits:
               raise SystemExit(f'F2_3C_DIRECT_DB_MUTATOR_FORBIDDEN:{sorted(set(hits))}')
 
           required_script = (
-              'execute_rectification_saga', 'rollback_rectification_saga',
-              'DOCUMENT_ACKNOWLEDGEMENT', 'AuditService',
+              'execute_rectification_saga',
+              'rollback_rectification_saga',
+              'DOCUMENT_ACKNOWLEDGEMENT',
+              'AuditService',
               'ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED',
-              'PILOT_FLAG_MUST_START_DISABLED', 'PILOT_PREPARED_CARDINALITY_INVALID',
-              'destination_attendance_not_fabricated', 'audit_event_present',
-              'flag_enabled_at_exit', 'status="APPLIED"',
+              'PILOT_FLAG_MUST_START_DISABLED',
+              'PILOT_PREPARED_CARDINALITY_INVALID',
+              'destination_attendance_not_fabricated',
+              'audit_event_present',
+              'flag_enabled_at_exit',
+              'status="APPLIED"',
           )
           for marker in required_script:
               if marker not in script:
                   raise SystemExit(f'F2_3C_EXECUTOR_REQUIRED:{marker}')
-          if 'prepare_rectification_saga_execution' in script or 'operator_password' in script:
-              raise SystemExit('F2_3C_EXECUTOR_MUST_NOT_REAUTHENTICATE')
+
+          forbidden_script = (
+              'prepare_rectification_saga_execution',
+              'operator_password',
+          )
+          for marker in forbidden_script:
+              if marker in script:
+                  raise SystemExit(f'F2_3C_EXECUTOR_FORBIDDEN:{marker}')
 
           required_html = (
               '/admin/enrollment-rectification/dry-run',
               '/admin/enrollment-rectification/prepare-execution',
-              'type="password"', 'Idempotency-Key',
-              "$('password').value = ''", 'PREPARAÇÃO — NÃO EXECUTA',
+              'type="password"',
+              'Idempotency-Key',
+              "$('password').value = ''",
+              'PREPARAÇÃO — NÃO EXECUTA',
           )
           for marker in required_html:
               if marker not in html:
                   raise SystemExit(f'F2_3C_PREPARE_UI_REQUIRED:{marker}')
-          if '/admin/enrollment-rectification/execute' in html or '/admin/enrollment-rectification/rollback' in html:
-              raise SystemExit('F2_3C_PREPARE_UI_EXECUTION_FORBIDDEN')
 
-          pii = ('Emanuelle', 'Emmanuelle', '094809', '01/03/2013', '2013-03-01')
-          for marker in pii:
-              if marker.casefold() in (script + html).casefold():
-                  raise SystemExit(f'F2_3C_VERSIONED_PII_FORBIDDEN:{marker}')
+          forbidden_html = (
+              '/admin/enrollment-rectification/execute',
+              '/admin/enrollment-rectification/rollback',
+          )
+          for marker in forbidden_html:
+              if marker in html:
+                  raise SystemExit(f'F2_3C_PREPARE_UI_FORBIDDEN:{marker}')
+
+          # Verificação estrutural: nenhum identificador pessoal literal deve ser
+          # versionado no executor ou na página. Não contém valores reais do caso.
+          combined = script + '\n' + html
+          patterns = {
+              'CPF_LITERAL': r'(?<!\d)\d{11}(?!\d)',
+              'DATE_BR_LITERAL': r'(?<!\d)\d{2}/\d{2}/\d{4}(?!\d)',
+              'DATE_ISO_LITERAL': r'(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)',
+              'EMAIL_LITERAL': r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b',
+          }
+          for code, pattern in patterns.items():
+              if re.search(pattern, combined, flags=re.IGNORECASE):
+                  raise SystemExit(f'F2_3C_VERSIONED_PII_SHAPE_FORBIDDEN:{code}')
 
           print('F2_3C_GUARD=PASS')
           print('PREPARE_UI_EXECUTION=NO')
           print('EXECUTOR_REAUTH_CREDENTIALS=NO')
           print('DIRECT_DB_MUTATION=NO')
-          PY
-
-  execute:
-    name: Execute exactly one authorized PREPARED saga
-    if: >-
-      github.event_name == 'issues' &&
-      startsWith(github.event.issue.title, '[ENROLLMENT-RECTIFICATION-F2.3C-EXECUTE] ') &&
-      github.event.issue.user.login == github.repository_owner
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 30
-    env:
-      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
-      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
-      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
-      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
-      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
-    steps:
-      - name: Resolve exact owner authorization
-        id: context
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json, os, re, urllib.request
-          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
-          issue=event.get('issue') or {}
-          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
-              raise SystemExit('F2_3C_OWNER_REQUIRED')
-          values={}
-          for raw in (issue.get('body') or '').splitlines():
-              if '=' not in raw: continue
-              k,v=raw.split('=',1); k=k.strip(); v=v.strip()
-              if k in values: raise SystemExit(f'F2_3C_DUPLICATE_FIELD:{k}')
-              values[k]=v
-          expected={
-              'ENROLLMENT_RECTIFICATION_F2_3C_EXECUTE':'AUTHORIZED',
-              'CONFIRMATION':'EXECUTE_EXACTLY_ONE_PREPARED_6A_TO_7B',
-              'PILOT_ISSUE':'602',
-              'ACADEMIC_YEAR':'2026',
-              'SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
-              'SOURCE_CLASS':'6º ANO A',
-              'DESTINATION_CLASS':'7º ANO B',
-          }
-          for k,w in expected.items():
-              if values.get(k) != w: raise SystemExit(f'F2_3C_FIELD_INVALID:{k}')
-          target=values.get('TARGET_SHA',''); salt=values.get('COMPONENT_SALT','')
-          hashes={k:values.get(k,'') for k in ('NAME_HASH','DOB_HASH','CPF_HASH')}
-          if not re.fullmatch(r'[0-9a-f]{40}',target): raise SystemExit('F2_3C_SHA_INVALID')
-          if issue.get('title') != f'[ENROLLMENT-RECTIFICATION-F2.3C-EXECUTE] {target}': raise SystemExit('F2_3C_TITLE_MISMATCH')
-          if not re.fullmatch(r'[0-9a-f]{32}',salt): raise SystemExit('F2_3C_SALT_INVALID')
-          if any(not re.fullmatch(r'[0-9a-f]{64}',v) for v in hashes.values()): raise SystemExit('F2_3C_HASH_INVALID')
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3c-execute'}
-          repo=os.environ['GITHUB_REPOSITORY']
-          def get(path):
-              req=urllib.request.Request(f'https://api.github.com/repos/{repo}{path}',headers=headers)
-              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
-          main=get('/branches/main')['commit']['sha']; prod=get('/branches/production')['commit']['sha']
-          if main != target: raise SystemExit(f'F2_3C_MAIN_MOVED:{main}')
-          if prod != target: raise SystemExit(f'F2_3C_PRODUCTION_MOVED:{prod}')
-          pilot=get('/issues/602')
-          if pilot.get('state') != 'open': raise SystemExit('F2_3C_PILOT_ISSUE_NOT_OPEN')
-          if 'autorização humana recebida' not in (pilot.get('body') or '').casefold(): raise SystemExit('F2_3C_AUTHORIZATION_NOT_RECORDED')
-          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
-              out.write(f'target_sha={target}\ngate_issue={issue.get("number")}\ncomponent_salt={salt}\nname_hash={hashes["NAME_HASH"]}\ndob_hash={hashes["DOB_HASH"]}\ncpf_hash={hashes["CPF_HASH"]}\n')
-          print('F2_3C_CONTEXT=PASS')
-          PY
-
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: ${{ steps.context.outputs.target_sha }}
-          persist-credentials: false
-          fetch-depth: 1
-
-      - name: Configure pinned SSH trust
-        shell: bash
-        run: |
-          set -euo pipefail
-          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || exit 1; done
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f2_3c_key && chmod 600 ~/.ssh/f2_3c_key
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
-
-      - name: Resolve backend and prove persistent feature flag disabled
-        id: topology
-        env:
-          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          backend="$({ ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" "$TARGET_SHA" <<'REMOTE'
-          set -euo pipefail
-          mongo="$1"; target="$2"
-          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo")"
-          backend="$(docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n1)"
-          test -n "$backend"
-          image="$(docker inspect -f '{{.Image}}' "$backend")"
-          revision="$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"
-          test "$revision" = "$target"
-          flag="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$backend" | sed -n 's/^ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED=//p' | tail -n1)"
-          case "${flag:-false}" in true|TRUE|True) echo F2_3C_PERSISTENT_FLAG_ALREADY_ENABLED >&2; exit 1;; esac
-          printf '%s\n' "$backend"
-          REMOTE
-          } | tail -n1)"
-          test -n "$backend" && [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]]
-          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
-          echo 'F2_3C_PERSISTENT_FLAG_BEFORE=DISABLED'
-
-      - name: Stage transient executor
-        env:
-          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" "cat > /tmp/sigesc_f2_3c_execute.py && chmod 600 /tmp/sigesc_f2_3c_execute.py" < backend/scripts/enrollment_rectification_f2_3c_pilot.py
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" "docker cp /tmp/sigesc_f2_3c_execute.py ${BACKEND_CONTAINER}:/tmp/sigesc_f2_3c_execute.py"
-
-      - name: Execute exactly one PREPARED saga
-        id: execute
-        continue-on-error: true
-        env:
-          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
-          COMPONENT_SALT: ${{ steps.context.outputs.component_salt }}
-          NAME_HASH: ${{ steps.context.outputs.name_hash }}
-          DOB_HASH: ${{ steps.context.outputs.dob_hash }}
-          CPF_HASH: ${{ steps.context.outputs.cpf_hash }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p evidence
-          input="$(mktemp)"; chmod 600 "$input"; export INPUT_PATH="$input"
-          python - <<'PY'
-          import json,os
-          with open(os.environ['INPUT_PATH'],'w',encoding='utf-8') as f:
-              json.dump({'component_salt':os.environ['COMPONENT_SALT'],'name_hash':os.environ['NAME_HASH'],'dob_hash':os.environ['DOB_HASH'],'cpf_hash':os.environ['CPF_HASH']},f)
-          PY
-          raw=evidence/raw.log
-          set +e
-          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" "timeout 1200 docker exec -i -w /app -e PYTHONPATH=/app ${BACKEND_CONTAINER} python /tmp/sigesc_f2_3c_execute.py" < "$input" > "$raw" 2>&1
-          rc=$?
-          set -e
-          rm -f "$input"
-          prefix='ENROLLMENT_RECTIFICATION_F2_3C_EXECUTE_JSON='
-          line="$(grep -F "$prefix" "$raw" | tail -n1 || true)"
-          if [ -z "$line" ]; then rm -f "$raw"; echo "F2_3C_REMOTE_EXIT=$rc"; exit 90; fi
-          printf '%s' "${line#${prefix}}" > evidence/pilot.json
-          python -m json.tool evidence/pilot.json >/dev/null
-          rm -f "$raw"
-          echo "pilot_exit=$rc" >> "$GITHUB_OUTPUT"
-          exit "$rc"
-
-      - name: Verify persistent feature flag disabled after attempt
-        if: always() && steps.topology.outputs.backend_container != ''
-        env:
-          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" bash -s -- "$BACKEND_CONTAINER" <<'REMOTE'
-          set -euo pipefail
-          backend="$1"
-          flag="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$backend" | sed -n 's/^ENROLLMENT_RECTIFICATION_EXECUTION_ENABLED=//p' | tail -n1)"
-          case "${flag:-false}" in true|TRUE|True) echo F2_3C_PERSISTENT_FLAG_LEFT_ENABLED; exit 1;; esac
-          echo 'F2_3C_PERSISTENT_FLAG_AFTER=DISABLED'
-          REMOTE
-
-      - name: Validate sanitized evidence
-        if: always() && hashFiles('evidence/pilot.json') != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p=json.loads(Path('evidence/pilot.json').read_text(encoding='utf-8'))
-          if p.get('schema') != 'ENROLLMENT_RECTIFICATION_F2_3C_EXECUTE_PREPARED_V1': raise SystemExit('F2_3C_SCHEMA_INVALID')
-          if p.get('student_pii_emitted') is not False or p.get('technical_ids_emitted') is not False: raise SystemExit('F2_3C_PRIVACY_BOUNDARY')
-          if p.get('operator_credentials_used') is not False: raise SystemExit('F2_3C_CREDENTIAL_BOUNDARY')
-          if p.get('flag_enabled_at_exit') is not False: raise SystemExit('F2_3C_FLAG_AT_EXIT')
-          print('F2_3C_STATUS='+str(p.get('status')))
-          PY
-
-      - name: Upload evidence
-        if: always() && hashFiles('evidence/pilot.json') != ''
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: enrollment-rectification-f2-3c-${{ github.run_id }}
-          path: evidence/pilot.json
-          retention-days: 90
-          if-no-files-found: error
-
-      - name: Record result in pilot issue
-        if: always() && hashFiles('evidence/pilot.json') != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
-          RUN_ID: ${{ github.run_id }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json,os,urllib.request
-          from pathlib import Path
-          p=json.loads(Path('evidence/pilot.json').read_text(encoding='utf-8'))
-          keys=('status','reason','source_class','destination_class','academic_year','execution_state','validation','rollback_state','rollback_error_code','run_state','error_code','flag_ever_enabled','flag_enabled_at_exit','prepare_digest','protocol_digest')
-          summary={k:p.get(k) for k in keys if k in p}
-          body='## F2.3C — resultado do piloto\n\n'+f"Production SHA: `{os.environ['TARGET_SHA']}`  \nWorkflow run: `{os.environ['RUN_ID']}`\n\n```json\n"+json.dumps(summary,ensure_ascii=False,sort_keys=True,indent=2)+'\n```\n\n**Boundary:** sem PII/credenciais/IDs técnicos brutos; feature flag persistente desligada.'
-          headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3c-execute'}
-          req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/602/comments",data=json.dumps({'body':body}).encode(),headers=headers,method='POST')
-          with urllib.request.urlopen(req,timeout=30): pass
-          PY
-
-      - name: Cleanup transient executor
-        if: always() && steps.topology.outputs.backend_container != ''
-        env:
-          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
-        shell: bash
-        run: |
-          set +e
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3c_key" "${PROD_USER}@${PROD_HOST}" "rm -f /tmp/sigesc_f2_3c_execute.py; docker exec ${BACKEND_CONTAINER} rm -f /tmp/sigesc_f2_3c_execute.py"
-          exit 0
-
-      - name: Final pilot gate
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f evidence/pilot.json || { echo F2_3C_EVIDENCE_MISSING; exit 1; }
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p=json.loads(Path('evidence/pilot.json').read_text(encoding='utf-8'))
-          if p.get('flag_enabled_at_exit') is not False: raise SystemExit('F2_3C_FINAL_FLAG_ENABLED')
-          if p.get('status') != 'APPLIED': raise SystemExit(f"F2_3C_NOT_APPLIED:{p.get('status')}:{p.get('reason')}")
-          if not (p.get('validation') or {}).get('all_pass'): raise SystemExit('F2_3C_POSTVALIDATION_FAILED')
-          print('F2_3C_PILOT=APPLIED_AND_VALIDATED')
-          print('F2_3C_FEATURE_FLAG=DISABLED')
+          print('ACADEMIC_EXECUTION_TRIGGER=NO')
           PY
