@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Enforce privacy, read-only preview and academic preservation
+      - name: Enforce privacy, canonical projection and academic preservation
         shell: bash
         run: |
           set -euo pipefail
@@ -45,7 +45,8 @@ jobs:
           grep -Fq 'student_history.delete_many' "$p"
           grep -Fq 'enrollments.delete_many' "$p"
           grep -Fq 'enrollments.update_one' "$p"
-          grep -Fq 'students.update_one' "$p"
+          grep -Fq 'rebuild_student_home_projection' "$p"
+          ! grep -Fq 'db.students.update_one' "$p"
           grep -Fq 'audit_logs.insert_one' "$p"
           grep -Fq '_compensate' "$p"
           ! grep -Eiq 'Brenda[[:space:]]+Vitoria|Ferreira[[:space:]]+da[[:space:]]+Silva' "$p" "$w"
@@ -55,6 +56,7 @@ jobs:
           grep -Fq "EXPECTED_PRODUCTION_SHA" "$w"
           echo 'STUDENT_BASELINE_RESTORE_GUARD=PASS'
           echo 'STUDENT_PII_IN_REPOSITORY=NO'
+          echo 'STUDENT_PROJECTION_WRITER=CANONICAL_SERVICE'
           echo 'ACADEMIC_COLLECTION_MUTATION=NO'
 
   execute:
@@ -266,7 +268,7 @@ jobs:
               f"- Matrículas canônicas na origem: `{os.environ['TARGET_ENROLLMENTS']}`\n"
               f"- Matrículas na escola/turma a ignorar: `{os.environ['IGNORED_ENROLLMENTS']}`\n"
               f"- Outras matrículas regulares 2026: `{os.environ['OTHER_REGULAR']}`\n"
-              f"- Matrículas regulares ativas no momento do preflight: `{os.environ['ACTIVE_REGULAR']}`\n"
+              f"- Matrículas regulares ativas no preflight: `{os.environ['ACTIVE_REGULAR']}`\n"
               f"- Notas na turma a ignorar: `{os.environ['GRADES']}`\n"
               f"- Registros de frequência na turma a ignorar: `{os.environ['ATTENDANCE']}`\n"
               f"- Vínculos de Dependência na turma a ignorar: `{os.environ['DEPENDENCIES']}`\n"
