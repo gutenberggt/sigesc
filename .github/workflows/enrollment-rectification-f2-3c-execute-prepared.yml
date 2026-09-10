@@ -74,6 +74,8 @@ jobs:
           required_html = (
               '/admin/enrollment-rectification/dry-run',
               '/admin/enrollment-rectification/prepare-execution',
+              '/students/autocomplete?q=',
+              'limit=10&status=active',
               'type="password"',
               'Idempotency-Key',
               "$('password').value = ''",
@@ -86,6 +88,8 @@ jobs:
           forbidden_html = (
               '/admin/enrollment-rectification/execute',
               '/admin/enrollment-rectification/rollback',
+              'limit=11&status=active',
+              'limit=12&status=active',
           )
           for marker in forbidden_html:
               if marker in html:
@@ -105,6 +109,7 @@ jobs:
                   raise SystemExit(f'F2_3C_VERSIONED_PII_SHAPE_FORBIDDEN:{code}')
 
           print('F2_3C_GUARD=PASS')
+          print('AUTOCOMPLETE_LIMIT_CONTRACT=PASS')
           print('PREPARE_UI_EXECUTION=NO')
           print('EXECUTOR_REAUTH_CREDENTIALS=NO')
           print('DIRECT_DB_MUTATION=NO')
