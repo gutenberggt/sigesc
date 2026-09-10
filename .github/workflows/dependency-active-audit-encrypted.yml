@@ -51,7 +51,7 @@ jobs:
           end = "\n          JS\n"
           if start not in text or end not in text:
               raise SystemExit('DEP_AUDIT_COLLECTOR_BLOCK_MISSING')
-          collector = text.split(start, 1)[1].split(end, 1)[0]
+          collector = text.rsplit(start, 1)[1].split(end, 1)[0]
 
           banned = [
               '.insertOne(', '.insertMany(', '.updateOne(', '.updateMany(',
