@@ -24,6 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           p=backend/scripts/dependency_tenant_repair_2026.py
+          w=.github/workflows/dependency-tenant-repair-2026.yml
           test -s "$p"
           grep -q 'EXPECTED_TARGETS = 4' "$p"
           grep -q 'mantenedora_id:tenant' "$p"
@@ -33,6 +34,7 @@ jobs:
           grep -q 'DEPENDENCY_CORE_MISMATCH' "$p"
           grep -q 'DEPENDENCY_SCHOOL_OUTSIDE_TENANT' "$p"
           grep -q 'ACADEMIC_DATA_CHANGED' "$p"
+          grep -q '^    environment: production$' "$w"
           python3 -m py_compile "$p"
           echo 'DEPENDENCY_TENANT_REPAIR_GUARD=PASS'
 
@@ -40,6 +42,7 @@ jobs:
     name: Preview/apply tenant repair Dependência 2026
     if: github.event_name == 'issues' && startsWith(github.event.issue.title, '[DEPENDENCY-TENANT-REPAIR-2026] ')
     runs-on: ubuntu-24.04
+    environment: production
     env:
       SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
