@@ -56,6 +56,20 @@ def _run(state="APPLIED"):
     }
 
 
+def _plan(validated=False):
+    destination = {"id": "att-b-1", "date": "2026-02-10", "aula_numero": 1}
+    if validated:
+        destination["validated_by"] = "teacher-1"
+    return {
+        "blockers": [],
+        "components": [{
+            "target_course_id": "course-b",
+            "pairs": [{"ordinal": 1, "source": {}, "destination": destination}],
+        }],
+        "totals": {"source_records": 52, "applied_capacity": 47, "ignored_excess": 5},
+    }
+
+
 @pytest.mark.asyncio
 async def test_attendance_checkpoint_materializes_ordinal_before_base_checkpoint(monkeypatch):
     db = _DB(_run("APPLYING"))
@@ -64,6 +78,7 @@ async def test_attendance_checkpoint_materializes_ordinal_before_base_checkpoint
         "summary": {"source_records": 52, "applied": 47, "ignored_excess": 5},
     })
     base_checkpoint = AsyncMock()
+    monkeypatch.setattr(runtime, "build_ordinal_attendance_plan", AsyncMock(return_value=_plan()))
     monkeypatch.setattr(runtime, "apply_ordinal_attendance_from_ledger", ordinal_apply)
     monkeypatch.setattr(runtime, "_BASE_CHECKPOINT", base_checkpoint)
 
@@ -84,6 +99,26 @@ async def test_attendance_checkpoint_materializes_ordinal_before_base_checkpoint
 
 
 @pytest.mark.asyncio
+async def test_validated_destination_requires_audit_context_before_write(monkeypatch):
+    db = _DB(_run("APPLYING"))
+    apply = AsyncMock()
+    monkeypatch.setattr(runtime, "build_ordinal_attendance_plan", AsyncMock(return_value=_plan(validated=True)))
+    monkeypatch.setattr(runtime, "apply_ordinal_attendance_from_ledger", apply)
+
+    with pytest.raises(runtime.RectificationSagaError) as exc:
+        await runtime._apply_ordinal_for_run(
+            db,
+            run=db.runs.doc,
+            actor={"id": "admin-1", "role": "super_admin"},
+            request=None,
+            audit_service=None,
+        )
+
+    assert exc.value.code == "RECTIFICATION_ORDINAL_AUDIT_CONTEXT_REQUIRED"
+    apply.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_historical_applied_replay_materializes_ordinal_under_dedicated_lock(monkeypatch):
     db = _DB(_run("APPLIED"))
     base_execute = AsyncMock(return_value={"state": "APPLIED", "idempotent_replay": True})
@@ -94,6 +129,7 @@ async def test_historical_applied_replay_materializes_ordinal_under_dedicated_lo
     acquire = AsyncMock(return_value=(True, {}))
     release = AsyncMock()
     monkeypatch.setattr(runtime._runtime, "execute_rectification_saga", base_execute)
+    monkeypatch.setattr(runtime, "build_ordinal_attendance_plan", AsyncMock(return_value=_plan()))
     monkeypatch.setattr(runtime, "apply_ordinal_attendance_from_ledger", ordinal_apply)
     monkeypatch.setattr(runtime._saga, "acquire_lock", acquire)
     monkeypatch.setattr(runtime._saga, "release_lock", release)
@@ -124,6 +160,7 @@ async def test_historical_recovery_failure_never_rolls_back_existing_enrollment(
         "execute_rectification_saga",
         AsyncMock(return_value={"state": "APPLIED", "idempotent_replay": True}),
     )
+    monkeypatch.setattr(runtime, "build_ordinal_attendance_plan", AsyncMock(return_value=_plan()))
     monkeypatch.setattr(
         runtime,
         "apply_ordinal_attendance_from_ledger",
