@@ -2,15 +2,18 @@
 
 A F2.1A preserva e retira o student-record da turma de origem. A F2.3D
 materializa a mesma sequência, por componente e por posição, nas aulas reais
-já existentes do destino. Este módulo mantém o SSoT da saga original e adiciona
-somente a composição necessária para que:
+já existentes do destino.
 
-- execução nova: APPLIED só retorne ao chamador depois da materialização ordinal;
-- replay de uma saga já APPLIED: possa recuperar apenas a frequência ordinal;
-- rollback/compensação: retire primeiro os records ordinais do destino antes de
-  restaurar a evidência da origem, evitando dupla contagem;
-- falha de recuperação de uma saga histórica já APPLIED nunca desfaça a
-  matrícula automaticamente.
+Composição:
+- execução nova: a materialização ordinal ocorre no checkpoint
+  ``ATTENDANCE_APPLIED``, ainda dentro do lock crítico da saga F2.2;
+- qualquer falha nesse checkpoint entra na compensação automática da própria
+  saga antes do estado final ``APPLIED``;
+- rollback/compensação remove primeiro os records ordinais do destino e só
+  depois restaura a evidência da origem;
+- replay de uma saga histórica já ``APPLIED`` usa lock próprio e recupera
+  apenas a frequência ordinal, sem repetir matrícula/notas nem desfazer a
+  matrícula caso a recuperação seja recusada.
 """
 from __future__ import annotations
 
@@ -22,7 +25,6 @@ from services import enrollment_rectification_saga_runtime as _runtime
 from services.enrollment_rectification_attendance import _digest as attendance_digest
 from services.enrollment_rectification_attendance_ordinal import (
     ORDINAL_LEDGER_COLLECTION,
-    OrdinalAttendanceError,
     apply_ordinal_attendance_from_ledger,
 )
 
@@ -32,6 +34,7 @@ prepare_rectification_saga_execution = _runtime.prepare_rectification_saga_execu
 saga_execution_enabled = _runtime.saga_execution_enabled
 
 _BASE_COMPENSATE_ACADEMIC = _saga._compensate_academic
+_BASE_CHECKPOINT = _saga._checkpoint
 
 
 def _version_filter(doc: Mapping[str, Any]) -> dict[str, Any]:
@@ -126,16 +129,6 @@ async def _compensate_academic_with_ordinal(db, *, run: Mapping[str, Any]) -> di
     return {**base, **ordinal}
 
 
-# A saga F2.2 resolve este helper pelo namespace global em rollback e em
-# compensação automática. O binding preserva uma única cadeia compensatória.
-if not getattr(_saga, "_f23d_ordinal_compensation_installed", False):
-    _saga._compensate_academic = _compensate_academic_with_ordinal
-    _saga._f23d_ordinal_compensation_installed = True
-
-
-rollback_rectification_saga = _runtime.rollback_rectification_saga
-
-
 async def _mark_ordinal_state(
     db,
     *,
@@ -163,11 +156,93 @@ async def _mark_ordinal_state(
             "ordinal_attendance_error_message": "",
         }
         update["$push"] = {
-            "checkpoints": {"name": "ATTENDANCE_ORDINAL_APPLIED", "at": _saga._now(), "summary": dict(summary or {})}
+            "checkpoints": {
+                "name": "ATTENDANCE_ORDINAL_APPLIED",
+                "at": _saga._now(),
+                "summary": dict(summary or {}),
+            }
         }
     await db[_saga.RUNS_COLLECTION].update_one(
         {"_id": run_id, "tenant_id": tenant_id}, update
     )
+
+
+async def _apply_ordinal_for_run(
+    db,
+    *,
+    run: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    request=None,
+    audit_service=None,
+) -> dict[str, Any]:
+    ordinal = await apply_ordinal_attendance_from_ledger(
+        db,
+        protocol=str(run.get("protocol") or ""),
+        tenant_id=str(run.get("tenant_id") or ""),
+        student_id=str(run.get("student_id") or ""),
+        source_class_id=str(run.get("source_class_id") or ""),
+        target_class_id=str(run.get("destination_class_id") or ""),
+        academic_year=int(run.get("academic_year")),
+        actor=actor,
+        request=request,
+        audit_service=audit_service,
+    )
+    summary = dict(ordinal.get("summary") or {})
+    await _mark_ordinal_state(
+        db,
+        run_id=str(run.get("prepare_id") or run.get("_id") or ""),
+        tenant_id=str(run.get("tenant_id") or ""),
+        state="APPLIED",
+        summary=summary,
+    )
+    return summary
+
+
+async def _checkpoint_with_ordinal(
+    db,
+    *,
+    run_id: str,
+    tenant_id: str,
+    name: str,
+    detail: dict[str, Any] | None = None,
+) -> None:
+    """Fecha frequência ordinal dentro do mesmo lock da execução F2.2."""
+    if name == "ATTENDANCE_APPLIED":
+        run = await db[_saga.RUNS_COLLECTION].find_one(
+            {"_id": run_id, "tenant_id": tenant_id}, {"_id": 0}
+        )
+        if not run:
+            raise RectificationSagaError(
+                "RECTIFICATION_RUN_NOT_FOUND",
+                "Saga não encontrada durante o checkpoint ordinal.",
+                status_code=404,
+            )
+        if run.get("ordinal_attendance_state") != "APPLIED":
+            actor = dict(run.get("actor") or {})
+            actor["active_mantenedora_id"] = tenant_id
+            actor["mantenedora_id"] = tenant_id
+            summary = await _apply_ordinal_for_run(db, run=run, actor=actor)
+            detail = {**(detail or {}), "ordinal_summary": summary}
+    await _BASE_CHECKPOINT(
+        db,
+        run_id=run_id,
+        tenant_id=tenant_id,
+        name=name,
+        detail=detail,
+    )
+
+
+# A F2.2 resolve estes helpers pelo namespace global. A composição ocorre uma
+# única vez por processo e mantém toda falha nova dentro da cadeia compensável.
+if not getattr(_saga, "_f23d_ordinal_compensation_installed", False):
+    _saga._compensate_academic = _compensate_academic_with_ordinal
+    _saga._f23d_ordinal_compensation_installed = True
+if not getattr(_saga, "_f23d_ordinal_checkpoint_installed", False):
+    _saga._checkpoint = _checkpoint_with_ordinal
+    _saga._f23d_ordinal_checkpoint_installed = True
+
+
+rollback_rectification_saga = _runtime.rollback_rectification_saga
 
 
 async def execute_rectification_saga(
@@ -181,7 +256,7 @@ async def execute_rectification_saga(
     audit_service=None,
     secret: str | None = None,
 ) -> dict[str, Any]:
-    """Executa a saga base e fecha a retificação com a materialização F2.3D."""
+    """Executa a saga composta ou recupera ordinalmente um APPLIED histórico."""
     before = await db[_saga.RUNS_COLLECTION].find_one(
         {"_id": prepare_id, "tenant_id": tenant_id}, {"_id": 0}
     )
@@ -209,6 +284,22 @@ async def execute_rectification_saga(
             "A saga aplicada não foi localizada para concluir a frequência ordinal.",
             status_code=404,
         )
+
+    # Execução nova: o hook ATTENDANCE_APPLIED já rodou dentro do lock da F2.2.
+    if not was_applied_before:
+        if run.get("ordinal_attendance_state") != "APPLIED":
+            raise RectificationSagaError(
+                "RECTIFICATION_ORDINAL_POSTCONDITION_MISSING",
+                "A saga terminou APPLIED sem comprovar a materialização ordinal.",
+            )
+        return {
+            **result,
+            "attendance_ordinal_state": "APPLIED",
+            "attendance_ordinal_summary": run.get("ordinal_attendance_summary") or {},
+        }
+
+    # Replay histórico: o núcleo F2.2 devolveu idempotent replay antes de obter
+    # lock; adquirimos um lock dedicado somente para a recuperação F2.3D.
     if run.get("ordinal_attendance_state") == "APPLIED":
         return {
             **result,
@@ -216,44 +307,51 @@ async def execute_rectification_saga(
             "attendance_ordinal_summary": run.get("ordinal_attendance_summary") or {},
         }
 
+    holder = f"rectification-f23d-recovery:{prepare_id}:{actor.get('id')}"
+    target = _saga._lock_target(str(tenant_id), str(run.get("student_id") or ""))
+    acquired, lock_info = await _saga.acquire_lock(
+        db, target, holder, _saga.LOCKS_COLLECTION
+    )
+    if not acquired:
+        raise RectificationSagaError(
+            "RECTIFICATION_STUDENT_LOCKED",
+            "Estudante está sob outra mutação crítica durante a recuperação ordinal.",
+            detail={"lock": lock_info},
+        )
     try:
-        ordinal = await apply_ordinal_attendance_from_ledger(
-            db,
-            protocol=str(run.get("protocol") or ""),
-            tenant_id=str(tenant_id),
-            student_id=str(run.get("student_id") or ""),
-            source_class_id=str(run.get("source_class_id") or ""),
-            target_class_id=str(run.get("destination_class_id") or ""),
-            academic_year=int(run.get("academic_year")),
-            actor=actor,
-            request=request,
-            audit_service=audit_service,
+        run = await db[_saga.RUNS_COLLECTION].find_one(
+            {"_id": prepare_id, "tenant_id": tenant_id}, {"_id": 0}
         )
-        summary = dict(ordinal.get("summary") or {})
-        await _mark_ordinal_state(
-            db,
-            run_id=prepare_id,
-            tenant_id=str(tenant_id),
-            state="APPLIED",
-            summary=summary,
-        )
-        return {
-            **result,
-            "attendance_ordinal_state": "APPLIED",
-            "attendance_ordinal_summary": summary,
-        }
-    except Exception as exc:
-        code = getattr(exc, "code", "RECTIFICATION_ORDINAL_APPLY_FAILED")
-        message = str(exc)
-
-        # Saga histórica já APPLIED: compensamos apenas o que a F2.3D possa ter
-        # aplicado parcialmente. A matrícula já aceita nunca é desfeita por uma
-        # tentativa de recuperação posterior.
-        if was_applied_before:
+        if not run or run.get("state") != "APPLIED":
+            raise RectificationSagaError(
+                "RECTIFICATION_ORDINAL_RECOVERY_STATE_CHANGED",
+                "O estado da saga histórica mudou antes da recuperação ordinal.",
+            )
+        if run.get("ordinal_attendance_state") == "APPLIED":
+            return {
+                **result,
+                "attendance_ordinal_state": "APPLIED",
+                "attendance_ordinal_summary": run.get("ordinal_attendance_summary") or {},
+            }
+        try:
+            summary = await _apply_ordinal_for_run(
+                db,
+                run=run,
+                actor=actor,
+                request=request,
+                audit_service=audit_service,
+            )
+            return {
+                **result,
+                "attendance_ordinal_state": "APPLIED",
+                "attendance_ordinal_summary": summary,
+            }
+        except Exception as exc:
+            code = getattr(exc, "code", "RECTIFICATION_ORDINAL_RECOVERY_FAILED")
             compensation_error = None
             try:
                 await compensate_ordinal_attendance(db, run=run)
-            except Exception as comp_exc:  # estado explicitamente recuperável/manual
+            except Exception as comp_exc:
                 compensation_error = str(comp_exc)
             await _mark_ordinal_state(
                 db,
@@ -261,7 +359,7 @@ async def execute_rectification_saga(
                 tenant_id=str(tenant_id),
                 state="FAILED_MANUAL_RECOVERY" if compensation_error else "FAILED_RECOVERABLE",
                 error_code=code,
-                error_message=message,
+                error_message=str(exc),
             )
             raise RectificationSagaError(
                 "RECTIFICATION_ORDINAL_RECOVERY_FAILED",
@@ -271,39 +369,8 @@ async def execute_rectification_saga(
                     "ordinal_compensation_failed": bool(compensation_error),
                 },
             ) from exc
-
-        # Execução nova: como o chamador ainda não recebeu APPLIED, qualquer
-        # falha ordinal deve reverter a saga completa pelo rollback canônico,
-        # que já foi composto acima com a compensação ordinal.
-        try:
-            rolled = await _runtime.rollback_rectification_saga(
-                db,
-                prepare_id=prepare_id,
-                tenant_id=tenant_id,
-                actor=actor,
-                justification=(
-                    "Rollback automático F2.3D porque a materialização ordinal "
-                    "da frequência falhou antes da conclusão operacional da retificação."
-                ),
-                request=request,
-                audit_service=audit_service,
-            )
-            rollback_state = rolled.get("state")
-        except Exception as rollback_exc:
-            rollback_state = "FAILED_MANUAL_RECOVERY"
-            await _mark_ordinal_state(
-                db,
-                run_id=prepare_id,
-                tenant_id=str(tenant_id),
-                state="FAILED_MANUAL_RECOVERY",
-                error_code=code,
-                error_message=f"{message}; rollback={rollback_exc}",
-            )
-        raise RectificationSagaError(
-            "RECTIFICATION_ORDINAL_APPLY_FAILED",
-            "A frequência ordinal falhou; a retificação não foi concluída operacionalmente.",
-            detail={"cause_code": code, "rollback_state": rollback_state},
-        ) from exc
+    finally:
+        await _saga.release_lock(db, target, holder, _saga.LOCKS_COLLECTION)
 
 
 __all__ = [
