@@ -1,0 +1,51 @@
+name: One-off F2.3C CORS patch
+
+on:
+  push:
+    branches:
+      - fix/f2-3c-cors-idempotency-key
+    paths:
+      - '.github/workflows/_oneoff-f2-3c-cors-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/f2-3c-cors-idempotency-key
+          fetch-depth: 0
+
+      - name: Add Idempotency-Key to canonical CORS allowlist
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/server.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With", "X-Mantenedora-Id", "X-SIGESC-Timezone", "X-SIGESC-UTC-Offset-Minutes", "X-SIGESC-Local-Date"],'
+          new = 'allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With", "X-Mantenedora-Id", "X-SIGESC-Timezone", "X-SIGESC-UTC-Offset-Minutes", "X-SIGESC-Local-Date", "Idempotency-Key"],'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'Fail-closed: expected exactly one canonical CORS allow_headers occurrence, got {count}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Verify syntax and regression test
+        run: |
+          python -m py_compile backend/server.py
+          python -m pip install -q pytest
+          pytest -q backend/tests/test_cors_idempotency_key.py
+
+      - name: Remove one-off workflow and commit only durable fix
+        run: |
+          rm .github/workflows/_oneoff-f2-3c-cors-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/server.py backend/tests/test_cors_idempotency_key.py .github/workflows/_oneoff-f2-3c-cors-patch.yml
+          git diff --cached --check
+          git commit -m "fix(f2.3c): permitir Idempotency-Key no CORS"
+          git push origin HEAD:fix/f2-3c-cors-idempotency-key
