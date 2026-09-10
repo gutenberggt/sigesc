@@ -1,0 +1,287 @@
+name: "SIGESC Dependência - Restauração forense 2026"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/dependency-restore-2026-encrypted.yml'
+      - 'backend/scripts/dependency_restore_2026.py'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-restore-2026
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard restauração forense Dependência 2026
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate recovery boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile backend/scripts/dependency_restore_2026.py
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          p=Path('backend/scripts/dependency_restore_2026.py').read_text(encoding='utf-8')
+          w=Path('.github/workflows/dependency-restore-2026-encrypted.yml').read_text(encoding='utf-8')
+          required=[
+              'BACKUP_ROOT = Path("/root/sigesc-backups")','EXPECTED_MISSING = 4','EXPECTED_IMAGE = "mongo:7"',
+              'student_dependencies','dependency_completions','grades','attendance','audit_logs',
+              '"--network", "none"','type=bind,src={BACKUP_ROOT},dst=/backup,readonly',
+              'ATTENDANCE_DOCUMENT_MISSING','DEP_ACTIVE_DUPLICATE','STUDENT_MODE_INVALID',
+              'PRODUCTION_DATABASE_TOUCHED=YES_AUTHORIZED_RESTORE_ONLY',
+          ]
+          for marker in required:
+              if marker not in p: raise SystemExit(f'DEP_REC_REQUIRED_MARKER_MISSING:{marker}')
+          if 'def apply_js' not in p or 'if mode == "preview"' not in p:
+              raise SystemExit('DEP_REC_MODE_BOUNDARY_MISSING')
+          pre, apply_and_after=p.split('def apply_js',1)
+          for token in ['.insertOne(','.insertMany(','.updateOne(','.updateMany(','.replaceOne(','.bulkWrite(','.findOneAndUpdate(']:
+              if token in pre: raise SystemExit(f'DEP_REC_PREVIEW_MUTATION_FOUND:{token}')
+          for token in ['.deleteOne(','.deleteMany(','.findOneAndDelete(','.drop(','.dropDatabase(']:
+              if token in p: raise SystemExit(f'DEP_REC_DESTRUCTIVE_PRIMITIVE_FOUND:{token}')
+          if not re.search(r'"docker",\s*"exec",\s*drill,\s*"mongorestore"',p):
+              raise SystemExit('DEP_REC_TEMP_ONLY_MONGORESTORE_GUARD_MISSING')
+          if re.search(r'"docker",\s*"exec",\s*mongo_container,\s*"mongorestore"',p):
+              raise SystemExit('DEP_REC_PRODUCTION_MONGORESTORE_FORBIDDEN')
+          for marker in ['RESTORE_DEPENDENCY_2026_FROM_VERIFIED_BACKUP','APPLY_CONFIRMATION','I_ACCEPT_AUTHORIZED_PRODUCTION_MUTATION','openssl cms -encrypt','dependency-restore-2026.cms','PII_IN_PUBLIC_LOGS=NO']:
+              if marker not in w: raise SystemExit(f'DEP_REC_WORKFLOW_MARKER_MISSING:{marker}')
+          if re.search(r'^\s+path:\s*private/',w,re.MULTILINE):
+              raise SystemExit('DEP_REC_PRIVATE_UPLOAD_FORBIDDEN')
+          print('DEPENDENCY_RESTORE_2026_STATIC_BOUNDARY=PASS')
+          PY
+
+  recovery:
+    name: Preview/apply forensic dependency recovery 2026
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[DEPENDENCY-RESTORE-2026] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve owner-scoped recovery context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64,hashlib,json,os,re,urllib.request
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8'))
+          issue=event.get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER'] or issue.get('state') != 'open':
+              raise SystemExit('DEP_REC_OWNER_OPEN_ISSUE_REQUIRED')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.strip().split('=',1)
+              if k in values: raise SystemExit(f'DEP_REC_DUPLICATE_FIELD:{k}')
+              values[k]=v.strip()
+          expected={
+              'DEPENDENCY_RESTORE_2026':'AUTHORIZED',
+              'CONFIRMATION':'RESTORE_DEPENDENCY_2026_FROM_VERIFIED_BACKUP',
+              'ACADEMIC_YEAR':'2026',
+              'ANCHOR_SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+              'EXPECTED_MISSING_COUNT':'4',
+          }
+          for k,wanted in expected.items():
+              if values.get(k)!=wanted: raise SystemExit(f'DEP_REC_FIELD_INVALID:{k}')
+          mode=values.get('MODE','').lower()
+          if mode not in {'preview','apply'}: raise SystemExit('DEP_REC_MODE_INVALID')
+          if mode=='apply' and values.get('APPLY_CONFIRMATION')!='I_ACCEPT_AUTHORIZED_PRODUCTION_MUTATION':
+              raise SystemExit('DEP_REC_APPLY_CONFIRMATION_REQUIRED')
+          target=values.get('TARGET_SHA',''); production=values.get('EXPECTED_PRODUCTION_SHA','')
+          cert_b64=values.get('AUDIT_CERT_B64',''); cert_sha=values.get('CERT_SHA256','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or not re.fullmatch(r'[0-9a-f]{40}',production): raise SystemExit('DEP_REC_SHA_INVALID')
+          if issue.get('title') != f'[DEPENDENCY-RESTORE-2026] {target}': raise SystemExit('DEP_REC_TITLE_MISMATCH')
+          if not re.fullmatch(r'[0-9a-f]{64}',cert_sha): raise SystemExit('DEP_REC_CERT_SHA_INVALID')
+          try: cert=base64.b64decode(cert_b64,validate=True)
+          except Exception: raise SystemExit('DEP_REC_CERT_B64_INVALID')
+          if hashlib.sha256(cert).hexdigest()!=cert_sha or b'BEGIN CERTIFICATE' not in cert: raise SystemExit('DEP_REC_CERT_INVALID')
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-recovery-2026'}
+          def get(path):
+              req=urllib.request.Request(f'https://api.github.com/repos/{repo}/{path}',headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          if get('branches/main')['commit']['sha']!=target: raise SystemExit('DEP_REC_MAIN_MOVED')
+          if get('branches/production')['commit']['sha']!=production: raise SystemExit('DEP_REC_PRODUCTION_MOVED')
+          cert_path=os.path.join(os.environ['RUNNER_TEMP'],'dependency_restore_2026_cert.pem')
+          open(cert_path,'wb').write(cert); os.chmod(cert_path,0o600)
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nproduction_sha={production}\nmode={mode}\nissue_number={issue.get("number")}\n')
+          print('DEPENDENCY_RESTORE_2026_CONTEXT=PASS')
+          print(f'DEP_REC_MODE={mode.upper()}')
+          print('PII_IN_PUBLIC_LOGS=NO')
+          PY
+
+      - name: Checkout exact reviewed recovery SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "DEP_REC_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh; chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/dependency_restore_2026_key
+          chmod 600 ~/.ssh/dependency_restore_2026_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'DEPENDENCY_RESTORE_2026_SSH_TRUST=PASS'
+
+      - name: Execute fail-closed recovery engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p private evidence
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/dependency_restore_2026_key" "${PROD_USER}@${PROD_HOST}" \
+            "python3 - ${MONGO_CONTAINER} ${GITHUB_RUN_ID} ${{ steps.context.outputs.mode }}" < backend/scripts/dependency_restore_2026.py > private/raw.log 2>&1
+          rc=$?
+          set -e
+          if [[ "$rc" -ne 0 ]]; then
+            grep -E '^DEP_REC_(BACKUP|SEED|LIVE|SOURCE|TEMP|NETWORK|PORT|RESTORE|PREFLIGHT|APPLY|MODE|VALIDATED|PLAN|PRODUCTION)|^PRODUCTION_DATABASE_TOUCHED=' private/raw.log | grep -v '^DEP_REC_PRIVATE_' | tail -n 50 || true
+            echo "DEPENDENCY_RESTORE_2026_REMOTE_FAILED:$rc"
+            exit "$rc"
+          fi
+          grep -E '^DEP_REC_(VALIDATED_BACKUP_POINTS|SOURCE_BACKUP_STAMP|SOURCE_BACKUP_SHA12|SEED_COUNT|SOURCE_GRADES|SOURCE_ATTENDANCE_RECORDS|PREFLIGHT_CONFLICTS|PLAN_[A-Z_]+|APPLY_[A-Z_]+|MODE)=|^PRODUCTION_DATABASE_TOUCHED=|^TEMP_RESTORE_NETWORK=|^TEMP_RESTORE_PORTS=|^BACKUP_MOUNT=|^TEMP_CONTAINERS_CLEANED=' private/raw.log | grep -v '^DEP_REC_PRIVATE_'
+
+      - name: Build encrypted evidence and sanitized summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          lines=Path('private/raw.log').read_text(encoding='utf-8',errors='replace').splitlines()
+          ev=[x.split('=',1)[1] for x in lines if x.startswith('DEP_REC_PRIVATE_EVIDENCE=')]
+          if len(ev)!=1: raise SystemExit(f'DEP_REC_PRIVATE_EVIDENCE_COUNT:{len(ev)}')
+          evidence=json.loads(ev[0])
+          apply_lines=[x.split('=',1)[1] for x in lines if x.startswith('DEP_REC_PRIVATE_APPLY=')]
+          if len(apply_lines)>1: raise SystemExit('DEP_REC_PRIVATE_APPLY_DUPLICATE')
+          if apply_lines: evidence['apply']=json.loads(apply_lines[0])
+          Path('private/dependency-restore-2026.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2),encoding='utf-8')
+          plan=evidence.get('plan') or {}
+          source=evidence.get('source') or {}
+          summary={
+              'mode':'apply' if apply_lines else 'preview',
+              'source_backup_stamp':(evidence.get('source_backup') or {}).get('stamp'),
+              'dependency_source_count':len(source.get('deps') or []),
+              'grade_source_count':len(source.get('grades') or []),
+              'attendance_source_records':sum(len(x.get('records') or []) for x in (source.get('attendance') or [])),
+              'conflicts':len(plan.get('conflicts') or []),
+              'plan':{k:v for k,v in plan.items() if k!='conflicts'},
+              'apply':evidence.get('apply') or None,
+              'pii_in_public_logs':False,
+          }
+          Path('evidence/summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True),encoding='utf-8')
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write('source_backup_stamp='+str(summary['source_backup_stamp'])+'\n')
+              out.write('dependency_source_count='+str(summary['dependency_source_count'])+'\n')
+              out.write('grade_source_count='+str(summary['grade_source_count'])+'\n')
+              out.write('attendance_source_records='+str(summary['attendance_source_records'])+'\n')
+              out.write('conflicts='+str(summary['conflicts'])+'\n')
+              out.write('plan_dependency_insert='+str(plan.get('dependency_insert',0))+'\n')
+              out.write('plan_grade_insert='+str(plan.get('grade_insert',0))+'\n')
+              out.write('plan_grade_patch='+str(plan.get('grade_patch_dependency_id',0))+'\n')
+              out.write('plan_attendance_patch='+str(plan.get('attendance_patch_dependency_id',0))+'\n')
+              out.write('plan_attendance_append='+str(plan.get('attendance_append_record',0))+'\n')
+          PY
+        id: summary
+
+      - name: Encrypt nominal recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cert="$RUNNER_TEMP/dependency_restore_2026_cert.pem"
+          test -s "$cert"
+          openssl cms -encrypt -binary -aes-256-cbc -in private/dependency-restore-2026.json -outform DER \
+            -out evidence/dependency-restore-2026.cms "$cert"
+          rm -f private/dependency-restore-2026.json "$cert"
+          test -s evidence/dependency-restore-2026.cms
+          echo 'DEPENDENCY_RESTORE_2026_ENCRYPTED_EVIDENCE=YES'
+          echo 'PII_IN_PUBLIC_LOGS=NO'
+
+      - name: Upload encrypted evidence and sanitized summary only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-restore-2026-encrypted-${{ github.run_id }}
+          path: |
+            evidence/dependency-restore-2026.cms
+            evidence/summary.json
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Publish sanitized result and close gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+          MODE: ${{ steps.context.outputs.mode }}
+          SOURCE_BACKUP: ${{ steps.summary.outputs.source_backup_stamp }}
+          DEP_COUNT: ${{ steps.summary.outputs.dependency_source_count }}
+          GRADE_COUNT: ${{ steps.summary.outputs.grade_source_count }}
+          ATT_COUNT: ${{ steps.summary.outputs.attendance_source_records }}
+          CONFLICTS: ${{ steps.summary.outputs.conflicts }}
+          DEP_INSERT: ${{ steps.summary.outputs.plan_dependency_insert }}
+          GRADE_INSERT: ${{ steps.summary.outputs.plan_grade_insert }}
+          GRADE_PATCH: ${{ steps.summary.outputs.plan_grade_patch }}
+          ATT_PATCH: ${{ steps.summary.outputs.plan_attendance_patch }}
+          ATT_APPEND: ${{ steps.summary.outputs.plan_attendance_append }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,urllib.request
+          repo=os.environ['GITHUB_REPOSITORY']; issue=os.environ['ISSUE_NUMBER']; token=os.environ['GH_TOKEN']
+          mode=os.environ['MODE']
+          body=(
+            'Restauração forense de Dependência 2026 — execução concluída.\n\n'
+            f'- Modo: `{mode}`\n'
+            f'- Backup-fonte validado: `{os.environ["SOURCE_BACKUP"]}`\n'
+            f'- Vínculos-fonte: `{os.environ["DEP_COUNT"]}`\n'
+            f'- Registros de nota-fonte: `{os.environ["GRADE_COUNT"]}`\n'
+            f'- Registros de frequência-fonte: `{os.environ["ATT_COUNT"]}`\n'
+            f'- Conflitos de preflight: `{os.environ["CONFLICTS"]}`\n'
+            f'- Plano — vínculos a inserir: `{os.environ["DEP_INSERT"]}`; notas a inserir: `{os.environ["GRADE_INSERT"]}`; notas a religar: `{os.environ["GRADE_PATCH"]}`; frequências a religar: `{os.environ["ATT_PATCH"]}`; frequências a acrescentar: `{os.environ["ATT_APPEND"]}`.\n'
+            f'- Produção alterada: **{"YES — somente restauração autorizada" if mode=="apply" else "NO"}**\n'
+            '- Restore de dump contra Mongo de produção: **NO**\n'
+            '- Restore temporário: **isolado, network none, sem portas, backup read-only**\n'
+            '- Nomes/IDs em logs ou issue: **NO**\n'
+            '- Evidência nominal: **criptografada**.'
+          )
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-dependency-recovery-2026','Content-Type':'application/json'}
+          req=urllib.request.Request(f'https://api.github.com/repos/{repo}/issues/{issue}/comments',data=json.dumps({'body':body}).encode(),headers=headers,method='POST')
+          urllib.request.urlopen(req,timeout=30).read()
+          req=urllib.request.Request(f'https://api.github.com/repos/{repo}/issues/{issue}',data=json.dumps({'state':'closed','state_reason':'completed'}).encode(),headers=headers,method='PATCH')
+          urllib.request.urlopen(req,timeout=30).read()
+          PY
