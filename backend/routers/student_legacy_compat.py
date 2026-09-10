@@ -3,15 +3,16 @@
 O cadastro histórico do SIGESC possui estudantes anteriores ao endereço
 estruturado. Nesses documentos, ``address`` é uma string (logradouro/localidade)
 e os demais componentes permanecem em campos planos como ``address_number``,
-``neighborhood``, ``city`` e ``state``. O modelo atual ``Student`` exige um
-``StudentAddress`` e, sem compatibilidade, GET/PUT podem terminar em
-``ValidationError`` depois de a autorização (e até a escrita) já ter ocorrido.
+``neighborhood``, ``city`` e ``state``. Também existem valores históricos de
+``status`` em português, semanticamente equivalentes aos Literals canônicos em
+inglês. Sem compatibilidade, GET/PUT podem terminar em ``ValidationError`` depois
+de a autorização (e até da escrita) já ter ocorrido.
 
 Esta camada é deliberadamente NÃO persistente:
 - nunca escreve no MongoDB;
-- reconstrói o endereço apenas na resposta em memória;
+- reconstrói/normaliza apenas a resposta em memória;
 - preserva todos os componentes legados conhecidos;
-- normaliza somente Literals semanticamente inequívocos encontrados no censo;
+- normaliza somente Literals semanticamente inequívocos encontrados no legado;
 - não converte comunidade tradicional vazia em ``nao_pertence``;
 - não mascara erros Pydantic fora do conjunto legado auditado.
 """
@@ -36,9 +37,25 @@ _COMPAT_ERROR_ROOTS = frozenset({
     "address",
     "civil_certificate_type",
     "comunidade_tradicional",
+    "status",
 })
 
 _CERTIFICATE_TYPES = frozenset({"nascimento", "casamento"})
+
+# Valores históricos já reconhecidos por outras camadas do SIGESC (por exemplo,
+# o fluxo de matrícula/rematrícula). A projeção abaixo apenas traduz equivalentes
+# inequívocos para o contrato atual; valores desconhecidos continuam falhando
+# em Pydantic, em vez de serem reinterpretados silenciosamente.
+_LEGACY_STATUS_ALIASES = {
+    "ativo": "active",
+    "inativo": "inactive",
+    "desistente": "dropout",
+    "transferido": "transferred",
+    "falecido": "deceased",
+    "cancelado": "cancelled",
+    "reclassificado": "reclassified",
+    "progredido": "progressed",
+}
 
 
 def normalize_legacy_student_doc(doc: dict | None) -> dict | None:
@@ -47,6 +64,10 @@ def normalize_legacy_student_doc(doc: dict | None) -> dict | None:
     ``address`` histórico corresponde ao antigo campo de logradouro/localidade,
     pois coexistia no mesmo documento com número, complemento, bairro, cidade e
     UF. Esses componentes são apenas reagrupados em ``StudentAddress``.
+
+    ``status`` em português é traduzido somente quando possui equivalência
+    institucional explícita com um valor canônico. A fonte recebida nunca é
+    modificada e nenhum valor desconhecido é aceito por aproximação.
     """
     if doc is None:
         return None
@@ -84,6 +105,13 @@ def normalize_legacy_student_doc(doc: dict | None) -> dict | None:
     if isinstance(traditional_community, str) and not traditional_community.strip():
         # Vazio significa "não informado". Não reinterpretar como nao_pertence.
         normalized["comunidade_tradicional"] = None
+
+    legacy_status = normalized.get("status")
+    if isinstance(legacy_status, str):
+        status_key = legacy_status.strip().lower()
+        canonical_status = _LEGACY_STATUS_ALIASES.get(status_key)
+        if canonical_status:
+            normalized["status"] = canonical_status
 
     return normalized
 
