@@ -1,0 +1,370 @@
+name: "Enrollment Rectification F2.3D - Ordinal Recovery"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/enrollment-rectification-f2-3d-recovery.yml'
+      - 'backend/services/enrollment_rectification_attendance_ordinal.py'
+      - 'backend/services/enrollment_rectification_saga_ordinal_runtime.py'
+      - 'backend/routers/enrollment_rectification_saga.py'
+      - 'backend/scripts/enrollment_rectification_f2_3d_recover_applied.py'
+      - 'backend/tests/test_enrollment_rectification_f2_3d_ordinal.py'
+      - 'backend/tests/test_enrollment_rectification_f2_3d_saga_runtime.py'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: enrollment-rectification-f2-3d-recovery
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard F2.3D ordinal recovery boundary
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Compile and verify F2.3D contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            backend/services/enrollment_rectification_attendance_ordinal.py \
+            backend/services/enrollment_rectification_saga_ordinal_runtime.py \
+            backend/scripts/enrollment_rectification_f2_3d_recover_applied.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          ordinal=Path('backend/services/enrollment_rectification_attendance_ordinal.py').read_text(encoding='utf-8')
+          runtime=Path('backend/services/enrollment_rectification_saga_ordinal_runtime.py').read_text(encoding='utf-8')
+          recovery=Path('backend/scripts/enrollment_rectification_f2_3d_recover_applied.py').read_text(encoding='utf-8')
+          router=Path('backend/routers/enrollment_rectification_saga.py').read_text(encoding='utf-8')
+
+          for marker in (
+              'ignored_excess_count', 'IGNORE_EXCESS_SOURCE_RECORDS',
+              'migrated_from_class_id', 'never create aula' if False else 'nunca criar aula',
+          ):
+              if marker not in ordinal:
+                  raise SystemExit(f'F2_3D_ORDINAL_REQUIRED:{marker}')
+          for marker in (
+              'compensate_ordinal_attendance', 'attendance_ordinal_state',
+              'was_applied_before', 'rollback_rectification_saga',
+          ):
+              if marker not in runtime:
+                  raise SystemExit(f'F2_3D_RUNTIME_REQUIRED:{marker}')
+          if 'services.enrollment_rectification_saga_ordinal_runtime' not in router:
+              raise SystemExit('F2_3D_ROUTER_NOT_BOUND')
+
+          tree=ast.parse(recovery)
+          forbidden={
+              'insert_one','insert_many','update_one','update_many','replace_one',
+              'delete_one','delete_many','bulk_write','find_one_and_update',
+              'find_one_and_delete','find_one_and_replace','drop','drop_database',
+          }
+          hits=[]
+          for node in ast.walk(tree):
+              if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr in forbidden:
+                  hits.append(node.func.attr)
+          if hits:
+              raise SystemExit(f'F2_3D_RECOVERY_DIRECT_MUTATOR_FORBIDDEN:{sorted(set(hits))}')
+          for marker in (
+              'execute_rectification_saga','build_ordinal_attendance_plan',
+              'F2_3D_FLAG_MUST_START_DISABLED','flag_enabled_at_exit',
+              'ordinal_sequences_match','source_ledger_preserved',
+          ):
+              if marker not in recovery:
+                  raise SystemExit(f'F2_3D_RECOVERY_REQUIRED:{marker}')
+          for marker in ('prepare_rectification_saga_execution','operator_password'):
+              if marker in recovery:
+                  raise SystemExit(f'F2_3D_RECOVERY_FORBIDDEN:{marker}')
+          print('F2_3D_RECOVERY_GUARD=PASS')
+          print('RECOVERY_DIRECT_DB_MUTATION=NO')
+          print('CANONICAL_ORDINAL_RUNTIME=YES')
+          PY
+
+  recover-applied:
+    name: Recover ordinal attendance for the authorized APPLIED case
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ENROLLMENT-RECTIFICATION-F2.3D-RECOVER] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact-SHA owner authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('F2_3D_OWNER_REQUIRED')
+          if issue.get('state') != 'open':
+              raise SystemExit('F2_3D_GATE_MUST_BE_OPEN')
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              line=raw.strip()
+              if not line or '=' not in line:
+                  continue
+              key,value=line.split('=',1); key=key.strip(); value=value.strip()
+              if key in values:
+                  raise SystemExit(f'F2_3D_DUPLICATE_FIELD:{key}')
+              values[key]=value
+          expected={
+              'ENROLLMENT_RECTIFICATION_F2_3D_RECOVERY':'AUTHORIZED',
+              'CONFIRMATION':'RECOVER_APPLIED_ORDINAL_ATTENDANCE',
+              'TRACKING_ISSUE':'617',
+              'ACADEMIC_YEAR':'2026',
+              'SCHOOL':'E M E I E F Monsenhor Augusto Dias de Brito',
+              'SOURCE_CLASS':'6º ANO A',
+              'DESTINATION_CLASS':'7º ANO B',
+          }
+          for key,wanted in expected.items():
+              if values.get(key) != wanted:
+                  raise SystemExit(f'F2_3D_FIELD_INVALID:{key}')
+          target=values.get('TARGET_SHA','')
+          prod=values.get('EXPECTED_PRODUCTION_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target) or prod != target:
+              raise SystemExit('F2_3D_SHA_INVALID')
+          if issue.get('title') != f'[ENROLLMENT-RECTIFICATION-F2.3D-RECOVER] {target}':
+              raise SystemExit('F2_3D_TITLE_MISMATCH')
+          salt=values.get('COMPONENT_SALT','')
+          hashes={k:values.get(k,'') for k in ('NAME_HASH','DOB_HASH','CPF_HASH')}
+          if not re.fullmatch(r'[0-9a-f]{32}',salt) or any(not re.fullmatch(r'[0-9a-f]{64}',v) for v in hashes.values()):
+              raise SystemExit('F2_3D_FINGERPRINT_INVALID')
+
+          def api(path):
+              req=urllib.request.Request(
+                  f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/{path}",
+                  headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3d-recovery'},
+              )
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
+          main_sha=api('branches/main')['commit']['sha']
+          production_sha=api('branches/production')['commit']['sha']
+          tracking=api('issues/617')
+          if main_sha != target or production_sha != target:
+              raise SystemExit(f'F2_3D_RUNTIME_SHA_MISMATCH:main={main_sha}:production={production_sha}')
+          if tracking.get('state') != 'open':
+              raise SystemExit('F2_3D_TRACKING_ISSUE_NOT_OPEN')
+          tracking_body=tracking.get('body') or ''
+          for marker in ('ignorar o excedente','nunca criar aula artificial','preservar rollback/compensação'):
+              if marker not in tracking_body:
+                  raise SystemExit(f'F2_3D_POLICY_MARKER_MISSING:{marker}')
+
+          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out:
+              out.write(f'target_sha={target}\n')
+              out.write(f'gate_issue={issue.get("number")}\n')
+              out.write(f'component_salt={salt}\n')
+              out.write(f'name_hash={hashes["NAME_HASH"]}\n')
+              out.write(f'dob_hash={hashes["DOB_HASH"]}\n')
+              out.write(f'cpf_hash={hashes["CPF_HASH"]}\n')
+          print('F2_3D_CONTEXT=PASS')
+          print('MAIN_PRODUCTION_SHA_MATCH=YES')
+          PY
+
+      - name: Checkout exact authorized SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Re-seal recovery executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/enrollment_rectification_f2_3d_recover_applied.py
+          python -m py_compile backend/services/enrollment_rectification_saga_ordinal_runtime.py
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "F2_3D_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/f2_3d_prod_key
+          chmod 600 ~/.ssh/f2_3d_prod_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve exact backend revision
+        id: topology
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          readarray -t rows < <({
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3d_prod_key" \
+              "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE'
+          set -euo pipefail
+          mongo="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo")"
+          backend="$(docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1)"
+          test -n "$backend"
+          revision="$(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$backend")"
+          printf '%s\n%s\n' "$backend" "$revision"
+          REMOTE
+          } | tail -n 2)
+          backend="${rows[0]:-}"; revision="${rows[1]:-}"
+          test -n "$backend" && [[ "$backend" =~ ^[A-Za-z0-9._-]+$ ]]
+          test "$revision" = "$TARGET_SHA" || { echo 'F2_3D_BACKEND_REVISION_MISMATCH'; exit 1; }
+          echo "backend_container=$backend" >> "$GITHUB_OUTPUT"
+          echo 'F2_3D_RUNTIME_PROVENANCE=PASS'
+
+      - name: Execute ordinal recovery replay
+        id: recover
+        shell: bash
+        env:
+          BACKEND_CONTAINER: ${{ steps.topology.outputs.backend_container }}
+          COMPONENT_SALT: ${{ steps.context.outputs.component_salt }}
+          NAME_HASH: ${{ steps.context.outputs.name_hash }}
+          DOB_HASH: ${{ steps.context.outputs.dob_hash }}
+          CPF_HASH: ${{ steps.context.outputs.cpf_hash }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/runtime.raw'
+          remote_command="timeout 900 docker exec -i -e PYTHONPATH=/app -e F2_3D_COMPONENT_SALT=${COMPONENT_SALT} -e F2_3D_NAME_HASH=${NAME_HASH} -e F2_3D_DOB_HASH=${DOB_HASH} -e F2_3D_CPF_HASH=${CPF_HASH} ${BACKEND_CONTAINER} sh -lc 'cd /app && python scripts/enrollment_rectification_f2_3d_recover_applied.py'"
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/f2_3d_prod_key" \
+            "${PROD_USER}@${PROD_HOST}" "$remote_command" > "$raw" 2>&1
+          rc=$?
+          set -e
+          line="$(grep -E '^\{.*\}$' "$raw" | tail -n 1 || true)"
+          if [ -z "$line" ]; then
+            cat "$raw" >&2
+            rm -f "$raw"
+            echo 'F2_3D_RECOVERY_RECEIPT_MISSING' >&2
+            exit "${rc:-2}"
+          fi
+          printf '%s' "$line" > evidence/runtime.json
+          rm -f "$raw"
+          python -m json.tool evidence/runtime.json >/dev/null
+          echo "executor_rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Validate sanitized recovery receipt
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text(encoding='utf-8'))
+          if p.get('schema') != 'ENROLLMENT_RECTIFICATION_F2_3D_RECOVER_APPLIED_V1':
+              raise SystemExit('F2_3D_RECEIPT_SCHEMA_INVALID')
+          if p.get('student_pii_emitted') is not False or p.get('technical_ids_emitted') is not False or p.get('operator_credentials_used') is not False:
+              raise SystemExit('F2_3D_RECEIPT_PRIVACY_INVALID')
+          if p.get('flag_enabled_at_exit') is not False:
+              raise SystemExit('F2_3D_FLAG_NOT_DISABLED_AT_EXIT')
+
+          validation=p.get('validation') or {}
+          checks=p.get('checks') or {}
+          lines=[
+              '## F2.3D — recuperação ordinal de frequência', '',
+              f"**Status:** `{p.get('status')}`",
+              f"**Origem:** `{p.get('source_class') or '6º ANO A'}`",
+              f"**Destino:** `{p.get('destination_class') or '7º ANO B'}`",
+              f"**Registros preservados na origem:** `{validation.get('source_records')}`",
+              f"**Registros ordinais materializados:** `{validation.get('ordinal_ledgers_applied')}`",
+              f"**Registros conferidos no destino:** `{validation.get('destination_records_verified')}`",
+              f"**Excedente ignorado:** `{(p.get('plan_totals') or {}).get('ignored_excess')}`",
+              f"**Flag habilitada ao final:** `{p.get('flag_enabled_at_exit')}`",
+              '', '### Componentes',
+          ]
+          for c in validation.get('components') or []:
+              lines.append(
+                  f"- {c.get('component')}: origem `{c.get('source_count')}`, aplicado `{c.get('applied_count')}`, "
+                  f"excedente ignorado `{c.get('ignored_excess_count')}`, sequência `{c.get('sequence_match')}`, "
+                  f"materialização `{c.get('materialized_match')}`, status `{c.get('status_counts')}`"
+              )
+          lines += ['', '### Pós-condições']
+          for key,value in checks.items():
+              lines.append(f'- {key}: `{value}`')
+          Path('evidence/diagnosis.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+          print('\n'.join(lines))
+          if p.get('status') != 'APPLIED':
+              raise SystemExit(f"F2_3D_RECOVERY_NOT_APPLIED:{p.get('status')}:{p.get('reason')}")
+          if not checks or not all(checks.values()):
+              raise SystemExit('F2_3D_POSTVALIDATION_FAILED')
+          if validation.get('ordinal_ledgers_applied') != validation.get('destination_records_verified'):
+              raise SystemExit('F2_3D_DESTINATION_COUNT_MISMATCH')
+          if not validation.get('all_sequences_match'):
+              raise SystemExit('F2_3D_SEQUENCE_MISMATCH')
+          PY
+
+      - name: Upload sanitized F2.3D evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enrollment-rectification-f2-3d-${{ github.run_id }}
+          path: |
+            evidence/runtime.json
+            evidence/diagnosis.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Annotate tracking and gate issues
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ steps.context.outputs.gate_issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          diagnosis='F2.3D: evidence unavailable.'
+          status='UNKNOWN'
+          try:
+              diagnosis=open('evidence/diagnosis.md',encoding='utf-8').read()
+              receipt=json.load(open('evidence/runtime.json',encoding='utf-8'))
+              status=receipt.get('status') or 'UNKNOWN'
+          except Exception:
+              pass
+          repo=os.environ['GITHUB_REPOSITORY']; token=os.environ['GH_TOKEN']
+          def req(path, method='POST', body=None):
+              data=None if body is None else json.dumps(body).encode()
+              r=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/{path}',data=data,method=method,
+                  headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-f2-3d-recovery'},
+              )
+              with urllib.request.urlopen(r,timeout=30) as response:
+                  return json.load(response)
+          gate=os.environ.get('GATE_ISSUE','')
+          for n in ('617',gate):
+              if n:
+                  req(f'issues/{n}/comments',body={'body':diagnosis})
+          if gate and status == 'APPLIED':
+              req(f'issues/{gate}',method='PATCH',body={'state':'closed','state_reason':'completed'})
+              req('issues/617',method='PATCH',body={'state':'closed','state_reason':'completed'})
+          PY
