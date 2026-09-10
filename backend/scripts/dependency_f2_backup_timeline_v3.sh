@@ -224,7 +224,7 @@ for inode in "${ordered[@]}"; do
 
   stage="probe_point_${idx}"
   set +e
-  point="$(docker exec -e DEP_F2V3_SEED_JSON="$seed_json" "$drill" mongosh --quiet --file /dev/stdin <<'JS'
+  point="$(docker exec -i -e DEP_F2V3_SEED_JSON="$seed_json" "$drill" mongosh --quiet --file /dev/stdin <<'JS'
 const d=db.getSiblingDB("sigesc");
 const seed=EJSON.parse(process.env.DEP_F2V3_SEED_JSON||"{}");
 const ids=seed.dependency_ids||[];
