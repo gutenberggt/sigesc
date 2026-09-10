@@ -91,6 +91,9 @@ jobs:
           print('DEPENDENCY_IMMUTABILITY_CONTRACT=PASS')
           PY
 
+      - name: Install focused test runner
+        run: pip install pytest pytest-asyncio python-dotenv motor fastapi
+
       - name: Run focused dependency regression tests
         shell: bash
         run: |
@@ -275,8 +278,6 @@ jobs:
           baseline=next((x for x in baseline_items if x.get('title')==baseline_title),None)
           baseline_changed=False
           if baseline is None:
-              # Fail-closed: primeira baseline só é aceita se a dívida histórica
-              # ainda for exatamente a já comprovada pela perícia (4 vínculos).
               if counts.get('legacy_missing_create_links') != expected or critical != 0:
                   baseline_changed=True
               else:
