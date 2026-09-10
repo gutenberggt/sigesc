@@ -273,7 +273,7 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
     # ==================================================================
     @router.get("/class/{class_id}/course/{course_id}", response_model=List[dict])
     async def list_by_class_course(request: Request, class_id: str, course_id: str):
-        """Lista alunos em dependência ativa nesta turma+componente."""
+        """Lista estudantes em dependência ativa nesta turma+componente."""
         user = await _require_role(request, DEPENDENCY_VIEW_ROLES)
         flt = await _scoped({
             "class_id": class_id, "course_id": course_id, "status": "active"
