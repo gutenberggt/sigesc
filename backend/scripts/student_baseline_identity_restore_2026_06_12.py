@@ -1,20 +1,12 @@
 #!/usr/bin/env python3
-"""Repara apenas a continuidade do número institucional da matrícula-base 2026.
+"""Reparo cirúrgico da identidade institucional da matrícula-base de 12/06/2026.
 
-Contrato do caso:
-- estudante identificado somente por fingerprint salted recebido em runtime;
-- matrícula-base: 12/06/2026, Monsenhor Augusto Dias de Brito, 7º ANO D;
-- o número institucional já existente deve estar preservado em
-  ``previous_enrollment_number`` da matrícula-base;
-- ``students.enrollment_number`` e o primeiro log de matrícula devem confirmar o
-  mesmo número;
-- nenhum outro estudante/vínculo pode deter esse número;
-- o apply move somente esse número de ``previous_enrollment_number`` para
-  ``enrollment_number`` na matrícula-base. Status, turma projetada, histórico,
-  notas, frequência e Dependência não são alterados por este reparo.
+Este executor NÃO cria um escritor novo de ``enrollment_number``. A devolução do
+número previamente liberado é feita pelo rollback canônico da continuidade de
+identidade; a compensação usa o handoff canônico inverso.
 
-O saneamento completo da matrícula permanece responsabilidade do restaurador
-``student_baseline_restore_2026_06_12.py`` após novo preview.
+Nenhuma PII é codificada. O estudante é resolvido em produção por fingerprint
+salted, e o número institucional nunca é emitido nos logs do gate.
 """
 from __future__ import annotations
 
@@ -29,15 +21,23 @@ from datetime import datetime, timezone
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient
+from routers.student_enrollment_identity_continuity import (
+    EnrollmentIdentityContinuityConflict,
+    IdentityDecision,
+    _assert_number_owned_only_by_student,
+    _first_logged_enrollment_number,
+    _regular_enrollments,
+    _rollback_release_if_safe,
+    choose_identity_number,
+    resolve_and_prepare_identity_handoff,
+)
 
 YEAR = 2026
 TARGET_SCHOOL = "E M E I E F Monsenhor Augusto Dias de Brito"
 TARGET_CLASS = "7º ANO D"
 BASELINE_DATE = "2026-06-12"
 EXPECTED_POST_HISTORY = 8
-OPERATION_ID = "student-baseline-identity-restore-2026-06-12-v1"
-SPECIAL_PROGRAMS = {"aee", "recomposicao_aprendizagem", "reforco_escolar"}
-MATRICULA_RX = re.compile(r"matr[ií]cula:\s*(\d+)", re.IGNORECASE)
+OPERATION_ID = "student-baseline-identity-restore-2026-06-12-v2"
 
 
 class RepairError(RuntimeError):
@@ -52,9 +52,9 @@ def emit(key: str, value: Any) -> None:
 
 def _norm(value: Any) -> str:
     text = "".join(
-        char
-        for char in unicodedata.normalize("NFKD", str(value or ""))
-        if not unicodedata.combining(char)
+        c
+        for c in unicodedata.normalize("NFKD", str(value or ""))
+        if not unicodedata.combining(c)
     )
     return " ".join(text.casefold().strip().split())
 
@@ -70,7 +70,7 @@ def _name_hash(salt: str, value: Any) -> str:
 def _date_key(value: Any) -> str:
     if isinstance(value, datetime):
         return value.date().isoformat()
-    return str(value or "")[:10]
+    return _text(value)[:10]
 
 
 def _as_utc(value: Any) -> datetime | None:
@@ -94,23 +94,6 @@ async def _named_docs(collection, name: str, query: dict | None = None) -> list[
     return [doc for doc in docs if _norm(doc.get("name")) == _norm(name)]
 
 
-async def _first_logged_enrollment_number(db, student_id: str) -> str:
-    cursor = db.audit_logs.find(
-        {
-            "collection": "students",
-            "document_id": student_id,
-            "extra_data.action_type": "matricula",
-        },
-        {"_id": 0, "timestamp": 1, "extra_data": 1},
-    ).sort("timestamp", 1)
-    async for log in cursor:
-        observations = _text((log.get("extra_data") or {}).get("observations"))
-        match = MATRICULA_RX.search(observations)
-        if match:
-            return match.group(1)
-    return ""
-
-
 async def _resolve_case(db, salt: str, wanted_hash: str) -> dict[str, str]:
     schools = await _named_docs(db.schools, TARGET_SCHOOL)
     if len(schools) != 1:
@@ -131,26 +114,22 @@ async def _resolve_case(db, salt: str, wanted_hash: str) -> dict[str, str]:
     if len(classes) != 1:
         raise RepairError("CLASS_CARDINALITY")
     class_doc = classes[0]
-    if _text(class_doc.get("mantenedora_id") or tenant) != tenant:
-        raise RepairError("CLASS_TENANT_MISMATCH")
-    if _norm(class_doc.get("atendimento_programa")) in SPECIAL_PROGRAMS:
-        raise RepairError("REGULAR_CLASS_REQUIRED")
 
-    matches: list[str] = []
+    candidates: list[str] = []
     cursor = db.students.find(
         {"mantenedora_id": tenant},
         {"_id": 0, "id": 1, "full_name": 1},
     )
     async for student in cursor:
         if _name_hash(salt, student.get("full_name")) == wanted_hash:
-            matches.append(_text(student.get("id")))
-    emit("TARGET_STUDENTS", len(matches))
-    if len(matches) != 1 or not matches[0]:
+            candidates.append(_text(student.get("id")))
+    emit("TARGET_STUDENTS", len(candidates))
+    if len(candidates) != 1 or not candidates[0]:
         raise RepairError("STUDENT_IDENTITY_CARDINALITY")
 
     return {
         "tenant": tenant,
-        "student_id": matches[0],
+        "student_id": candidates[0],
         "school_id": _text(school.get("id")),
         "class_id": _text(class_doc.get("id")),
     }
@@ -158,12 +137,11 @@ async def _resolve_case(db, salt: str, wanted_hash: str) -> dict[str, str]:
 
 async def _inspect(db, case: dict[str, str]) -> dict[str, Any]:
     sid = case["student_id"]
-    tenant = case["tenant"]
-    school_id = case["school_id"]
-    class_id = case["class_id"]
     conflicts: list[str] = []
 
-    student = await db.students.find_one({"id": sid, "mantenedora_id": tenant})
+    student = await db.students.find_one(
+        {"id": sid, "mantenedora_id": case["tenant"]}
+    )
     if not student:
         conflicts.append("STUDENT_NOT_IN_TENANT")
         student = {}
@@ -175,17 +153,13 @@ async def _inspect(db, case: dict[str, str]) -> dict[str, Any]:
         item
         for item in histories
         if _date_key(item.get("action_date")) == BASELINE_DATE
-        and _text(item.get("school_id")) == school_id
-        and _text(item.get("class_id")) == class_id
+        and _text(item.get("school_id")) == case["school_id"]
+        and _text(item.get("class_id")) == case["class_id"]
         and _norm(item.get("new_status")) in {"active", "ativo"}
     ]
-    if len(baseline) != 1:
-        conflicts.append("BASELINE_EVENT_CARDINALITY")
-        baseline_at = None
-    else:
-        baseline_at = _as_utc(baseline[0].get("action_date"))
-        if baseline_at is None:
-            conflicts.append("BASELINE_DATE_INVALID")
+    baseline_at = _as_utc(baseline[0].get("action_date")) if len(baseline) == 1 else None
+    if len(baseline) != 1 or baseline_at is None:
+        conflicts.append("BASELINE_EVENT_INVALID")
 
     post = [
         item
@@ -197,76 +171,53 @@ async def _inspect(db, case: dict[str, str]) -> dict[str, Any]:
     if len(post) != EXPECTED_POST_HISTORY:
         conflicts.append("POST_HISTORY_COUNT")
 
-    target_enrollments = await db.enrollments.find(
+    targets = await db.enrollments.find(
         {
             "student_id": sid,
-            "school_id": school_id,
-            "class_id": class_id,
+            "school_id": case["school_id"],
+            "class_id": case["class_id"],
             "academic_year": {"$in": [YEAR, str(YEAR)]},
         }
     ).to_list(None)
-    if len(target_enrollments) != 1:
+    if len(targets) != 1:
         conflicts.append("TARGET_ENROLLMENT_CARDINALITY")
         target: dict[str, Any] = {}
     else:
-        target = target_enrollments[0]
-        if _text(target.get("mantenedora_id") or tenant) != tenant:
-            conflicts.append("TARGET_ENROLLMENT_TENANT_MISMATCH")
+        target = targets[0]
 
-    enrollments = await db.enrollments.find({"student_id": sid}).to_list(None)
-    class_ids = sorted({_text(e.get("class_id")) for e in enrollments if _text(e.get("class_id"))})
-    class_docs = (
-        await db.classes.find(
-            {"id": {"$in": class_ids}},
-            {"_id": 0, "id": 1, "atendimento_programa": 1},
-        ).to_list(None)
-        if class_ids
-        else []
-    )
-    class_map = {_text(c.get("id")): c for c in class_docs}
-    regular: list[dict] = []
-    for enrollment in enrollments:
-        current = _text(enrollment.get("enrollment_number"))
-        previous = _text(enrollment.get("previous_enrollment_number"))
-        class_doc = class_map.get(_text(enrollment.get("class_id")))
-        if not class_doc:
-            if current or previous:
-                conflicts.append("NUMBERED_ENROLLMENT_CLASS_MISSING")
-            continue
-        if _norm(class_doc.get("atendimento_programa")) not in SPECIAL_PROGRAMS:
-            regular.append(enrollment)
+    try:
+        regular = await _regular_enrollments(db, sid)
+    except EnrollmentIdentityContinuityConflict:
+        regular = []
+        conflicts.append("REGULAR_ENROLLMENT_CONFLICT")
 
-    current_numbers = {
-        _text(e.get("enrollment_number"))
-        for e in regular
-        if _text(e.get("enrollment_number"))
+    numbers = {
+        number
+        for enrollment in regular
+        for number in (
+            _text(enrollment.get("enrollment_number")),
+            _text(enrollment.get("previous_enrollment_number")),
+        )
+        if number
     }
-    previous_numbers = {
-        _text(e.get("previous_enrollment_number"))
-        for e in regular
-        if _text(e.get("previous_enrollment_number"))
-    }
-    all_numbers = current_numbers | previous_numbers
     student_number = _text(student.get("enrollment_number"))
-    logged_number = await _first_logged_enrollment_number(db, sid)
+    logged_number = await _first_logged_enrollment_number(db, sid) if student else ""
+
+    try:
+        resolved, basis = choose_identity_number(
+            student_number=student_number,
+            enrollment_numbers=numbers,
+            logged_number=logged_number,
+        )
+    except EnrollmentIdentityContinuityConflict:
+        resolved, basis = None, "CANONICAL_CONFLICT"
+        conflicts.append("CANONICAL_IDENTITY_CONFLICT")
+
+    if not resolved:
+        conflicts.append("IDENTITY_NOT_RESOLVED")
+
     target_current = _text(target.get("enrollment_number"))
     target_previous = _text(target.get("previous_enrollment_number"))
-
-    if len(all_numbers) != 1:
-        conflicts.append("IDENTITY_NUMBER_VARIANTS")
-        resolved = ""
-    else:
-        resolved = next(iter(all_numbers))
-
-    if not student_number:
-        conflicts.append("STUDENT_NUMBER_MISSING")
-    if not logged_number:
-        conflicts.append("LOGGED_NUMBER_MISSING")
-    if resolved and student_number and resolved != student_number:
-        conflicts.append("STUDENT_NUMBER_MISMATCH")
-    if resolved and logged_number and resolved != logged_number:
-        conflicts.append("LOGGED_NUMBER_MISMATCH")
-
     already_restored = bool(
         resolved
         and target_current == resolved
@@ -275,69 +226,52 @@ async def _inspect(db, case: dict[str, str]) -> dict[str, Any]:
         and logged_number == resolved
     )
 
-    if not already_restored:
+    if resolved and not already_restored:
         if target_current:
             conflicts.append("TARGET_CURRENT_NUMBER_NOT_EMPTY")
-        if resolved and target_previous != resolved:
+        if target_previous != resolved:
             conflicts.append("TARGET_PREVIOUS_NUMBER_MISMATCH")
+        try:
+            await _assert_number_owned_only_by_student(db, sid, resolved)
+        except EnrollmentIdentityContinuityConflict:
+            conflicts.append("IDENTITY_OWNED_BY_OTHER_STUDENT")
 
-    other_student_owners = 0
-    other_enrollment_owners = 0
-    same_student_other_holders = 0
-    same_student_active_holders = 0
+    other_holders = 0
+    active_holders = 0
     if resolved:
-        other_student_owners = await db.students.count_documents(
-            {"id": {"$ne": sid}, "enrollment_number": resolved}
-        )
-        other_enrollment_owners = await db.enrollments.count_documents(
-            {
-                "student_id": {"$ne": sid},
-                "$or": [
-                    {"enrollment_number": resolved},
-                    {"previous_enrollment_number": resolved},
-                ],
-            }
-        )
         target_id = _text(target.get("id"))
         for enrollment in regular:
-            holds = resolved in {
+            if _text(enrollment.get("id")) == target_id:
+                continue
+            if resolved in {
                 _text(enrollment.get("enrollment_number")),
                 _text(enrollment.get("previous_enrollment_number")),
-            }
-            if not holds:
-                continue
-            if _text(enrollment.get("id")) != target_id:
-                same_student_other_holders += 1
+            }:
+                other_holders += 1
             if (
                 _text(enrollment.get("enrollment_number")) == resolved
                 and _norm(enrollment.get("status")) in {"active", "ativo"}
-                and _text(enrollment.get("id")) != target_id
             ):
-                same_student_active_holders += 1
-
-    if other_student_owners or other_enrollment_owners:
-        conflicts.append("IDENTITY_OWNED_BY_OTHER_STUDENT")
-    if same_student_other_holders:
+                active_holders += 1
+    if other_holders:
         conflicts.append("SAME_STUDENT_OTHER_NUMBER_HOLDER")
-    if same_student_active_holders:
+    if active_holders:
         conflicts.append("SAME_STUDENT_ACTIVE_NUMBER_HOLDER")
 
     return {
         "student": student,
         "baseline": baseline,
         "post": post,
-        "target_enrollments": target_enrollments,
+        "targets": targets,
         "target": target,
-        "resolved": resolved,
-        "current_numbers": current_numbers,
-        "previous_numbers": previous_numbers,
+        "resolved": resolved or "",
+        "basis": basis,
         "student_number": student_number,
         "logged_number": logged_number,
         "target_current": target_current,
         "target_previous": target_previous,
-        "other_owners": other_student_owners + other_enrollment_owners,
-        "same_student_other_holders": same_student_other_holders,
-        "same_student_active_holders": same_student_active_holders,
+        "other_holders": other_holders,
+        "active_holders": active_holders,
         "already_restored": already_restored,
         "conflicts": sorted(set(conflicts)),
     }
@@ -346,38 +280,72 @@ async def _inspect(db, case: dict[str, str]) -> dict[str, Any]:
 def _emit_plan(state: dict[str, Any]) -> None:
     emit("BASELINE_EVENTS", len(state["baseline"]))
     emit("POST_HISTORY", len(state["post"]))
-    emit("TARGET_ENROLLMENTS", len(state["target_enrollments"]))
-    emit("CURRENT_VARIANTS", len(state["current_numbers"]))
-    emit("PREVIOUS_VARIANTS", len(state["previous_numbers"]))
+    emit("TARGET_ENROLLMENTS", len(state["targets"]))
+    emit("IDENTITY_BASIS", state["basis"])
     emit("TARGET_CURRENT_PRESENT", "YES" if state["target_current"] else "NO")
     emit("TARGET_PREVIOUS_PRESENT", "YES" if state["target_previous"] else "NO")
-    emit("STUDENT_NUMBER_MATCH", "YES" if state["resolved"] and state["student_number"] == state["resolved"] else "NO")
-    emit("LOGGED_NUMBER_MATCH", "YES" if state["resolved"] and state["logged_number"] == state["resolved"] else "NO")
-    emit("TARGET_PREVIOUS_MATCH", "YES" if state["resolved"] and state["target_previous"] == state["resolved"] else "NO")
-    emit("OTHER_OWNERS", state["other_owners"])
-    emit("SAME_STUDENT_OTHER_HOLDERS", state["same_student_other_holders"])
-    emit("SAME_STUDENT_ACTIVE_HOLDERS", state["same_student_active_holders"])
+    emit(
+        "STUDENT_NUMBER_MATCH",
+        "YES"
+        if state["resolved"] and state["student_number"] == state["resolved"]
+        else "NO",
+    )
+    emit(
+        "LOGGED_NUMBER_MATCH",
+        "YES"
+        if state["resolved"] and state["logged_number"] == state["resolved"]
+        else "NO",
+    )
+    emit(
+        "TARGET_PREVIOUS_MATCH",
+        "YES"
+        if state["resolved"] and state["target_previous"] == state["resolved"]
+        else "NO",
+    )
+    emit("OTHER_HOLDERS", state["other_holders"])
+    emit("ACTIVE_HOLDERS", state["active_holders"])
     emit("ALREADY_RESTORED", "YES" if state["already_restored"] else "NO")
     emit("CONFLICTS", len(state["conflicts"]))
-    emit("CONFLICT_TYPES", ",".join(state["conflicts"]) if state["conflicts"] else "NONE")
+    emit(
+        "CONFLICT_TYPES",
+        ",".join(state["conflicts"]) if state["conflicts"] else "NONE",
+    )
 
 
-async def _compensate(db, archive: dict[str, Any], audit_id: str | None) -> bool:
+async def _compensate(db, case: dict[str, str], resolved: str, audit_id: str | None) -> bool:
+    """Libera novamente o número usando o handoff canônico, sem escritor local."""
     try:
-        target = archive["target_before"]
-        await db.enrollments.replace_one({"_id": target["_id"]}, target, upsert=True)
+        await resolve_and_prepare_identity_handoff(
+            db,
+            student_id=case["student_id"],
+            target_class_id=case["class_id"],
+            academic_year=YEAR,
+        )
+        target = await db.enrollments.find_one(
+            {
+                "student_id": case["student_id"],
+                "school_id": case["school_id"],
+                "class_id": case["class_id"],
+                "academic_year": {"$in": [YEAR, str(YEAR)]},
+            }
+        )
+        compensated = bool(
+            target
+            and not _text(target.get("enrollment_number"))
+            and _text(target.get("previous_enrollment_number")) == resolved
+        )
         if audit_id:
             await db.audit_logs.delete_one({"id": audit_id})
         await db.student_recovery_archives.update_one(
-            {"_id": archive["_id"]},
+            {"_id": OPERATION_ID},
             {
                 "$set": {
-                    "state": "COMPENSATED",
+                    "state": "COMPENSATED" if compensated else "COMPENSATION_FAILED",
                     "compensated_at": datetime.now(timezone.utc).isoformat(),
                 }
             },
         )
-        return True
+        return compensated
     except Exception:
         return False
 
@@ -404,7 +372,7 @@ async def _apply(db, case: dict[str, str], state: dict[str, Any], run_id: str) -
         "run_id": run_id,
         "state": "PREPARED",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "target_before": target,
+        "target_enrollment_id": _text(target.get("id")),
         "student_projection_changed": False,
         "academic_records_changed": False,
     }
@@ -412,27 +380,28 @@ async def _apply(db, case: dict[str, str], state: dict[str, Any], run_id: str) -
 
     audit_id: str | None = None
     try:
-        now = datetime.now(timezone.utc).isoformat()
-        result = await db.enrollments.update_one(
-            {
-                "_id": target["_id"],
-                "student_id": case["student_id"],
-                "school_id": case["school_id"],
-                "class_id": case["class_id"],
-                "enrollment_number": target.get("enrollment_number"),
-                "previous_enrollment_number": resolved,
-            },
-            {
-                "$set": {
-                    "enrollment_number": resolved,
-                    "updated_at": now,
-                },
-                "$unset": {"previous_enrollment_number": ""},
-            },
+        decision = IdentityDecision(
+            student_id=case["student_id"],
+            number=resolved,
+            basis="FORENSIC_BASELINE_ROLLBACK",
+            student_number_before=state["student_number"],
+            target_class_id=case["class_id"],
+            academic_year=YEAR,
+            source_enrollment_id=_text(target.get("id")),
+            source_status=target.get("status"),
+            source_previous_number=None,
+            source_previous_present=False,
+            released=True,
         )
-        if result.matched_count != 1 or result.modified_count != 1:
-            raise RepairError("TARGET_ENROLLMENT_CONCURRENT_CHANGE")
+        await _rollback_release_if_safe(db, decision)
 
+        after = await db.enrollments.find_one({"id": _text(target.get("id"))})
+        if not after or _text(after.get("enrollment_number")) != resolved:
+            raise RepairError("CANONICAL_ROLLBACK_DID_NOT_RESTORE_NUMBER")
+        if _text(after.get("previous_enrollment_number")):
+            raise RepairError("CANONICAL_ROLLBACK_LEFT_PREVIOUS_NUMBER")
+
+        now = datetime.now(timezone.utc).isoformat()
         audit_id = str(uuid.uuid4())
         await db.audit_logs.insert_one(
             {
@@ -444,21 +413,14 @@ async def _apply(db, case: dict[str, str], state: dict[str, Any], run_id: str) -
                 "user_id": "system:student-baseline-identity-restore-2026",
                 "school_id": case["school_id"],
                 "academic_year": YEAR,
-                "old_value": {
-                    "enrollment_number": target.get("enrollment_number"),
-                    "previous_enrollment_number": target.get("previous_enrollment_number"),
-                },
-                "new_value": {
-                    "enrollment_number": resolved,
-                    "previous_enrollment_number": None,
-                },
                 "description": (
-                    "Reparo forense autorizado da continuidade da identidade institucional; "
-                    "o número previamente liberado retorna ao vínculo-base de 12/06/2026."
+                    "Reparo forense autorizado: rollback canônico devolveu ao vínculo-base "
+                    "o número institucional previamente liberado em movimentação."
                 ),
                 "extra_data": {
                     "operation_id": OPERATION_ID,
                     "run_id": run_id,
+                    "canonical_writer": "_rollback_release_if_safe",
                     "student_projection_changed": False,
                     "academic_records_changed": False,
                 },
@@ -482,6 +444,7 @@ async def _apply(db, case: dict[str, str], state: dict[str, Any], run_id: str) -
             },
         )
         emit("TARGET_ENROLLMENT_NUMBER_RESTORED", 1)
+        emit("CANONICAL_WRITER", "_rollback_release_if_safe")
         emit("STUDENT_PROJECTION_CHANGED", "NO")
         emit("ACADEMIC_RECORDS_CHANGED", "NO")
         emit("AUDIT_EVENTS", 1)
@@ -492,7 +455,7 @@ async def _apply(db, case: dict[str, str], state: dict[str, Any], run_id: str) -
         )
     except Exception as exc:
         code = exc.code if isinstance(exc, RepairError) else "UNEXPECTED_APPLY_FAILURE"
-        compensated = await _compensate(db, archive, audit_id)
+        compensated = await _compensate(db, case, resolved, audit_id)
         emit("ERROR", code)
         emit("COMPENSATION", "SUCCESS" if compensated else "FAILED")
         print(
@@ -531,8 +494,6 @@ async def _run(mode: str, run_id: str, salt: str, wanted_hash: str) -> int:
             "SCHOOL_CARDINALITY",
             "SCHOOL_TENANT_MISSING",
             "CLASS_CARDINALITY",
-            "CLASS_TENANT_MISMATCH",
-            "REGULAR_CLASS_REQUIRED",
             "STUDENT_IDENTITY_CARDINALITY",
             "PRECONDITION_CONFLICT",
             "ARCHIVE_ALREADY_EXISTS",
