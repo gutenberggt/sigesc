@@ -23,8 +23,11 @@ jobs:
           python-version: '3.11'
 
       - name: Install pytest
-        run: pip install pytest
+        run: pip install pytest pytest-asyncio
 
-      - name: Run class-wide assignment regression
+      - name: Run class-wide and legacy-overlay regressions
         working-directory: backend
-        run: PYTHONPATH=. pytest -q --noconftest tests/test_content_classwide_assignment_p0.py
+        run: |
+          PYTHONPATH=. pytest -q --noconftest \
+            tests/test_content_classwide_assignment_p0.py \
+            tests/test_content_history_bridge_p0.py
