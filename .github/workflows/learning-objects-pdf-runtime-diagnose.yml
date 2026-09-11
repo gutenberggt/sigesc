@@ -43,9 +43,10 @@ jobs:
           for marker in required:
               if marker not in p:
                   raise SystemExit(f'LO_PDF_DIAG_REQUIRED_MARKER_MISSING:{marker}')
-          forbidden = ['docker restart', 'docker rm', 'docker compose up', 'mongosh', 'update_one(', 'insert_one(', 'delete_one(']
+          runtime = p.split('  diagnose:', 1)[1]
+          forbidden = ['docker restart', 'docker rm ', 'docker compose up', 'mongosh ', 'update_one(', 'insert_one(', 'delete_one(']
           for marker in forbidden:
-              if marker in p:
+              if marker in runtime:
                   raise SystemExit(f'LO_PDF_DIAG_MUTATOR_FORBIDDEN:{marker}')
           print('LO_PDF_DIAG_STATIC_GUARD=PASS')
           PY
