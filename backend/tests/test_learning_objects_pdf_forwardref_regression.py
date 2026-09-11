@@ -1,10 +1,95 @@
-from types import SimpleNamespace
+import importlib.util
+import sys
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from typing import Optional
 
 from fastapi import APIRouter, FastAPI, Query, Request
 from fastapi.testclient import TestClient
 
-from routers.content_dvd_history import install_learning_objects_history_setup
+
+def _load_content_dvd_history_module():
+    """Load the adapter directly, without executing routers/__init__.py.
+
+    This regression needs the real FastAPI/Pydantic stack but not the complete
+    SIGESC bootstrap. Minimal dependency stubs keep the test focused on route
+    registration and query-parameter validation.
+    """
+    auth_stub = ModuleType("auth_middleware")
+
+    class AuthMiddleware:
+        @staticmethod
+        async def get_current_user(request):
+            return {"role": "professor"}
+
+        @staticmethod
+        def require_roles(_roles):
+            async def dependency(_request):
+                return {"role": "professor"}
+
+            return dependency
+
+    auth_stub.AuthMiddleware = AuthMiddleware
+
+    services_stub = ModuleType("services")
+    services_stub.__path__ = []
+
+    assignment_scope_stub = ModuleType("services.content_assignment_scope")
+
+    async def filter_visible_content_entries(*_args, **_kwargs):
+        return []
+
+    assignment_scope_stub.filter_visible_content_entries = filter_visible_content_entries
+
+    history_bridge_stub = ModuleType("services.content_history_bridge")
+
+    class ContentHistoryBridgeError(Exception):
+        def __init__(self, code="TEST", message="test"):
+            super().__init__(message)
+            self.code = code
+            self.message = message
+
+    async def list_assignment_content_history(*_args, **_kwargs):
+        return {"items": []}
+
+    history_bridge_stub.ContentHistoryBridgeError = ContentHistoryBridgeError
+    history_bridge_stub.list_assignment_content_history = list_assignment_content_history
+
+    teacher_diaries_stub = ModuleType("services.teacher_diaries")
+
+    async def list_teacher_diaries(*_args, **_kwargs):
+        return {"items": []}
+
+    teacher_diaries_stub.list_teacher_diaries = list_teacher_diaries
+
+    tenant_scope_stub = ModuleType("tenant_scope")
+    tenant_scope_stub.get_mantenedora_scope = lambda *_args, **_kwargs: None
+
+    stubs = {
+        "auth_middleware": auth_stub,
+        "services": services_stub,
+        "services.content_assignment_scope": assignment_scope_stub,
+        "services.content_history_bridge": history_bridge_stub,
+        "services.teacher_diaries": teacher_diaries_stub,
+        "tenant_scope": tenant_scope_stub,
+    }
+    previous = {name: sys.modules.get(name) for name in stubs}
+    sys.modules.update(stubs)
+    try:
+        path = Path(__file__).parents[1] / "routers" / "content_dvd_history.py"
+        spec = importlib.util.spec_from_file_location(
+            "_content_dvd_history_forwardref_regression", path
+        )
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = value
 
 
 def _fake_learning_objects_module():
@@ -36,14 +121,10 @@ def _fake_learning_objects_module():
 
 
 def test_dvd_history_pdf_resolves_optional_query_annotations_at_runtime():
-    """Regression: Pydantic 2.13 must not receive Optional[...] as ForwardRef.
-
-    In production the postponed annotations from content_dvd_history caused
-    academic_year to reach FastAPI as ForwardRef('Optional[int]'), producing an
-    unhandled HTTP 500 before the PDF handler could run.
-    """
+    """Pydantic 2.13 must not receive Optional[...] as unresolved ForwardRef."""
+    adapter = _load_content_dvd_history_module()
     module = _fake_learning_objects_module()
-    install_learning_objects_history_setup(module)
+    adapter.install_learning_objects_history_setup(module)
     router = module.setup_router(db=None)
 
     pdf_route = next(
