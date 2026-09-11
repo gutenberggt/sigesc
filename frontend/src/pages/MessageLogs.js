@@ -30,9 +30,10 @@ const MessageLogs = () => {
     setTimeout(() => setAlert({ show: false, type: '', message: '' }), 3000);
   };
 
-  // Verificar se é admin
+  // Log de Conversas é exclusivo do Super Administrador.
+  // O backend já aplica o mesmo contrato via nav-logs-button.
   useEffect(() => {
-    if (user && user.role !== 'admin') {
+    if (user && user.role !== 'super_admin') {
       navigate('/dashboard');
     }
   }, [user, navigate]);
