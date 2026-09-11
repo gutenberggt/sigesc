@@ -9,6 +9,7 @@ on:
       - 'backend/routers/content_partial_cutover.py'
       - 'backend/routers/__init__.py'
       - 'backend/tests/test_p0_250_f2_7_content_partial_cutover.py'
+      - 'backend/tests/test_p0_content_explicit_assignment_bridge.py'
       - 'backend/tests/test_content_pdf_partial_cutover.py'
       - 'backend/tests/test_curriculum_teacher_writer_f4.py'
       - 'frontend/src/services/contentPartialCutoverResolver.js'
@@ -41,10 +42,12 @@ jobs:
           python -m py_compile backend/services/content_pdf_partial_cutover.py
           python -m py_compile backend/routers/content_partial_cutover.py
           python -m py_compile backend/tests/test_p0_250_f2_7_content_partial_cutover.py
+          python -m py_compile backend/tests/test_p0_content_explicit_assignment_bridge.py
           python -m py_compile backend/tests/test_content_pdf_partial_cutover.py
           pip install pytest pytest-asyncio
           PYTHONPATH=backend pytest -q --noconftest \
             backend/tests/test_p0_250_f2_7_content_partial_cutover.py \
+            backend/tests/test_p0_content_explicit_assignment_bridge.py \
             backend/tests/test_content_pdf_partial_cutover.py
 
       - name: Enforce fail-closed mixed-source and canonical-write contract
