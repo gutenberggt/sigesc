@@ -1,0 +1,152 @@
+name: "ANA-LUCIA-G2 Grades Adjudication Read-Only"
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/ana_lucia_g2_grades_adjudication.py'
+      - 'backend/tests/test_ana_lucia_g2_grades_adjudication.py'
+      - '.github/workflows/ana-lucia-g2-grades-adjudication.yml'
+      - 'memory/audit/ANA_LUCIA_G2_GRADES_ADJUDICATION_2026-09-11.md'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ana-lucia-g2-grades-adjudication
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard G2 read-only surface
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check pytest pymongo
+      - name: Compile and test
+        env:
+          PYTHONPATH: backend
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/scripts/ana_lucia_g2_grades_adjudication.py
+          python -m pytest -q --noconftest backend/tests/test_ana_lucia_g2_grades_adjudication.py
+      - name: AST read-only seal
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          p=Path('backend/scripts/ana_lucia_g2_grades_adjudication.py')
+          tree=ast.parse(p.read_text(encoding='utf-8'))
+          forbidden={'insert_one','insert_many','update_one','update_many','replace_one','delete_one','delete_many','bulk_write','find_one_and_update','find_one_and_delete','find_one_and_replace','drop','drop_database'}
+          found=[n.func.attr for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr in forbidden]
+          if found: raise SystemExit('ANA_LUCIA_G2_MUTATOR_FORBIDDEN:'+','.join(found))
+          print('ANA_LUCIA_G2_READ_ONLY_BOUNDARY=PASS')
+          PY
+
+  production-adjudication:
+    name: Adjudicate grade reconciliation in production read-only
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[ANA-LUCIA-G2-RUNTIME] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Resolve exact authorization
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,re,urllib.request
+          issue=json.load(open(os.environ['GITHUB_EVENT_PATH'],encoding='utf-8')).get('issue') or {}
+          values={}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw: continue
+              k,v=raw.strip().split('=',1)
+              if k in values: raise SystemExit('ANA_LUCIA_G2_DUPLICATE_FIELD:'+k)
+              values[k]=v.strip()
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']: raise SystemExit('ANA_LUCIA_G2_OWNER_REQUIRED')
+          if values.get('ANA_LUCIA_G2_RUNTIME')!='AUTHORIZED': raise SystemExit('ANA_LUCIA_G2_AUTH_INVALID')
+          if values.get('CONFIRMATION')!='READ_ONLY_GRADES_ADJUDICATION': raise SystemExit('ANA_LUCIA_G2_CONFIRMATION_INVALID')
+          if values.get('TRACKING_ISSUE')!='694' or values.get('ACADEMIC_YEAR')!='2026': raise SystemExit('ANA_LUCIA_G2_SCOPE_INVALID')
+          target=values.get('TARGET_SHA','')
+          if not re.fullmatch(r'[0-9a-f]{40}',target): raise SystemExit('ANA_LUCIA_G2_SHA_INVALID')
+          if issue.get('title') != f'[ANA-LUCIA-G2-RUNTIME] {target}': raise SystemExit('ANA_LUCIA_G2_TITLE_MISMATCH')
+          req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/branches/main",headers={'Accept':'application/vnd.github+json','Authorization':f"Bearer {os.environ['GH_TOKEN']}",'X-GitHub-Api-Version':'2022-11-28','User-Agent':'sigesc-ana-lucia-g2'})
+          with urllib.request.urlopen(req,timeout=30) as r: main=json.load(r)['commit']['sha']
+          if main!=target: raise SystemExit('ANA_LUCIA_G2_MAIN_MOVED:'+main)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write(f'target_sha={target}\n')
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do test -n "${!v}" || exit 1; done
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/ana_lucia_g2_key && chmod 600 ~/.ssh/ana_lucia_g2_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+      - name: Resolve backend
+        id: topology
+        run: |
+          set -euo pipefail
+          backend="$(ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_g2_key" "${PROD_USER}@${PROD_HOST}" bash -s -- "$MONGO_CONTAINER" <<'REMOTE' | tail -n 1
+          set -euo pipefail
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$1")"
+          docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n1
+          REMOTE
+          )"
+          test -n "$backend"; echo "backend=$backend" >> "$GITHUB_OUTPUT"
+      - name: Execute G2 read-only
+        env:
+          BACKEND: ${{ steps.topology.outputs.backend }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/ana_lucia_g2_key" "${PROD_USER}@${PROD_HOST}" "timeout 900 docker exec -i ${BACKEND} python -" < backend/scripts/ana_lucia_g2_grades_adjudication.py > evidence/raw.log 2>&1
+          line="$(grep -F 'ANA_LUCIA_G2_JSON=' evidence/raw.log | tail -n1)"; test -n "$line"
+          printf '%s' "${line#ANA_LUCIA_G2_JSON=}" > evidence/runtime.json
+          rm evidence/raw.log
+      - name: Validate and summarize
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/runtime.json').read_text())
+          if p.get('schema')!='ANA_LUCIA_G2_GRADES_ADJUDICATION_V1': raise SystemExit('ANA_LUCIA_G2_SCHEMA_INVALID')
+          if p.get('production_writes') or p.get('database_mutation'): raise SystemExit('ANA_LUCIA_G2_MUTATION_DETECTED')
+          lines=['## ANA-LUCIA-G2 — adjudicação read-only de notas','',f"**Status:** `{p.get('status')}`",f"**Plano:** `{json.dumps(p.get('plan') or {},ensure_ascii=False,sort_keys=True)}`",f"**Campos a copiar:** `{json.dumps(p.get('field_copies') or {},ensure_ascii=False,sort_keys=True)}`",f"**Sobreposições iguais:** `{json.dumps(p.get('equal_overlap_fields') or {},ensure_ascii=False,sort_keys=True)}`",f"**Migrated_from_class na origem:** `{json.dumps(p.get('source_migrated_from_class') or {},ensure_ascii=False,sort_keys=True)}`",f"**Bloqueios:** `{json.dumps(p.get('blockers') or {},ensure_ascii=False,sort_keys=True)}`",f"**G3 seguro:** `{p.get('safe_to_execute_g3')}`",f"**Pós-condição prevista:** `{json.dumps(p.get('expected_post') or {},ensure_ascii=False,sort_keys=True)}`",'', 'Nenhuma escrita, PII ou valor acadêmico foi emitido.']
+          Path('evidence/summary.md').write_text('\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+          if p.get('status')!='DETERMINISTIC_PLAN' or not p.get('safe_to_execute_g3'): raise SystemExit('ANA_LUCIA_G2_PLAN_NOT_SAFE')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ana-lucia-g2-grades-adjudication
+          path: evidence/
+          retention-days: 30
+      - name: Comment tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment 694 --repo "$GITHUB_REPOSITORY" --body-file evidence/summary.md
