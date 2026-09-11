@@ -5,8 +5,6 @@ routers existentes e substitui somente as superfícies de leitura que precisam
 compor ``learning_objects`` histórico com ``content_entries`` canônico.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Optional
 
