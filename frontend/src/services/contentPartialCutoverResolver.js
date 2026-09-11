@@ -45,6 +45,13 @@ axios.interceptors.request.use((config) => {
 
   const method = String(config.method || 'get').toLowerCase();
 
+  // Um assignment_id explícito significa que a navegação veio de Meus Diários.
+  // Nesse contexto, leitura e escrita precisam atravessar o mesmo contentDvdBridge:
+  // o GET class-wide alimenta o recordCache usado pelo PUT/DELETE e preserva a
+  // resolução por vínculo. Desviar somente o GET para a projeção mista quebraria
+  // essa simetria e produziria CONTENT_RELOAD_REQUIRED/404 falsos no salvamento.
+  if (hasExplicitAssignment()) return config;
+
   // F4: a tela genérica já carregou o registro pela projeção backend. Se não há
   // assignment_id explícito na URL, o backend /learning-objects é quem deve
   // decidir se o ID é canônico ou legado. Isto evita CONTENT_RELOAD_REQUIRED
