@@ -4,6 +4,11 @@ Este serviço é estritamente READ-ONLY. Ele nunca migra, copia, atualiza ou exc
 ``learning_objects``. ``content_entries`` continua sendo a fonte canônica para
 novas escritas, inclusive para backfill de datas anteriores ao ``valid_from`` do
 assignment quando a propriedade pedagógica foi autorizada pelo motor canônico.
+
+Um ``content_entry`` canônico soft-deleted continua participando somente da
+precedência semântica. Ele funciona como tombstone de leitura para impedir que o
+registro legado equivalente reapareça depois de uma retificação/exclusão feita no
+motor canônico.
 """
 
 from __future__ import annotations
@@ -72,12 +77,18 @@ def _sort_items(items: list[dict]) -> list[dict]:
 
 
 def _semantic_key(item: Mapping[str, Any]) -> tuple[str, str, str, str]:
-    """Chave defensiva para não duplicar legado quando já existe canônico equivalente."""
+    """Chave pedagógica para precedência canônica sobre o legado.
+
+    ``recorded_by``/``teacher_id`` é proveniência histórica, não identidade do
+    lançamento. Dentro de um assignment já autorizado, a equivalência é definida
+    por turma + componente + data + aula. Isso evita que um legado gravado por
+    coordenação/admin ressuscite quando o professor o retifica canonicamente.
+    """
     return (
         str(item.get("class_id") or ""),
         str(item.get("component_id") or item.get("course_id") or ""),
-        str(item.get("teacher_id") or item.get("recorded_by") or ""),
         str(item.get("date") or ""),
+        str(item.get("aula_numero") if item.get("aula_numero") is not None else ""),
     )
 
 
@@ -101,10 +112,11 @@ async def list_assignment_content_history(
     - entry anterior a ``valid_from`` é classificada como ``historical_backfill``;
     - ``learning_objects`` anterior ou exatamente na data de corte continua
       visível e read-only como fallback pelo escopo autorizado de turma/componente;
-    - na data de corte, se houver canônico equivalente, ele prevalece sobre o
-      legado para evitar duplicidade;
+    - qualquer canônico semanticamente equivalente, inclusive soft-deleted,
+      prevalece sobre o legado; deleted funciona como tombstone e não é exibido
+      quando ``include_deleted`` é falso;
     - ``recorded_by`` é preservado apenas como proveniência histórica e não como
-      filtro adicional de visibilidade;
+      filtro adicional de visibilidade nem como parte da chave de precedência;
     - nenhuma operação de escrita é executada.
     """
     try:
@@ -148,9 +160,12 @@ async def list_assignment_content_history(
     # O assignment_id + snapshot persistido é a prova de propriedade histórica.
     # Por isso um content_entry canônico criado como backfill antes de valid_from
     # continua visível sem retroagir a validade do vínculo vivo.
+    #
+    # Importante: não filtramos deleted na query. Um canônico soft-deleted precisa
+    # continuar compondo a precedência para não ressuscitar o learning_object que
+    # ele substituiu/suprimiu. A decisão de exibir deleted é feita só depois da
+    # autorização de visibilidade.
     canonical_query: dict[str, Any] = {"assignment_id": assignment_id}
-    if not include_deleted:
-        canonical_query["deleted"] = False
     if resolved_class_id:
         canonical_query["class_id"] = resolved_class_id
     if resolved_component_id:
@@ -161,11 +176,16 @@ async def list_assignment_content_history(
     canonical_candidates = await db.content_entries.find(
         canonical_query, {"_id": 0}
     ).to_list(2000)
-    canonical_visible = await filter_visible_content_entries(
+    canonical_visible_all = await filter_visible_content_entries(
         db,
         current_user,
         canonical_candidates,
         active_mantenedora_id=active_mantenedora_id,
+    )
+    canonical_visible = (
+        canonical_visible_all
+        if include_deleted
+        else [item for item in canonical_visible_all if not item.get("deleted")]
     )
     canonical_items = [
         _canonical_public(item, valid_from=valid_from)
@@ -199,11 +219,11 @@ async def list_assignment_content_history(
         legacy_items = [_legacy_public(item) for item in legacy_candidates]
 
     # Para qualquer sobreposição legado↔canônico até a data de corte, o canônico
-    # prevalece. Isso mantém o fallback de 18/08 sem duplicar registros quando o
-    # lançamento já foi persistido no motor novo.
+    # prevalece. O conjunto inclui soft-deleted: a exclusão canônica é um tombstone
+    # de leitura e impede que o legado equivalente reapareça.
     canonical_precedence_keys = {
         _semantic_key(item)
-        for item in canonical_items
+        for item in canonical_visible_all
         if item.get("date") and str(item.get("date")) <= str(valid_from)
     }
     legacy_items = [
