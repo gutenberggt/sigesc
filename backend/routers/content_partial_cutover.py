@@ -20,6 +20,7 @@ from services.content_form_canonical_cutover import (
     list_learning_objects_cutover,
     update_from_learning_object_form,
 )
+from services.content_pdf_partial_cutover import generate_professor_classwide_pdf
 
 
 READ_ROLES = {
@@ -122,6 +123,42 @@ def install_professor_content_partial_cutover_setup(learning_objects_mod: Any) -
             )
 
         _replace_call(list_route, cutover_list)
+
+        # PDF class-wide — sem assignment_id explícito, o professor deve receber
+        # exatamente a mesma projeção mista da tela (legado + canônico F4).
+        # PDFs DVD com assignment_id e perfis de gestão preservam o adaptador
+        # anterior sem alteração.
+        pdf_route = _find_route(configured, "/learning-objects/pdf/bimestre/{class_id}", "GET")
+        if pdf_route is None:
+            raise RuntimeError("PDF de learning-objects não encontrado para F4")
+        previous_pdf = getattr(getattr(pdf_route, "dependant", None), "call", None) or pdf_route.endpoint
+
+        @wraps(previous_pdf)
+        async def cutover_pdf(*args, **call_kwargs):
+            request = _request_from_call(args, call_kwargs)
+            if request is None:
+                return await previous_pdf(*args, **call_kwargs)
+            current_user = await _user(request)
+            assignment_id = _value_from_call(
+                args, call_kwargs, "assignment_id", position=5
+            )
+            if current_user.get("role") != "professor" or assignment_id:
+                return await previous_pdf(*args, **call_kwargs)
+
+            return await generate_professor_classwide_pdf(
+                learning_objects_mod,
+                scoped_default(current_user),
+                current_user,
+                request,
+                class_id=_value_from_call(args, call_kwargs, "class_id", position=0),
+                bimestre=int(_value_from_call(args, call_kwargs, "bimestre", position=2)),
+                academic_year=_value_from_call(
+                    args, call_kwargs, "academic_year", position=3
+                ),
+                course_id=_value_from_call(args, call_kwargs, "course_id", position=4),
+            )
+
+        _replace_call(pdf_route, cutover_pdf)
 
         # GET individual — primeiro reconhece id canônico; legado segue intacto.
         get_route = _find_route(configured, "/learning-objects/{object_id}", "GET")
