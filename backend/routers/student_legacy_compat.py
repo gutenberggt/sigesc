@@ -8,12 +8,20 @@ e os demais componentes permanecem em campos planos como ``address_number``,
 inglês. Sem compatibilidade, GET/PUT podem terminar em ``ValidationError`` depois
 de a autorização (e até da escrita) já ter ocorrido.
 
+Há ainda estudantes inativos históricos cuja projeção corrente não possui
+``school_id`` (ou aponta para escola removida). Para ``super_admin`` no tenant
+operacional correto, isso não deve impedir a leitura do cadastro completo: o
+vínculo escolar atual deixa de existir justamente por o estudante estar inativo.
+A exceção é estrita, somente leitura, exige tenant do próprio documento e não é
+aplicada a estudantes ativos nem a outros papéis.
+
 Esta camada é deliberadamente NÃO persistente:
 - nunca escreve no MongoDB;
 - reconstrói/normaliza apenas a resposta em memória;
 - preserva todos os componentes legados conhecidos;
 - converte ``status`` histórico somente ao materializar um ``Student`` tipado;
 - preserva o ``status`` bruto na projeção genérica usada por outros fluxos;
+- permite leitura de inativo sem escola somente para ``super_admin`` tenant-scoped;
 - não converte comunidade tradicional vazia em ``nao_pertence``;
 - não mascara erros Pydantic fora do conjunto legado auditado.
 """
@@ -23,11 +31,12 @@ from __future__ import annotations
 from functools import wraps
 from typing import Any
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from pydantic import ValidationError
 
 from auth_middleware import AuthMiddleware
 from models import Student, StudentUpdate
+from tenant_scope import assert_same_tenant
 
 
 _GET_PATH = "/students/{student_id}"
@@ -42,6 +51,7 @@ _COMPAT_ERROR_ROOTS = frozenset({
 })
 
 _CERTIFICATE_TYPES = frozenset({"nascimento", "casamento"})
+_INACTIVE_STATUS_KEYS = frozenset({"inactive", "inativo"})
 
 # Valores históricos já reconhecidos por outras camadas do SIGESC (por exemplo,
 # o fluxo de matrícula/rematrícula). A tradução só ocorre ao construir o model
@@ -128,6 +138,17 @@ def _normalize_legacy_status_for_student(doc: dict) -> dict:
     return normalized
 
 
+def _is_inactive_student(doc: dict) -> bool:
+    value = doc.get("status")
+    return isinstance(value, str) and value.strip().lower() in _INACTIVE_STATUS_KEYS
+
+
+def _is_super_admin(user: dict) -> bool:
+    if user.get("role") == "super_admin":
+        return True
+    return "super_admin" in (user.get("roles") or [])
+
+
 def is_legacy_compat_validation_error(exc: ValidationError) -> bool:
     """Aceita fallback somente quando TODOS os erros são do legado auditado."""
     errors = exc.errors()
@@ -175,13 +196,53 @@ async def _reload_compatible_student(db, sandbox_db, request: Request, student_i
     return build_compatible_student(doc)
 
 
-def install_student_legacy_compat(base_router: Any, db, sandbox_db=None):
-    """Instala fallback de serialização nas rotas que materializam ``Student``.
+async def _reload_superadmin_inactive_without_current_school(
+    db,
+    sandbox_db,
+    request: Request,
+    student_id: str,
+):
+    """Lê inativo órfão de escola apenas no tenant selecionado do super_admin.
 
-    O endpoint original sempre roda primeiro. Logo, autenticação, autorização,
-    multi-tenancy e regras de negócio permanecem exatamente as mesmas. Só quando
-    ele termina em ``ValidationError`` exclusivamente dos campos legados
-    auditados recarregamos o documento e projetamos a resposta compatível.
+    ``get_current_user`` já resolve e valida o tenant operacional MT-1. Em seguida
+    ``assert_same_tenant`` prova que o documento pertence exatamente ao tenant
+    selecionado. Só então aceitamos ausência de escola atual (ou referência a
+    escola que já não existe). Uma escola existente não entra nesta exceção.
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    if not _is_super_admin(current_user):
+        return None
+
+    current_db = _db_for_user(db, sandbox_db, current_user)
+    doc = await current_db.students.find_one({"id": student_id}, {"_id": 0})
+    if doc is None or not _is_inactive_student(doc):
+        return None
+
+    # Fail-closed: documento sem tenant, tenant divergente ou ausência de seleção
+    # explícita continuam rejeitados pelo contrato MT-1.
+    assert_same_tenant(doc, current_user, request)
+
+    school_id = doc.get("school_id")
+    if school_id:
+        school = await current_db.schools.find_one(
+            {"id": school_id},
+            {"_id": 0, "id": 1},
+        )
+        if school is not None:
+            return None
+
+    return build_compatible_student(doc)
+
+
+def install_student_legacy_compat(base_router: Any, db, sandbox_db=None):
+    """Instala fallback seguro nas rotas que materializam ``Student``.
+
+    O endpoint original sempre roda primeiro. Autenticação, autorização,
+    multi-tenancy e regras de negócio permanecem as fontes canônicas. Há duas
+    exceções estritas e não persistentes:
+    - ``ValidationError`` exclusivamente dos campos legados auditados;
+    - GET de inativo sem escola atual para ``super_admin`` no mesmo tenant,
+      quando o endpoint original falha especificamente ao resolver a escola.
     """
     if getattr(base_router, "_student_legacy_compat_installed", False):
         return base_router
@@ -204,6 +265,28 @@ def install_student_legacy_compat(base_router: Any, db, sandbox_db=None):
             if not is_legacy_compat_validation_error(exc):
                 raise
             student = await _reload_compatible_student(
+                db, sandbox_db, request, student_id
+            )
+            if student is None:
+                raise
+            return student
+        except KeyError as exc:
+            # O router legado indexa student_doc['school_id']; documentos antigos
+            # podem nem possuir a chave. Não mascarar qualquer outro KeyError.
+            if exc.args != ("school_id",):
+                raise
+            student = await _reload_superadmin_inactive_without_current_school(
+                db, sandbox_db, request, student_id
+            )
+            if student is None:
+                raise
+            return student
+        except HTTPException as exc:
+            # verify_school_access() usa 404 "Escola não encontrada" quando o
+            # inativo não possui mais escola corrente. Outros 404/403 permanecem.
+            if exc.status_code != 404 or exc.detail != "Escola não encontrada":
+                raise
+            student = await _reload_superadmin_inactive_without_current_school(
                 db, sandbox_db, request, student_id
             )
             if student is None:
