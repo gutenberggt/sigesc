@@ -312,14 +312,25 @@ def test_frontend_contract_stays_stable_while_backend_component_scope_moves_to_f
     adapter = (root / "backend/routers/content_partial_cutover.py").read_text(encoding="utf-8")
     routers_init = (root / "backend/routers/__init__.py").read_text(encoding="utf-8")
 
-    # A UI e o bridge de prefill continuam intocados: a mudança F4 é backend-only.
+    # A leitura class-wide continua atravessando o reader misto backend.
     assert "if (!classId || componentId) return config;" in frontend
-    assert "config.__skipContentDvdBridge = true;" in frontend
+    assert "config.__contentPartialCutoverClassWide = true;" in frontend
     assert "@/services/contentPartialCutoverResolver" in hook
 
+    # F4: PUT/DELETE da página genérica, sem assignment_id explícito, também
+    # precisam chegar ao adapter backend. O cache privado do bridge DVD não é
+    # fonte de autorização e não pode produzir CONTENT_RELOAD_REQUIRED falso.
+    assert "const hasExplicitAssignment = () =>" in frontend
+    assert "(method === 'put' || method === 'delete')" in frontend
+    assert "isLearningObjectsRecord(config.url)" in frontend
+    assert "config.__contentPartialCutoverFormWrite = true;" in frontend
+    assert "!hasExplicitAssignment()" in frontend
+
     # F4 remove o bypass component-scoped no backend para que o professor veja
-    # imediatamente a escrita canônica feita pela mesma tela/URL histórica.
+    # e altere imediatamente a escrita canônica feita pela mesma tela/URL histórica.
     assert "list_learning_objects_cutover" in adapter
     assert 'course_id = call_kwargs.get("course_id")' in adapter
     assert "create_from_learning_object_form" in adapter
+    assert "update_from_learning_object_form" in adapter
+    assert "delete_from_learning_object_form" in adapter
     assert "install_professor_content_partial_cutover_setup(_learning_objects_mod)" in routers_init
