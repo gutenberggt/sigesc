@@ -1,0 +1,118 @@
+name: Audit Inactive Student Detail 404
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-inactive-student-detail-404.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Read-only production audit
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+    steps:
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]]
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]]
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/audit_key
+          chmod 600 ~/.ssh/audit_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Audit inactive student detail references read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_command="timeout 60 docker exec -i ${MONGO_CONTAINER} mongosh --quiet --file /dev/stdin"
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/audit_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            "$remote_command" <<'MONGO'
+          const d = db.getSiblingDB('sigesc');
+          const inactiveValues = ['inactive', 'inativo', 'Inativo', 'INATIVO'];
+          const docs = d.students.find(
+            {status: {$in: inactiveValues}},
+            {_id: 0, id: 1, school_id: 1, mantenedora_id: 1, status: 1}
+          ).toArray();
+
+          let missingSchoolId = 0;
+          let missingSchoolDoc = 0;
+          let missingTenant = 0;
+          let tenantMismatch = 0;
+          for (const s of docs) {
+            if (!s.mantenedora_id) missingTenant += 1;
+            if (!s.school_id) {
+              missingSchoolId += 1;
+              continue;
+            }
+            const school = d.schools.findOne(
+              {id: s.school_id},
+              {_id: 0, mantenedora_id: 1}
+            );
+            if (!school) {
+              missingSchoolDoc += 1;
+              continue;
+            }
+            if (s.mantenedora_id && school.mantenedora_id && String(s.mantenedora_id) !== String(school.mantenedora_id)) {
+              tenantMismatch += 1;
+            }
+          }
+
+          const targetPrefix = 'd00e5a7b-2332-4855-8a4';
+          const targetMatches = d.students.find(
+            {id: {$regex: '^' + targetPrefix}},
+            {_id: 0, id: 1, school_id: 1, mantenedora_id: 1, status: 1}
+          ).toArray();
+          let targetSchoolExists = false;
+          let targetTenantPresent = false;
+          let targetSchoolTenantMatches = false;
+          let targetInactive = false;
+          if (targetMatches.length === 1) {
+            const t = targetMatches[0];
+            targetTenantPresent = Boolean(t.mantenedora_id);
+            targetInactive = inactiveValues.map(v => v.toLowerCase()).includes(String(t.status || '').toLowerCase());
+            if (t.school_id) {
+              const school = d.schools.findOne({id: t.school_id}, {_id: 0, mantenedora_id: 1});
+              targetSchoolExists = Boolean(school);
+              if (school && t.mantenedora_id && school.mantenedora_id) {
+                targetSchoolTenantMatches = String(t.mantenedora_id) === String(school.mantenedora_id);
+              }
+            }
+          }
+
+          print('AUDIT_MODE=READ_ONLY');
+          print('INACTIVE_TOTAL=' + docs.length);
+          print('INACTIVE_MISSING_SCHOOL_ID=' + missingSchoolId);
+          print('INACTIVE_MISSING_SCHOOL_DOC=' + missingSchoolDoc);
+          print('INACTIVE_MISSING_TENANT=' + missingTenant);
+          print('INACTIVE_SCHOOL_TENANT_MISMATCH=' + tenantMismatch);
+          print('TARGET_PREFIX_MATCHES=' + targetMatches.length);
+          print('TARGET_IS_INACTIVE=' + (targetInactive ? 'YES' : 'NO'));
+          print('TARGET_TENANT_PRESENT=' + (targetTenantPresent ? 'YES' : 'NO'));
+          print('TARGET_SCHOOL_EXISTS=' + (targetSchoolExists ? 'YES' : 'NO'));
+          print('TARGET_SCHOOL_TENANT_MATCHES=' + (targetSchoolTenantMatches ? 'YES' : 'NO'));
+          print('PRODUCTION_DATABASE_TOUCHED=NO');
+          MONGO
