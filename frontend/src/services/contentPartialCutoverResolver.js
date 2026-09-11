@@ -4,10 +4,21 @@ import axios from 'axios';
 // simultaneamente o entitlement legado (teacher_assignments) e os vínculos DVD.
 // Esta camada NÃO monta dados: apenas impede que os bridges anteriores convertam
 // uma leitura sem componente em uma agregação exclusivamente canônica.
+//
+// F4 — o mesmo backend já é a SSoT dos writes do formulário histórico em
+// /learning-objects: ele identifica IDs canônicos e grava em content_entries,
+// preservando RBAC, tenant, auditoria e optimistic locking. Em acessos genéricos
+// do professor (sem assignment_id explícito), PUT/DELETE não podem ser bloqueados
+// pelo cache privado do contentDvdBridge antes de chegarem a esse adapter.
 
 const isProfessorContentPage = () => {
   if (typeof window === 'undefined') return false;
   return window.location.pathname === '/professor/objetos-conhecimento';
+};
+
+const hasExplicitAssignment = () => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(new URLSearchParams(window.location.search).get('assignment_id'));
 };
 
 const isLearningObjectsList = (url = '') => (
@@ -16,13 +27,38 @@ const isLearningObjectsList = (url = '') => (
   !String(url || '').includes('/learning-objects/check-date/')
 );
 
+const isLearningObjectsRecord = (url = '') => {
+  const value = String(url || '');
+  if (!/\/learning-objects\/[^/?]+(?:\?|$)/.test(value)) return false;
+  if (value.includes('/learning-objects/check-date/')) return false;
+  if (value.includes('/copy-to-class')) return false;
+  if (value.includes('/learning-objects/pdf/')) return false;
+  return true;
+};
+
 // Registrado depois dos resolvers DVD existentes. Axios executa request
-// interceptors em ordem inversa; portanto este gate roda primeiro e marca
-// somente o GET class-wide para atravessar os bridges sem reescrita.
+// interceptors em ordem inversa; portanto este gate roda antes do bridge
+// principal e consegue preservar o contrato F4 para writes sem contexto DVD
+// explícito. Com assignment_id, o fluxo DVD explícito continua prevalecendo.
 axios.interceptors.request.use((config) => {
   if (config.__skipContentDvdBridge || !isProfessorContentPage()) return config;
 
   const method = String(config.method || 'get').toLowerCase();
+
+  // F4: a tela genérica já carregou o registro pela projeção backend. Se não há
+  // assignment_id explícito na URL, o backend /learning-objects é quem deve
+  // decidir se o ID é canônico ou legado. Isto evita CONTENT_RELOAD_REQUIRED
+  // falso quando a leitura class-wide foi marcada com __skipContentDvdBridge.
+  if (
+    !hasExplicitAssignment() &&
+    (method === 'put' || method === 'delete') &&
+    isLearningObjectsRecord(config.url)
+  ) {
+    config.__skipContentDvdBridge = true;
+    config.__contentPartialCutoverFormWrite = true;
+    return config;
+  }
+
   if (method !== 'get' || !isLearningObjectsList(config.url)) return config;
 
   const params = config.params || {};
