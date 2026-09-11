@@ -9,6 +9,8 @@ sob o adaptador histórico específico.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Mapping, Optional
 
@@ -17,6 +19,18 @@ from fastapi.responses import StreamingResponse
 
 from services.class_teachers import get_multi_teacher_names_for_pdf
 from services.content_form_canonical_cutover import list_learning_objects_cutover
+from tenant_scope import get_mantenedora_scope
+
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_aula_numero(value: Any) -> int:
+    """Normaliza somente para ordenação; histórico heterogêneo nunca derruba o PDF."""
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _records_in_period(
@@ -36,13 +50,55 @@ def _records_in_period(
     filtered.sort(
         key=lambda item: (
             str(item.get("date") or ""),
-            int(item.get("aula_numero") or 0),
+            _safe_aula_numero(item.get("aula_numero")),
         )
     )
     return filtered
 
 
-def _period_bounds(calendario: Optional[Mapping[str, Any]], bimestre: int, academic_year: int) -> tuple[str, str]:
+def _period_months(period_start: str, period_end: str) -> list[int]:
+    """Meses tocados pelo bimestre, em ordem, para reutilizar o reader mensal da tela."""
+    start = datetime.strptime(period_start, "%Y-%m-%d")
+    end = datetime.strptime(period_end, "%Y-%m-%d")
+    if end < start:
+        return []
+
+    months: list[int] = []
+    cursor = start.replace(day=1)
+    final = end.replace(day=1)
+    while cursor <= final:
+        if cursor.month not in months:
+            months.append(cursor.month)
+        if cursor.month == 12:
+            cursor = cursor.replace(year=cursor.year + 1, month=1)
+        else:
+            cursor = cursor.replace(month=cursor.month + 1)
+    return months
+
+
+def _dedupe_projection(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Evita duplicação defensiva caso duas leituras mensais tragam o mesmo registro."""
+    seen: set[tuple[str, str, str, str, str]] = set()
+    result: list[dict[str, Any]] = []
+    for raw in items:
+        item = dict(raw)
+        key = (
+            str(item.get("source") or ""),
+            str(item.get("id") or ""),
+            str(item.get("component_id") or item.get("course_id") or ""),
+            str(item.get("date") or "")[:10],
+            str(item.get("aula_numero") or ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+    return result
+
+
+def _period_bounds(
+    calendario: Optional[Mapping[str, Any]], bimestre: int, academic_year: int
+) -> tuple[str, str]:
     bk_inicio = f"bimestre_{bimestre}_inicio"
     bk_fim = f"bimestre_{bimestre}_fim"
     if calendario and calendario.get(bk_inicio) and calendario.get(bk_fim):
@@ -124,97 +180,131 @@ async def generate_professor_classwide_pdf(
     """Gera o PDF class-wide do professor a partir da mesma projeção da tela."""
     year = int(academic_year or datetime.now().year)
 
-    # SSoT da tela do professor: histórico legado autorizado + conteúdo canônico.
-    projected = await list_learning_objects_cutover(
-        db,
-        current_user,
-        request,
-        legacy_items=[],
-        class_id=class_id,
-        course_id=course_id,
-        date=None,
-        academic_year=year,
-        month=None,
-    )
+    try:
+        tenant_id = get_mantenedora_scope(current_user, request)
 
-    import asyncio
+        # Primeiro resolve o período. A regressão anterior projetava o ano inteiro
+        # e só depois recortava o bimestre, ampliando custo e superfície de falha.
+        turma_task = db.classes.find_one(
+            {"id": class_id, "mantenedora_id": tenant_id}, {"_id": 0}
+        )
+        mantenedora_task = learning_objects_mod.get_mantenedora_cached(db, tenant_id)
+        calendario_task = learning_objects_mod.get_calendario_cached(db, year, None)
+        turma, mantenedora, calendario = await asyncio.gather(
+            turma_task, mantenedora_task, calendario_task
+        )
+        if not turma:
+            raise HTTPException(status_code=404, detail="Turma não encontrada")
 
-    turma_task = db.classes.find_one({"id": class_id}, {"_id": 0})
-    mantenedora_task = learning_objects_mod.get_mantenedora_cached(db)
-    calendario_task = learning_objects_mod.get_calendario_cached(db, year, None)
-    turma, mantenedora, calendario = await asyncio.gather(
-        turma_task, mantenedora_task, calendario_task
-    )
-    if not turma:
-        raise HTTPException(status_code=404, detail="Turma não encontrada")
+        school = await learning_objects_mod.get_school_cached(db, turma.get("school_id"))
+        if not school:
+            raise HTTPException(status_code=404, detail="Escola não encontrada")
 
-    school = await learning_objects_mod.get_school_cached(db, turma.get("school_id"))
-    if not school:
-        raise HTTPException(status_code=404, detail="Escola não encontrada")
+        period_start, period_end = _period_bounds(calendario, bimestre, year)
+        months = _period_months(period_start, period_end)
+        if not months:
+            raise HTTPException(status_code=422, detail="Período bimestral inválido")
 
-    period_start, period_end = _period_bounds(calendario, bimestre, year)
-    records = _records_in_period(
-        projected,
-        period_start=period_start,
-        period_end=period_end,
-        academic_year=year,
-    )
+        # Reutiliza exatamente a leitura mensal já exercitada pela tela do professor.
+        # Assim o PDF deixa de materializar o ano letivo inteiro antes do recorte.
+        batches = await asyncio.gather(*[
+            list_learning_objects_cutover(
+                db,
+                current_user,
+                request,
+                legacy_items=[],
+                class_id=class_id,
+                course_id=course_id,
+                date=None,
+                academic_year=year,
+                month=month,
+            )
+            for month in months
+        ])
+        projected = _dedupe_projection([
+            item
+            for batch in batches
+            for item in batch
+        ])
+        records = _records_in_period(
+            projected,
+            period_start=period_start,
+            period_end=period_end,
+            academic_year=year,
+        )
 
-    # A projeção normalmente já traz nomes; completar em lote mantém o contrato
-    # do gerador mesmo diante de registros históricos incompletos.
-    course_ids = sorted({
-        str(item.get("course_id") or item.get("component_id") or "").strip()
-        for item in records
-        if str(item.get("course_id") or item.get("component_id") or "").strip()
-    })
-    course_names: dict[str, str] = {}
-    if course_ids:
-        rows = await db.courses.find(
-            {"id": {"$in": course_ids}},
-            {"_id": 0, "id": 1, "name": 1},
-        ).to_list(len(course_ids))
-        course_names = {str(row.get("id")): str(row.get("name") or "") for row in rows}
-    for item in records:
-        component_id = str(item.get("course_id") or item.get("component_id") or "").strip()
-        item["course_id"] = component_id
-        item["course_name"] = item.get("course_name") or course_names.get(component_id, "")
+        # A projeção normalmente já traz nomes; completar em lote mantém o contrato
+        # do gerador mesmo diante de registros históricos incompletos.
+        course_ids = sorted({
+            str(item.get("course_id") or item.get("component_id") or "").strip()
+            for item in records
+            if str(item.get("course_id") or item.get("component_id") or "").strip()
+        })
+        course_names: dict[str, str] = {}
+        if course_ids:
+            rows = await db.courses.find(
+                {"id": {"$in": course_ids}, "mantenedora_id": tenant_id},
+                {"_id": 0, "id": 1, "name": 1},
+            ).to_list(len(course_ids))
+            course_names = {
+                str(row.get("id")): str(row.get("name") or "") for row in rows
+            }
+        for item in records:
+            component_id = str(
+                item.get("course_id") or item.get("component_id") or ""
+            ).strip()
+            item["course_id"] = component_id
+            item["course_name"] = item.get("course_name") or course_names.get(component_id, "")
 
-    teacher_name = str(
-        current_user.get("full_name")
-        or current_user.get("name")
-        or current_user.get("nome")
-        or ""
-    )
-    teacher_names = await get_multi_teacher_names_for_pdf(db, turma, year)
-    if not teacher_names and teacher_name:
-        teacher_names = [teacher_name]
+        teacher_name = str(
+            current_user.get("full_name")
+            or current_user.get("name")
+            or current_user.get("nome")
+            or ""
+        )
+        teacher_names = await get_multi_teacher_names_for_pdf(db, turma, year)
+        if not teacher_names and teacher_name:
+            teacher_names = [teacher_name]
 
-    dias_previstos = await _dias_previstos(db, year, period_start, period_end)
+        dias_previstos = await _dias_previstos(db, year, period_start, period_end)
 
-    pdf_buffer = learning_objects_mod.generate_learning_objects_pdf(
-        school=school,
-        class_info=turma,
-        records=records,
-        bimestre=bimestre,
-        academic_year=year,
-        period_start=period_start,
-        period_end=period_end,
-        teacher_name=teacher_name,
-        mantenedora=mantenedora,
-        dias_previstos=dias_previstos,
-        teacher_names=teacher_names,
-    )
+        pdf_buffer = learning_objects_mod.generate_learning_objects_pdf(
+            school=school,
+            class_info=turma,
+            records=records,
+            bimestre=bimestre,
+            academic_year=year,
+            period_start=period_start,
+            period_end=period_end,
+            teacher_name=teacher_name,
+            mantenedora=mantenedora,
+            dias_previstos=dias_previstos,
+            teacher_names=teacher_names,
+        )
 
-    course_name_part = ""
-    if course_id and records:
-        course_name_part = f"_{records[0].get('course_name', '')}"
-    filename = (
-        f"objetos_conhecimento_{turma.get('name', 'turma')}"
-        f"{course_name_part}_{bimestre}bim_{year}.pdf"
-    )
-    filename = filename.replace(" ", "_").replace("/", "-")
-    return StreamingResponse(
-        pdf_buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={filename}"},
-    )
+        course_name_part = ""
+        if course_id and records:
+            course_name_part = f"_{records[0].get('course_name', '')}"
+        filename = (
+            f"objetos_conhecimento_{turma.get('name', 'turma')}"
+            f"{course_name_part}_{bimestre}bim_{year}.pdf"
+        )
+        filename = filename.replace(" ", "_").replace("/", "-")
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={filename}"},
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Falha no PDF class-wide de Objetos de Conhecimento: class=%s bim=%s year=%s",
+            class_id,
+            bimestre,
+            year,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Não foi possível gerar o PDF de Objetos de Conhecimento.",
+        ) from exc
