@@ -1,0 +1,254 @@
+name: "Diagnóstico Runtime - PDF Objetos de Conhecimento"
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/learning-objects-pdf-runtime-diagnose.yml'
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: learning-objects-pdf-runtime-diagnose
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Validar contrato read-only do diagnóstico
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Enforce read-only markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/learning-objects-pdf-runtime-diagnose.yml').read_text(encoding='utf-8')
+          required = [
+              'environment: production',
+              'docker logs --since 2h',
+              'LEARNING_OBJECTS_PDF_DIAG=AUTHORIZED',
+              'PRODUCTION_WRITES=NO',
+              'DATABASE_MUTATION=NO',
+              'curl -sS -D',
+              'Access-Control-Request-Method: GET',
+          ]
+          for marker in required:
+              if marker not in p:
+                  raise SystemExit(f'LO_PDF_DIAG_REQUIRED_MARKER_MISSING:{marker}')
+          forbidden = ['docker restart', 'docker rm', 'docker compose up', 'mongosh', 'update_one(', 'insert_one(', 'delete_one(']
+          for marker in forbidden:
+              if marker in p:
+                  raise SystemExit(f'LO_PDF_DIAG_MUTATOR_FORBIDDEN:{marker}')
+          print('LO_PDF_DIAG_STATIC_GUARD=PASS')
+          PY
+
+  diagnose:
+    name: Diagnosticar transporte e exceções do PDF em produção
+    if: >-
+      github.event_name == 'issues' &&
+      startsWith(github.event.issue.title, '[LEARNING-OBJECTS-PDF-DIAG] ') &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SIGESC_PROD_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SIGESC_PROD_SSH_KNOWN_HOSTS }}
+      PROD_HOST: ${{ secrets.SIGESC_PROD_HOST }}
+      PROD_USER: ${{ secrets.SIGESC_PROD_USER }}
+      MONGO_CONTAINER: ${{ secrets.SIGESC_PROD_MONGO_CONTAINER }}
+
+    steps:
+      - name: Resolve exact authorized context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, urllib.request
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as fh:
+              issue = (json.load(fh).get('issue') or {})
+          if ((issue.get('user') or {}).get('login') or '') != os.environ['REPOSITORY_OWNER']:
+              raise SystemExit('LO_PDF_DIAG_OWNER_REQUIRED')
+          values = {}
+          for raw in (issue.get('body') or '').splitlines():
+              if '=' not in raw:
+                  continue
+              k, v = raw.split('=', 1)
+              k, v = k.strip(), v.strip()
+              if k in values:
+                  raise SystemExit(f'LO_PDF_DIAG_DUPLICATE_FIELD:{k}')
+              values[k] = v
+          if values.get('LEARNING_OBJECTS_PDF_DIAG') != 'AUTHORIZED':
+              raise SystemExit('LO_PDF_DIAG_AUTH_INVALID')
+          if values.get('CONFIRMATION') != 'READ_ONLY_TRANSPORT_AND_BACKEND_LOG_DIAGNOSIS':
+              raise SystemExit('LO_PDF_DIAG_CONFIRMATION_INVALID')
+          target = values.get('TARGET_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', target):
+              raise SystemExit('LO_PDF_DIAG_SHA_INVALID')
+          if issue.get('title') != f'[LEARNING-OBJECTS-PDF-DIAG] {target}':
+              raise SystemExit('LO_PDF_DIAG_TITLE_MISMATCH')
+          repo = os.environ['GITHUB_REPOSITORY']
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/branches/main',
+              headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':f"Bearer {os.environ['GH_TOKEN']}",
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'sigesc-lo-pdf-runtime-diag',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              main_sha = json.load(response)['commit']['sha']
+          if main_sha != target:
+              raise SystemExit(f'LO_PDF_DIAG_MAIN_MOVED:{main_sha}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'target_sha={target}\nissue_number={issue.get("number")}\n')
+          print('LO_PDF_DIAG_CONTEXT=PASS')
+          print(f'TARGET_SHA={target}')
+          print('PRODUCTION_WRITES=NO')
+          print('DATABASE_MUTATION=NO')
+          PY
+
+      - name: Checkout exact main SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.context.outputs.target_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Probe public CORS preflight and unauthenticated response
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          hdr='evidence/cors-preflight.txt'
+          body='evidence/cors-preflight-body.txt'
+          code="$(curl -sS -D "$hdr" -o "$body" -w '%{http_code}' -X OPTIONS \
+            'https://api.sigesc.aprenderdigital.top/api/learning-objects/pdf/bimestre/diagnostic?bimestre=3&academic_year=2026' \
+            -H 'Origin: https://sigesc.aprenderdigital.top' \
+            -H 'Access-Control-Request-Method: GET' \
+            -H 'Access-Control-Request-Headers: authorization,x-mantenedora-id')"
+          echo "CORS_PREFLIGHT_HTTP=$code"
+          awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/ || /^access-control-allow-credentials:/ || /^access-control-allow-headers:/ || /^access-control-allow-methods:/ {gsub("\r",""); print}' "$hdr"
+          grep -qi '^access-control-allow-origin: https://sigesc.aprenderdigital.top' "$hdr" || { echo 'CORS_ALLOW_ORIGIN_MISSING'; exit 2; }
+          test "$code" = '200' || { echo 'CORS_PREFLIGHT_NOT_200'; exit 2; }
+          echo 'CORS_PREFLIGHT=PASS'
+
+          unauth_hdr='evidence/unauth-headers.txt'
+          unauth_body='evidence/unauth-body.txt'
+          unauth_code="$(curl -sS -D "$unauth_hdr" -o "$unauth_body" -w '%{http_code}' \
+            'https://api.sigesc.aprenderdigital.top/api/learning-objects/pdf/bimestre/diagnostic?bimestre=3&academic_year=2026' \
+            -H 'Origin: https://sigesc.aprenderdigital.top')"
+          echo "UNAUTH_HTTP=$unauth_code"
+          awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/ || /^content-type:/ {gsub("\r",""); print}' "$unauth_hdr"
+          grep -qi '^access-control-allow-origin: https://sigesc.aprenderdigital.top' "$unauth_hdr" || { echo 'CORS_ON_ERROR_RESPONSE_MISSING'; exit 3; }
+          echo 'CORS_ERROR_RESPONSE=PASS'
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_HOST PROD_USER MONGO_CONTAINER; do
+            test -n "${!v}" || { echo "LO_PDF_DIAG_REQUIRED_SECRET_MISSING:$v"; exit 1; }
+          done
+          [[ "$PROD_USER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          [[ "$MONGO_CONTAINER" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/lo_pdf_diag_key
+          chmod 600 ~/.ssh/lo_pdf_diag_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo 'LO_PDF_DIAG_SSH_TRUST=PASS'
+
+      - name: Resolve backend and collect sanitized recent PDF errors read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          raw='evidence/backend-pdf-errors-raw.txt'
+          clean='evidence/backend-pdf-errors-sanitized.txt'
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i "$HOME/.ssh/lo_pdf_diag_key" \
+            "${PROD_USER}@${PROD_HOST}" \
+            bash -s -- "$MONGO_CONTAINER" > "$raw" <<'REMOTE'
+          set -euo pipefail
+          mongo="$1"
+          project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$mongo")"
+          backend="$(docker ps --filter "label=com.docker.compose.project=$project" --filter 'label=com.docker.compose.service=backend' --format '{{.Names}}' | head -n 1)"
+          test -n "$backend"
+          echo "BACKEND_STATE=$(docker inspect -f '{{.State.Status}}' "$backend")"
+          echo "BACKEND_HEALTH=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$backend")"
+          echo '--- PDF_ERROR_CONTEXT_BEGIN ---'
+          docker logs --since 2h "$backend" 2>&1 | grep -E -B 8 -A 30 'Falha no PDF class-wide|Erro ao gerar PDF de objetos de conhecimento|learning-objects/pdf/bimestre|content_pdf_partial_cutover|Traceback' | tail -n 300 || true
+          echo '--- PDF_ERROR_CONTEXT_END ---'
+          REMOTE
+
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          raw = Path('evidence/backend-pdf-errors-raw.txt').read_text(encoding='utf-8', errors='replace')
+          raw = re.sub(r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b', '<uuid>', raw)
+          raw = re.sub(r'(?i)Bearer\s+[A-Za-z0-9._~+/-]+=*', 'Bearer <token>', raw)
+          raw = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b', '<email>', raw)
+          raw = re.sub(r'\b\d{11}\b', '<11-digit>', raw)
+          Path('evidence/backend-pdf-errors-sanitized.txt').write_text(raw, encoding='utf-8')
+          PY
+          rm -f "$raw"
+          cat "$clean"
+          grep -q 'BACKEND_STATE=running' "$clean"
+          grep -q 'BACKEND_HEALTH=healthy' "$clean"
+          echo 'LO_PDF_DIAG_LOG_COLLECTION=PASS'
+          echo 'PRODUCTION_WRITES=NO'
+          echo 'DATABASE_MUTATION=NO'
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: learning-objects-pdf-runtime-diag-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Close diagnostic gate
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.context.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          issue = os.environ['ISSUE_NUMBER']
+          token = os.environ['GH_TOKEN']
+          headers = {
+              'Accept':'application/vnd.github+json',
+              'Authorization':f'Bearer {token}',
+              'Content-Type':'application/json',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'sigesc-lo-pdf-runtime-diag',
+          }
+          payload = json.dumps({'state':'closed','state_reason':'completed'}).encode()
+          req = urllib.request.Request(f'https://api.github.com/repos/{repo}/issues/{issue}', data=payload, method='PATCH', headers=headers)
+          with urllib.request.urlopen(req, timeout=30):
+              pass
+          print('LO_PDF_DIAG_GATE_CLOSED=YES')
+          PY
