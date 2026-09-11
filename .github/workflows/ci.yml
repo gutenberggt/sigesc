@@ -125,6 +125,9 @@ jobs:
       - name: Install test runner
         run: pip install pytest pytest-asyncio python-dotenv motor fastapi==0.110.1 "httpx>=0.27.0"
 
+      - name: Learning Objects PDF ForwardRef regression
+        run: PYTHONPATH=. pytest -q --noconftest tests/test_learning_objects_pdf_forwardref_regression.py
+
       - name: Run DVD + P0 global integrity + P0-C identity guards
         run: |
           PYTHONPATH=. pytest -q --noconftest \
@@ -150,7 +153,6 @@ jobs:
             tests/test_legacy_content_dvd_guard_phase38f.py \
             tests/test_content_harmonization_phase38f.py \
             tests/test_content_history_bridge_p0.py \
-            tests/test_learning_objects_pdf_forwardref_regression.py \
             tests/test_startup_attendance_index_authority.py \
             tests/test_professor_attendance_entrypoint_p0.py \
             tests/test_professor_attendance_tabs_parity_p0.py \
