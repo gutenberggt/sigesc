@@ -58,23 +58,29 @@ const filterByLegacyListParams = (items, meta = {}) => {
 };
 
 const correctionNote = 'Correção realizada pelo Diário de Conteúdos por Vínculo.';
-const legacyReadOnlyMessage = 'Este conteúdo pertence ao histórico anterior ao Diário por Vínculo e está disponível somente para consulta.';
+const legacySuppressionNote = 'Supressão canônica de conteúdo legado pelo Diário de Conteúdos por Vínculo.';
 
-const isLegacyReadOnly = (record) => Boolean(record?.legacy || record?.read_only || record?.source === 'learning_objects');
+const isLegacyReadOnly = (record) => Boolean(
+  record?.legacy || record?.read_only || record?.source === 'learning_objects'
+);
 
-const rejectLegacyWrite = () => {
-  const error = new Error(legacyReadOnlyMessage);
-  error.response = {
-    status: 409,
-    data: {
-      detail: {
-        code: 'DVD_LEGACY_CONTENT_READ_ONLY',
-        message: legacyReadOnlyMessage,
-      },
-    },
-  };
-  return Promise.reject(error);
-};
+const legacyOverlayAssignmentId = (record, rootAssignmentId = '') => (
+  record?.history_assignment_id || record?.assignment_id || rootAssignmentId || ''
+);
+
+const buildLegacyCanonicalPayload = (record, patch = {}, assignmentId = '') => ({
+  class_id: record.class_id,
+  course_id: record.course_id || record.component_id,
+  component_id: record.component_id || record.course_id,
+  date: record.date,
+  academic_year: record.academic_year,
+  aula_numero: record.aula_numero ?? null,
+  number_of_classes: patch.number_of_classes ?? record.number_of_classes ?? 1,
+  content: patch.content ?? record.content ?? '',
+  methodology: patch.methodology ?? record.methodology ?? null,
+  observations: patch.observations ?? record.observations ?? null,
+  assignment_id: assignmentId,
+});
 
 const bridgeError = (code, message, status = 409) => {
   const error = new Error(message);
@@ -241,7 +247,8 @@ axios.interceptors.request.use(async (config) => {
   }
 
   // GET individual. Itens legados já recebidos na listagem são servidos do
-  // cache local somente para visualização; nunca são convertidos em content_entry.
+  // cache local somente para visualização. Qualquer retificação posterior é
+  // materializada em content_entries, nunca por mutação de learning_objects.
   if (method === 'get') {
     const id = url.split('/').filter(Boolean).pop();
     const current = recordCache.get(id);
@@ -323,9 +330,37 @@ axios.interceptors.request.use(async (config) => {
     if (!current) {
       throw bridgeError('CONTENT_RELOAD_REQUIRED', 'Recarregue o conteúdo antes de editar.');
     }
-    if (isLegacyReadOnly(current)) return rejectLegacyWrite();
 
     const patch = { ...(config.data || {}) };
+
+    // P0 Legacy Correction Overlay: learning_objects permanece imutável. Quando
+    // o professor corrige um registro histórico, criamos um content_entry canônico
+    // equivalente no assignment autorizado. A precedência do history bridge faz
+    // esse canônico substituir o legado na próxima leitura.
+    if (isLegacyReadOnly(current)) {
+      const recordAssignmentId = legacyOverlayAssignmentId(current, rootAssignmentId) || await resolveAssignment(config, {
+        classId: current.class_id,
+        componentId: current.course_id || current.component_id,
+        date: current.date,
+        academicYear: current.academic_year,
+        preferredAssignmentId: rootAssignmentId,
+      });
+      if (!recordAssignmentId) {
+        throw bridgeError(
+          'DVD_LEGACY_OVERLAY_ASSIGNMENT_REQUIRED',
+          'Não foi possível determinar o vínculo docente para retificar este conteúdo histórico.'
+        );
+      }
+      config.method = 'post';
+      config.url = canonicalRoot(canonicalBase(url));
+      config.data = buildLegacyCanonicalPayload(current, patch, recordAssignmentId);
+      config.__contentDvdRecord = true;
+      config.__contentDvdAutoPublish = true;
+      config.__contentDvdLegacySourceId = id;
+      config.__contentDvdLegacyOverlay = 'replace';
+      return config;
+    }
+
     const recordAssignmentId = current.assignment_id || await resolveAssignment(config, {
       classId: current.class_id,
       componentId: current.course_id || current.component_id,
@@ -373,7 +408,32 @@ axios.interceptors.request.use(async (config) => {
   if (method === 'delete') {
     const id = url.split('/').filter(Boolean).pop();
     const current = recordCache.get(id);
-    if (isLegacyReadOnly(current)) return rejectLegacyWrite();
+
+    // Excluir um learning_object não apaga nem altera o histórico. Materializamos
+    // primeiro um equivalente canônico e, na resposta, fazemos soft-delete desse
+    // canônico. O documento deleted atua como tombstone semântico no history bridge.
+    if (isLegacyReadOnly(current)) {
+      const recordAssignmentId = legacyOverlayAssignmentId(current, rootAssignmentId) || await resolveAssignment(config, {
+        classId: current.class_id,
+        componentId: current.course_id || current.component_id,
+        date: current.date,
+        academicYear: current.academic_year,
+        preferredAssignmentId: rootAssignmentId,
+      });
+      if (!recordAssignmentId) {
+        throw bridgeError(
+          'DVD_LEGACY_OVERLAY_ASSIGNMENT_REQUIRED',
+          'Não foi possível determinar o vínculo docente para suprimir este conteúdo histórico.'
+        );
+      }
+      config.method = 'post';
+      config.url = canonicalRoot(canonicalBase(url));
+      config.data = buildLegacyCanonicalPayload(current, {}, recordAssignmentId);
+      config.__contentDvdLegacySuppress = true;
+      config.__contentDvdLegacySourceId = id;
+      return config;
+    }
+
     if (!current && !rootAssignmentId) return config;
 
     config.url = canonicalBase(url);
@@ -443,7 +503,35 @@ axios.interceptors.response.use(async (response) => {
     return response;
   }
 
+  // Segunda metade da supressão legada: o POST acima cria um content_entry sob
+  // o assignment correto; em seguida ele é soft-deleted pelo endpoint canônico.
+  // O learning_object original continua intacto e auditável, mas não ressuscita
+  // porque deleted canônico participa da precedência no history bridge.
+  if (config.__contentDvdLegacySuppress && response.data?.id) {
+    const tombstone = normalizeRecord(response.data);
+    await axios.delete(`${canonicalRoot(config.url)}/${tombstone.id}`, {
+      data: { change_note: legacySuppressionNote },
+      headers: config.headers,
+      __skipContentDvdBridge: true,
+    });
+    if (config.__contentDvdLegacySourceId) {
+      recordCache.delete(config.__contentDvdLegacySourceId);
+    }
+    recordCache.delete(tombstone.id);
+    response.data = {
+      ok: true,
+      id: tombstone.id,
+      deleted: true,
+      source: 'content_entries',
+      legacy_source_id: config.__contentDvdLegacySourceId || null,
+    };
+    return response;
+  }
+
   if (config.__contentDvdAutoPublish && response.data?.id) {
+    if (config.__contentDvdLegacySourceId) {
+      recordCache.delete(config.__contentDvdLegacySourceId);
+    }
     const draft = normalizeRecord(response.data);
     if (draft.status === 'draft') {
       const publishResponse = await axios.post(

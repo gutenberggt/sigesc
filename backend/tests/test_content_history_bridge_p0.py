@@ -82,6 +82,7 @@ def _legacy(doc_id="legacy-1", date="2026-08-17", **overrides):
         "course_id": "math",
         "recorded_by": "teacher-1",
         "date": date,
+        "aula_numero": 1,
         "content": "Conteúdo histórico",
         "academic_year": 2026,
     }
@@ -279,6 +280,56 @@ async def test_data_posterior_ao_cutover_nao_retorna_legado(authorized):
 
 
 @pytest.mark.asyncio
+async def test_canonico_soft_deleted_age_como_tombstone_e_nao_ressuscita_legado(authorized):
+    db = FakeDb(
+        canonical=[_canonical("canonical-deleted", "2026-08-17", deleted=True)],
+        legacy=[_legacy("legacy-wrong", "2026-08-17")],
+    )
+
+    result = await bridge.list_assignment_content_history(
+        db,
+        {"id": "teacher-1"},
+        assignment_id="assignment-1",
+        class_id="class-1",
+        component_id="math",
+        date="2026-08-17",
+    )
+
+    assert result["items"] == []
+    assert result["total"] == 0
+
+    with_deleted = await bridge.list_assignment_content_history(
+        db,
+        {"id": "teacher-1"},
+        assignment_id="assignment-1",
+        class_id="class-1",
+        component_id="math",
+        date="2026-08-17",
+        include_deleted=True,
+    )
+    assert [item["id"] for item in with_deleted["items"]] == ["canonical-deleted"]
+
+
+@pytest.mark.asyncio
+async def test_precedencia_canonica_independe_de_quem_gravou_o_legado(authorized):
+    db = FakeDb(
+        canonical=[_canonical("canonical-replacement", "2026-08-17", teacher_id="teacher-1")],
+        legacy=[_legacy("legacy-admin", "2026-08-17", recorded_by="admin-1")],
+    )
+
+    result = await bridge.list_assignment_content_history(
+        db,
+        {"id": "teacher-1"},
+        assignment_id="assignment-1",
+        class_id="class-1",
+        component_id="math",
+        date="2026-08-17",
+    )
+
+    assert [item["id"] for item in result["items"]] == ["canonical-replacement"]
+
+
+@pytest.mark.asyncio
 async def test_teacher_id_divergente_falha_fechado(authorized):
     with pytest.raises(bridge.ContentHistoryBridgeError) as exc:
         await bridge.list_assignment_content_history(
@@ -305,12 +356,17 @@ async def test_componente_divergente_falha_fechado(authorized):
     assert exc.value.code == "COMPONENT_MISMATCH"
 
 
-def test_frontend_bloqueia_escrita_em_historico_legado():
+def test_frontend_retifica_legado_por_overlay_canonico_sem_mutar_learning_objects():
     src = Path("../frontend/src/services/contentDvdBridge.js").read_text(encoding="utf-8")
-    assert "DVD_LEGACY_CONTENT_READ_ONLY" in src
     assert "isLegacyReadOnly(current)" in src
+    assert "buildLegacyCanonicalPayload" in src
+    assert "config.__contentDvdLegacyOverlay = 'replace';" in src
+    assert "config.__contentDvdLegacySuppress = true;" in src
+    assert "legacySuppressionNote" in src
+    assert "canonicalRoot(canonicalBase(url))" in src
     assert "cachedLegacyAdapter" in src
-    assert "source: record.source || 'content_entries'" in src
+    assert "rejectLegacyWrite" not in src
+    assert "DVD_LEGACY_CONTENT_READ_ONLY" not in src
 
 
 def test_adaptador_substitui_apenas_superficies_de_leitura():
