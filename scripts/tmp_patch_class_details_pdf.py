@@ -34,7 +34,6 @@ second_end = router_text.index(pdf_try_marker, second_start)
 second_replacement = (
     "        # O PDF usa exatamente o mesmo roster canônico da tela Detalhes da Turma.\n"
     "        # Matrículas canceladas permanecem fora e seguem na visão de auditoria.\n"
-    "        academic_year = class_doc.get('academic_year', datetime.now().year)\n"
     "        students_list = await build_class_students(db, class_doc)\n\n"
 )
 router_text = router_text[:second_start] + second_replacement + router_text[second_end:]
