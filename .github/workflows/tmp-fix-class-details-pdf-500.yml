@@ -1,0 +1,74 @@
+name: TMP Fix Class Details PDF 500
+
+on:
+  push:
+    branches:
+      - fix/class-details-pdf-500-download-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/class-details-pdf-500-download-20260912
+          fetch-depth: 0
+
+      - name: Apply surgical fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # 1) Backend: corrige NameError de academic_year e força semântica de anexo.
+          p = Path('backend/routers/class_details.py')
+          s = p.read_text(encoding='utf-8')
+          old = '''            class_name = class_doc.get('name', 'turma').replace(' ', '_')\n            filename = f"Detalhes_Turma_{class_name}_{academic_year}.pdf"\n\n            return StreamingResponse(\n                pdf_buffer,\n                media_type="application/pdf",\n                headers={\n                    "Content-Disposition": f'inline; filename="{filename}"'\n                }\n            )'''
+          new = '''            class_name = class_doc.get('name', 'turma').replace(' ', '_')\n            academic_year = class_doc.get('academic_year') or datetime.now().year\n            filename = f"Detalhes_Turma_{class_name}_{academic_year}.pdf"\n\n            return StreamingResponse(\n                pdf_buffer,\n                media_type="application/pdf",\n                headers={\n                    "Content-Disposition": f'attachment; filename="{filename}"'\n                }\n            )'''
+          if old not in s:
+              raise SystemExit('backend target block not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+          # 2) Frontend: download explícito no próprio handler, sem window.open/pop-up.
+          p = Path('frontend/src/pages/Classes.js')
+          s = p.read_text(encoding='utf-8')
+          old = '''  const handleOpenDetailsPDF = async () => {\n    try {\n      // Baixa o PDF de detalhes da turma com autenticação\n      const blob = await classesAPI.getDetailsPdf(viewingClass.id);\n      // Cria URL do blob e abre em nova aba\n      const url = window.URL.createObjectURL(blob);\n      window.open(url, '_blank');\n      // Limpa URL após um tempo\n      setTimeout(() => window.URL.revokeObjectURL(url), 10000);\n    } catch (error) {\n      console.error('Erro ao abrir PDF de detalhes:', error);\n      showAlert('error', 'Erro ao gerar PDF dos detalhes da turma');\n    }\n  };'''
+          new = '''  const handleOpenDetailsPDF = async () => {\n    try {\n      const blob = await classesAPI.getDetailsPdf(viewingClass.id);\n      if (!(blob instanceof Blob) || blob.size === 0) {\n        throw new Error('PDF vazio ou inválido');\n      }\n\n      const url = window.URL.createObjectURL(blob);\n      const safeClassName = (viewingClass?.name || 'turma').trim().replace(/\\s+/g, '_');\n      const academicYear = viewingClass?.academic_year || new Date().getFullYear();\n      const link = document.createElement('a');\n      link.href = url;\n      link.download = `Detalhes_Turma_${safeClassName}_${academicYear}.pdf`;\n      link.style.display = 'none';\n      document.body.appendChild(link);\n      link.click();\n      link.remove();\n      setTimeout(() => window.URL.revokeObjectURL(url), 10000);\n    } catch (error) {\n      console.error('Erro ao baixar PDF de detalhes:', error);\n      showAlert('error', extractErrorMessage(error, 'Erro ao gerar e baixar PDF dos detalhes da turma'));\n    }\n  };'''
+          if old not in s:
+              raise SystemExit('frontend handler target block not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+          # 3) Remove o monkeypatch global introduzido na tentativa anterior.
+          p = Path('frontend/src/index.js')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('import { installClassPdfDirectDownload } from "@/utils/classPdfDirectDownload";\n', '')
+          s = s.replace('installClassPdfDirectDownload();\n', '')
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          git rm -f frontend/src/utils/classPdfDirectDownload.js
+          git rm -f .github/workflows/tmp-fix-class-details-pdf-500.yml
+
+      - name: Validate patch
+        shell: bash
+        run: |
+          python -m py_compile backend/routers/class_details.py
+          grep -q "academic_year = class_doc.get('academic_year') or datetime.now().year" backend/routers/class_details.py
+          grep -q "Content-Disposition.*attachment" backend/routers/class_details.py
+          grep -q "link.download =.*Detalhes_Turma" frontend/src/pages/Classes.js
+          ! grep -q "installClassPdfDirectDownload" frontend/src/index.js
+          ! test -e frontend/src/utils/classPdfDirectDownload.js
+          git diff --check
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(pdf): corrigir erro 500 e baixar detalhes diretamente"
+          git push origin HEAD:fix/class-details-pdf-500-download-20260912
