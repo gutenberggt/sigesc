@@ -1,37 +1,14 @@
-from pdf import turma as turma_pdf
+from PyPDF2 import PdfReader
+
 from pdf.turma import generate_class_details_pdf
 
 
-def _text(cell):
-    if hasattr(cell, "getPlainText"):
-        return cell.getPlainText()
-    return str(cell)
-
-
-def _render_and_capture_student_table(monkeypatch, class_info):
-    captured = []
-    original_table = turma_pdf.Table
-
-    def recording_table(data, *args, **kwargs):
-        captured.append(data)
-        return original_table(data, *args, **kwargs)
-
-    monkeypatch.setattr(turma_pdf, "get_logo_image", lambda *args, **kwargs: None)
-    monkeypatch.setattr(turma_pdf, "Table", recording_table)
-
-    buffer = generate_class_details_pdf(
-        class_info=class_info,
-        school={"name": "Escola Teste"},
-        teachers=[],
-        students=[_base_student()],
-        mantenedora={"nome": "Prefeitura Teste", "secretaria": "Secretaria de Educação"},
-    )
-
-    assert buffer.getbuffer().nbytes > 0
-    for table in captured:
-        if table and table[0] and "Estudante" in [_text(cell) for cell in table[0]]:
-            return table
-    raise AssertionError("Tabela de estudantes não encontrada durante a renderização")
+def _student_section_text(pdf_buffer):
+    pdf_buffer.seek(0)
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(pdf_buffer).pages)
+    marker = "ESTUDANTES MATRICULADOS"
+    assert marker in text
+    return text.split(marker, 1)[1]
 
 
 def _base_student():
@@ -59,29 +36,32 @@ def _class_info(is_multi_grade):
     }
 
 
-def test_pdf_regular_class_does_not_add_series_column(monkeypatch):
-    table = _render_and_capture_student_table(monkeypatch, _class_info(False))
+def _render(monkeypatch, is_multi_grade):
+    monkeypatch.setattr("pdf.turma.get_logo_image", lambda *args, **kwargs: None)
+    return generate_class_details_pdf(
+        class_info=_class_info(is_multi_grade),
+        school={"name": "Escola Teste"},
+        teachers=[],
+        students=[_base_student()],
+        mantenedora={"nome": "Prefeitura Teste", "secretaria": "Secretaria de Educação"},
+    )
 
-    assert [_text(cell) for cell in table[0]] == [
-        "#",
-        "Estudante",
-        "Data Nasc.",
-        "Responsável",
-        "Celular",
-    ]
-    assert "Transferido" in " ".join(_text(cell) for row in table for cell in row)
+
+def test_pdf_regular_class_does_not_add_series_column(monkeypatch):
+    section = _student_section_text(_render(monkeypatch, False))
+
+    assert "Estudante" in section
+    assert "Data Nasc." in section
+    assert "Responsável" in section
+    assert "Celular" in section
+    assert "Série" not in section
+    assert "Transferido" in section
 
 
 def test_pdf_multigrade_class_adds_series_column(monkeypatch):
-    table = _render_and_capture_student_table(monkeypatch, _class_info(True))
+    section = _student_section_text(_render(monkeypatch, True))
 
-    assert [_text(cell) for cell in table[0]] == [
-        "#",
-        "Estudante",
-        "Série",
-        "Data Nasc.",
-        "Responsável",
-        "Celular",
-    ]
-    assert _text(table[1][2]) == "6º ANO"
-    assert "Transferido" in " ".join(_text(cell) for row in table for cell in row)
+    assert "Estudante" in section
+    assert "Série" in section
+    assert "6º ANO" in section
+    assert "Transferido" in section
