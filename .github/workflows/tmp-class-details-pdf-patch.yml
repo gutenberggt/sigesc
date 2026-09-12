@@ -38,7 +38,7 @@ jobs:
       - name: Install focused test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pytest-asyncio python-dotenv reportlab PyPDF2 pdfplumber
+          python -m pip install pytest pytest-asyncio python-dotenv reportlab PyPDF2 pdfplumber fastapi==0.110.1
 
       - name: Run focused regression tests
         working-directory: backend
