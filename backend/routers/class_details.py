@@ -266,13 +266,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
 
             class_name = class_doc.get('name', 'turma').replace(' ', '_')
+            academic_year = class_doc.get('academic_year') or datetime.now().year
             filename = f"Detalhes_Turma_{class_name}_{academic_year}.pdf"
 
             return StreamingResponse(
                 pdf_buffer,
                 media_type="application/pdf",
                 headers={
-                    "Content-Disposition": f'inline; filename="{filename}"'
+                    "Content-Disposition": f'attachment; filename="{filename}"'
                 }
             )
         except Exception as e:
