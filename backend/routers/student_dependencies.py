@@ -22,6 +22,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, status
 
 from models import StudentDependency, StudentDependencyCreate, StudentDependencyUpdate
+from utils.dependency_validator import validate_dependency_target
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,14 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
 
         # Validações
         await _validate_dependency_limit(payload.student_id, mantenedora_id, request)
+        await validate_dependency_target(
+            db=db,
+            class_id=payload.class_id,
+            school_id=payload.school_id,
+            course_id=payload.course_id,
+            target_series=payload.target_series,
+            tenant_id=mantenedora_id,
+        )
         await _check_duplicate(payload.student_id, payload.course_id, payload.origin_academic_year)
 
         # Constrói registro

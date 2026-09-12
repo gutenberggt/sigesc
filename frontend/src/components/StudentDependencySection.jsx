@@ -21,6 +21,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { studentDependenciesAPI, classesAPI, schoolsAPI } from '@/services/api';
+import { seriesMatches } from '@/features/dependency/dependency.utils';
 import { GraduationCap, Trash2, Plus, AlertCircle, CheckCircle2, X } from 'lucide-react';
 
 const MODE_LABELS = {
@@ -352,12 +353,12 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
 
   // Filtragem por série quando multisseriada:
   //   - componente com grade_levels vazio = aplica a todas → mantém
-  //   - componente com grade_levels = ["6º Ano",...] → mostra só se inclui a série escolhida
+  //   - componente com grade_levels = ["6º Ano",...] → compara a série por equivalência canônica
   const filteredCourses = isMultiGradeWithChoice
     ? (selectedSeries
         ? allComponents.filter((c) =>
             !c.grade_levels || c.grade_levels.length === 0
-            || c.grade_levels.includes(selectedSeries))
+            || c.grade_levels.some((gradeLevel) => seriesMatches(gradeLevel, selectedSeries)))
         : [] // sem série escolhida → não mostra componentes ainda
       )
     : allComponents;

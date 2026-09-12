@@ -50,10 +50,28 @@ def _make_db(student=None, mantenedora=None, deps=None, count=0):
     classes_cursor.to_list = AsyncMock(return_value=[])
     db.classes = MagicMock()
     db.classes.find = MagicMock(return_value=classes_cursor)
+    db.classes.find_one = AsyncMock(return_value={
+        "id": "cl-1",
+        "school_id": "sch-1",
+        "mantenedora_id": "mant-1",
+        "course_ids": ["co-1"],
+        "is_multi_grade": False,
+        "series": [],
+        "grade_level": "6º ANO",
+    })
     courses_cursor = MagicMock()
     courses_cursor.to_list = AsyncMock(return_value=[])
     db.courses = MagicMock()
     db.courses.find = MagicMock(return_value=courses_cursor)
+    db.courses.find_one = AsyncMock(return_value={
+        "id": "co-1",
+        "mantenedora_id": "mant-1",
+        "grade_levels": ["6º ANO"],
+    })
+    assignment_cursor = MagicMock()
+    assignment_cursor.__aiter__.return_value = []
+    db.teacher_assignments = MagicMock()
+    db.teacher_assignments.find = MagicMock(return_value=assignment_cursor)
     return db
 
 
