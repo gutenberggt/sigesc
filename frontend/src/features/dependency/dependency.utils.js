@@ -84,3 +84,48 @@ export function isDependencyOnly(student) {
 export function hasParallelDependency(student) {
   return student && student.dependency_mode === DEPENDENCY_TYPE.WITH_DEPENDENCY;
 }
+
+
+/**
+ * Converte rótulos de série/etapa em tokens semânticos estáveis.
+ * Exemplos: "6º ANO", "6º Ano", "6° ano" -> {"ano:6"};
+ * "6º/7º/9º Ano" -> {"ano:6", "ano:7", "ano:9"};
+ * "3ª ETAPA" -> {"eja:3"}.
+ */
+export function seriesTokens(value) {
+  const values = Array.isArray(value) ? value : [value];
+  const tokens = new Set();
+
+  values.forEach((raw) => {
+    if (raw === null || raw === undefined) return;
+    const text = String(raw)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    const prefix = (text.includes('eja') || text.includes('etapa')) ? 'eja' : 'ano';
+    const numericGroups = text
+      .replace(/[º°ª]/g, ' ')
+      .split(/[^0-9]+/)
+      .filter(Boolean);
+
+    numericGroups.forEach((group) => {
+      if (/^[1-9]$/.test(group)) tokens.add(`${prefix}:${group}`);
+    });
+  });
+
+  return tokens;
+}
+
+/**
+ * True quando dois rótulos representam pelo menos a mesma série/etapa,
+ * independentemente de caixa, espaços ou símbolo ordinal.
+ */
+export function seriesMatches(left, right) {
+  const a = seriesTokens(left);
+  const b = seriesTokens(right);
+  if (a.size === 0 || b.size === 0) return false;
+  for (const token of a) {
+    if (b.has(token)) return true;
+  }
+  return false;
+}
