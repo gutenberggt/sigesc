@@ -354,16 +354,25 @@ export const Classes = () => {
 
   const handleOpenDetailsPDF = async () => {
     try {
-      // Baixa o PDF de detalhes da turma com autenticação
       const blob = await classesAPI.getDetailsPdf(viewingClass.id);
-      // Cria URL do blob e abre em nova aba
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error('PDF vazio ou inválido');
+      }
+
       const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      // Limpa URL após um tempo
+      const safeClassName = (viewingClass?.name || 'turma').trim().replace(/\s+/g, '_');
+      const academicYear = viewingClass?.academic_year || new Date().getFullYear();
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Detalhes_Turma_${safeClassName}_${academicYear}.pdf`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch (error) {
-      console.error('Erro ao abrir PDF de detalhes:', error);
-      showAlert('error', 'Erro ao gerar PDF dos detalhes da turma');
+      console.error('Erro ao baixar PDF de detalhes:', error);
+      showAlert('error', extractErrorMessage(error, 'Erro ao gerar e baixar PDF dos detalhes da turma'));
     }
   };
 
