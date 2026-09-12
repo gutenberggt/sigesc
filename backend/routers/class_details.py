@@ -12,6 +12,7 @@ from models import *
 from auth_middleware import AuthMiddleware
 from pdf_cache import get_mantenedora_cached
 from pdf_generator import generate_class_details_pdf
+from services.class_details_roster import build_class_students
 
 logger = logging.getLogger(__name__)
 
@@ -94,156 +95,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             teacher_data["componente"] = ", ".join(componentes) if componentes else None
             teachers.append(teacher_data)
 
-        # Busca alunos matriculados - usando múltiplas fontes para maior robustez
-        academic_year = class_doc.get('academic_year', datetime.now().year)
-
-        # Verifica se é turma de programa especial (AEE, Reforço, etc.)
-        atend_programa = (class_doc.get('atendimento_programa') or '').strip().lower()
-        turmas_especiais = {'aee', 'recomposicao_aprendizagem', 'reforco_escolar'}
-        is_turma_especial = atend_programa in turmas_especiais
-
-        # Estratégia 1: Busca na coleção enrollments (matrícula formal)
-        enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": "active"},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1, "academic_year": 1}
-        ).to_list(1000)
-
-        enrollment_map = {}
-        enrollment_student_ids = set()
-        for e in enrollments:
-            student_id = e.get('student_id')
-            enrollment_student_ids.add(student_id)
-            if student_id not in enrollment_map or e.get('academic_year') == academic_year:
-                enrollment_map[student_id] = {
-                    'enrollment_number': e.get('enrollment_number'),
-                    'student_series': e.get('student_series')
-                }
-
-        # Busca alunos inativos que JÁ ESTIVERAM nesta turma.
-        # IMPORTANTE: "cancelled" (matrícula cancelada) é EXCLUÍDO de propósito —
-        # aluno com matrícula cancelada NÃO deve aparecer na lista de alunos da turma
-        # (aparece apenas na visão de auditoria "Matrículas Canceladas").
-        inactive_enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "relocated", "progressed", "reclassified"]}},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1, "academic_year": 1}
-        ).to_list(1000)
-
-        inactive_student_ids = set()
-        for e in inactive_enrollments:
-            sid = e.get('student_id')
-            if sid not in enrollment_student_ids:
-                inactive_student_ids.add(sid)
-                if sid not in enrollment_map or e.get('academic_year') == academic_year:
-                    enrollment_map[sid] = {
-                        'enrollment_number': e.get('enrollment_number'),
-                        'student_series': e.get('student_series')
-                    }
-
-        # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
-        direct_students = await db.students.find(
-            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
-            {"_id": 0, "id": 1}
-        ).to_list(1000)
-        direct_student_ids = {s.get('id') for s in direct_students}
-
-        # Estratégia 3: Para turmas de programa especial, busca via atendimento_programa_class_id
-        programa_student_ids = set()
-        if is_turma_especial:
-            programa_students = await db.students.find(
-                {"atendimento_programa_class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
-                {"_id": 0, "id": 1, "enrollment_number": 1}
-            ).to_list(1000)
-            for s in programa_students:
-                sid = s.get('id')
-                programa_student_ids.add(sid)
-                if sid not in enrollment_map:
-                    enrollment_map[sid] = {'enrollment_number': s.get('enrollment_number'), 'student_series': None}
-
-            # Também busca via planos_aee para alunos com plano AEE na mesma escola
-            if atend_programa == 'aee':
-                planos = await db.planos_aee.find(
-                    {"school_id": class_doc.get('school_id')},
-                    {"_id": 0, "student_id": 1}
-                ).to_list(1000)
-                for p in planos:
-                    sid = p.get('student_id')
-                    if sid and sid not in enrollment_student_ids and sid not in direct_student_ids and sid not in programa_student_ids:
-                        programa_student_ids.add(sid)
-                        if sid not in enrollment_map:
-                            st = await db.students.find_one({"id": sid}, {"_id": 0, "enrollment_number": 1})
-                            enrollment_map[sid] = {'enrollment_number': st.get('enrollment_number') if st else None, 'student_series': None}
-
-                # Também busca via atendimentos_aee
-                atendimentos = await db.atendimentos_aee.find(
-                    {"school_id": class_doc.get('school_id')},
-                    {"_id": 0, "student_id": 1}
-                ).to_list(1000)
-                for a in atendimentos:
-                    sid = a.get('student_id')
-                    if sid and sid not in enrollment_student_ids and sid not in direct_student_ids and sid not in programa_student_ids:
-                        programa_student_ids.add(sid)
-                        if sid not in enrollment_map:
-                            st = await db.students.find_one({"id": sid}, {"_id": 0, "enrollment_number": 1})
-                            enrollment_map[sid] = {'enrollment_number': st.get('enrollment_number') if st else None, 'student_series': None}
-
-        # Combina todas as fontes (união de IDs)
-        all_student_ids = list(enrollment_student_ids.union(direct_student_ids).union(inactive_student_ids).union(programa_student_ids))
-
-        # Busca ação mais recente para alunos inativos
-        action_info_map = {}
-        if inactive_student_ids:
-            action_type_map = {
-                'transferencia_saida': 'Transferido',
-                'remanejamento': 'Remanejado',
-                'progressao': 'Progredido',
-                'reclassificacao': 'Reclassificado',
-                'desistencia': 'Desistente',
-                'cancelamento': 'Cancelado'
-            }
-            history_entries = await db.student_history.find(
-                {
-                    "student_id": {"$in": list(inactive_student_ids)},
-                    "class_id": class_id,
-                    "action_type": {"$in": list(action_type_map.keys())}
-                },
-                {"_id": 0, "student_id": 1, "action_type": 1, "action_date": 1}
-            ).sort("action_date", -1).to_list(1000)
-
-            for h in history_entries:
-                sid = h.get('student_id')
-                if sid not in action_info_map:
-                    action_info_map[sid] = {
-                        "action_label": action_type_map.get(h.get('action_type'), ''),
-                        "action_date": h.get('action_date', '')
-                    }
-
-        students_list = []
-        if all_student_ids:
-            students = await db.students.find(
-                {"id": {"$in": all_student_ids}},
-                {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "guardian_relationship": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1, "enrollment_number": 1}
-            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
-
-            for student in students:
-                # Determina responsável principal
-                guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
-                guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
-
-                # Busca info de matrícula (da coleção enrollments ou do próprio aluno)
-                enrollment_info = enrollment_map.get(student.get('id'), {})
-                enrollment_number = enrollment_info.get('enrollment_number') or student.get('enrollment_number')
-
-                students_list.append({
-                    "id": student.get('id'),
-                    "full_name": student.get('full_name'),
-                    "enrollment_number": enrollment_number,
-                    "student_series": enrollment_info.get('student_series') or class_doc.get('grade_level'),
-                    "birth_date": student.get('birth_date'),
-                    "guardian_name": guardian_name,
-                    "guardian_phone": guardian_phone,
-                    "action_label": action_info_map.get(student.get('id'), {}).get('action_label', ''),
-                    "action_date": action_info_map.get(student.get('id'), {}).get('action_date', '')
-                })
+        # Roster canônico compartilhado com o PDF. Inclui estudantes que já
+        # pertenceram à turma (transferidos, remanejados, progredidos,
+        # desistentes e reclassificados), preservando a série da matrícula.
+        students_list = await build_class_students(db, class_doc)
 
         # Calcula contagem por série para turmas multisseriadas
         series_count = {}
@@ -397,82 +252,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             teacher_data["componente"] = ", ".join(componentes) if componentes else None
             teachers.append(teacher_data)
 
-        # Busca alunos matriculados - usando múltiplas fontes para maior robustez
-        academic_year = class_doc.get('academic_year', datetime.now().year)
-
-        # Verifica se é turma de programa especial (AEE, Reforço, etc.)
-        atend_programa = (class_doc.get('atendimento_programa') or '').strip().lower()
-        turmas_especiais = {'aee', 'recomposicao_aprendizagem', 'reforco_escolar'}
-        is_turma_especial = atend_programa in turmas_especiais
-
-        # Estratégia 1: Busca na coleção enrollments (matrícula formal)
-        enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": "active"},
-            {"_id": 0, "student_id": 1, "academic_year": 1}
-        ).to_list(1000)
-
-        enrollment_student_ids = set()
-        for e in enrollments:
-            enrollment_student_ids.add(e.get('student_id'))
-
-        # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
-        direct_students = await db.students.find(
-            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
-            {"_id": 0, "id": 1}
-        ).to_list(1000)
-        direct_student_ids = {s.get('id') for s in direct_students}
-
-        # Estratégia 3: Para turmas de programa especial, busca via atendimento_programa_class_id
-        programa_student_ids = set()
-        if is_turma_especial:
-            programa_students = await db.students.find(
-                {"atendimento_programa_class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
-                {"_id": 0, "id": 1}
-            ).to_list(1000)
-            for s in programa_students:
-                programa_student_ids.add(s.get('id'))
-
-            # Também busca via planos_aee para alunos com plano AEE na mesma escola
-            if atend_programa == 'aee':
-                planos = await db.planos_aee.find(
-                    {"school_id": class_doc.get('school_id')},
-                    {"_id": 0, "student_id": 1}
-                ).to_list(1000)
-                for p in planos:
-                    sid = p.get('student_id')
-                    if sid and sid not in enrollment_student_ids and sid not in direct_student_ids and sid not in programa_student_ids:
-                        programa_student_ids.add(sid)
-
-                # Também busca via atendimentos_aee
-                atendimentos = await db.atendimentos_aee.find(
-                    {"school_id": class_doc.get('school_id')},
-                    {"_id": 0, "student_id": 1}
-                ).to_list(1000)
-                for a in atendimentos:
-                    sid = a.get('student_id')
-                    if sid and sid not in enrollment_student_ids and sid not in direct_student_ids and sid not in programa_student_ids:
-                        programa_student_ids.add(sid)
-
-        # Combina todas as fontes (união de IDs)
-        all_student_ids = list(enrollment_student_ids.union(direct_student_ids).union(programa_student_ids))
-
-        students_list = []
-        if all_student_ids:
-            students = await db.students.find(
-                {"id": {"$in": all_student_ids}},
-                {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
-            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
-
-            for student in students:
-                guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
-                guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
-
-                students_list.append({
-                    "full_name": student.get('full_name'),
-                    "birth_date": student.get('birth_date'),
-                    "guardian_name": guardian_name,
-                    "guardian_phone": guardian_phone
-                })
+        # O PDF usa exatamente o mesmo roster canônico da tela Detalhes da Turma.
+        # Matrículas canceladas permanecem fora e seguem na visão de auditoria.
+        students_list = await build_class_students(db, class_doc)
 
         try:
             pdf_buffer = generate_class_details_pdf(

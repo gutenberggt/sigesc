@@ -232,13 +232,25 @@ def generate_class_details_pdf(
     elements.append(section_header(f"ESTUDANTES MATRICULADOS ({len(students)})"))
 
     if students:
+        is_multi_grade = bool(class_info.get('is_multi_grade'))
+        num_header_style = ParagraphStyle(
+            'THNum',
+            fontSize=8,
+            fontName='Helvetica-Bold',
+            textColor=colors.white,
+            alignment=TA_CENTER,
+        )
         s_header = [
-            Paragraph('#', ParagraphStyle('THNum', fontSize=8, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)),
+            Paragraph('#', num_header_style),
             Paragraph('Estudante', th_style),
+        ]
+        if is_multi_grade:
+            s_header.append(Paragraph('Série', th_style))
+        s_header.extend([
             Paragraph('Data Nasc.', th_style),
             Paragraph('Responsável', th_style),
-            Paragraph('Celular', th_style)
-        ]
+            Paragraph('Celular', th_style),
+        ])
         s_data = [s_header]
 
         for idx, student in enumerate(students, 1):
@@ -249,19 +261,43 @@ def generate_class_details_pdf(
                         parts = birth_date.split('T')[0].split('-')
                         if len(parts) == 3:
                             birth_date = f"{parts[2]}/{parts[1]}/{parts[0]}"
-                except:
+                except Exception:
                     pass
 
             num_style = ParagraphStyle('TDNum', fontSize=8, textColor=TEXT_DARK, alignment=TA_CENTER)
-            s_data.append([
+            student_name = xml_escape(student.get('full_name', '-') or '-')
+            action_label = student.get('action_label') or ''
+            if action_label:
+                student_name += (
+                    f' <font color="#c2410c"><b>({xml_escape(str(action_label))})</b></font>'
+                )
+
+            row = [
                 Paragraph(str(idx), num_style),
-                Paragraph(xml_escape(student.get('full_name', '-')), td_style),
+                Paragraph(student_name, td_style),
+            ]
+            if is_multi_grade:
+                row.append(
+                    Paragraph(
+                        xml_escape(str(student.get('student_series') or 'N/D')),
+                        td_style,
+                    )
+                )
+            row.extend([
                 Paragraph(xml_escape(str(birth_date or '-')), td_style),
                 Paragraph(xml_escape(student.get('guardian_name', '-') or '-'), td_style),
-                Paragraph(xml_escape(student.get('guardian_phone', '-') or '-'), td_style)
+                Paragraph(xml_escape(student.get('guardian_phone', '-') or '-'), td_style),
             ])
+            s_data.append(row)
 
-        s_table = Table(s_data, colWidths=[1*cm, 6*cm, 2.2*cm, usable_width - 12.8*cm, 2.6*cm], repeatRows=1)
+        if is_multi_grade:
+            # Mantém A4 em retrato, redistribuindo somente a tabela de estudantes.
+            col_widths = [0.8*cm, 4.9*cm, 2.0*cm, 2.0*cm, 5.5*cm, 2.8*cm]
+        else:
+            # Preserva o layout anterior para turmas não multisseriadas.
+            col_widths = [1*cm, 6*cm, 2.2*cm, usable_width - 12.8*cm, 2.6*cm]
+
+        s_table = Table(s_data, colWidths=col_widths, repeatRows=1)
         s_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), ACCENT),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
