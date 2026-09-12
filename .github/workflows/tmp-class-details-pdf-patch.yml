@@ -1,0 +1,62 @@
+name: Temporary Class Details PDF Patch
+
+on:
+  push:
+    branches:
+      - fix/class-details-pdf-roster-series-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/class-details-pdf-roster-series-20260912
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply surgical patch
+        run: python scripts/tmp_patch_class_details_pdf.py
+
+      - name: Compile changed backend modules
+        run: |
+          python -m py_compile \
+            backend/routers/class_details.py \
+            backend/pdf/turma.py \
+            backend/services/class_details_roster.py
+
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-asyncio reportlab PyPDF2 pdfplumber
+
+      - name: Run focused regression tests
+        working-directory: backend
+        run: python -m pytest -q tests/test_class_details_roster.py tests/test_class_details_pdf_render.py
+
+      - name: Diff sanity
+        run: git diff --check
+
+      - name: Commit patched production files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- backend/routers/class_details.py backend/pdf/turma.py; then
+            echo 'No patch changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/routers/class_details.py backend/pdf/turma.py
+          git commit -m 'fix(pdf): preservar roster histórico e série multisseriada'
+          git push origin HEAD:fix/class-details-pdf-roster-series-20260912
